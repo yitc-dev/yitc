@@ -75,15 +75,16 @@ body: "## Scenario\n\nWhen the owner/AI needs to establish a NEW standing govern
   \ For each migrated decision the\n  three conditions hold; run:\n  ```sh\n  for\
   \ f in decisions/D-*.yaml; do\n    s=$(sed -n 's/^migrated_to:[[:space:]]*\\(SPEC-[0-9][0-9]*\\\
   ).*/\\1/p' \"$f\"); [ -n \"$s\" ] || continue\n    [ \"$(grep -c '^status: active'\
-  \ specs/\"$s\"-*.yaml)\" = 1 ] || echo \"FAIL active $f -> $s\"\n    grep -qi 'historical-only'\
-  \ \"$f\" || echo \"FAIL disclaim $f\"\n    grep -qw \"$s\" graph/index.yaml || echo\
-  \ \"FAIL graph $s\"\n    grep -qw \"$(basename \"$f\".yaml | grep -o '^D-[0-9]*')\"\
-  \ graph/index.yaml || echo \"FAIL graph-dec $f\"\n  done\n  ```\n  PASS = the loop\
-  \ prints NO `FAIL` line (today the only migrated decision is → SPEC-0006).\n  Condition\
-  \ (a) target spec `active`; (b) the decision carries the prose token `historical-only`\n\
-  \  (carrier (i) — plain disclaimer prose, NOT a new field); (c) BOTH the `SPEC-XXXX`\
-  \ alias and the\n  `D-XXXX` node resolve in the built `graph/index.yaml`.\n- **VP7\
-  \ (ONE canonical home, P5 — structural + repo-wide uniqueness).** The rule is defined\
+  \ specs/\"$s\"-*.yaml)\" = 1 ] || echo \"FAIL active  $f -> $s\"\n    grep -qi 'historical-only'\
+  \ \"$f\"                          || echo \"FAIL disclaim $f\"\n    grep -qw \"\
+  $s\" graph/index.yaml                           || echo \"FAIL graph   $s\"\n  \
+  \  grep -qw \"$(basename \"$f\" .yaml | grep -o '^D-[0-9]*')\" graph/index.yaml\
+  \ || echo \"FAIL graph-dec $f\"\n  done\n  ```\n  PASS = the loop prints NO `FAIL`\
+  \ line (today the only migrated decision is → SPEC-0006).\n  Condition (a) target\
+  \ spec `active`; (b) the decision carries the prose token `historical-only`\n  (carrier\
+  \ (i) — plain disclaimer prose, NOT a new field); (c) BOTH the `SPEC-XXXX` alias\
+  \ and the\n  `D-XXXX` node resolve in the built `graph/index.yaml`.\n- **VP7 (ONE\
+  \ canonical home, P5 — structural + repo-wide uniqueness).** The rule is defined\
   \ ONCE:\n  in THIS spec's `### Retirement-authority` subsection (the named home).\
   \ Observable, two parts:\n  (1) repo-wide uniqueness — `grep -l 'SOLE normative\
   \ authority' specs/*.yaml` returns **exactly one\n  file** (SPEC-0008); (2) no migrated\

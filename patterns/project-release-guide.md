@@ -171,38 +171,38 @@ kernel's own config readers accept this block as it stands (the guide's test fee
 
 <!-- worked-config -->
 ```yaml
-deploy: # the deploy verb's carrier (SPEC-0094)
-  command: "ops/deploy/deploy.sh production" # the plain `deploy` — production; `default` in a class's targets
-  targets: # named targets: `deploy --target <name>`
-    acceptance: # the machine stand: same host, own port, service and data store
-      command: "ops/deploy/deploy.sh acceptance" # what `deploy --target acceptance` runs
-      production: false # the SPEC-0097 class gate does not apply; the pre-deploy gate still does (it is in targets: below)
-      role: acceptance # SPEC-0205 rule 7: serves landed main; two advisory deploy lines, never a refusal
-    sandbox: # a person's sandbox: deployed by hand, never gated
-      command: "ops/deploy/deploy.sh sandbox" # what `deploy --target sandbox` runs
-      production: false # not production, and named in no pre-deploy class, so no run guards it
-verify: # what lands, Stage-6 runs and pre-deploy runs execute
-  layers: # the declared verify layers
-    - layer: node # a land-verify layer (SPEC-0152 rule 16)
-      command: "ops/test/run-layer.sh node" # runs at every land and Stage-6 run, minus the pre-deploy units
-    - layer: browser # a second land-verify layer
-      command: "ops/test/run-layer.sh browser" # its pre-deploy units are tagged by the adapter's list answer
-  layer_worker_shares: # each layer's fraction of a land's worker allotment
-    node: 0.5 # half the allotment at a land
-    browser: 0.5 # the other half
-  pre_deploy_layer_worker_shares: # the table the pre-deploy run applies instead : the release units make layers heavier there
-    node: 0.4 # node is lighter once its release-only units are counted
-    browser: 0.6 # browser carries most release-only units
-tests: # the test-class taxonomy (SPEC-0093 rule 10)
-  classes: # one entry per class
-    - class: release-only # the pre-deploy class (SPEC-1051 rule 1)
-      moment: pre-deploy # left out of lands and Stage-6 runs, forced full runs included
-      reason: "owner decision 2026-10-20: these units found no real fault at a land over 6 weeks of runs" # why they leave the lands
-      targets: [default, acceptance] # both the stand deploy and the production deploy need a passed run first
-      stand: acceptance # SPEC-1051 rule 6: a card changing one of these units is proven on this stand's run
-      reuse_run: {reason: "the stand deploy's run of the same revision stands for production; a host-dependent flake may go unseen"} # SPEC-1051 rule 3
-thresholds: # project thresholds (SPEC-1031)
-  pre_deploy_reuse_max_age_minutes: 120 # how old a stand run production may stand on (band 1..1440; 120 is the default)
+deploy:                                         # the deploy verb's carrier (SPEC-0094)
+  command: "ops/deploy/deploy.sh production"   # the plain `deploy` — production; `default` in a class's targets
+  targets:                                      # named targets: `deploy --target <name>`
+    acceptance:                                 # the machine stand: same host, own port, service and data store
+      command: "ops/deploy/deploy.sh acceptance"   # what `deploy --target acceptance` runs
+      production: false                         # the SPEC-0097 class gate does not apply; the pre-deploy gate still does (it is in targets: below)
+      role: acceptance                          # SPEC-0205 rule 7: serves landed main; two advisory deploy lines, never a refusal
+    sandbox:                                    # a person's sandbox: deployed by hand, never gated
+      command: "ops/deploy/deploy.sh sandbox"   # what `deploy --target sandbox` runs
+      production: false                         # not production, and named in no pre-deploy class, so no run guards it
+verify:                                         # what lands, Stage-6 runs and pre-deploy runs execute
+  layers:                                       # the declared verify layers
+    - layer: node                               # a land-verify layer (SPEC-0152 rule 16)
+      command: "ops/test/run-layer.sh node"     # runs at every land and Stage-6 run, minus the pre-deploy units
+    - layer: browser                            # a second land-verify layer
+      command: "ops/test/run-layer.sh browser"  # its pre-deploy units are tagged by the adapter's list answer
+  layer_worker_shares:                          # each layer's fraction of a land's worker allotment
+    node: 0.5                                   # half the allotment at a land
+    browser: 0.5                                # the other half
+  pre_deploy_layer_worker_shares:               # the table the pre-deploy run applies instead : the release units make layers heavier there
+    node: 0.4                                   # node is lighter once its release-only units are counted
+    browser: 0.6                                # browser carries most release-only units
+tests:                                          # the test-class taxonomy (SPEC-0093 rule 10)
+  classes:                                      # one entry per class
+    - class: release-only                       # the pre-deploy class (SPEC-1051 rule 1)
+      moment: pre-deploy                        # left out of lands and Stage-6 runs, forced full runs included
+      reason: "owner decision 2026-10-20: these units found no real fault at a land over 6 weeks of runs"   # why they leave the lands
+      targets: [default, acceptance]            # both the stand deploy and the production deploy need a passed run first
+      stand: acceptance                         # SPEC-1051 rule 6: a card changing one of these units is proven on this stand's run
+      reuse_run: {reason: "the stand deploy's run of the same revision stands for production; a host-dependent flake may go unseen"}   # SPEC-1051 rule 3
+thresholds:                                     # project thresholds (SPEC-1031)
+  pre_deploy_reuse_max_age_minutes: 120         # how old a stand run production may stand on (band 1..1440; 120 is the default)
 ```
 <!-- /worked-config -->
 
@@ -445,8 +445,8 @@ definition, the single source the host's crontab is installed from — and let t
 ```yaml
 product_cron:
   scheduler: crontab
-  source: ops/crontab # the committed crontab file holding the D1 line
-  inventory: # derived from `source:`, never typed by hand (SPEC-0109 rule 2)
+  source: ops/crontab          # the committed crontab file holding the D1 line
+  inventory:                   # derived from `source:`, never typed by hand (SPEC-0109 rule 2)
     - job: scheduled-pre-deploy-run
       schedule: "17 4 * * *"
       command: deploy --scheduled-run

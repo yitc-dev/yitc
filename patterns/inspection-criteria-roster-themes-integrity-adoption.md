@@ -92,7 +92,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   `rebaselined` mode and a non-empty `rebaseline_reason`; a red with no later land of its branch in the
   window is right-censored (counted apart, never as unclassified) — an unclassified red is itself the finding, since a red
   cleared without a named cause is indistinguishable from a gate quietly weakened.
-- **B5-delta — waiver-vs-real-command coherence (grounding: <project> B5):** a `yitc-ops.yaml`
+- **B5-delta — waiver-vs-real-command coherence (grounding: trend-finder B5):** a `yitc-ops.yaml`
   declare-or-waive section WAIVED while the repo carries a real, wired command for it is an incoherence
   FINDING — e.g. `tests:` waived while `bin/verify.sh` exists AND the `land` is test-gated. A waiver
   must not contradict a present capability; reconcile (declare it) or justify the waiver explicitly.
@@ -144,7 +144,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       return False
   unp=[r for r in reds if not any(g>r["ts"] for g in greens[r.get("task_id")]) and not land_ok(r)]
   print("tests reds=%d paired=%d unpaired=%d" % (len(reds), len(reds)-len(unp), len(unp)))
-  for r in unp: print(" UNPAIRED red: %s %s" % (r.get("task_id"), r["ts"]))'
+  for r in unp: print("  UNPAIRED red: %s %s" % (r.get("task_id"), r["ts"]))'
   ```
 - **land-verify concurrency stability (weekly; grounding: the 2026-07-03 concurrency flake class —
   oversubscription + ff-race — that SPEC-0132 governs).** Its verdict obeys §Run-mode rule (3) (`inspection-criteria-roster-run-and-lenses.md` — print the no-data / excluded share before any `clean`). The durable, recurring successor to the
@@ -176,12 +176,12 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   from lib.worktree import _verify_scaling_signals
   from lib.land_verify_legs import _stage6_rows_index, _stage6_credited_row
   allev=[e for e in (json.loads(l) for l in open("events.jsonl") if "\"land_completed\"" in l or "\"tests_" in l)
-         if e.get("type") in ("land_completed","tests_passed","tests_failed")] # by TYPE — a substring also matches rows that merely mention it
+         if e.get("type") in ("land_completed","tests_passed","tests_failed")]   # by TYPE — a substring also matches rows that merely mention it
   ev=[e for e in allev if e["type"]=="land_completed"][-200:]
-  s6=[e for e in allev if e["type"]!="land_completed"] # every Stage-6 row: a credit may name one older than the window
+  s6=[e for e in allev if e["type"]!="land_completed"]   # every Stage-6 row: a credit may name one older than the window
   idx=_stage6_rows_index(s6)
   rows=[e.get("data",{}) for e in ev]
-  def cls(d): # a row with no fail_class is credited (followed) / reverify-skipped / aborted (counted apart) or no-metrics
+  def cls(d):   # a row with no fail_class is credited (followed) / reverify-skipped / aborted (counted apart) or no-metrics
       if (d.get("verify_metrics") or {}).get("fail_class"): return "measured"
       if d.get("status")=="ok" and isinstance(d.get("stage6_credit"),dict):
           return "credited" if _stage6_credited_row(d,idx) is not None else "no-metrics"
@@ -189,14 +189,14 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       return "aborted" if d.get("status")=="abort" else "no-metrics"
   kc=collections.Counter(cls(d) for d in rows)
   fc=collections.Counter(d["verify_metrics"]["fail_class"] for d in rows if cls(d)=="measured")
-  fc.update("ok" for d in rows if cls(d)=="credited") # a credit is taken from a green Stage-6 row only
-  s6c=collections.Counter(e["type"] for e in s6 if ev and ev[0].get("ts","")<=e.get("ts","")<=ev[-1].get("ts","")) # the Stage-6 runs inside the printed window
+  fc.update("ok" for d in rows if cls(d)=="credited")   # a credit is taken from a green Stage-6 row only
+  s6c=collections.Counter(e["type"] for e in s6 if ev and ev[0].get("ts","")<=e.get("ts","")<=ev[-1].get("ts",""))   # the Stage-6 runs inside the printed window
   bad={k:v for k,v in fc.items if k not in ("ok","failed")}
   recurring={k:v for k,v in bad.items if v>=2}
   nondet = len(bad)>=2
   n=len(rows); m=kc["measured"]+kc["credited"]; nm=kc["no-metrics"]
   win="window %s..%s, %d/%d measured" % (ev[0].get("ts","?") if ev else "-", ev[-1].get("ts","?") if ev else "-", m, n)
-  print("window n=%d fail_class=%s" % (n, dict(fc)))
+  print("window n=%d  fail_class=%s" % (n, dict(fc)))
   print("classes: measured=%d reverify-skipped=%d aborted=%d no-metrics=%d" % (kc["measured"], kc["reverify-skipped"], kc["aborted"], nm))
   print("credited=%d — ok lands whose run is the Stage-6 row they name, counted once in measured/total" % kc["credited"])
   print("Stage-6 runs in window: passed=%d failed=%d" % (s6c["tests_passed"], s6c["tests_failed"]))
@@ -204,7 +204,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       print("fail_class: NO-DATA — no row carries a fail_class, no verdict (%s)" % win)
   elif not m:
       print("fail_class: no measured row — every row is reverify-skipped or aborted, counted apart; no verdict (%s)" % win)
-  elif nm: # judged over the measured rows only, and SAID so — never a bare clean
+  elif nm:   # judged over the measured rows only, and SAID so — never a bare clean
       print("fail_class: DEGRADED — %d/%d no-metrics; verdict below covers the measured rows only (%s)" % (nm, n, win))
   if m and (recurring or nondet):
       print("FINDING: land-verify fail_class instability — recurring=%s non-deterministic=%s (%s)" % (recurring or "none", nondet, win))
@@ -214,7 +214,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       print("fail_class: clean — no finding (%s)" % win)
   hw=lambda d: (isinstance(d.get("verify_metrics"),dict) and d["verify_metrics"].get("verify_wall_ms") is not None) or cls(d)=="credited"
   walls=sum(1 for d in rows if hw(d))
-  wmiss=sum(1 for d in rows if cls(d) in ("measured","no-metrics") and not hw(d)) # skipped/aborted owe no wall
+  wmiss=sum(1 for d in rows if cls(d) in ("measured","no-metrics") and not hw(d))   # skipped/aborted owe no wall
   sig="\n".join(_verify_scaling_signals(rows, stage6_rows=s6))
   cov="%d/%d rows carry a verify wall; %s" % (walls, n, win)
   if not walls: print("scaling signals: NO-DATA — no row carries a verify wall (%s)" % cov)
@@ -248,7 +248,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   sys.path.insert(0, "bin")
   from lib.worktree import _VERIFY_WALL_SECONDS as pinned
   from lib.land_verify_legs import _stage6_rows_index, _stage6_credited_row, _stage6_run_wall_ms
-  start, end = sys.argv[1], sys.argv[2] # closed window [start, end): --until is inclusive, so ts == end is dropped here
+  start, end = sys.argv[1], sys.argv[2]   # closed window [start, end): --until is inclusive, so ts == end is dropped here
   walls = {"venue": [], "local": []}
   skipped = {"malformed": 0, "outside window": 0, "not ok or no wall": 0, "credit not resolved": 0}
   rows = []
@@ -266,7 +266,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       d = e.get("data") or {}
       m = d.get("verify_metrics") if isinstance(d.get("verify_metrics"), dict) else {}
       w = m.get("verify_wall_ms")
-      if d.get("status") == "ok" and isinstance(d.get("stage6_credit"), dict): # the run is the Stage-6 row's, once
+      if d.get("status") == "ok" and isinstance(d.get("stage6_credit"), dict):   # the run is the Stage-6 row's, once
           s6 = _stage6_credited_row(d, idx)
           if s6 is None:
               skipped["credit not resolved"] += 1; continue
@@ -280,11 +280,11 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   for regime in ("venue", "local"):
       xs = sorted(walls[regime])
       if not xs:
-          print(" %-5s: no rows in window" % regime); continue
+          print("  %-5s: no rows in window" % regime); continue
       n = len(xs); med = (xs[(n - 1) // 2] + xs[n // 2]) / 2; p95 = xs[max(0, -(-95 * n // 100) - 1)]
-      print(" %-5s: n=%d median %.1f s p95 %.1f s median vs pinned %+.1f%%" % (regime, n, med, p95, 100.0 * (med - pinned) / pinned))
-  print(" excluded: %s" % ", ".join("%s %d" % kv for kv in skipped.items))
-  print(" retune route (only when the regime the park bound protects has moved): a card re-deriving _VERIFY_WALL_SECONDS over a stated closed window, naming the regime (or mix) the bound must cover, as did — never an automatic re-derive")
+      print("  %-5s: n=%d  median %.1f s  p95 %.1f s  median vs pinned %+.1f%%" % (regime, n, med, p95, 100.0 * (med - pinned) / pinned))
+  print("  excluded: %s" % ", ".join("%s %d" % kv for kv in skipped.items))
+  print("  retune route (only when the regime the park bound protects has moved): a card re-deriving _VERIFY_WALL_SECONDS over a stated closed window, naming the regime (or mix) the bound must cover, as  did — never an automatic re-derive")
   ```
 - **abort assertion legibility — what share of aborts can NAME what broke (weekly; report-only;
   grounding: <project> X-1050, who measured 96 of 133 assertion entries (72%) reading
@@ -319,8 +319,8 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   rows = [e.get("data", {})
           for e in (json.loads(l) for l in open(os.path.join(root, "events.jsonl"), encoding="utf-8", errors="replace")
                     if '"land_completed"' in l)
-          if e.get("type") == "land_completed"][-300:] # by TYPE, not by substring
-  layers = None # or the names in this repo's yitc-ops.yaml `verify.layers[].layer`
+          if e.get("type") == "land_completed"][-300:]   # by TYPE, not by substring
+  layers = None                      # or the names in this repo's yitc-ops.yaml `verify.layers[].layer`
   print("\n".join(_abort_assertion_legibility(rows, current_layers=layers)["report"]))
   ```
   (Run as `python3 <this block> /path/to/repo` — pure stdlib beyond the kernel module it imports, so
@@ -413,8 +413,8 @@ for line in open(os.path.join(root, "events.jsonl"), encoding="utf-8", errors="r
     if t == "land_batch_formed": form[w].append(d)
     elif t == "land_completed": land[w].append((ts, d.get("status"), d.get("branch"), d.get("abort_class")))
 if not form["window"] and not land["window"]:
-    print("parallel-landing: no land_batch_formed / land_completed rows in %s.. %s — nothing landed in this repo in the window (report-only, not 'clean')" % (b1, end)); sys.exit
-EVICTED = "land-reservation-park-limit" # / — the eviction abort_class; MUST equal
+    print("parallel-landing: no land_batch_formed / land_completed rows in %s .. %s — nothing landed in this repo in the window (report-only, not 'clean')" % (b1, end)); sys.exit
+EVICTED = "land-reservation-park-limit"   #  /  — the eviction abort_class; MUST equal
                                           # debt.ABORT_CLASS_PARK_LIMIT_EVICTION (asserted by test)
 def is_evicted(r):
     return r[1] == "abort" and isinstance(r[3], str) and r[3].strip == EVICTED
@@ -425,7 +425,7 @@ def solo_pct(f):
     return round(100 * sum(1 for d in f if (d.get("members") or 0) <= 1) / len(f)) if f else "n/a"
 def abort_share(l):
     return 100 * sum(1 for r in l if r[1] == "abort") / len(l) if l else None
-def abort_pct(l): # printed, rounded; the finding below compares the UNROUNDED shares
+def abort_pct(l):   # printed, rounded; the finding below compares the UNROUNDED shares
     return round(abort_share(l)) if l else "n/a"
 f, l_all = form["window"], land["window"]
 l = terminal(l_all); l_prior = terminal(land["prior"])
@@ -437,16 +437,16 @@ for d in f:
         r = x.get("reason") or "?"
         stale += (r == "stale-wait-row")
         if r != "stale-wait-row": exc[r] += 1
-print("window %s.. %s (prior = the %dd before it)" % (b1, end, days))
-print("[a] formations n=%d width=%s solo=%s%% (prior %s%%) queue_depth med=%s max=%s engagement=%s"
+print("window %s .. %s   (prior = the %dd before it)" % (b1, end, days))
+print("[a] formations n=%d  width=%s  solo=%s%% (prior %s%%)  queue_depth med=%s max=%s  engagement=%s"
       % (len(f), dict(sorted(collections.Counter((d.get("members") or 0) for d in f).items)), solo_pct(f),
          solo_pct(form["prior"]), qd[len(qd)//2] if qd else 0, qd[-1] if qd else 0,
          dict(collections.Counter(d.get("engagement") or "none" for d in f))))
-print(" real per-branch exclusions (ranked): %s" % (exc.most_common(6) or "none"))
-print(" stale-wait-row: %d — a historical wait row correctly DISCARDED, NOT an excluded branch; never rank it beside the above" % stale)
-print("[b] terminal lands n=%d ok=%d abort=%d abort share %s%% (prior %s%%) evicted=%d (park-limit — NOT an abort, NOT in n/ok/abort/share above)"
+print("    real per-branch exclusions (ranked): %s" % (exc.most_common(6) or "none"))
+print("    stale-wait-row: %d — a historical wait row correctly DISCARDED, NOT an excluded branch; never rank it beside the above" % stale)
+print("[b] terminal lands n=%d  ok=%d  abort=%d  abort share %s%% (prior %s%%)  evicted=%d (park-limit — NOT an abort, NOT in n/ok/abort/share above)"
       % (len(l), sum(1 for r in l if r[1] == "ok"), sum(1 for r in l if r[1] == "abort"), abort_pct(l), abort_pct(l_prior), len(ev)))
-l.sort(key=lambda r: r[0]) # by ts only — the tuple now carries a possibly-None abort_class
+l.sort(key=lambda r: r[0])   # by ts only — the tuple now carries a possibly-None abort_class
 bounds = [b1] + [r[0] for r in l if r[1] == "ok"] + [end]; worst = (0, 0.0, ""); regime = None
 for x, y in zip(bounds, bounds[1:]):
     br = {r[2] for r in l if x < r[0] < y and r[1] == "abort"}
@@ -454,7 +454,7 @@ for x, y in zip(bounds, bounds[1:]):
     if (len(br), mins) > (worst[0], worst[1]): worst = (len(br), mins, x)
     if len(br) >= 5 and mins >= 60 and (regime is None or len(br) > regime[0]): regime = (len(br), mins, x)
 print("[c] worst zero-success stretch: %d distinct branch(es) aborted over %.0f min from %s" % worst)
-find = [] # judged over EVERY stretch, not only the printed worst: a short wide one must not hide a long one
+find = []   # judged over EVERY stretch, not only the printed worst: a short wide one must not hide a long one
 if regime:
     find.append("CONGESTION REGIME — %d distinct branches aborted across %.0f min in which NOTHING landed (from %s); read the cause with `bin/yitc-v2 debt` rule-26 line, then fix it ON MAIN" % regime)
 if len(l) >= 20 and len(l_prior) >= 20 and abort_share(l) - abort_share(l_prior) >= 15:

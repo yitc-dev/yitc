@@ -16,7 +16,9 @@ import json
 import os
 import re
 from pathlib import Path
+from lib import events as events_mod  # T-14605: the journal-family predicate + its staging view
 from lib import followup   # noqa: E402
+from lib import unit_table  # T-14568: journal-read adapter records are expanded from their compact table (SPEC-1046)
 from lib import init       # noqa: E402
 from lib import inspection  # noqa: E402
 from lib import journal as journal_mod  # noqa: E402
@@ -169,8 +171,18 @@ def _closure_record_pathspecs(task_rel: str, audit_records: "list[str]", spec_id
     FAILS HARD on a pathspec that matches nothing ("did not match any files") — and a closure must not
     die because a repo has not yet generated one of the derived views the allowlist names. Absence is
     the only reason to drop one: this close writes no deletion, so nothing owed to the commit is lost
-    by the filter. PURE: one `specs/` glob + an existence check, no git, no events, no writes."""
-    out = {task_rel, *(audit_records or ()), *(bookkeeping_allowlist or ())}
+    by the filter. PURE: one `specs/` glob + an existence check, no git, no events, no writes.
+
+    T-14605 — "the journal" in the allowlist means the WHOLE journal family. After the journal cut
+    (T-14585) a close writes its rows into today's day partition `archive/events-<day>.jsonl`, not the
+    root `events.jsonl` the allowlist names, so a literal-only set left the delta out and reported it
+    as unrelated dirt. A journal-family member of the allowlist (`events.is_journal_family_path`)
+    therefore stages `events.journal_pathspecs` — every present segment plus the live root; an
+    unmodified segment is a git no-op, and an uncut repository (no archive) gets `events.jsonl` alone."""
+    allow = tuple(bookkeeping_allowlist or ())
+    out = {task_rel, *(audit_records or ()), *allow}
+    if any(events_mod.is_journal_family_path(p) for p in allow):
+        out.update(events_mod.journal_pathspecs(Path(repo_root) / "events.jsonl", repo_root))
     specs_dir = Path(repo_root) / "specs"
     for sid in spec_ids or ():
         for sp in specs_dir.glob(f"{sid}-*.yaml"):
@@ -436,6 +448,55 @@ def _land_layer_rows(data: dict, stage6_index: dict):
     return own
 
 
+def _layer_row_passed_skip_only(row) -> bool:
+    """T-14561 (X-2312) — is this `passed-partial` layer row a run whose ONLY narrowing is the
+    declared pre-deploy skip (SPEC-1051 rule 2), with the layer having RUN and every unit it ran
+    passed? Such a row reads `passed-partial` on EVERY land of a consumer with a listed skip set,
+    so condition (ii) of `_resolve_layer_row_ref` reads it as a pass (SPEC-0015 §Land-emitted
+    verify-layer ships). Everything must hold, else False (fail-closed):
+      * not retried; an `adapter` record; its `pre_deploy_skip` applied with a non-empty `removed`;
+      * `exit`, when recorded, is 0; `units` is non-empty and every unit `passed`;
+      * its `partial` record narrows nothing else — `not_reached`, `left_out`, `credited` all
+        present and empty — and `ran` is exactly the units' set;
+      * the accounting closes over DISTINCT units: identities (project, file) are unique within
+        `units`, `ran` and `removed`, `ran` and `removed` are disjoint, and
+        len(ran) + len(removed) == units_total (audit-pre pass-1 F1: counts alone can be gamed).
+    A layer skipped WHOLE (no adapter run — the `pre_deploy.layer` row) or one that ran no unit
+    (everything removed) is not a run of the layer and stays refused. PURE."""
+    if not isinstance(row, dict) or row.get("outcome") != "passed-partial" or row.get("retried"):
+        return False
+    rep = unit_table.expand(row.get("adapter"))
+    if not isinstance(rep, dict):
+        return False
+    skip, part = rep.get("pre_deploy_skip"), rep.get("partial")
+    if not isinstance(skip, dict) or skip.get("applied") is not True or not isinstance(part, dict):
+        return False
+    if "exit" in rep and rep.get("exit") != 0:
+        return False
+
+    def _ids(entries, need_passed=False):
+        if not isinstance(entries, list):
+            return None
+        out = []
+        for u in entries:
+            if not isinstance(u, dict) or not isinstance(u.get("file"), str) or not u["file"]:
+                return None
+            if u.get("project") is not None and not isinstance(u["project"], str):
+                return None                                   # unhashable/odd project: refuse, never raise
+            if need_passed and u.get("status") != "passed":
+                return None
+            out.append((u.get("project") or "", u["file"]))
+        return out if len(out) == len(set(out)) else None    # a duplicate identity proves nothing
+
+    units, ran, removed = _ids(rep.get("units"), True), _ids(part.get("ran")), _ids(skip.get("removed"))
+    if not units or not ran or not removed or set(units) != set(ran) or set(ran) & set(removed):
+        return False
+    if any(part.get(k) != [] for k in ("not_reached", "left_out", "credited")):
+        return False
+    total = part.get("units_total")
+    return isinstance(total, int) and not isinstance(total, bool) and len(ran) + len(removed) == total
+
+
 def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
     """T-10485 (X-0339) — does the LAYER-ROW ref `land_completed@<ts>#<layer>` resolve?
 
@@ -450,7 +511,8 @@ def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
     read as adopted. Correlation is what makes this evidence rather than bookkeeping — all four hold:
       (i)   the exact (land_completed, ts) event exists;
       (ii)  it carries a row for `layer` with outcome `passed` — failed/timed-out/waived/malformed is
-            not adoption;
+            not adoption — or a `passed-partial` row narrowed ONLY by the declared pre-deploy skip
+            (`_layer_row_passed_skip_only`, T-14561);
       (iii) `data.branch == task/<tid>` — the SHIP'S OWN land. land_completed carries no task_id; the
             branch is the correlation it does carry, and it is what refuses ANOTHER task's land;
       (iv)  THIS SHIP is what put THIS command behind THIS layer name — proved EITHER way (T-10504):
@@ -506,7 +568,8 @@ def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
         hit = rows
     if not hit:
         return False                                                    # (i)
-    passed = [r for r in hit if r.get("outcome") == "passed"]           # (ii)
+    passed = [r for r in hit if r.get("outcome") == "passed"            # (ii)
+              or _layer_row_passed_skip_only(r)]
     if not passed:
         return False
     if not layer_ran_before:
@@ -1379,10 +1442,12 @@ _SCHEDULED_RUN_SELECTOR_PREFIX = "surface="
 #   * `<project>` is a registry KEY — a bare name matched against the host registry's `yitc_v2`
 #     entries by the injected reader, never a path. A path-shaped prefix does not even parse as one
 #     (`_CONSUMER_PROJECT_NAME_RE` admits no `/` and no `.`), so it can never reach a filesystem join.
-#   * `<form>` is one of forms (2)-(6) only (`_consumer_journal_form_admitted`). The others stay
-#     kernel-only: (1) ties on THIS task's id, which a consumer row never carries; (7) is the kernel
-#     nightly; (8) is an author-run receipt pair; (9) is a file in THIS repo; (10) needs the citing
-#     task's own land in the same journal.
+#   * `<form>` is one of forms (2), (4) and (6) only (`_consumer_journal_form_admitted`). The others
+#     stay kernel-only: (1) ties on THIS task's id, which a consumer row never carries; (3) and (5)
+#     (T-14633) tie on the citing task's OWN `task/<id>` branch, which a consumer branch never is — a
+#     same task NUMBER there is a coincidence, not a correlation; (7) is the kernel nightly; (8) is an
+#     author-run receipt pair; (9) is a file in THIS repo; (10) needs the citing task's own land in
+#     the same journal.
 #   * the read is the injected `_consumer_journal_rows` — read-only, segment-aware, lock-free (see
 #     `task._p8_consumer_journal_rows`). Un-injected, or in a realm not PROVEN to be the kernel, the
 #     arm is DARK: the prefix resolves nothing.
@@ -1407,13 +1472,17 @@ def _split_consumer_journal_ref(ref: str):
 
 
 def _consumer_journal_form_admitted(form: str) -> bool:
-    """T-13477 — is `form` one of the forms (2)-(6), the only ones a consumer journal may answer? PURE.
+    """T-13477 — is `form` one of the forms (2), (4), (6), the only ones a consumer journal may answer?
+    PURE.
 
     Decided on the SPELLING, before any journal is opened: a pinned `TYPE@<ts>` (form 2), or a
-    `land_completed@<ts>#<selector>` whose selector is not `gate=` / `adapter=` (forms 3-6). Everything
-    else — a bare type (1), the scheduled-run selector (7), `exit:` (8), `test:` (9), `#gate=` (10),
-    `#adapter=` (12, T-13924: its post-ship condition reads the citing card's own land), a second
-    prefix — is refused here, so a kernel-only form can never be answered by a consumer row."""
+    `land_completed@<ts>#<selector>` whose selector is `branch=` (form 4) or `metric=` (form 6).
+    Everything else — a bare type (1), a bare layer (3) and `#refused=` (5) (T-14633: both tie on the
+    citing card's OWN branch, which no consumer row carries, so admitting them let a same task number
+    on a consumer branch stand in for a correlation), the scheduled-run selector (7), `exit:` (8),
+    `test:` (9), `#gate=` (10), `#adapter=` (12, T-13924: its post-ship condition reads the citing
+    card's own land), a second prefix — is refused here, so a kernel-only form can never be answered
+    by a consumer row."""
     if form.startswith((_IN_PROCESS_EVIDENCE_PREFIX, _EXIT_STATUS_EVIDENCE_PREFIX)):
         return False
     if _split_consumer_journal_ref(form) is not None:
@@ -1426,7 +1495,7 @@ def _consumer_journal_form_admitted(form: str) -> bool:
     if not sep:
         return True
     return bool(selector) and etype == _LAYER_ROW_EVIDENCE_TYPE \
-        and not selector.startswith((_GATE_ROW_SELECTOR_PREFIX, _ADAPTER_ROW_SELECTOR_PREFIX))
+        and selector.startswith((_ABORT_ROW_SELECTOR_PREFIX, _METRIC_ROW_SELECTOR_PREFIX))
 # A surface RAN under the scheduled runner only on these verdicts. `skip` (not the engine / paths
 # absent) and `error` (a runner fault) mean it never executed, so they witness nothing — fail-closed.
 _SCHEDULED_RUN_RAN_VERDICTS = frozenset({"ok", "fail"})
@@ -1591,7 +1660,7 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
     required in either realm, so an un-injected / isolated caller reads exactly what it read before
     (the established `_event_dedup_key` / `_main_events_path` injection precedent).
 
-    (T-13477) The CONSUMER-JOURNAL spelling `<project>:<form>` reads forms (2)-(6) from a registered
+    (T-13477) The CONSUMER-JOURNAL spelling `<project>:<form>` reads forms (2), (4), (6) from a registered
     consumer's journal instead of `events`, through the injected `_consumer_journal_rows` — bounds in
     the block beside `_CONSUMER_JOURNAL_REF_SHAPE`.
 
@@ -2289,10 +2358,8 @@ def _journal_locator_matches(kind: str, wanted: str, events) -> list:
         if kind == "ts":
             if str(ev.get("ts") or "").strip() == wanted:
                 matched.append(ev)
-        else:
-            data = ev.get("data") if isinstance(ev.get("data"), dict) else {}
-            if str(ev.get("source_ref") or data.get("source_ref") or "").strip() == wanted:
-                matched.append(ev)
+        elif _row_source_ref(ev) == wanted:
+            matched.append(ev)
     return matched
 
 
@@ -2837,6 +2904,13 @@ def _ts_locator_row(matched, tid) -> "dict | None":
     return tied[0] if len(tied) == 1 else None
 
 
+def _row_source_ref(row) -> str:
+    """The source_ref a `source_ref=` locator matches this row by (envelope, else data) — the same
+    two places `_journal_locator_matches` reads."""
+    data = row.get("data") if isinstance(row.get("data"), dict) else {}
+    return str(row.get("source_ref") or data.get("source_ref") or "").strip()
+
+
 def _ts_locator_ambiguity(wanted: str, matched, tid, flag: str = "--settle-evidence") -> "str | None":
     """T-13342 (X-1843) — a `ts=` pin is second-granularity, so two rows emitted in the same second
     share it (measured: <project> T-0784/T-0785 acceptance_probe rows at 2026-10-01T10:15:19Z). It
@@ -2853,9 +2927,25 @@ def _ts_locator_ambiguity(wanted: str, matched, tid, flag: str = "--settle-evide
     tid = str(tid or "").strip()
     tied = [r for r in citable if tid and _event_task_id(r) == tid]
     rows = "; ".join(f"{r.get('type')}({_event_task_id(r) or 'no task'})" for r in citable)
-    alt = (f"re-emit the evidence as its own row with a unique source_ref (`bin/yitc-v2 event <type> "
-           f"--task {tid or 'T-XXXX'} --source-ref <unique-ref>`) and cite "
-           f"`events.jsonl#source_ref=<unique-ref>`")
+    # T-14560 (X-2321) — a candidate that already carries its own source_ref is cited by it; a
+    # kernel-written test row without one is never offered hand re-emission (that is hand-made test
+    # evidence): a fresh pre-deploy run writes rows that carry one.
+    refs = [_row_source_ref(r) for r in citable if _row_source_ref(r)]
+    legacy_test = [r for r in citable if r.get("type") == "test_class_executed" and not _row_source_ref(r)]
+    if refs or legacy_test:
+        parts = []
+        if refs:
+            parts.append("cite the row by its own source_ref — "
+                         + " or ".join(f"`events.jsonl#source_ref={x}`" for x in refs))
+        if legacy_test:
+            parts.append("a test_class_executed row written without a source_ref cannot be re-made by "
+                         "hand; take a fresh pre-deploy run, whose rows carry their own source_ref, and "
+                         "cite that")
+        alt = "; ".join(parts)
+    else:
+        alt = (f"re-emit the evidence as its own row with a unique source_ref (`bin/yitc-v2 event <type> "
+               f"--task {tid or 'T-XXXX'} --source-ref <unique-ref>`) and cite "
+               f"`events.jsonl#source_ref=<unique-ref>`")
     return (f"{flag} names ts={wanted!r}, which is AMBIGUOUS — it matches {len(citable)} citable "
             f"journal rows [{rows}] and {len(tied)} of them tie to {tid or 'the closing card'}, so the "
             f"citation names no single row (T-13342). Cite an unambiguous locator instead: {alt}")

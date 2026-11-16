@@ -5,7 +5,8 @@ sourced_from: <workshop-spec> (the remote verify venue) rules 2 + 6, made an OPT
 applies_to: deciding whether a project needs the remote verify venue at all, and switching it on when it does
 cites:
   - <workshop-spec>
-  - SPEC-1032
+  - <workshop-spec>
+  - SPEC-1059
   - SPEC-0208
 ---
 
@@ -53,19 +54,22 @@ not configured — that is a normal state, not an error, and it exits 0.
 
 The steps above put the engine's own checks on a box. A project that adopted the engine can send its
 OWN Stage-6 passes (`task test --run`) to a box published for it; its lands still verify on its own
-machine. The rules are SPEC-1032 (`bin/yitc-v2 graph query --kernel SPEC-1032`); the steps, on the
+machine. The rules are SPEC-1059 (`bin/yitc-v2 graph query --kernel SPEC-1059`, the successor of
+<workshop-spec>); the steps, on the
 project's machine:
 
 1. **Declare it.** In the project's `yitc-ops.yaml`, inside its `verify` section, add a
    `verify.venue` mapping: `stage6: on`, and under `environment` the checks the box must pass — each a
    `name`, a `cmd` run on the box, and the exact output it must print as `expect` (a font list, a tool
    version). A project that declares nothing sees no change. The binding file `bin/venue-config.yaml`
-   stays where it is: the image build and the engine identity read past it, as they read past a root
-   `events.jsonl` and `.yitc/` in your install.
+   stays where it is: the engine a pass ships, and its identity, read past it.
 2. **Build the box image:** `bin/yitc-v2 venue seed --build -C <project> --provision <script>`. Your
    script installs what your checks need (warm package caches, browsers, fonts); the build pushes a
-   full-history clone, puts the engine release at the path it runs from on your machine, snapshots the
-   box and records the image. Use a separate provider project with its own token: a provider token
+   full-history clone, snapshots the box and records the image. The image carries no engine: each
+   pass ships the engine your machine runs — its `bin/` — and the box installs it at the same path, so
+   any engine root builds and an engine update needs no new image. A test that reads engine files
+   outside `bin/` on the box does not find them there: run that card with `--placement local`
+   (SPEC-1059 rule 4). Use a separate provider project with its own token: a provider token
    reaches the whole provider project.
 3. **Raise and publish it for the project:** `bin/yitc-v2 venue raise`, then
    `bin/yitc-v2 venue publish -C <project>`. Publish refuses a box without atomic admission (`flock`),
@@ -91,7 +95,7 @@ Your project decides what its suite needs on a box beyond the venue's own floor 
 cores, memory, shared memory, `nofile`, rsync, the seeded clone), and declares it; the engine only runs
 what you declared. The engine itself is such a project: its jq and npm are declared in its own
 `yitc-ops.yaml`. Each entry of `verify.venue.environment` may add an `install` command beside its
-check (the rule is SPEC-1032 rules 1 and 6):
+check (the rule is SPEC-1059 rules 1 and 6):
 
 ```yaml
 verify:

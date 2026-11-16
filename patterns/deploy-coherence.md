@@ -1,7 +1,7 @@
 ---
 name: deploy-coherence
 class: discipline
-sourced_from: decisions/runtime-delivery-fleet-standard-audit-adhoc.yaml (GREEN, owner-ratified 2026-07-16) + decisions/x0448-restart-coherence-fork-audit-adhoc.yaml (GREEN, owner-ratified 2026-07-16) + X-0367 (coherence guard) + X-0370 (half-deploy outage) + X-0448 (<project> restart crash-loop)
+sourced_from: decisions/runtime-delivery-fleet-standard-audit-adhoc.yaml (GREEN, owner-ratified 2026-07-16) + decisions/x0448-restart-coherence-fork-audit-adhoc.yaml (GREEN, owner-ratified 2026-07-16) + X-0367 (coherence guard) + X-0370 (half-deploy outage) + X-0448 (boomrocket restart crash-loop)
 applies_to: any Docker consumer whose runtime_delivery is source-mounted / hot-reload / hybrid (a BYPASSABLE model, SPEC-0093 rule 22) — i.e. the code that runs is NOT a deploy-time-baked artifact. Read when a restart-after-land crash-loops, when splitting dev vs prod compose, or when planning a migration to an image-baked runtime.
 ---
 
@@ -21,7 +21,7 @@ Two GREEN owner-ratified consults (2026-07-16) settle the doctrine — cited, no
 - `decisions/runtime-delivery-fleet-standard-audit-adhoc.yaml` — **image-baked = normative prod
   default** for Docker consumers; bypassable prod runtimes are explicit waivers with named
   compensating controls. Prescribes the <project> dev/prod compose split as the standard shape and a
-  measure-first migration for <project>.
+  measure-first migration for boomrocket.
 - `decisions/x0448-restart-coherence-fork-audit-adhoc.yaml` — for today's bind-mounted runtime the
   X-0367 restart-coherence guard's **fail-closed REFUSE is the INTENDED failure mode** (option 2, a
   fall-back-to-last-deployed-code path, has no real target because last-deployed code is not
@@ -57,7 +57,7 @@ start comparison passes and the container comes up on coherent code.
 
 ```
 # refused-to-start container after a land drifted main:
-bin/yitc-v2 -C <consumer> deploy # re-pins deployed-code-hash to current main → guard passes
+bin/yitc-v2 -C <consumer> deploy        # re-pins deployed-code-hash to current main → guard passes
 ```
 
 There is no per-project fork and no manual hash editing: the governed deploy verb is the ONE writer of
@@ -103,7 +103,7 @@ is not). Every reported row names the compose file it came from, so the claim ca
 
 ## 4. Migration shape — measure first, snapshot only on evidence
 
-The target for a bypassable prod consumer (e.g. <project>) is to **bake the backend image with
+The target for a bypassable prod consumer (e.g. boomrocket) is to **bake the backend image with
 Docker layer-cache optimization** — the ordinary path that makes the deploy verb the sole path to
 prod again and removes the drift window entirely.
 

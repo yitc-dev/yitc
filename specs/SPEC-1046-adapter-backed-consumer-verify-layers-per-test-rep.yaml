@@ -27,6 +27,8 @@ implements:
 - bin/lib/land_verify_legs.py#_per_unit_flaky_rate
 - bin/lib/land_verify_legs.py#_per_case_rescued_failures
 - bin/lib/views.py#_view_test_layout_hotspots
+- bin/lib/unit_table.py#encode
+- bin/lib/unit_table.py#expand
 - bin/lib/worktree.py#_consumer_zero_probe_guard
 - bin/lib/land_verify_legs.py#_adapter_unit_medians
 - bin/lib/land_verify_legs.py#_adapter_units_with_medians
@@ -416,58 +418,65 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ (and the Tests-stage rows) as fields registered in SPEC-0025. Flaky rates and\
   \ the layout\nHOTSPOT report — units selected by at least H% of changes in the shadow\
   \ window — are derived views over those\nrows; there is no second mutable register\
-  \ of results.\nGRANULARITY — what is per unit and what is per case. Selected, executed,\
-  \ rescued, credited and laned: the UNIT\n(rule 2), never a single case. Re-run:\
-  \ the unit, or — where its first attempt's report names every failed case of\nit\
-  \ — those cases of the unit (rule 10); the re-run's verdict and its count are still\
-  \ the unit's.\nRecorded per CASE on every attempt: its status, and for a failed\
-  \ case its\nidentity and failure excerpt; and per failed UNIT, its failed tests\
-  \ by name (`failed_tests`, with `named`): the\nnames an adapter gives itself as\
-  \ a `failed_test` property on a failed case of that unit win; else the ids of\n\
-  its failed cases; else the names the kernel's failed-test reader finds in the unit's\
-  \ failure text — `[]` and\n`named: false` when none names a test, never a guess.\
-  \ Derived per UNIT: the flaky rate (first-attempt failures a re-run rescued, over\
-  \ the\nunit's runs) and lane entry (rule 11). Derived per CASE: how often each case\
-  \ failed on a first attempt a re-run\nthen rescued — the view that names WHICH test\
-  \ in a file is flaky; it is diagnostic and decides nothing.\n\n### 14. Re-verify\
-  \ after a fix — the would-be credit from the previous attempt\nWhen a land or Tests-stage\
-  \ run of a layer FAILED and the next attempt runs on the SAME base, the decision\
-  \ this\nrule describes is: re-run every unit that failed and every unit the changed\
-  \ paths reach through the rule-6\nladder, and CREDIT every other unit with its pass\
-  \ from the previous attempt. Under `credit: shadow` the next\nattempt runs the FULL\
-  \ layer and records that decision beside it — the would-re-run and the would-credit\
-  \ units —\nand a would-credited unit failing in that full run is a rule-9 disagreement.\
-  \ The previous attempt is read from\nits RECORD alone, never from state a run leaves\
-  \ behind: the row rule 13 writes carries the attempt's tree (the\ntree git would\
-  \ commit from the files on disk — the tree notion already records for a Stage-6\
-  \ green), its\nbase and its per-unit results. The changed paths are the diff between\
-  \ that recorded tree and the current\ncandidate's tree, never the branch's own fix\
-  \ commits alone, and the adapter's `related` diffs the current\ncandidate against\
-  \ the recorded tree (a commit object over that tree where a runner needs one). The\
-  \ decision\ncredits NOTHING when (i) the base moved between the attempts — a main-side\
-  \ change can break a unit the previous\nattempt passed and the fix's own diff does\
-  \ not show it; (ii) the previous attempt's report was void under rule 4\n— its per-unit\
-  \ rows decide nothing; (iii) the record is missing or incomplete, or its tree no\
-  \ longer resolves in\nthe repository; (iv) any rung (a)-(e) answers the full layer\
-  \ for the changed paths — rung (d) included, so a\nlayer whose runner has no enumeration-only\
-  \ `related` (rule 3's safe fallback) would re-run in full after every\nfix. Each\
-  \ case is recorded with its reason. `required:` checks (rule 5) run on every attempt;\
-  \ a unit that fails\nagain goes to rule 10 like any first-attempt failure. This\
-  \ extends the crediting of a prior green on the same\ntree as a recorded decision;\
-  \ it is not a second mechanism, and it changes what runs only once an\nadmission\
-  \ contract says so.\n\n## Parameters\n| name | meaning | proposed default | consumed\
-  \ |\n|---|---|---|---|\n| R | isolated re-run attempts per failed unit | 2 (as the\
-  \ engine suite) | no |\n| M | failed units above which no rescue is attempted |\
-  \ 3 | no |\n| H | hotspot share of the recorded shadow lands | 80% | no |\n| E,\
-  \ W | lane entry: rescues within days | the existing tunables | no |\n\n## Rationale\n\
-  The engine's own suite already runs a fail-closed selection ladder proven in shadow\
-  \ (SPEC-0181), isolated\nre-runs with recorded `flaky_retry` (SPEC-0132) and an\
-  \ automatic load-sensitive lane; a\nconsumer whose tests run through layers gets\
-  \ none of it because the kernel sees only the layer's exit code. The\nfield-study\
-  \ consumer measured land verify growing from about 1 to 9-20 minutes a land in a\
-  \ day and a half, 7 of\n81 lands aborted on a failed layer, and hand-maintained\
-  \ layer globs guarded by a tripwire test. The rules above\ncarry the external concept\
-  \ consult's findings (decisions/consumer-test-adapter-concept-audit-adhoc.yaml):\
+  \ of results.\nONE TABLE PER RECORD. A layer row's adapter record writes its per-unit\
+  \ results and the unit lists that name\nunits (the selection, partial-run and credit\
+  \ lists) ONCE, as one lossless table inside that same record — every\nunit's identity,\
+  \ status, duration and failure details kept, unit order not kept — and every reader\
+  \ of a\njournal row reads the record back in its written-out shape before it reads\
+  \ a unit. A row written before the\ntable, and a table that is not whole, read as\
+  \ written: a reader never guesses a unit. The table moves nothing\nout of the row\
+  \ and adds no second store.\nGRANULARITY — what is per unit and what is per case.\
+  \ Selected, executed, rescued, credited and laned: the UNIT\n(rule 2), never a single\
+  \ case. Re-run: the unit, or — where its first attempt's report names every failed\
+  \ case of\nit — those cases of the unit (rule 10); the re-run's verdict and its\
+  \ count are still the unit's.\nRecorded per CASE on every attempt: its status, and\
+  \ for a failed case its\nidentity and failure excerpt; and per failed UNIT, its\
+  \ failed tests by name (`failed_tests`, with `named`): the\nnames an adapter gives\
+  \ itself as a `failed_test` property on a failed case of that unit win; else the\
+  \ ids of\nits failed cases; else the names the kernel's failed-test reader finds\
+  \ in the unit's failure text — `[]` and\n`named: false` when none names a test,\
+  \ never a guess. Derived per UNIT: the flaky rate (first-attempt failures a re-run\
+  \ rescued, over the\nunit's runs) and lane entry (rule 11). Derived per CASE: how\
+  \ often each case failed on a first attempt a re-run\nthen rescued — the view that\
+  \ names WHICH test in a file is flaky; it is diagnostic and decides nothing.\n\n\
+  ### 14. Re-verify after a fix — the would-be credit from the previous attempt\n\
+  When a land or Tests-stage run of a layer FAILED and the next attempt runs on the\
+  \ SAME base, the decision this\nrule describes is: re-run every unit that failed\
+  \ and every unit the changed paths reach through the rule-6\nladder, and CREDIT\
+  \ every other unit with its pass from the previous attempt. Under `credit: shadow`\
+  \ the next\nattempt runs the FULL layer and records that decision beside it — the\
+  \ would-re-run and the would-credit units —\nand a would-credited unit failing in\
+  \ that full run is a rule-9 disagreement. The previous attempt is read from\nits\
+  \ RECORD alone, never from state a run leaves behind: the row rule 13 writes carries\
+  \ the attempt's tree (the\ntree git would commit from the files on disk — the tree\
+  \ notion already records for a Stage-6 green), its\nbase and its per-unit results.\
+  \ The changed paths are the diff between that recorded tree and the current\ncandidate's\
+  \ tree, never the branch's own fix commits alone, and the adapter's `related` diffs\
+  \ the current\ncandidate against the recorded tree (a commit object over that tree\
+  \ where a runner needs one). The decision\ncredits NOTHING when (i) the base moved\
+  \ between the attempts — a main-side change can break a unit the previous\nattempt\
+  \ passed and the fix's own diff does not show it; (ii) the previous attempt's report\
+  \ was void under rule 4\n— its per-unit rows decide nothing; (iii) the record is\
+  \ missing or incomplete, or its tree no longer resolves in\nthe repository; (iv)\
+  \ any rung (a)-(e) answers the full layer for the changed paths — rung (d) included,\
+  \ so a\nlayer whose runner has no enumeration-only `related` (rule 3's safe fallback)\
+  \ would re-run in full after every\nfix. Each case is recorded with its reason.\
+  \ `required:` checks (rule 5) run on every attempt; a unit that fails\nagain goes\
+  \ to rule 10 like any first-attempt failure. This extends the crediting of a prior\
+  \ green on the same\ntree as a recorded decision; it is not a second mechanism,\
+  \ and it changes what runs only once an\nadmission contract says so.\n\n## Parameters\n\
+  | name | meaning | proposed default | consumed |\n|---|---|---|---|\n| R | isolated\
+  \ re-run attempts per failed unit | 2 (as the engine suite) | no |\n| M | failed\
+  \ units above which no rescue is attempted | 3 | no |\n| H | hotspot share of the\
+  \ recorded shadow lands | 80% | no |\n| E, W | lane entry: rescues within days |\
+  \ the existing tunables | no |\n\n## Rationale\nThe engine's own suite already runs\
+  \ a fail-closed selection ladder proven in shadow (SPEC-0181), isolated\nre-runs\
+  \ with recorded `flaky_retry` (SPEC-0132) and an automatic load-sensitive lane;\
+  \ a\nconsumer whose tests run through layers gets none of it because the kernel\
+  \ sees only the layer's exit code. The\nfield-study consumer measured land verify\
+  \ growing from about 1 to 9-20 minutes a land in a day and a half, 7 of\n81 lands\
+  \ aborted on a failed layer, and hand-maintained layer globs guarded by a tripwire\
+  \ test. The rules above\ncarry the external concept consult's findings (decisions/consumer-test-adapter-concept-audit-adhoc.yaml):\
   \ an\nempty `related` is not \"nothing affected\" (rule 3, 6d-e), a report proves\
   \ consistency not authenticity (rule 4),\na pass alone does not prove the first\
   \ failure harmless (rule 10 records it always), non-test checks stay\noutside the\
@@ -613,12 +622,14 @@ implements_signature:
   bin/lib/land_verify_legs.py#_classify_adapter_report: 549fb71fad5111c5d988210823dc062b9b1e3c25ca033e70f8b78bb17e9dcd01
   bin/lib/land_verify_legs.py#_declared_layer_adapters: 045f4089bf0259cd760f6475fd47d7588c91712b89e6b50e472602412fb65de5
   bin/lib/land_verify_legs.py#_edge_own_test_paths: f19a0157335b9b5c8b89e29f63e271015642a51b84605ba2706a2932f1cc044f
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 22f66fb42c2a1f4fd5afe57ded15877e0c6f668fd760d1e13826a2aedf22df77
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: a0c9382fcd5a7becd294b1f03e33758291ed4174ca8d504a19d6b6f2179994ca
   bin/lib/land_verify_legs.py#_layer_unit_reruns: a119ac5544fca2c0a6a02c11ad3dd64e18fa2f7371537473f0d40a35347ff1be
   bin/lib/land_verify_legs.py#_per_case_rescued_failures: bf391f01b74b85655dd12c83efa722ae09651d1943fc42a9864f648a3c48daa3
-  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 38310b7bec2f5d55f0a1a8064fb4d99bdbdac95c124ffc1b8f6bb1d2d5810afe
+  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 4b438ce400ed07ea3266edc240f131042dc6c4051ed28d308d3a9b1d0cdfcbed
   bin/lib/land_verify_legs.py#_unit_rescue_passes: cfe7f7f93256db11e215a7ab227cdcd7da8c37aa57d7acf8006122ab89c61463
-  bin/lib/views.py#_view_test_layout_hotspots: b5257fb40327e4498a3d2088769ee509c647de92e6bc843174ad272eb5a3b2af
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 1540c07971ea9f05ff70a2fb89449f5ca8d066e7adb66831c8fcc1cb0b7a2366
+  bin/lib/unit_table.py#encode: c79aec22f78edb3f6b8f56f0301718adfe5d0321c8552816432735920361d218
+  bin/lib/unit_table.py#expand: 143910f22e33829115b1fac782a5f4d40935f3ddc0f65bfc47dd463cffc21b80
+  bin/lib/views.py#_view_test_layout_hotspots: 0ad3f5f4c2b474a225ea8117b38138d5b2f6ec7cb28caf433953d2ce67a9f05d
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 21572a384556a0e2f4b3a9f195993268160aeb3197284c25667d53434bf79d7b
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37
   bin/lib/worktree.py#_unit_lane_entry_at_land_tail: d0a9deeb45664ebbb951750729f686d086018535acbcc4f05df30e2f0f38e322

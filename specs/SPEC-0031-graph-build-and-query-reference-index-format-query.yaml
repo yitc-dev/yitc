@@ -139,19 +139,21 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ than the prior yaml.safe_dump/parse on the ~2.3MB tree.\n   P5 unchanged: one-YAML-format\
   \ governs AUTHORED operational state, not this derived view.\n   Structure (shown\
   \ as YAML for readability — keys identical in JSON)):\n```yaml\nspecs:\n  <workshop-spec>:\n\
-  \    title: All operational state is YAML\n    status: active\n    implements: #\
-  \ durable anchors — file / file#symbol, NOT line ranges\n      - bin/lib/task.py#cmd_task_file\n\
-  \      - bin/lib/state.py\ncode_to_specs: # keyed by the normalized FILE component\
-  \ ( — so\n  bin/yitc-v2: # `graph query <file>` matches a `<file>#<symbol>` anchor)\n\
+  \    title: All operational state is YAML\n    status: active\n    implements: \
+  \                 # durable anchors  — file / file#symbol, NOT line ranges\n   \
+  \   - bin/lib/task.py#cmd_task_file\n      - bin/lib/state.py\ncode_to_specs:  \
+  \                 # keyed by the normalized FILE component ( — so\n  bin/yitc-v2:\
+  \                    # `graph query <file>` matches a `<file>#<symbol>` anchor)\n\
   \    - <workshop-spec>\n    - <workshop-spec>\n  bin/lib/state.py:\n    - <workshop-spec>\n\
-  tasks_citing:\n  <workshop-spec>:\n    -\n    -\nerrors: # : 11th node type — promotion-only\
-  \ case files (errors/E-XXXX.yaml)\n  E-0001:\n    kind: friction # defect | friction\
-  \ | improvement\n    severity: low\n    status: open\n    fingerprint: <stable-dedup-key>\n\
-  \    relates_to: '#10 Format drift'\n    refs: [events.jsonl#ts=..., <git-sha>]\n\
-  ```\n**Read-order regen side-effect — EXPLICIT build only.** Beyond the index +\
-  \ the floor\ntrigger-map (both via `_write_graph_index`, the shared path), the EXPLICIT\
-  \ `bin/yitc-v2 graph build`\nALSO regenerates the `AGENTS.md` `<!--GEN:read-order:STYLE-->`\
-  \ managed regions from the single carrier\n`HANDBOOK_READ_ORDER` (`_regen_handbook_read_order`).\
+  tasks_citing:\n  <workshop-spec>:\n    -\n    -\nerrors:                       \
+  \   # : 11th node type — promotion-only case files (errors/E-XXXX.yaml)\n  E-0001:\n\
+  \    kind: friction               # defect | friction | improvement\n    severity:\
+  \ low\n    status: open\n    fingerprint: <stable-dedup-key>\n    relates_to: '#10\
+  \ Format drift'\n    refs: [events.jsonl#ts=..., <git-sha>]\n```\n**Read-order regen\
+  \ side-effect — EXPLICIT build only.** Beyond the index + the floor\ntrigger-map\
+  \ (both via `_write_graph_index`, the shared path), the EXPLICIT `bin/yitc-v2 graph\
+  \ build`\nALSO regenerates the `AGENTS.md` `<!--GEN:read-order:STYLE-->` managed\
+  \ regions from the single carrier\n`HANDBOOK_READ_ORDER` (`_regen_handbook_read_order`).\
   \ In `cmd_graph_build` ONLY — NOT in\n`_write_graph_index` / the land-time `_auto_rebuild_graph`\
   \ (AGENTS ∉ `_BOOKKEEPING_ALLOWLIST`, so a\nland-path write would break land). The\
   \ read-order RULE + its non-divergence backstop (the\n`_read_order_drift` conformance\
@@ -327,17 +329,18 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   ### Query layer ( — consolidated views as queries)\nThe graph IS a **data layer**\
   \ (7 nodes + 4 edges — the SPEC-0076 scenario node + covers edge). Consolidated\
   \ views = **query layer** over the same\ndata — NO parallel mechanisms per concern.\n\
-  \n**Query CLI shape:**\n```\nyitc-v2 graph query <id> # point lookup (single node)\n\
-  yitc-v2 graph query --type <node-type> # filter by node type\nyitc-v2 graph query\
-  \ --type rule --mandatory # show all MUST rules\nyitc-v2 graph query --since <window>\
-  \ # time-filtered\nyitc-v2 graph query --source <doc> # filter by sourcing doc\n\
-  yitc-v2 graph query --type rule --as-of <commit|date> # rule-set AS IT WAS at a\
-  \ past point\nyitc-v2 graph query --projected # «what-will-be» view (a.k.a. --diff);\
-  \ see below\n```\n`--as-of <commit-ish|YYYY-MM-DD>` reads the **committed** `graph/index.json`\
-  \ as of that\ncommit (date → newest commit on/before that day) and runs the query\
-  \ against it — the point-in-time\nrule-set for behavioral audit. Pure read over\
-  \ git history; no new state. Composes with `--type` / id.\nFormat history : a pre-switch\
-  \ SHA falls back to the legacy `graph/index.yaml` ONLY when\n`index.json` is ABSENT\
+  \n**Query CLI shape:**\n```\nyitc-v2 graph query <id>                    # point\
+  \ lookup (single node)\nyitc-v2 graph query --type <node-type>      # filter by\
+  \ node type\nyitc-v2 graph query --type rule --mandatory # show all MUST rules\n\
+  yitc-v2 graph query --since <window>        # time-filtered\nyitc-v2 graph query\
+  \ --source <doc>          # filter by sourcing doc\nyitc-v2 graph query --type rule\
+  \ --as-of <commit|date>   # rule-set AS IT WAS at a past point\nyitc-v2 graph query\
+  \ --projected             # «what-will-be» view (a.k.a. --diff); see below\n```\n\
+  `--as-of <commit-ish|YYYY-MM-DD>` reads the **committed** `graph/index.json` as\
+  \ of that\ncommit (date → newest commit on/before that day) and runs the query against\
+  \ it — the point-in-time\nrule-set for behavioral audit. Pure read over git history;\
+  \ no new state. Composes with `--type` / id.\nFormat history : a pre-switch SHA\
+  \ falls back to the legacy `graph/index.yaml` ONLY when\n`index.json` is ABSENT\
   \ at that SHA; a present-but-malformed `index.json` fails loudly (never\nYAML-masked).\
   \ The fallback is permanent — git history is immutable.\n\n`--projected` (a.k.a.\
   \ `--diff`, B4) is a **PURE f(graph)** projection over the current\nindex: `active\
@@ -348,52 +351,54 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ — no stored snapshots, no named futures,\nno merge / adjudication / semantic-contradiction\
   \ analysis (all DEFERRED). The moment it\nwould need any of those, or become a gate,\
   \ STOP and file (anti-complexity, CHARTER §1).\n\n**Aggregations:**\n```\nyitc-v2\
-  \ graph query --session-size # total injected this session (lines + chars)\nyitc-v2\
-  \ graph query --by-rationale # group injections by rationale source\nyitc-v2 graph\
-  \ query --order-by size_lines desc # sort by size\n```\n\n**Reverse-mapping queries\
-  \ ( insight #6) — PRIMARY tool for bloat-prevention audit** (the\nrationale field\
-  \ enables «what cost does X impose?»):\n```\nyitc-v2 graph query --injections-triggered-by\
-  \ AGENTS.md§At-session-start\n  # → all instruction_injected events citing this\
-  \ rationale\n  # → sum of size_lines / size_chars = total burden this protocol imposes\
-  \ per session\nyitc-v2 graph query --never-cited-in-rationale --window 30d\n  #\
-  \ → docs/decisions/specs not cited as rationale in last 30 days → retirement / supersession\
-  \ candidates\nyitc-v2 graph query --top-rationale-by-volume --session current\n\
-  \  # → top 5 protocols by injection burden (hotspot detection)\nyitc-v2 graph query\
-  \ --mandatory-unread <task-id> # DEFERRED Day 6+\n  # → MUST_READ_NOW injections\
-  \ for task without matching Read events = discipline violations\n  # Requires `instruction_read`\
-  \ event source decision (or native AI-tool Read tracking).\n```\n\n**Saved views\
-  \ — `views/<name>.yaml` (ACTIVE):** a **view** is a named, saved\n**query-lens**\
-  \ — it stores the QUERY, never a materialized output, so the result is **recomputed\n\
-  fresh** on every run (no stale stored output — CHARTER §P5). Views make consolidated\
-  \ reports\n*discoverable* via a deterministic catalog instead of AI memory.\nSchema\
-  \ (`views/<name>.yaml`):\n```yaml\nname: rule-catalog # canonical name (the file\
-  \ stem is the fallback)\ndescription: <one line — what question it answers> # shown\
-  \ in the catalog listing\nlens: # the query to run (NOT its output)\n  kind: node-list\
-  \ # node-list (over a graph node type) | verb-map (pure f(graph))\n            \
-  \                  # | binding-bundle (specs carrying one binding token)\n     \
-  \                         # | token-rollup (raw-transcript read-side)\n        \
-  \                      # | trend-report (journal-windowed L4 trends)\n         \
-  \                     # | task-scorecard (per-task journal-derived metrics) | further\
-  \ code-lenses\n  node_type: rule # for kind: node-list\nwhy: <why this report exists>\n\
-  ```\nCatalog + execution: `graph query --type view` → lists the catalog as `name\
-  \ — description`, sorted by\ncanonical name, read from `views/` on demand (a DERIVED\
-  \ listing — no stored index, no new node/edge).\n`graph query <view-name>` → runs\
-  \ the saved lens against the current index.\nInaugural views : `rule-catalog` (consolidated\
-  \ rule listing, `lens: node-list` over `rule`);\n`verb-map` (per-verb governance,\
-  \ **pure f(graph)** — verb universe from `build_parser`, governance\nfrom `code_to_specs`;\
-  \ file-level today, labels itself `file-level approximation`). Future views added\n\
-  per pull: `open-tasks`, `audit-compliance`, `protocol-cost`, etc.\n**Binding-bundle\
-  \ lenses :** a lens `kind: binding-bundle` takes a `binding_token:` and returns\n\
-  the active specs carrying it — read straight from `index[\"verb_to_specs\"][binding_token]`,\
-  \ the EXACT\nlist `_build_binding_views` inverts from each spec's `binding:` field\
-  \ and that the `floor_trigger_map`\nis itself built from (graph.py:197). So the\
-  \ view and the floor-trigger-map are TWO SURFACES over ONE\nsource (the floor-map\
-  \ fires the bundle BEFORE an action; the view answers \"what governs X?\" on demand):\n\
-  a spec added/removed from the bundle reflects in both without a second list — single\
-  \ source, no new\nstore. Inaugural: `consumer-dimension-bundle` (token `before-project-dimension-judgement`)\
-  \ —\nthe REF_AVAILABLE discovery path for the kernel↔consumer project-dimension\
-  \ doctrine.\n**Raw-source lenses :** a lens MAY read a raw out-of-graph source instead\
-  \ of the index when\nthe data deliberately lives outside the journal/graph — `token-rollup`\
+  \ graph query --session-size                # total injected this session (lines\
+  \ + chars)\nyitc-v2 graph query --by-rationale                # group injections\
+  \ by rationale source\nyitc-v2 graph query --order-by size_lines desc    # sort\
+  \ by size\n```\n\n**Reverse-mapping queries ( insight #6) — PRIMARY tool for bloat-prevention\
+  \ audit** (the\nrationale field enables «what cost does X impose?»):\n```\nyitc-v2\
+  \ graph query --injections-triggered-by AGENTS.md§At-session-start\n  # → all instruction_injected\
+  \ events citing this rationale\n  # → sum of size_lines / size_chars = total burden\
+  \ this protocol imposes per session\nyitc-v2 graph query --never-cited-in-rationale\
+  \ --window 30d\n  # → docs/decisions/specs not cited as rationale in last 30 days\
+  \ → retirement / supersession candidates\nyitc-v2 graph query --top-rationale-by-volume\
+  \ --session current\n  # → top 5 protocols by injection burden (hotspot detection)\n\
+  yitc-v2 graph query --mandatory-unread <task-id>     # DEFERRED Day 6+\n  # → MUST_READ_NOW\
+  \ injections for task without matching Read events = discipline violations\n  #\
+  \ Requires `instruction_read` event source decision (or native AI-tool Read tracking).\n\
+  ```\n\n**Saved views — `views/<name>.yaml` (ACTIVE):** a **view** is a named, saved\n\
+  **query-lens** — it stores the QUERY, never a materialized output, so the result\
+  \ is **recomputed\nfresh** on every run (no stale stored output — CHARTER §P5).\
+  \ Views make consolidated reports\n*discoverable* via a deterministic catalog instead\
+  \ of AI memory.\nSchema (`views/<name>.yaml`):\n```yaml\nname: rule-catalog    \
+  \        # canonical name (the file stem is the fallback)\ndescription: <one line\
+  \ — what question it answers>   # shown in the catalog listing\nlens:          \
+  \               # the query to run (NOT its output)\n  kind: node-list         \
+  \    # node-list (over a graph node type) | verb-map (pure f(graph))\n         \
+  \                     # | binding-bundle (specs carrying one binding token)\n  \
+  \                            # | token-rollup (raw-transcript read-side)\n     \
+  \                         # | trend-report (journal-windowed L4 trends)\n      \
+  \                        # | task-scorecard (per-task journal-derived metrics) |\
+  \ further code-lenses\n  node_type: rule             # for kind: node-list\nwhy:\
+  \ <why this report exists>\n```\nCatalog + execution: `graph query --type view`\
+  \ → lists the catalog as `name — description`, sorted by\ncanonical name, read from\
+  \ `views/` on demand (a DERIVED listing — no stored index, no new node/edge).\n\
+  `graph query <view-name>` → runs the saved lens against the current index.\nInaugural\
+  \ views : `rule-catalog` (consolidated rule listing, `lens: node-list` over `rule`);\n\
+  `verb-map` (per-verb governance, **pure f(graph)** — verb universe from `build_parser`,\
+  \ governance\nfrom `code_to_specs`; file-level today, labels itself `file-level\
+  \ approximation`). Future views added\nper pull: `open-tasks`, `audit-compliance`,\
+  \ `protocol-cost`, etc.\n**Binding-bundle lenses :** a lens `kind: binding-bundle`\
+  \ takes a `binding_token:` and returns\nthe active specs carrying it — read straight\
+  \ from `index[\"verb_to_specs\"][binding_token]`, the EXACT\nlist `_build_binding_views`\
+  \ inverts from each spec's `binding:` field and that the `floor_trigger_map`\nis\
+  \ itself built from (graph.py:197). So the view and the floor-trigger-map are TWO\
+  \ SURFACES over ONE\nsource (the floor-map fires the bundle BEFORE an action; the\
+  \ view answers \"what governs X?\" on demand):\na spec added/removed from the bundle\
+  \ reflects in both without a second list — single source, no new\nstore. Inaugural:\
+  \ `consumer-dimension-bundle` (token `before-project-dimension-judgement`) —\nthe\
+  \ REF_AVAILABLE discovery path for the kernel↔consumer project-dimension doctrine.\n\
+  **Raw-source lenses :** a lens MAY read a raw out-of-graph source instead of the\
+  \ index when\nthe data deliberately lives outside the journal/graph — `token-rollup`\
   \ sums per-session token usage\nfrom raw provider transcripts (`.yitc/transcript-archive/`\
   \ UNION live, deduped newest-mtime-first)\n× CURRENT `bin/pricing-config.yaml` rates\
   \ (the reroute: tokens are NOT journal-materialized;\ncost is computed at read-time,\
@@ -497,16 +502,16 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ (the journey is the scenario ARTIFACT/node now). The single-rule `## Scenario`\
   \ spec SECTION (one rule's external-behaviour face) is **UNAFFECTED** — a different\
   \ altitude.\n4. **Real incident / prior-art / analog?** v1 `SCN-*` first-class nodes\
-  \ (prior-art) + <project>'s matured `SCN↔FSM↔code` graph + <project>/<project> `scenarios/`\
-  \ dirs (≥3-project prior-art) + the asymmetric multi-project retrofit cost (CHARTER\
-  \ §P1 scale-aware refinement) — passes strongly.\n\n**Scope bound (honest +1/+1):**\
-  \ `covers` targets ONLY anchors the graph resolves TODAY (the `<file>` / `<file>#<symbol>`\
-  \ address space `implements` uses) — NO new symbol-indexer, NO `FSM-state` node-type\
-  \ (both deferred to their own future spec). So the change is EXACTLY +1 node + 1\
-  \ edge.\n\n**`lesson` node — the 4-filter justification (per SPEC-0090).** A `lesson`\
-  \ is a per-repo, NON-traveling local-craft note (`lessons/<slug>.md`) — the LOCAL\
-  \ counterpart of a `pattern`. Adding an 8th node-type earns its way through the\
-  \ CHARTER §P1 four filters:\n1. **Existing analog?** The `pattern`/`scenario`/`error`\
+  \ (prior-art) + Boomrocket's matured `SCN↔FSM↔code` graph + <project>/<project>\
+  \ `scenarios/` dirs (≥3-project prior-art) + the asymmetric multi-project retrofit\
+  \ cost (CHARTER §P1 scale-aware refinement) — passes strongly.\n\n**Scope bound\
+  \ (honest +1/+1):** `covers` targets ONLY anchors the graph resolves TODAY (the\
+  \ `<file>` / `<file>#<symbol>` address space `implements` uses) — NO new symbol-indexer,\
+  \ NO `FSM-state` node-type (both deferred to their own future spec). So the change\
+  \ is EXACTLY +1 node + 1 edge.\n\n**`lesson` node — the 4-filter justification (per\
+  \ SPEC-0090).** A `lesson` is a per-repo, NON-traveling local-craft note (`lessons/<slug>.md`)\
+  \ — the LOCAL counterpart of a `pattern`. Adding an 8th node-type earns its way\
+  \ through the CHARTER §P1 four filters:\n1. **Existing analog?** The `pattern`/`scenario`/`error`\
   \ doc-that-`cites` node is the structural analog (node-reuses-`cites`) — REUSED\
   \ for the node shape and the edge. A lesson is semantically distinct from a `pattern`\
   \ precisely along the axis this architecture exists to make queryable — **LOCAL/non-traveling\

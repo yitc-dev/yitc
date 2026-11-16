@@ -175,7 +175,7 @@ class _HelpInventoryAction(argparse.Action):
         parser.exit()
 
 
-def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_external_read, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_pre_deploy_list, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
+def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_external_read, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_cut, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_pre_deploy_list, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
     # add_help=False + a custom top-level help action (T-9786): the inventory --help emits a fetch-receipt.
     # T-13700: the root help is the verb INVENTORY every session scans at start, so it carries ONE
     # line per verb — a fixed width, so a listing line never wraps to the terminal — and a verb's
@@ -266,7 +266,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "owner-transcript locator <transcript-path>[#uuid:<entry-uuid>] and "
                          "REQUIRED-by-resolution (T-10600): when omitted it is derived from this "
                          "session's provider transcript, and registration REFUSES if it cannot be "
-                         "resolved or does not open on disk.")
+                         "resolved or does not open on disk. For a mid-turn owner_directive: "
+                         + vocab.MID_TURN_ENTRY_HINT + ".")
     ev.add_argument("--check", action="store_true",
                     help="NO-WRITE validation (T-11666): run every pre-append check on the REAL emit "
                          "path — same refusals, same exit codes, same WARNs — print a verdict, and "
@@ -388,7 +389,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-10535 / X-0401 / SPEC-0093 rule 12 — the GOVERNED inspection-theme declare path: append a theme to
     # this consumer's yitc-ops.yaml `inspection.themes[]` as a SURGICAL TEXT edit that preserves every
     # existing byte, incl. the kernel contract delivered through the carrier's COMMENTS. It exists because
-    # the only prior path was a hand-edit, and <project>'s `yaml.safe_load`->`yaml.dump` round-trip
+    # the only prior path was a hand-edit, and trend-finder's `yaml.safe_load`->`yaml.dump` round-trip
     # destroyed all 436 comment lines of its carrier. OPT-IN, idempotent, repeatable.
     initp.add_argument("--declare-theme", dest="declare_theme", metavar="SLUG:CADENCE:PROBE",
                        action="append", default=None,
@@ -1365,8 +1366,35 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="T-0375: passed count (author-reported, with --evidence) — all-or-nothing with --duration-ms/--failed")
     tt.add_argument("--failed", type=int,
                     help="T-0375: failed count (author-reported, with --evidence) — all-or-nothing with --duration-ms/--passed")
+    # T-14598 — the explicitly requested continuation: after a green governed run, the existing verbs
+    # stage Closure -> task close -> worktree sync -> land, each a child process, stopping at the first refusal.
+    tt.add_argument("--then-land", dest="then_land", action="store_true",
+                    help="T-14598: with --run --evidence, after a GREEN run (the admitted run over, its green "
+                         "hold set) run `stage Closure`, `task close` (with the --close-probe values), `worktree "
+                         "sync` and `land` from the main checkout, each as its own child process; the first "
+                         "non-zero exit stops the chain (`CHAIN: STOPPED at <step>`) and names what is left. "
+                         "Every check stays in its own verb; land re-proves its own credit (SPEC-0065)")
+    tt.add_argument("--close-probe", dest="close_probe", action="append", default=None,
+                    help="T-14598: with --then-land, one probe result handed to `task close` ('AC1:pass'); repeatable")
+    tt.add_argument("--close-probe-deferred", dest="close_probe_deferred", action="append", default=None,
+                    help="T-14598: with --then-land, one deferred probe handed to `task close` "
+                         "('AC2:<moment>'); repeatable")
+    tt.add_argument("--close-pv-criterion", dest="close_pv_criterion", default=None,
+                    help="T-14598: with --then-land, the post-verification criterion handed to `task close` (SPEC-0038)")
+    tt.add_argument("--close-pv-signal", dest="close_pv_signal", default=None,
+                    help="T-14598: with --then-land, the post-verification signal handed to `task close` (SPEC-0038)")
+    tt.add_argument("--close-pv-waive", dest="close_pv_waive", default=None,
+                    help="T-14598: with --then-land, the post-verification waive reason handed to `task close` (SPEC-0038)")
+    tt.add_argument("--close-prop-follow-up", dest="close_prop_follow_up", action="append", default=None,
+                    help="T-14598: with --then-land, a forward-propagation follow-up id handed to `task close` "
+                         "(SPEC-0053); repeatable")
+    tt.add_argument("--close-prop-deferred-idea", dest="close_prop_deferred_idea", default=None,
+                    help="T-14598: with --then-land, the deferred-idea slug handed to `task close` (SPEC-0053)")
+    tt.add_argument("--close-prop-nowhere", dest="close_prop_nowhere", default=None,
+                    help="T-14598: with --then-land, the nowhere-else-applies reason handed to `task close` "
+                         "(SPEC-0053)")
     tt.add_argument("--placement", choices=("auto", "local"), default="auto",
-                    help="T-13975 (SPEC-1032 rule 6): where a declared CONSUMER project's Stage-6 pass "
+                    help="T-13975 (SPEC-1059 rule 6): where a declared CONSUMER project's Stage-6 pass "
                          "runs while a venue is published — auto (the default, the routing order) or "
                          "local (this host); refused on a kernel pass (placement-kernel-unsupported)")
     tt.set_defaults(func=cmd_task_test, cli_invoked_receipt="task test")  # T-13071: attempt receipt
@@ -1660,7 +1688,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "recorded moment may be dropped, --reason is required (T-14476, SPEC-1008). On a "
                          "LIVE card, probe_moments with --reason is a WITHDRAWAL: the value keeps the moments to "
                          "keep, unchanged, and drops at least one (`{}` drops all and removes the field); the "
-                         "reason and the withdrawn criteria ride the task_amended row (T-14541).")
+                         "reason and the withdrawn criteria ride the task_amended row (T-14541). To DECLARE (add) a "
+                         "moment on a live card, drop --reason (T-13247, T-14593).")
     tu.add_argument("--from-file", dest="from_file", metavar="PATH",
                     help="with --replace-acceptance / --set-field ONLY: read the value from PATH "
                          "(`-` = stdin), so argv quoting never touches it; "
@@ -2088,7 +2117,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                  "never a defect (T-10045, SPEC-0036 / X-0188)")
             # T-10062 (SPEC-0036 / X-0201): pre-shipped-deliverable carve-out (--task only). SIXTH SIBLING
             # of --land-emitted-event / --host-config / … in the same deferred-adoption family. A re-claimed
-            # task whose deliverable ALREADY LANDED in a PRIOR session (<project>, X-0201) has a re-claim
+            # task whose deliverable ALREADY LANDED in a PRIOR session (boomrocket, X-0201) has a re-claim
             # diff of gate-proof + closure bookkeeping ONLY (no deliverable) → the base overlay false-REDs
             # "nothing shipped". The prior deliverable commit is DERIVED from durable task-linked
             # `commit_landed` journal state (_recorded_commit_sha) — nothing user-supplied, nothing to spoof
@@ -2371,10 +2400,17 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                               help="Run an open-form (ad-hoc) external-audit consult: free-form prompt "
                                    "+ V2 lens; FULL model by default (--routine opts down); saves "
                                    "decisions/<slug>-audit-adhoc.yaml (stage: ad-hoc) + emits events")
-    aa.add_argument("--slug", required=True,
+    aa.add_argument("--slug",
                     help="filename-safe consult id ([A-Za-z0-9][A-Za-z0-9-]*) — names "
                          "decisions/<slug>-audit-adhoc.yaml; a T-NNNN/D-NNNN slug records that "
-                         "node as the audited target")
+                         "node as the audited target. Required unless --plan is given")
+    # T-14627 (SPEC-1061 §2) — the plan change check: a cue + pointer here, the rule in its spec.
+    aa.add_argument("--plan", metavar="PLAN-SLUG",
+                    help="the plan CHANGE CHECK from the plan's anchor (its last `plan check`): the "
+                         "kernel builds the packet and writes the one record "
+                         "decisions/<plan>-change-check-audit-adhoc.yaml that `plan stage accepted` "
+                         "reads; it refuses before any auditor call when no change check is possible. "
+                         "Rule: SPEC-1061 §2 (`yitc-v2 graph query SPEC-1061`)")
     aa.add_argument("--prompt", help="the free-form request text (combined with -f/--from-file if both given)")
     aa.add_argument("-f", "--from-file", dest="from_file",
                     help="path to a file containing the request (REPO_ROOT-relative or absolute); "
@@ -2852,7 +2888,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     cfgg.add_argument("key", help="knob name (see `config list`)")
     cfgg.set_defaults(func=cmd_config_get, cli_invoked_verb="config get", read_only_admit=RO_READ)
     cfgs = cfg_sub.add_parser("set", help="set a PERFORMANCE-class knob in the machine settings file; "
-                                          "a GATE-class key is REFUSED (no bypass flag exists)")
+                                          "a GATE-class key is REFUSED (no bypass flag exists)",
+                              description="Set one machine-scoped key in this host's machine settings "
+                                          "file (or, with --project, one THRESHOLD key in this project's "
+                                          "yitc-ops.yaml). A machine-scoped key is the OWNER's: an AI "
+                                          "session sets one only on the owner's word recorded in the "
+                                          "journal, never unlocks the file, and a file the owner locked "
+                                          "refuses with one line naming the key and its current value "
+                                          "(SPEC-1031 rule 10).")
     cfgs.add_argument("key", help="knob name (see `config list`)")
     cfgs.add_argument("value", help="the new value — type/range validated against the inventory")
     cfgs.add_argument("--project", action="store_true",
@@ -2937,10 +2980,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     vnseed.add_argument("--task", help="the card this promotion acts under")
     vnseed.add_argument("--build", action="store_true",
                         help="BUILD a consumer's seed image and record it (with -C <consumer>, "
-                             "SPEC-1032 rule 6, T-13977): a bare box with the base setup, the "
-                             "--provision script as the box user, a full-history clone, this "
-                             "engine at its host path, fstrim, snapshot; the box is deleted on "
-                             "every exit")
+                             "SPEC-1059 rule 6, T-13977): a bare box with the base setup, the "
+                             "--provision script as the box user, a full-history clone, fstrim, "
+                             "snapshot; no engine — each pass ships the engine its host runs; the "
+                             "box is deleted on every exit")
     vnseed.add_argument("--provision", default=None, metavar="PATH",
                         help="with --build: the project's own provisioning script (a file in the "
                              "consumer repository), run on the box as the box user")
@@ -2981,7 +3024,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     vns = vn_sub.add_parser("show", help="print the published venue record, or state its absence (read-only)")
     vns.add_argument("--leases", action="store_true",
-                     help="T-13975 (SPEC-1032 rule 6): also print the passes admitted on the box (its "
+                     help="T-13975 (SPEC-1059 rule 6): also print the passes admitted on the box (its "
                           "live leases, one ssh read), the caps and the Stage-6 headroom — read-only, "
                           "never waits on admission, decides nothing")
     vns.set_defaults(func=cmd_venue_show, cli_invoked_verb="venue show", read_only_admit=RO_READ)
@@ -3353,6 +3396,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="OPTIONAL disambiguator — the 1-based line number within --path")
     jr.set_defaults(func=cmd_journal_redact, cli_invoked_verb="journal redact")
 
+    # T-14570 (SPEC-0190 rules 1+3) — the explicit, per-repository conversion to day partitions.
+    jc = journal_sub.add_parser("cut",
+        help="Cut THIS repository's journal into one partition per UTC ts day (SPEC-0190 rule 1). Run "
+             "in a writing worktree of the repository, by its own session, then land that worktree; "
+             "never automatic. Idempotent (a re-run on a cut journal is a no-op).")
+    jc.set_defaults(func=cmd_journal_cut, cli_invoked_verb="journal cut")
+
     jq = journal_sub.add_parser("query", help="Query events.jsonl (read-only; peer to `graph query`, per D-0039)")
     jq.add_argument("--type", help="filter by event type (exact match)")
     # T-11743 — REPEATABLE, the shape the sibling `dispatch --task` already uses. A plain (scalar)
@@ -3450,6 +3500,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "Report-only backstop for the dispatch preamble; used in the QUEUE weekly "
                          "Re-review sweep. --since/--until bound the window (default ~8 days, matching "
                          "the weekly cadence — T-9367). Honors --json.")
+    jq.add_argument("--land-cycle", dest="land_cycle", action="store_true",
+                    help="land-cycle report (T-14596, read-only): the Stage-6 card cycle of the last N "
+                         "credited lands (--limit N, its default 50) on one exclusive timeline — run "
+                         "admission, suite, each step / verb / gap after the green run, the land's "
+                         "phases and sub-spans, land end to hold release — with an explicit residual, "
+                         "per-span median and p90, and the end-to-end cycle. --task T-… shows that "
+                         "card's timeline; --since bounds the read (default 14 days). Writes "
+                         "nothing. Honors --json.")
     jq.set_defaults(func=cmd_journal_query, cli_invoked_verb="journal query", read_only_admit=RO_READ)   # D-0049: read-only but auto-syncs (default-on); T-0113 observability
 
     session = sub.add_parser("session", help="Session activation — journal markup + startup protocol (per D-0041)")
@@ -3593,6 +3651,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "terminals (rejected / cancelled / the partial split) stay available when the "
                           "Controller chooses not to decide another round. Not combinable with "
                           "--owner-reset.")
+    # T-14563 (SPEC-0070 §4) — the fidelity gate re-run for an executing plan whose cut changed.
+    dst.add_argument("--recut", dest="recut", action="store_true",
+                     help="Re-run the decomposition-fidelity gate of a plan ALREADY in `executing` whose "
+                          "card set changed (a card filed into it after the freeze): `plan stage "
+                          "executing <slug> --recut`. Same gate, same record, same pass rules — the "
+                          "record is re-fingerprinted to the live cut; the plan stays executing. REFUSED "
+                          "`nothing changed` when a GREEN/YELLOW verdict already binds the live cut "
+                          "(no auditor, no pass), and on any other stage. `plan show` names a stale "
+                          "gate (SPEC-0070 §4).")
     dst.set_defaults(func=cmd_plan_stage, cli_invoked_receipt="plan stage")  # T-13071: attempt receipt
 
     dck = plan_sub.add_parser("check", help="Accept-gate verification (external audit; big-plan-checklist if large). Records verdict + content hash, no status change")
@@ -3602,6 +3669,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                      "flag kept for backward-compat")
     dck.add_argument("--focus", help="owner/session question block appended AFTER the stage template "
                      "(never replaces it); recorded VERBATIM in the saved verdict notes (SPEC-0036)")
+    # T-14628 — a ROUND under the scope lens (SPEC-0083 P4 round template).
+    dck.add_argument("--round", action="store_true",
+                     help="run the check as a ROUND: the P4 round template (every finding scoped plan|card) "
+                          "joins the prompt after the stage template; the verdict reads plan-scope findings "
+                          "only; saved as decisions/<slug>-audit-round-<N>.yaml, which never admits the plan "
+                          "(SPEC-0083 P4 round)")
     # T-11986 — mode-(b) absorption on the accept-gate verdict (SPEC-0034 §accept-gate / SPEC-0124
     # §Audit-loop ceiling): the plan-check-shaped spelling of the route that already exists as
     # `audit pre --plan <slug> --gate trial-accepted --absorb`, delegating to the SAME writer.
@@ -3650,6 +3723,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "spike tag the prototype was copied from (repeatable) — its declaring session, "
                           "its branch and its period. Needed because a declaring row records no tag it "
                           "was copied from; each tag read is named in the output.")
+    dsh.add_argument("--unit-skeletons", action="store_true",
+                     help="SPEC-0043 item 10 (T-14625): print the card skeletons of the plan's `## Units` "
+                          "section as a `task file --from-stdin` batch (requires as @N or the filed id, "
+                          "expected_touch from the Owns locators, one acceptance prompt per Proves item). "
+                          "Read-only: emits, never files; an undeclared requires target refuses naming it.")
     dsh.set_defaults(func=cmd_plan_show)
 
     # T-1134 — scenario authoring verb-namespace (the analog of `spec new` / `plan file` + `plan show`
@@ -4274,6 +4352,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                          "the rework-in-place recipe is the how-to "
                                          "`graph query rare-task-recovery-recipes`.")
     wc.add_argument("--from", dest="from_ref", required=True, help="durable artifact for from: (CHARTER §Principle 2)")
+    wc.add_argument("paths", nargs="*",
+                    help="T-14619: commit ONLY these paths (plus the journal receipt) — a file another "
+                         "helper staged stays staged and out of this commit; a path outside the "
+                         "worktree is refused. None = stage the whole batch (add-all)")
     # T-10720 (E-0054) — the same shell-proof escape as `task commit` (same message field, same core).
     wc.add_argument("-m", "--message",
                     help="commit message (subject + optional body). "
@@ -4644,6 +4726,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                f"`WATCH: TIMEOUT` (default {journal_mod.WATCH_MAX_RUNTIME_SECS}, the sanctioned "
                                f"WATCH_MAX_RUNTIME_SECS, unless this machine sets "
                                f"`config set lib.journal.WATCH_MAX_RUNTIME_SECS <sec>` — T-14002). "
+                               f"Absent, the bound is DERIVED from this project's cards (T-14620): the "
+                               f"p90 of the task_picked -> land_completed(ok) wall durations of cards "
+                               f"landed in the last 30 days (a card claimed more than 30 days before "
+                               f"that window is not counted), x1.25, clamped to [300s, that default]; "
+                               f"with fewer than 5 such durations the default stands. The value and its "
+                               f"basis are printed on stderr at arm and recorded on the watch_armed row. "
                                f"Bounded by construction — the watcher never loops forever.")
     dispatch_watch.add_argument("--watch-confirm-ticks", dest="watch_confirm_ticks", type=int, default=2,
                           metavar="N",

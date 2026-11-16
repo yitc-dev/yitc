@@ -402,8 +402,8 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ boundary — not restated).\n\n## Verification\n\nAdoption probe (CHARTER §P3) on\
   \ NAMED event/state surfaces (not prose):\n- **nightly ran** — each v2-nightly run\
   \ emits ONE per-run journal event (a `nightly_*`-class event);\n  ≥3 such events\
-  \ for the dogfood project (<project> once migrated; <project> re-onboarded).\n-\
-  \ **v1-partition holds (STATE check)** — the v1 night-cycle's enumerated project\
+  \ for the dogfood project (trend-finder once migrated; <project> re-onboarded).\n\
+  - **v1-partition holds (STATE check)** — the v1 night-cycle's enumerated project\
   \ set EXCLUDES every\n  `registry.yaml methodology: yitc_v2` project (assertable/greppable\
   \ on the v1 enumerator) — the\n  measurable form of \"the v1 nightly no longer touches\
   \ a v2 project\" (closes X-0090).\n- **owner-declared dormancy (§1)** — `tests/test_nightly_dormant_born_waivers.py`:\

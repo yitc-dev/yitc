@@ -82,10 +82,10 @@ piped its own `session start` through `tail -25` and captured the deviation agai
 ## Anti-pattern
 
 ```bash
-bin/yitc-v2 task file --title … | grep '^T-' # empty match → "did nothing" → re-run → duplicate card
+bin/yitc-v2 task file --title … | grep '^T-'      # empty match → "did nothing" → re-run → duplicate card
 bin/yitc-v2 dispatch --task T-XXXX | grep launched # ate the arm-the-monitor guidance below
-./deploy.sh 2>&1 | tail -5 # ate two gate verdicts above the tail
-bin/yitc-v2 session start | tail -25 # ate the seed + general-verb pointers above
+./deploy.sh 2>&1 | tail -5                         # ate two gate verdicts above the tail
+bin/yitc-v2 session start | tail -25               # ate the seed + general-verb pointers above
 ```
 
 And the second half of the anti-pattern: **re-invoking a mutating verb to re-read its own output**

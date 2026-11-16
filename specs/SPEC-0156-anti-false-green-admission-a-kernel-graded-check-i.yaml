@@ -140,7 +140,7 @@ body: "## Scenario\n\nWhen a project declares a check the kernel will GRADE — 
   \ new rule layer.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nReal incident:\
   \ <project> 2026-07-13, an 8h total prod-auth outage during which SIX independently\n\
   kernel-accepted checks read green (X-0373 and siblings X-0371/X-0374/X-0375/X-0370;\
-  \ <project> X-0353):\na /healthz live probe that a dead product passes, a 401-assertion\
+  \ boomrocket X-0353):\na /healthz live probe that a dead product passes, a 401-assertion\
   \ a broken auth also satisfies, a deploy\nreported OK with one service on old code,\
   \ a source-only secret scan green while a token streamed to logs,\nan owner-environment-only\
   \ verify layer, and an e2e class whose browsers were never installed — nothing\n\

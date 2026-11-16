@@ -442,7 +442,7 @@ change itself.
 
 ```
 bin/yitc-v2 worktree park --work spike-<slug>
-# → prints the prototype reference: spike/<slug>
+#   → prints the prototype reference: spike/<slug>
 ```
 
 Uncommitted sandbox edits are NOT discarded and need no `--force`: park of a DECLARED spike first
@@ -510,8 +510,8 @@ improvement inside it ONE commit — that is what lets a part travel as whole co
 **Hand off X:**
 
 ```
-bin/yitc-v2 worktree park --work spike-<slug> # → spike/<slug> (the prototype tag)
-bin/yitc-v2 task file --prototype-ref spike/<slug>... # X's card, scope: "X only; Y and Z not carried"
+bin/yitc-v2 worktree park --work spike-<slug>          # → spike/<slug> (the prototype tag)
+bin/yitc-v2 task file --prototype-ref spike/<slug> ...  # X's card, scope: "X only; Y and Z not carried"
 ```
 
 X never enters the next spike, not even as a carried commit.
@@ -519,9 +519,9 @@ X never enters the next spike, not even as a carried commit.
 **Y and Z do not need X — continue them in a new declared spike, carried once, at open:**
 
 ```
-bin/yitc-v2 worktree new --work spike-<next> --spike # from clean main; record its origin SHA (§6)
+bin/yitc-v2 worktree new --work spike-<next> --spike     # from clean main; record its origin SHA (§6)
 cd <the new worktree>
-git cherry-pick -x <Y-commit> <Z-commit> # WHOLE commits from spike/<slug>, once
+git cherry-pick -x <Y-commit> <Z-commit>                  # WHOLE commits from spike/<slug>, once
 ```
 
 - `-x` writes git's own `(cherry picked from commit <sha>)` line into each carried commit — that line
@@ -549,8 +549,8 @@ checkout:
 
 ```
 bin/yitc-v2 worktree new --work spike-<next> --spike --from-spike spike-<served>
-# → opens spike-<next> AT the served round's tip, runs your declared hand-over step there,
-# then parks spike-<served> → spike/<served> (the round's prototype tag)
+#   → opens spike-<next> AT the served round's tip, runs your declared hand-over step there,
+#     then parks spike-<served> → spike/<served> (the round's prototype tag)
 ```
 
 Your project's own part — copying build outputs, re-pointing the stand — is ONE command you declare
@@ -560,7 +560,7 @@ there and these in its environment: `YITC_SPIKE_FROM_WORKTREE`, `YITC_SPIKE_TO_W
 
 ```yaml
 spike_sandbox:
-  handover: 'cp -a "$YITC_SPIKE_FROM_WORKTREE/node_modules". && bin/stand-up.sh "$YITC_SPIKE_TO_WORKTREE"'
+  handover: 'cp -a "$YITC_SPIKE_FROM_WORKTREE/node_modules" . && bin/stand-up.sh "$YITC_SPIKE_TO_WORKTREE"'
 ```
 
 Undeclared, nothing project-specific runs, and the output says so. If the step fails, or the served
@@ -632,6 +632,68 @@ deploy. The registry adds no deploy step.
 **Not this route: a card-sized carry.** One card with no plan is out of the registry's scope by the
 owner's decision; it keeps §5 and SPEC-0205 rule 5 as they stand.
 
+**The verifier's brief has one home.** What the verifier card walks and how — an active pass of every
+item, path evidence rather than totals — is SPEC-1058 §3, the verifier-card paragraph; read it there,
+it is not restated here.
+
+**Helper brief — the template.** In a spike the edits are made by in-session helpers, several in
+parallel (SPEC-0205 rule 13). Every helper gets the same brief shape, so none of them improvises the
+parts that cost the owner time:
+
+1. **Where and what.** The spike worktree path; the owner's words for this change, verbatim; the files
+   to change. When several helpers run at once, split the work into streams by FILES — each stream
+   owns its own set; a change touching two streams' files goes as its own step before or after them.
+2. **What not to touch.** Files of other streams; anything outside the spike worktree; `main`; any
+   production resource; claiming, landing, parking or deploying (rule 13's bounds). Another helper's
+   uncommitted files may make a full test run red — name them in the report, do not fix them.
+3. **One commit, own paths only, through `work commit`.** The change is ONE commit carrying only this
+   helper's paths, made with the governed `work commit`, so a part can later travel as whole commits
+   (§5a). Parallel helpers each committing their own paths DEPEND on `work commit` taking explicit
+   paths, which task adds; until it lands, streams commit one after another, each when no
+   other stream holds uncommitted files. Raw `git commit` is never the brief's route — meeting the
+   gap is a `deviation_captured`, not a licence.
+4. **No permission windows.** The owner is talking to the controller, not watching the helper. The
+   helper writes and edits files ONLY with its file write and edit tools — never through the shell
+   (no heredoc into a file, no `echo >`, no in-place `sed`, no inline interpreter that writes). Shell
+   commands stay short, without heredocs or command substitution; a script is written as a file and
+   run by path. A single shell line the AI tool cannot classify stops the owner with a permission
+   question even in a no-questions mode.
+5. **The stand check is the project's.** How to rebuild, how to log in, which viewports to check, which
+   data to seed — the project's own recipe, pasted into the brief from the project's lesson. The kernel
+   names none.
+6. **Report shape.** The commit sha; the files changed; what was checked on the stand and how (login,
+   viewport, a screenshot path); anything left undone or found broken outside the stream; any test or
+   migration added. Nothing else — the controller writes the owner's line.
+
+### 5d. Acceptance with fixes in the sandbox — the round cycle
+
+SPEC-0205 rule 7's default is that acceptance findings are RECORDED (a followup or a card), not fixed
+on the stand. When the owner chooses speed instead — "check and fix in the sandbox, in rounds" — this
+is the cycle. It is a SPIKE (it changes code), so it runs under §1-§5, not under ACCEPTANCE mode:
+
+1. **Open a declared spike from landed `main`** (`bin/yitc-v2 worktree new --work spike-<slug> --spike`,
+   §1) and serve it on the DEV stand. The verifier records already made over landed `main` stay the base;
+   the rounds only add to them.
+2. **One round = one owner remark** (or several about one screen). The controller gives it an id `rN`
+   (a follow-up of the same round is `rNb`, `rNc`), and if the words can be read two ways, or the
+   remark changes a rule of an active spec or touches data, retells it to the owner in one line BEFORE
+   any edit.
+3. **A helper fixes it in the spike** with the brief above (§5c); several rounds at once go to several
+   helpers by file streams. The controller does not edit itself unless the owner asks (rule 13).
+4. **The controller checks** the commit exists and the stand serves it, then tells the owner "rN is
+   ready — check it here".
+5. **The owner re-checks at once.** Accepted closes the round (recorded by the owner-word rule, §6);
+   anything else opens `rNb`.
+6. **Exit by cards.** When every round is accepted or explicitly deferred, park the spike (§5 — the tag
+   `spike/<slug>`) and file the cards that carry the accepted rounds, each with
+   `prototype_ref: spike/<slug>`, at the owner's ok-moment; for more than one card's worth, the
+   registry route of §5c. A remark the owner says to do "as a task" is a card OUTSIDE the spike from
+   the start (rule 10), never a round.
+
+Keep product fixes (they will go to `main` through the cards) apart from stand-only fixes (a reset
+counter, a hand grant, test rows): the second list is rolled back or remembered at exit, never
+carried.
+
 ### 6. Record the run
 
 Two lines in the journal, and they cost nothing:
@@ -649,6 +711,33 @@ Two lines in the journal, and they cost nothing:
 The journal means the EXISTING lifecycle journal. A spike-specific journal, ledger or evidence
 store is forbidden; if one appears to be needed, escalate that as a dissonance (CHARTER §Principle
 7) rather than adding it.
+
+**The live rounds list — a VIEW for the owner, never a store.** A round cycle (§5d) may show the owner
+a list of rounds on the stand, beside the chat. That list is a PROJECTION of rows the journal already
+holds, and nothing else:
+
+| Status on the list | The existing record it is read from |
+|---|---|
+| opened / parked | the spike's `worktree_created` / park rows |
+| awaiting answer | an open `followup` carrying `OWNER-QUESTION` |
+| check on stand | the round's commit served on the stand, no accepted row yet |
+| accepted | an `owner_directive` row for that round (the owner-word rule below) |
+| deferred | a `followup` naming the round |
+
+The page itself, where it lives and how it looks are the project's; it is stand-only, removed at exit,
+and never lands. If the project keeps a file behind the page, write it through a writer that validates
+it, and treat it as display: **the view file is never evidence — the journal is.**
+
+**The owner-word rule — a press of «Accepted» is the owner's word, recorded by the controller.** When
+the owner presses «Accepted» on a round, the controller records it with the existing verb
+`bin/yitc-v2 event owner_directive`, `captured_via: stand-button`, and the row's payload carries the
+whole meaning of the press, so nothing is lost when the stand file is removed at exit: the round id,
+the text as it was displayed, the displayed revision (the stand's commit sha), the press time, and the
+page path. `--source-ref` may name the stand-file entry, as provenance only. A press counts only for the
+text and revision it was shown with; a round whose text changed after the press is pressed again.
+
+**At exit,** rounds still `check on stand` are carried by the owner's exit word — the row of that word
+names them — and are listed for the acceptance stand (§Two modes) after the cards land.
 
 ### §Two modes — SPIKE mode and ACCEPTANCE mode
 
@@ -858,18 +947,18 @@ A read-only spike, end to end, in the shape a run record takes:
 
 ```
 # 0. the project's yitc-ops.yaml already declares spike_sandbox.bridge {pin, enabled, cage_checks}
-# (top-level key — `grep -n '^spike_sandbox:' yitc-ops.yaml`)
+#    (top-level key — `grep -n '^spike_sandbox:' yitc-ops.yaml`)
 # 3. DECLARED FIRST, before anything comes up: mutating=no → may share the standing sandbox
 bin/yitc-v2 worktree new --work spike-slow-list-query --spike
-# ⚠ a spike is open: a change to what it explores goes into the spike, a card only on the owner's word; unrelated work is unaffected (report-only, never blocks — SPEC-0205).
+#   ⚠ a spike is open: a change to what it explores goes into the spike, a card only on the owner's word; unrelated work is unaffected (report-only, never blocks — SPEC-0205).
 # 2. stack up under the declared cage: own identity, no scheduler, channels dummy,
-# served from this declared worktree (4e, spike mode).
-# No channel needed → no grant, so 4d never arises.
+#    served from this declared worktree (4e, spike mode).
+#    No channel needed → no grant, so 4d never arises.
 # 4. entrance 502s while containers read healthy → restart the router ALONE, not a full refresh
-#... measure, read, learn...
+# ... measure, read, learn ...
 # 5. discard
 bin/yitc-v2 worktree park --work spike-slow-list-query
-# → prototype reference: spike/slow-list-query
+#   → prototype reference: spike/slow-list-query
 # 6. run record: sandbox=shared, mutating=no, sources opened = patterns/spike-mode.md only
 # later, at the owner's ok-moment: a card with prototype_ref: spike/slow-list-query, all nine stages
 ```
@@ -879,7 +968,7 @@ The NO-STACK sibling is shorter still, because three of the six steps do not ari
 ```
 # fork: reading a captured log dump — nothing comes up → steps 2, 3, 4 do not arise
 bin/yitc-v2 worktree new --work spike-parse-the-crash-dump --spike
-#... read, measure, learn...
+# ... read, measure, learn ...
 bin/yitc-v2 worktree park --work spike-parse-the-crash-dump
 # 6. run record: stack=none, sources opened = patterns/spike-mode.md only
 ```

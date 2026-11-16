@@ -508,7 +508,7 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ with `deploy:` (one stance, one home — the boundary against a second migration\
   \ home).**\n`init` ALREADY sniffs a project's migrations DIRECTORY (`_detect_migrations_dir`\
   \ / X-0145) and,\nwhen it finds one, flips the born `deploy:` waiver reason to a\
-  \ migration-AWARE placeholder — because the\n<project> near-miss shipped a v2-native\
+  \ migration-AWARE placeholder — because the\nboomrocket near-miss shipped a v2-native\
   \ deploy path with no `alembic upgrade` step and left prod ~10\nmigrations behind\
   \ code. That detector and THIS section are COMPLEMENTARY, not two homes for one\
   \ fact:\n`deploy:` owns the command that APPLIES migrations at ship time (a deploy\
@@ -573,7 +573,7 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ section declares a project's STANDING PRODUCT-OUTCOME invariants —\nthe named,\
   \ one-line \"this is what it means for this subsystem to still WORK\" statements,\
   \ each with a\nread-only PROBE the kernel can run to ask. It is the rule-4 extension\
-  \ point exercised by a REAL evidence\npull (CHARTER §P1 F4): X-0419 (<project>,\
+  \ point exercised by a REAL evidence\npull (CHARTER §P1 F4): X-0419 (boomrocket,\
   \ 2026-07-15) — P3/P8 adoption evidence is framed on the DIFF,\nso each card proves\
   \ only ITS OWN change adopted, and a long-lived SUBSYSTEM that no card owns has\
   \ NO\noutcome probe and cannot be observed broken. Five remediation tasks closed\

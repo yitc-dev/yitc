@@ -13,7 +13,7 @@ implements:
 - bin/lib/nightly.py#_load_freshness_decl
 - bin/lib/init.py#_hook_freshness
 body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay fresh\
-  \ — e.g. <project>'s parsed social\ndata) declares its expected CADENCE + a FRESHNESS\
+  \ — e.g. trend-finder's parsed social\ndata) declares its expected CADENCE + a FRESHNESS\
   \ probe on its `yitc-ops.yaml`. A bounded v2 monitor\nthen checks \"did the regular\
   \ work actually run / is the output fresh?\" and ALERTS on a miss — and it\ndoes\
   \ so INDEPENDENTLY of the project's own loop, so a dead scheduler cannot also kill\
@@ -36,8 +36,8 @@ body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay
   \ (a single\n`GET /health`, SPEC-0094), insufficient for \"is the data fresh\".\n\
   \n### 2. The SOURCE is a GENERIC normalized-freshness ADAPTER contract — never a\
   \ static block premise\nThe freshness SOURCE is NOT a fixed `registry.yaml pipelines:`\
-  \ block the kernel parses (that premise\nwas WRONG: <project>'s real signal is a\
-  \ LIVE Postgres query + a docker-log heartbeat, not a static\nYAML block — external\
+  \ block the kernel parses (that premise\nwas WRONG: trend-finder's real signal is\
+  \ a LIVE Postgres query + a docker-log heartbeat, not a static\nYAML block — external\
   \ consult `decisions/-audit-adhoc.yaml`, verdict RED). Instead each PROJECT\nsupplies\
   \ a **read-only freshness ADAPTER** and the KERNEL stays a generic GRADER. The adapter\
   \ contract\nis NORMALIZED: for each pipeline it returns a `{fresh|stale|miss}` state\
@@ -96,11 +96,11 @@ body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay
   \ (the migration-gate honesty rule).** A project with NO freshness declaration,\
   \ a\nWAIVED one, or one naming no usable adapter grades to verdict `none` — and\
   \ `none` is **NOT freshness\ncoverage**. For a project SLATED TO RETIRE its v1 watchdog\
-  \ (<project>) a coverage/adoption\ngate MUST treat `none` as **NON-ADOPTED** and\
-  \ MUST NOT count it as a v2 replacement — only a DECLARED\nadapter actually graded\
-  \ by the monitor counts. The monitor marks each result `adopted: true|false`\naccordingly\
-  \ so the downstream gate cannot silently read an absent declaration as covered.\n\
-  \n### 3. The probe is INDEPENDENT of the project's own loop (the single-point-of-failure\
+  \ (trend-finder) a coverage/adoption\ngate MUST treat `none` as **NON-ADOPTED**\
+  \ and MUST NOT count it as a v2 replacement — only a DECLARED\nadapter actually\
+  \ graded by the monitor counts. The monitor marks each result `adopted: true|false`\n\
+  accordingly so the downstream gate cannot silently read an absent declaration as\
+  \ covered.\n\n### 3. The probe is INDEPENDENT of the project's own loop (the single-point-of-failure\
   \ rule)\nThe kernel freshness monitor MUST NOT depend on the project's own scheduler\
   \ to fire. <project>'s only\nfreshness alarm is its OWN `celery-beat` task — if\
   \ the beat dies, the alarm dies with it. The v2\nmonitor runs from the bounded methodology\
@@ -157,11 +157,11 @@ body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay
   \ it issues no request of its own. A `waiver:` on the\nsection stays the stance\
   \ the generic declare-or-waive check owns, so a waived section is asked\nnothing\
   \ here either.\n\n### Coverage-overlap (no freshness gap — the L3 real pull is the\
-  \ <project> migration)\nL3's real PULL is the <project> migration (`migrate-<project>-onto-yitc-v2-v1-incumbent-gat`):\n\
-  <project> is freshness-critical and its v1 `watchdog.sh` coverage is removed at\
-  \ migration. The v2\nmonitor MUST be PROVEN catching a (synthetic) freshness miss\
-  \ on <project> BEFORE the v1 watchdog is\nretired (task, parked on exactly this\
-  \ proof) — the no-gap coverage-overlap rule lives single-SoT\nin that migration\
+  \ trend-finder migration)\nL3's real PULL is the trend-finder migration (`migrate-trend-finder-onto-yitc-v2-v1-incumbent-gat`):\n\
+  trend-finder is freshness-critical and its v1 `watchdog.sh` coverage is removed\
+  \ at migration. The v2\nmonitor MUST be PROVEN catching a (synthetic) freshness\
+  \ miss on trend-finder BEFORE the v1 watchdog is\nretired (task, parked on exactly\
+  \ this proof) — the no-gap coverage-overlap rule lives single-SoT\nin that migration\
   \ plan's §Verification (pointer, not restated here).\n\n### Build-order — NO catalog-amendment\
   \ prerequisite (corrected 2026-06-27)\nL3 has **no** hard dependency on the extension-catalog\
   \ amendment (plan\n`extension-catalog-population-from-3-project-breadt` / SPEC-0112).\
@@ -172,17 +172,18 @@ body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay
   monitor's events (rule 3), not the catalog `wired`/`resolves_to` vocabulary (which\
   \ L3 does not use). So\nthe prior hard `requires:` edge is REMOVED — L3 decomposes/builds\
   \ on its own.\n(`extension-catalog-population-...` stays an informational `cites:`\
-  \ only.)\n\n## Rationale\n\n<project> is freshness-critical and its v1 watchdog/registry-threshold\
+  \ only.)\n\n## Rationale\n\ntrend-finder is freshness-critical and its v1 watchdog/registry-threshold\
   \ machinery is removed by\nmigration with nothing on the v2 side to replace it;\
-  \ <project> has NO `registry.yaml pipelines:`\nblock so `watchdog.sh` skips it (a\
-  \ freshness GAP); <project>'s alarm is single-point-of-failure. The\n3-project study\
-  \ lives in the proposing plan (<workshop-spec> §3 content boundary — not restated).\n\
+  \ boomrocket has NO `registry.yaml pipelines:`\nblock so `watchdog.sh` skips it\
+  \ (a freshness GAP); <project>'s alarm is single-point-of-failure. The\n3-project\
+  \ study lives in the proposing plan (<workshop-spec> §3 content boundary — not restated).\n\
   Predecessor: the withdrawn <workshop-spec> (re-authored here under the follow-on\
   \ grow-plan; <workshop-spec>\nfrozen historical).\n\n## Verification\n\nAdoption\
   \ probe (CHARTER §P3 + §P8 — infra-class): the v2 monitor CATCHES a (synthetic/injected)\n\
-  freshness miss on a real project (<project>), firing from the bounded nightly INDEPENDENTLY\
-  \ of the\nproject's own scheduler. FAILURE-CHECK: the monitor goes silent when the\
-  \ project's own loop dies\n(rule 3 violated) — the very condition it must detect.\n"
+  freshness miss on a real project (trend-finder), firing from the bounded nightly\
+  \ INDEPENDENTLY of the\nproject's own scheduler. FAILURE-CHECK: the monitor goes\
+  \ silent when the project's own loop dies\n(rule 3 violated) — the very condition\
+  \ it must detect.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
@@ -191,7 +192,7 @@ cites:
 - SPEC-0105
 - SPEC-0109
 - extension-catalog-population-from-3-project-breadt
-- migrate-<project>-onto-yitc-v2-v1-incumbent-gat
+- migrate-trend-finder-onto-yitc-v2-v1-incumbent-gat
 - v2-automation-grow-l2-product-cron-governance-l3-l
 requires: []
 supersedes: null

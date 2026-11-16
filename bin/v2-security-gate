@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v2 security-audit evidence gate — kernel successor to <project>'s bin/v2-security-gate.sh.
+"""v2 security-audit evidence gate — kernel successor to social-parser's bin/v2-security-gate.sh.
 
 Deterministic, provider-independent, fail-closed. NO AI in the accept path (SPEC-0145 §2/§8): this
 script alone decides ACCEPT/REJECT over a security-audit evidence report, so retiring an AI role can
@@ -10,7 +10,7 @@ evidence schema + the ONE canonical `findings` key + the report content-hash, §
 is `proposed` — this fills its evidence-validating-gate anchor at `executing`; the spec activates LAST at
 T-10188 after the consumer-proof (CHARTER §P8 build order). Cited, NOT activated here.
 
-Design LIFTED (read-only provenance, not edited) from <project> `bin/v2-security-gate.sh`
+Design LIFTED (read-only provenance, not edited) from social-parser `bin/v2-security-gate.sh`
 (T-9573/SPEC-0108): report-date freshness within an SLA window, fail-closed on missing/unparseable,
 deterministic max-filename-date report selection, optional governed waivers file, severity-blocking on
 open critical/high. The prior-art read the findings list under `items` — the SPEC-0145 §5 retirement #4
@@ -48,7 +48,7 @@ seam; DEFAULT_FRESH_DAYS is the documented contract default when the carrier dec
 
 Deploy-seam identity match (SPEC-0155 §4 — the structural kill of vintage ambiguity):
   A fresh DATE proves the report is recent; it does NOT prove the report covers the code being deployed
-  (X-0328 / <project> T-0134: a cadence-vintage report kept listing 13 already-fixed npm HIGHs and
+  (X-0328 / trend-finder T-0134: a cadence-vintage report kept listing 13 already-fixed npm HIGHs and
   blocked two C1 deploys). At the DEPLOY-SEAM judgement the gate therefore PROVES coverage: the report's
   `commit_identity` must equal the deploy candidate's commit, and every lockfile hash the report declares
   must recompute equal over the deploy checkout — else REFUSE (`identity-mismatch`).

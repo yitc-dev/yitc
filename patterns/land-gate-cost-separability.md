@@ -41,12 +41,12 @@ it happens to carry the wall-clock split too.
 For one abort row at `ts` with total `duration_ms`:
 
 ```
-episode_window = [ts - duration_ms, ts]
-reservation_s = SUM of the per-PARK peaks of the source-C rows for this branch inside
+episode_window  = [ts - duration_ms, ts]
+reservation_s   = SUM of the per-PARK peaks of the source-C rows for this branch inside
                   episode_window, taken per wait-type and summed across types
-verify_admit_s = verify_metrics.queue_wait_ms / 1000 (0 when B absent)
-verify_run_s = (verify_wall_ms - queue_wait_ms) / 1000 (0 when B absent)
-gate_attrib_s = duration_ms/1000 - reservation_s - verify_admit_s - verify_run_s
+verify_admit_s  = verify_metrics.queue_wait_ms / 1000          (0 when B absent)
+verify_run_s    = (verify_wall_ms - queue_wait_ms) / 1000      (0 when B absent)
+gate_attrib_s   = duration_ms/1000 - reservation_s - verify_admit_s - verify_run_s
 ```
 
 `verify_wall_ms` is **queue-inclusive** (documented at `bin/lib/worktree.py:28420-28427`), which is
@@ -243,7 +243,7 @@ candidate is pre-flighted at formation: **1024**.
 the window:
 
 ```
-1024 · c = R · 3874 => c* = 3.78 · R seconds
+1024 · c  =  R · 3874        =>        c* = 3.78 · R   seconds
 ```
 
 **Read as a falsifier — the hypothesis dies if `c` exceeds `3.78 · R`.** Substituting the measured

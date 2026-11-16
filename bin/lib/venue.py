@@ -29,7 +29,6 @@ provider's status/code/message, so no refusal path can carry it either (AC4).
 from __future__ import annotations
 
 import base64
-import io
 import json
 import os
 import re
@@ -232,7 +231,7 @@ LEGACY_TRANSITION_LOCK_NAME = ".verify-venue.lock"
 
 
 def record_transition_lock(env=None):
-    """T-13976 (SPEC-1032 rule 6) — the ONE machine-wide lock over a publish's transition: held from
+    """T-13976 (SPEC-1059 rule 6) — the ONE machine-wide lock over a publish's transition: held from
     its authoritative read of the record through its write. Two publishers of DIFFERENT repositories
     each hold only their own repository's land reservation, so without this both could pass the
     check and the later write silently replace the earlier record. An exclusive flock on a file
@@ -321,11 +320,11 @@ def clear_record(env=None) -> bool:
 def build_record(*, box, server_id, snapshot_id, fingerprint, published_at,
                  session_ref, task=None, checkout_root=None, ssh_user=BOX_USER,
                  ssh_identity=None, serves=None) -> dict:
-    """Rule 1's field list (with SPEC-1032's `serves`), and ONLY it: discovery/config state, never a
+    """Rule 1's field list (with SPEC-1059's `serves`), and ONLY it: discovery/config state, never a
     verdict or a result.
     `cores` + `legs` are lifted out of the fingerprint because rule 5's `derive_remote_w` consumes
     them (T-12195) and a reader must not have to re-open the fingerprint to find the W inputs.
-    `serves` (T-13976, SPEC-1032 rule 6) — the real path of the consumer repository's git common dir
+    `serves` (T-13976, SPEC-1059 rule 6) — the real path of the consumer repository's git common dir
     — is written only for a venue published for a consumer; a kernel record carries no such key."""
     fp = fingerprint or {}
     if ssh_identity is None:
@@ -733,9 +732,9 @@ def refresh_leg_applies(record) -> "tuple[bool, str]":
     """Does rule 6's refresh leg apply to this delete? (applies, why-not). A READ, decided before any
     mutation. `record` is the venue record, or None for a delete finished from the tombstone. Only a
     consumer venue (`serves`) is not-applicable: the leg refreshes the KERNEL seed from the kernel
-    clone, and a consumer image is `venue seed --build`'s (SPEC-1032 rule 6)."""
+    clone, and a consumer image is `venue seed --build`'s (SPEC-1059 rule 6)."""
     if record is not None and record.get("serves"):
-        return False, (f"the venue serves {record.get('serves')} (a consumer venue, SPEC-1032 rule 6) — "
+        return False, (f"the venue serves {record.get('serves')} (a consumer venue, SPEC-1059 rule 6) — "
                        f"the refresh leg refreshes the KERNEL seed from the kernel clone")
     return True, ""
 
@@ -886,14 +885,15 @@ def list_servers(*, env=None, label: str = "purpose=remote-verify-venue") -> lis
     return parsed.get("servers") or []
 
 
-# ── The consumer image build (SPEC-1032 rule 6 image, T-13977) ────────────────────────────────
+# ── The consumer image build (SPEC-1059 rule 6 image, T-13977) ────────────────────────────────
 # WHAT THIS IS. `venue seed --build -C <consumer> --provision <script>`: the kernel's TRAVELING build
 # of a consumer's first seed snapshot. The kernel's own image recipe (its seed-recipe script) is
 # v2-self and never travels, so an install had no way to build its first image. The
 # build is the recipe's `seed` shape PORTED (not shared — the recipe file is untouched and keeps its
 # behaviour): a BARE image with the recipe's base setup, then the project's own provisioning script,
-# a FULL-HISTORY bare clone of the consumer, the host's engine release at the host's absolute path,
-# fstrim, a quiesced snapshot — and the box deleted on EVERY exit (a started hour is billed whole).
+# a FULL-HISTORY bare clone of the consumer, fstrim, a quiesced snapshot — and the box deleted on
+# EVERY exit (a started hour is billed whole). The image carries NO engine (T-14586): each consumer
+# pass ships the engine its host runs (SPEC-1059 rule 4), so the build reads no engine release.
 # The CLI host (`cmd_venue_seed`) owns the journal rows and the seed record write, as for every verb.
 
 #: The base package set of a build box — the recipe's `SEED_PACKAGES`, PORTED: the recipe is v2-self
@@ -947,53 +947,17 @@ def _build_git_out(repo, *argv) -> "str | None":
     return r.stdout.strip() if r is not None and r.returncode == 0 else None
 
 
-def _engine_release(engine: Path) -> dict:
-    """The engine as a PUBLISHED RELEASE (SPEC-0195): its tracked tree, which must re-digest to the
-    `tree_digest` its own `release-manifest.yaml` declares. Reuses the release module's ONE tree
-    reader and ONE digest (`read_release_tree`, `tree_digest`) — the same pair `verify_release`
-    runs — so what ships is provably the kernel-realm cut that was published, and a workshop
-    checkout (no manifest; or v2-self files the manifest's digest does not cover) is refused. Returns
-    {tree, exec_paths, source_ref, tree_digest}; raises `VenueError` naming the cause.
-
-    T-13994 (SPEC-1032 rule 6) — the install's OWN files (`release.INSTALL_LOCAL_PATHS`: the venue
-    binding at its default home, a root journal, `.yitc/`) are dropped from the tree before the digest,
-    so they neither fail the check nor travel to the box; every other file is judged as before."""
-    from lib import release as _release   # deferred: the release module is a cold path here
-    exec_paths: set = set()
-    try:
-        tree = _release.read_release_tree(engine, exec_paths=exec_paths)
-    except Exception as exc:              # noqa: BLE001 — an unreadable root is a refusal, not a crash
-        raise VenueError(f"the engine root {engine} could not be read as a release tree "
-                         f"({exc.__class__.__name__})") from None
-    tree = {rel: blob for rel, blob in tree.items() if not _release.is_install_local(rel)}
-    exec_paths = {rel for rel in exec_paths if rel in tree}
-    manifest = _release._parse_yaml_blob(tree.get(_release.MANIFEST_FILENAME))
-    if not manifest:
-        raise VenueError(f"the engine root {engine} is not a published release (no readable "
-                         f"{_release.MANIFEST_FILENAME}) — the image carries the RELEASE this host "
-                         f"runs, never a workshop checkout")
-    excludes = [str(x) for x in (manifest.get("digest_excludes") or [_release.MANIFEST_FILENAME])]
-    declared = str(manifest.get("tree_digest") or "")
-    recomputed = _release.tree_digest(tree, excludes=excludes)
-    if not declared or recomputed != declared:
-        raise VenueError(f"the engine release at {engine} does not match its manifest — the manifest "
-                         f"says {declared[:16] or '<unset>'}…, the tracked tree hashes to "
-                         f"{recomputed[:16]}… (a modified or added file); the image ships only the "
-                         f"release as published")
-    return {"tree": tree, "exec_paths": exec_paths,
-            "source_ref": str(manifest.get("source_ref") or "?"), "tree_digest": declared}
-
-
-def build_preflight(*, repo_root, engine_root, provision, pinned: bool = False, env=None) -> dict:
+def build_preflight(*, repo_root, engine_root, provision, env=None) -> dict:
     """Every refusal the build can decide BEFORE a provider call, so a refused build costs nothing.
 
-    Returns {repo_root, engine_root, engine_path, engine, provision_path, provision_rel, main_sha};
-    raises `VenueError` naming the one cause. The checks, in order: a complete binding; a CONSUMER
-    (`-C`; the kernel's own image is the recipe's); the provisioning script is a FILE inside the
-    consumer repository (a `..` or a symlink out of it is outside); `refs/heads/main` resolves; the
-    repository is not shallow (SPEC-1032 rule 6: never shallow); the engine is not a declared pin's
-    release cache (that tree lives under the temp dir, which a booted image does not keep); the
-    engine root is a PUBLISHED RELEASE whose tracked tree matches its manifest (`_engine_release`)."""
+    Returns {repo_root, provision_path, provision_rel, main_sha}; raises `VenueError` naming the one
+    cause. The checks, in order: a complete binding; a CONSUMER (`-C`; the kernel's own image is the
+    recipe's); the provisioning script is a FILE inside the consumer repository (a `..` or a symlink
+    out of it is outside); `refs/heads/main` resolves; the repository is not shallow (SPEC-1059 rule
+    6: never shallow). T-14586: nothing about the engine is judged here — the image carries none, and
+    every pass ships the engine its host runs (SPEC-1059 rule 4), a source checkout, an installed
+    release and a pin's release cache alike; `engine_root` is read only to tell a consumer from the
+    engine itself."""
     _require_binding(env)
     repo = Path(os.path.realpath(str(repo_root)))
     engine = Path(os.path.realpath(str(engine_root)))
@@ -1016,14 +980,8 @@ def build_preflight(*, repo_root, engine_root, provision, pinned: bool = False, 
     shallow = _build_git_out(repo, "rev-parse", "--is-shallow-repository")
     if shallow != "false":
         raise VenueError(f"the consumer repository {repo} is SHALLOW (or its depth could not be read: "
-                         f"{shallow!r}) — the image needs its FULL history (SPEC-1032 rule 6)")
-    if pinned:
-        raise VenueError(f"this consumer declares an engine pin; the engine resolved to the release "
-                         f"cache {engine}, which this build does not ship — run it from the install "
-                         f"the pin names")
-    return {"repo_root": repo, "engine_root": engine, "engine_path": str(engine),
-            "engine": _engine_release(engine),
-            "provision_path": prov, "provision_rel": str(prov.relative_to(repo)),
+                         f"{shallow!r}) — the image needs its FULL history (SPEC-1059 rule 6)")
+    return {"repo_root": repo, "provision_path": prov, "provision_rel": str(prov.relative_to(repo)),
             "main_sha": main_sha}
 
 
@@ -1034,12 +992,12 @@ def _q(value) -> str:
 
 def build_plan(pre: dict, *, box: str = "<box>", server_id="<server-id>", user: str = BOX_USER,
                nofile: "int | None" = None) -> list:
-    """The ORDERED build steps — the ONE place the order lives (SPEC-1032 rule 6). Each step is
+    """The ORDERED build steps — the ONE place the order lives (SPEC-1059 rule 6). Each step is
     {name, where, text} plus what the driver runs: `script` (box-side shell text fed to `bash -s`
     over ssh as `user`), `stdin_file` (the provisioning script, fed the same way), `argv` (a host
     git command) or nothing (a provider call the driver makes). `render_build_plan` prints `text`."""
     nofile = remote_verify.VENUE_NOFILE if nofile is None else int(nofile)
-    repo, path, release = pre["repo_root"], pre["engine_path"], pre["engine"]
+    repo = pre["repo_root"]
     main_sha = pre["main_sha"]
     clone = remote_verify.BOX_REPO_GIT
     url = f"ssh://{user}@{box}/home/{user}/venue/repo.git"
@@ -1065,15 +1023,6 @@ def build_plan(pre: dict, *, box: str = "<box>", server_id="<server-id>", user: 
         "git fsck --connectivity-only --no-dangling --no-progress\n"
         "sync\n"
         f"echo 'clone verified: full history, main@{main_sha[:12]}'\n")
-    engine_dir = (
-        "set -eu\n"
-        f"sudo mkdir -p {_q(path)} && sudo chown {user}:{user} {_q(path)}\n"
-        f"test -z \"$(ls -A {_q(path)})\" || {{ echo 'the engine path is not empty:' {_q(path)}; exit 1; }}\n")
-    extract = f"tar -x -C {_q(path)}"
-    engine_verify = (
-        "set -eu\n"
-        f"test -f {_q(path + '/bin/yitc-v2')} && test -f {_q(path + '/bin/lib/cli.py')}\n"
-        f"echo 'engine release {release['source_ref']} installed at' {_q(path)}\n")
     fstrim = "set -eu\nsync\nsudo fstrim -av\nsync\n"
     ssh = f"ssh {user}@{box}"
     return [
@@ -1091,15 +1040,6 @@ def build_plan(pre: dict, *, box: str = "<box>", server_id="<server-id>", user: 
          "argv": push_argv, "timeout": 5400},
         {"name": "clone-verify", "where": f"box as {user}", "text": clone_verify,
          "script": clone_verify, "timeout": 1800},
-        {"name": "engine-dir", "where": f"box as {user}", "text": engine_dir, "script": engine_dir,
-         "timeout": 120},
-        {"name": "engine-install", "where": "host",
-         "text": (f"tar of the release {release['source_ref']} as published ({len(release['tree'])} "
-                  f"files, tree_digest {release['tree_digest'][:16]}…, verified against its manifest) "
-                  f"| {ssh} {_q(extract)}"),
-         "release": release, "extract": extract, "timeout": 900},
-        {"name": "engine-verify", "where": f"box as {user}", "text": engine_verify,
-         "script": engine_verify, "timeout": 120},
         {"name": "fstrim", "where": f"box as {user}", "text": fstrim, "script": fstrim,
          "timeout": 900},
         {"name": "poweroff", "where": "provider",
@@ -1128,28 +1068,6 @@ def _push_clone(argv: list, *, timeout: float):
     env = dict(os.environ, GIT_SSH_COMMAND="ssh " + " ".join(remote_verify.SSH_OPTS))
     return subprocess.run(argv, text=True, capture_output=True, timeout=timeout,
                           env=_git_env._git_child_env(env))
-
-
-def _install_engine(release: dict, ip: str, extract: str, *, user: str = BOX_USER,
-                    timeout: float):
-    """The verified release tree (`_engine_release`) written as ONE tar and fed to `tar -x` on the
-    box. The bytes are the snapshot the digest was computed over — never a second read of the root
-    — and a file's executable bit travels (0755 for the release's exec paths, else 0644).
-    Returns (rc, tail)."""
-    import tarfile
-    with tempfile.TemporaryFile() as tar_file:
-        with tarfile.open(fileobj=tar_file, mode="w") as tar:
-            for rel in sorted(release["tree"]):
-                blob = release["tree"][rel]
-                info = tarfile.TarInfo(rel)
-                info.size = len(blob)
-                info.mode = 0o755 if rel in release["exec_paths"] else 0o644
-                info.mtime = int(time.time())
-                tar.addfile(info, io.BytesIO(blob))
-        tar_file.seek(0)
-        unpack = subprocess.run(remote_verify.ssh_argv(ip, extract, user=user), stdin=tar_file,
-                                capture_output=True, timeout=timeout)
-    return unpack.returncode, (unpack.stderr or unpack.stdout or b"").decode("utf-8", "replace")
 
 
 # ── Provider calls the build adds (ported from the recipe's `seed`; each is a READ or a MUTATION) ─
@@ -1242,7 +1160,7 @@ def build_consumer_image(pre: dict, *, name: str, on_mutation=None, say=None, en
     only then is the interrupt raised again.
 
     `pre` is `build_preflight`'s result. Returns {snapshot_id, server_id, ip, main_sha,
-    engine_release, engine_tree_digest, engine_path, provision_rel, timings}. Raises
+    provision_rel, timings}. Raises
     `VenueQuotaRefused` or `VenueError`; a box that could not be deleted is named with
     `bin/yitc-v2 venue delete --server-id <id>`."""
     say = say or (lambda line: print(line, flush=True))
@@ -1319,11 +1237,6 @@ def build_consumer_image(pre: dict, *, name: str, on_mutation=None, say=None, en
                 if r.returncode != 0:
                     raise VenueError(f"step {name_!r} failed (rc={r.returncode}): "
                                      f"{_tail(r.stderr or r.stdout)}")
-            elif "release" in step:
-                rc, tail = _install_engine(step["release"], ip, step["extract"],
-                                           timeout=step["timeout"])
-                if rc != 0:
-                    raise VenueError(f"step {name_!r} failed (rc={rc}): {_tail(tail)}")
             elif name_ == "poweroff":
                 attempt(lambda: poweroff_server(server_id, env=env), target,
                         f"POST /servers/{server_id}/actions/poweroff")
@@ -1335,8 +1248,7 @@ def build_consumer_image(pre: dict, *, name: str, on_mutation=None, say=None, en
                             timeout=poweroff_timeout)
             elif name_ == "snapshot":
                 desc = (f"yitc-venue-seed {pre['repo_root'].name} main@{pre['main_sha'][:8]} "
-                        f"engine {pre['engine']['source_ref']} (SPEC-1032 rule 6 consumer image; "
-                        f"T-13977)")
+                        f"(SPEC-1059 rule 6 consumer image, no engine; T-13977)")
                 try:
                     image_id = attempt(lambda: create_image(server_id, desc, env=env, labels=label),
                                        f"{provider}:image(label {BUILD_LABEL_KEY}={nonce})",
@@ -1387,9 +1299,7 @@ def build_consumer_image(pre: dict, *, name: str, on_mutation=None, say=None, en
         raise VenueError(f"snapshot {image_id} is available but {cleanup} Then record the image "
                          f"with `bin/yitc-v2 venue seed --snapshot-id {image_id}`")
     return {"snapshot_id": image_id, "server_id": box["id"], "ip": box["ip"],
-            "main_sha": pre["main_sha"], "engine_release": pre["engine"]["source_ref"],
-            "engine_tree_digest": pre["engine"]["tree_digest"], "engine_path": pre["engine_path"],
-            "provision_rel": pre["provision_rel"], "timings": timings}
+            "main_sha": pre["main_sha"], "provision_rel": pre["provision_rel"], "timings": timings}
 
 
 def _cleanup_build_box(server_id, nonce, provider, row, say, *, env=None, attempts: int = 3,
@@ -1514,7 +1424,7 @@ PROBE_EXPECTATIONS = (
 #: The extra reads the shared fingerprint does not measure: cloud-init completion and the seeded bare
 #: clone (rule 3). Measured in ONE ssh round beside `probe_fingerprint`, never a second probe. The
 #: table above is the generic floor the venue mechanism itself needs; a tool a project's suite needs
-#: (the kernel's own jq and npm included) is that project's declared check (SPEC-1032 rule 1, T-14486).
+#: (the kernel's own jq and npm included) is that project's declared check (SPEC-1059 rule 1, T-14486).
 _CLONE_SCRIPT = r"""python3 - <<'PY'
 import json, os, shutil, subprocess
 def sh(c):
@@ -1582,7 +1492,7 @@ def probe_readiness(fingerprint: dict | None, declaration: "dict | None" = None)
     (rule 5) — and is reported under a synthetic `nofile` field so a refusal still names what failed.
 
     T-13974 — `declaration` is a consumer's `verify.venue` reading (`consumer_declaration`). Given,
-    the box is judged for THAT consumer too, after the unchanged rows (SPEC-1032 rules 3 and 6): see
+    the box is judged for THAT consumer too, after the unchanged rows (SPEC-1059 rules 3 and 6): see
     `consumer_readiness_failures`. Omitted (every kernel caller), the result is exactly as before —
     a `consumer` part in the fingerprint is not read at all.
     """
@@ -1667,15 +1577,15 @@ def main_mirror_state(fingerprint: dict | None, *, repo_root, main_ref: str = "m
     return {"clone_main_sha": clone_sha, "host_main_sha": host_sha, "behind": behind}
 
 
-# ── The consumer declaration — `verify.venue` (SPEC-1032 rule 1, T-13972) ─────────────────────────
+# ── The consumer declaration — `verify.venue` (SPEC-1059 rule 1, T-13972) ─────────────────────────
 #: The reason a consumer pass reads when its `verify.venue` mapping is present but malformed: it runs
-#: locally, and the reason is shown on its Stage-6 row (SPEC-1032 rules 1-2) — never a silent local run.
+#: locally, and the reason is shown on its Stage-6 row (SPEC-1059 rules 1-2) — never a silent local run.
 DECLARATION_INVALID_REASON = "venue-declaration-invalid"
 
 
 def consumer_declaration(ops) -> dict:
     """The consumer's `verify.venue` opt-in, read off the ALREADY-PARSED `yitc-ops.yaml` carrier
-    (SPEC-1032 rule 1; the carrier is SPEC-0093's, read and parsed by the caller). PURE: no I/O, no
+    (SPEC-1059 rule 1; the carrier is SPEC-0093's, read and parsed by the caller). PURE: no I/O, no
     environment, never raises, never mutates `ops`. Returns exactly one of
 
       {"state": "absent"}
@@ -1698,7 +1608,7 @@ def consumer_declaration(ops) -> dict:
     `install` only where one is declared, values verbatim.
 
     Read by the Stage-6 seam (`task._stage6_consumer_venue`) and by `venue publish -C`, both since
-    T-13976 activated SPEC-1032."""
+    T-13976 activated the consumer venue rule (now SPEC-1059)."""
     def invalid(path, what):
         return {"state": "invalid", "reason": DECLARATION_INVALID_REASON, "cause": f"{path}: {what}"}
 
@@ -1741,7 +1651,7 @@ def consumer_declaration(ops) -> dict:
         if "install" in entry:
             check["install"] = entry["install"]
         checks.append(check)
-    # T-13994 (SPEC-1032 rules 1 and 3) — the OPTIONAL width policy, checked last. Absent reads
+    # T-13994 (SPEC-1059 rules 1 and 3) — the OPTIONAL width policy, checked last. Absent reads
     # `whole` and the valid result keeps exactly its three keys; present, it must be one of the two
     # policy names and the result carries it as `width`.
     if "width" not in mapping:
@@ -1770,7 +1680,7 @@ def consumer_declaration_of(repo_root, ops_contract) -> dict:
     return consumer_declaration(ops)
 
 
-# ── The consumer box readiness — SPEC-1032 rules 3 and 6 (T-13974) ─────────────────────────────────
+# ── The consumer box readiness — SPEC-1059 rules 3 and 6 (T-13974) ─────────────────────────────────
 #: The consumer part of the box fingerprint, measured in ONE ssh round beside `measure_fingerprint`
 #: (the `_CLONE_SCRIPT` precedent), never one round per check: whether the atomic admission primitive
 #: (`flock`) is on the box, whether the seeded clone is SHALLOW (the consumer's tests read old git
@@ -1866,7 +1776,7 @@ def consumer_probe_script(checks, *, timeout_s: int = 60) -> str:
 def measure_consumer_environment(ip: str, declaration: dict, *, user: str = BOX_USER,
                                  timeout: "float | None" = None) -> dict:
     """Run the consumer probe on the box: `{flock, clone_shallow, checks: [{name, rc, stdout,
-    truncated}]}` — the fingerprint's `consumer` part (SPEC-1032 rule 1: the declared checks'
+    truncated}]}` — the fingerprint's `consumer` part (SPEC-1059 rule 1: the declared checks'
     outputs are the consumer part of the environment fingerprint). A declaration that is not a valid
     one is refused by name rather than probed; a probe that did not run or did not parse is a
     `VenueError`, never an empty reading that would judge as «no checks failed»."""
@@ -1893,7 +1803,7 @@ def measure_consumer_environment(ip: str, declaration: dict, *, user: str = BOX_
 
 
 def consumer_check_passes(rc, stdout, expect, truncated=False) -> bool:
-    """THE ONE comparison of a declared check (SPEC-1032 rule 1): it exited 0 AND its stdout equals
+    """THE ONE comparison of a declared check (SPEC-1059 rule 1): it exited 0 AND its stdout equals
     `expect`. «Equals» is the shell's `$(...)` reading — trailing newlines dropped, nothing else
     touched (the declaration keeps `expect` verbatim, surrounding spaces included). A `truncated`
     output never passes, whatever its prefix: the bytes past the cut are unknown. A non-integer exit
@@ -1956,7 +1866,7 @@ def declared_check_failures(fingerprint: "dict | None", declaration: dict) -> li
     return failures
 
 
-# ── A project's declared box needs — check, then install (SPEC-1032 rules 1 and 6, T-14486) ─────────
+# ── A project's declared box needs — check, then install (SPEC-1059 rules 1 and 6, T-14486) ─────────
 #: The bound on ONE declared install command on the box: an apt or vendor-repository install that
 #: outlives it is refused as a failed install (rc None), never waited on without end.
 INSTALL_TIMEOUT_S = 900
@@ -1997,6 +1907,6 @@ def ensure_declared_environment(ip: str, declaration: dict, *, on_install=None,
 def install_failures(installs) -> list:
     """The readiness rows of the installs that did not exit 0 (rc None included), in the
     `probe_readiness` shape and named `check:<name>`: an install that failed refuses the box even when
-    the check passes afterwards — a half-finished install is not a ready box (SPEC-1032 rule 6)."""
+    the check passes afterwards — a half-finished install is not a ready box (SPEC-1059 rule 6)."""
     return [{"field": f"check:{i['name']}", "op": "install exit 0", "expected": 0, "actual": i["rc"]}
             for i in installs or () if i["rc"] != 0]

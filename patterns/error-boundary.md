@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button onClick={ => window.location.reload}>Reload</button>
           </div>
         </div>
-)
+      )
     }
     return this.props.children
   }
@@ -75,7 +75,7 @@ export function App {
         {/* routes */}
       </BrowserRouter>
     </ErrorBoundary>
-)
+  )
 }
 ```
 

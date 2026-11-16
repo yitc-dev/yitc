@@ -730,7 +730,7 @@ def _sweep_retired_surfaces(repo_root, _run_git_cap, *, apply: bool = True) -> l
     Currently sweeps CROSS-TASKS.md — the RETIRED per-repo cross log (SPEC-0075/SPEC-0079, both superseded
     at the T-9293 cutover; the live surface is the shared coordination log, SPEC-0084/85/86). A consumer
     bootstrapped before the cutover can carry a now-stale born-empty / tombstone CROSS-TASKS.md that
-    current init no longer seeds (T-9470) yet never actively removed — so it just lingers (the <project>
+    current init no longer seeds (T-9470) yet never actively removed — so it just lingers (the trend-finder
     X-0110 case: its CROSS-TASKS.md survived migration). init now sweeps it.
 
     Scope is NARROW and fail-CLOSED: ONLY an empty / tombstone file (`_legacy_cross_tasks_has_content`
@@ -1198,6 +1198,19 @@ def _pre_deploy_entry_errors(label: str, i: int, c: dict, ops: dict) -> list:
         errs.extend(_glob_list_errors(c.get("never_move"), f"{at}.never_move",
                                       "the test files the list verb never lists (SPEC-1051 rule 1)",
                                       rule="SPEC-1051 rule 1"))
+    if "returns_on" in c:                              # T-14623 (SPEC-1051 rule 1)
+        ret = c.get("returns_on")
+        if not (isinstance(ret, dict) and ret):
+            errs.append(f"{at}.returns_on: present but not a NON-EMPTY mapping of a listed test file to its "
+                        "list of path globs (SPEC-1051 rule 1) — or omit it.")
+        else:
+            for f, gs in ret.items():
+                if not (isinstance(f, str) and f.strip()):
+                    errs.append(f"{at}.returns_on: the key {f!r} is not a test file path (SPEC-1051 rule 1)")
+                    continue
+                errs.extend(_glob_list_errors(gs, f"{at}.returns_on[{f!r}]",
+                                              "the paths whose change returns this silent test to the land "
+                                              "run (SPEC-1051 rule 1)", rule="SPEC-1051 rule 1"))
     return errs
 
 
@@ -1322,7 +1335,7 @@ def engine_declaration_errors(ops) -> list:
 #: SPEC-0186 rule 6 — the top-level sections the ENGINE's own `yitc-ops.yaml` may carry.
 ENGINE_DECLARATION_SECTIONS = ("verify_policy", "admission", "verify", "deploy", "tests", "thresholds")
 #: SPEC-0186 rule 6 — the engine's `verify:` keys: the admission queue's three, and `layers` (ONE layer).
-# T-14486: `venue` — the engine's own verify-box needs (SPEC-1032 rule 1), judged by its own reader.
+# T-14486: `venue` — the engine's own verify-box needs (SPEC-1059 rule 1), judged by its own reader.
 ENGINE_VERIFY_KEYS = ("post_sync_set", "sync_at_stage6_admission", "post_sync_set_first", "layers",
                       "venue")
 
@@ -3853,7 +3866,7 @@ def _carrier_comment_contract_verdict(text: str) -> dict:
       - `rehome`: ordered `"<section>: <carrier cite> -> <born cite>"` strings — a gap whose section
         still cites the SAME RULE NUMBER under a DIFFERENT spec, i.e. the named re-home candidate.
 
-    THE INCIDENT. <project>'s T-0141 edited its carrier with a `yaml.safe_load` -> `yaml.dump`
+    THE INCIDENT. trend-finder's T-0141 edited its carrier with a `yaml.safe_load` -> `yaml.dump`
     round-trip, which silently destroyed all 436 comment lines — i.e. the kernel contract delivered
     through them — and nothing kernel-side noticed. They caught it only by luck (a self-test that
     happened to break). This is the check that would have noticed.
@@ -3869,7 +3882,7 @@ def _carrier_comment_contract_verdict(text: str) -> dict:
     `full-strip` = the checked sections retain NO comment lines at all (the comments are gone, hence
     the anchors); `partial` = comments survive, so the gap is citation drift, not a strip. Read off
     the same raw text already sliced here — no count threshold, and none is wanted: a 1-section
-    carrier round-tripped is still a full strip, and <project>'s T-0203 tripped 3 of 15 anchors with
+    carrier round-tripped is still a full strip, and boomrocket's T-0203 tripped 3 of 15 anchors with
     every comment intact (a literal restore reading would have cost it ~150 lines of project prose).
 
     ANTI-FALSE-POSITIVE (both AC requirements): an anchor counts as present if the section's comments
@@ -4701,7 +4714,7 @@ def _born_unanswered_fragment(name: str, declare_key, cli_form: str = "bin/yitc-
     WHY THE ANSWER IS STRIPPED. The born template ships each mandatory section with a FILLED, plausible
     waiver ("no spike sandbox yet…"). That is honest AT BIRTH — a project born today genuinely has no
     spike stack. Back-delivered to an EXISTING project it is an unverified factual claim about someone
-    else's system, and for at least one consumer it is demonstrably FALSE (<project>'s refresh script
+    else's system, and for at least one consumer it is demonstrably FALSE (boomrocket's refresh script
     restores production into its sandbox, X-0798). Delivering it would AUTO-ANSWER a mandatory question
     for nine projects at once — the `lessons/a-stance-mirror-is-only-sound-at-birth` class, one
     altitude down: a born ANSWER is only sound at birth, exactly as a stance MIRROR is.
@@ -5673,7 +5686,7 @@ def _render_source_block(source: dict, indent: str) -> str:
     """Render an adopts entry's nested `source:` mapping as YAML TEXT (T-10775).
 
     Hand-rendered, never `yaml.dump` — this whole family exists to avoid the round-trip that gutted 436
-    contract comments in <project>'s carrier (X-0401). Scalars go through `_yaml_scalar` (JSON's string
+    contract comments in trend-finder's carrier (X-0401). Scalars go through `_yaml_scalar` (JSON's string
     grammar is a subset of YAML's double-quoted style, so it is an exact escape-correct renderer); a bool
     or int is emitted bare; a list renders as a flow sequence of quoted scalars. Keys are emitted in the
     declared order, so the written carrier reads the way the operator typed it."""
@@ -5769,7 +5782,7 @@ def _remove_waives_entries(text: str, spec_ids: list) -> str:
     """Remove the `extensions.waives[]` entries for `spec_ids`, preserving the carrier's comments (TEXT
     edit, NOT a yaml round-trip — the `_append_waives_entries` sibling, same X-0401 rationale: this
     carrier's kernel contract is delivered THROUGH its comments, and a safe_load->dump round-trip gutted
-    436 of them in <project>). Drops each matching `- spec: <id>` item AND its indented continuation
+    436 of them in trend-finder). Drops each matching `- spec: <id>` item AND its indented continuation
     lines (`reason:` …), stopping at the next sibling item / the section end. An id that is not waived is
     a no-op; when the last item goes, the now-empty `waives:` key is normalized to `waives: []` so the
     section keeps a well-typed list (`_hook_extensions` / `_extensions_coverage` read it either way, but a
@@ -5798,7 +5811,7 @@ def _remove_waives_entries(text: str, spec_ids: list) -> str:
     kept_items = 0
     while k < end_idx:
         # Tolerate a TRAILING YAML COMMENT on the `- spec:` line (X-0508): a hand-annotated consumer
-        # carrier (<project>'s) waives entry reads `- spec: SPEC-XXXX   # <note>`. Without the `(?:#.*)?`
+        # carrier (boomrocket's) waives entry reads `- spec: SPEC-XXXX   # <note>`. Without the `(?:#.*)?`
         # the id-anchored `\s*$` failed to match, so the waive was silently LEFT while `_extensions_coverage`
         # (a real yaml parse) still saw it — the both-states carrier the sweep then fail-closes on, the very
         # limbo the T-10475 un-waive exists to avoid. `(\S+)` is greedy and stops at whitespace, so the
@@ -6006,7 +6019,7 @@ def _adopt_extensions(ops_path, spec_ids: list, ENGINE_ROOT, write_text_atomic, 
 
 # ── Inspection-THEME declaration (SPEC-0093 rule 12) — the governed append path ──────────────────────
 # T-10535 (X-0401): `inspection.themes[]` was the one carrier section a consumer could only grow by
-# HAND-EDITING the carrier — no verb covered it. <project>'s T-0141 did exactly that with a
+# HAND-EDITING the carrier — no verb covered it. trend-finder's T-0141 did exactly that with a
 # `yaml.safe_load` -> `yaml.dump` round-trip, which destroyed all 436 comment lines of its carrier: the
 # kernel contract for this file is delivered THROUGH those comments (the declare-or-waive rules, the
 # per-section semantics, the view-XOR-sweep rule), so the round-trip silently gutted the contract and
@@ -6563,7 +6576,7 @@ def _kernel_theme_previously_seeded(repo_root) -> bool:
     WHY NOT THE ADOPTION RECORD (rejected at Execution — the reason is worth keeping): the
     `concern: inspection` stance reading `adopt` was the first candidate, and it is a sound
     previously-seeded proof for a carrier that was born WAIVED. It is UNSOUND in general: a project
-    that already declares themes of its OWN (the <project> shape) reads `adopt` because of ITS OWN
+    that already declares themes of its OWN (the boomrocket shape) reads `adopt` because of ITS OWN
     declaration, so the stance would refuse to seed the baseline into precisely the consumers that
     already use the section. The journal row means one thing only — the kernel seeded this repo.
 
@@ -7352,7 +7365,7 @@ def _adopt_concerns(ops_path, specs: list, write_text_atomic) -> list:
         # only the birth pre-seed derived it; this explicit path recorded the requested status verbatim, so
         # `coverage:adopt:<owner>` over `coverage: {load_bearing: []}` wrote ADOPTED while `_coverage_opt_in`
         # reads that empty list as NOT-opted-in — the ledger asserting a mechanism that tracks nothing
-        # (<project>, 2026-07-12). Reuse the SAME `_mirror_adoption_status` the pre-seed uses (one stance
+        # (boomrocket, 2026-07-12). Reuse the SAME `_mirror_adoption_status` the pre-seed uses (one stance
         # reader, CHARTER §P5) — here to REFUSE a false claim, never to answer for the owner (the
         # `lessons/a-stance-mirror-is-only-sound-at-birth` trap is WRITING a mirrored stance; this gate
         # writes none, and the question stays the owner's). Only `adopt` is gated: `waive`/`na` assert no
@@ -7443,7 +7456,7 @@ def _adopt_concern_only(repo_root, args, *, _append_event, _run_git_cap, write_t
     through the WHOLE of `cmd_init`, so it ALSO re-delivered every if-absent born scaffold: the born
     files, the MEMORY.md station pointers, the vendor adapter, the security-audit cadence scaffold, the
     engine templates. On a consumer that had deliberately DELETED a scaffold, recording an adoption
-    silently re-materialized it — so <project> could not record its `security` adoption without
+    silently re-materialized it — so social-parser could not record its `security` adoption without
     re-creating the X-0239 silent-pass hazard (bin/security-audit colliding on the findings path its own
     producer owns). Scaffold delivery is the BARE init's job and stays single-homed there, byte-unchanged.
 
@@ -7721,7 +7734,7 @@ def _preseed_concern_adoptions(ops_path, write_text_atomic, *, fresh_carrier: bo
     concern definitions, and the mirror copies the SHAPE of that old answer — which is silent about the NEW
     question. Pre-seeding it records `adopt`/`waive` @current for a contract nobody re-read, and the drift
     goes quiet: the signal SPEC-0143 exists to raise gets consumed by the TOOL instead of by the owner
-    (observed live in <project>: 14 report-only drift lines silenced by a bare `init`). So a legacy
+    (observed live in social-parser: 14 report-only drift lines silenced by a bare `init`). So a legacy
     consumer's drift STANDS. Note the per-concern `section in by_concern` guard below CANNOT do this job —
     "no adoption entry yet" is equally true of a newborn and of a legacy consumer with real pending drift;
     at pre-seed time both read as all-un-adopted. Only "the carrier did not exist a moment ago" separates
@@ -8050,7 +8063,7 @@ _TEST_DIR_CANDIDATES = ("tests", "backend/tests")
 
 # Candidate DB-migrations dir locations probed at init (T-9772, X-0145) — the common alembic/django/rails
 # layouts. Presence flips the born `deploy:` waiver reason to a migration-AWARE placeholder so a fresh
-# consumer that HAS migrations is reminded up front that its deploy command must APPLY them (the <project>
+# consumer that HAS migrations is reminded up front that its deploy command must APPLY them (the boomrocket
 # near-miss: a v2-native deploy path with no `alembic upgrade` step, prod ~10 migrations behind code).
 _MIGRATIONS_DIR_CANDIDATES = ("migrations", "backend/migrations", "alembic", "backend/alembic", "db/migrate")
 
@@ -8508,7 +8521,7 @@ def _ops_carrier_body(repo_root) -> str:
       tests-EXIST-wire-a-`verify.layers`-command stance.
     - DEPLOY (T-9772 / X-0145): swap the `deploy:` born-waiver reason to a migration-AWARE placeholder when
       repo_root ships a DB-migrations dir — so a fresh consumer that HAS migrations is reminded up front
-      that its deploy command must APPLY them (the <project> near-miss: a deploy path with no migrate step).
+      that its deploy command must APPLY them (the boomrocket near-miss: a deploy path with no migrate step).
 
     FAIL-LOUD if any template reason value drifted (so a swap can never silently mis-render — audit-pre
     T-9518 finding 1). Each truthful reason KEEPS the BORN_WAIVER_MARKER so the nightly born-waiver-freshness
@@ -8768,7 +8781,7 @@ _BORN_SCRATCH_IGNORE_LINES = (".scratch/*", "!.scratch/.gitkeep")
 # WHY THE ENGINE'S PAIR CANNOT BE SHIPPED VERBATIM (the correctness point, not a symmetry point).
 # `!/.claude/` is EXACT for the engine because the engine's census is exact FOR THE ENGINE: `.claude/`
 # is its only tracked dot-prefixed directory. It is WRONG for a consumer. Re-derived per repo with
-# `git ls-files` on 2026-09-01: <project> TRACKS `.github/`; <project> TRACKS `.claude/` AND
+# `git ls-files` on 2026-09-01: <project> TRACKS `.github/`; boomrocket TRACKS `.claude/` AND
 # `.deploy-state/`; <project> TRACKS `.rl/` and `.scratch/`. A verbatim born `.*/` + `!/.claude/` would
 # leave `.github/` under the deny in <project> and SILENTLY DENY a new file under `.github/workflows` —
 # hiding real work, which is strictly worse than the junk the rule removes. So the allowlist is
@@ -9541,7 +9554,7 @@ def adapter_conformance(repo_path, *, kernel_root=None) -> dict:
             beyond its own title. The born adapter has exactly ONE heading, so ANY additional heading —
             at any level — is a product/methodology/deploy section. Keying on the heading COUNT (not on
             a keyword list) catches BOTH origin incidents: <project>'s `# Team Mode` H1 (an H1-level
-            section a `##`-only rule would miss) and <project>'s `## Deploy` over-scope (T-0049).
+            section a `##`-only rule would miss) and trend-finder's `## Deploy` over-scope (T-0049).
           * `pointer-to-missing-home` (N2) — VP1/VP2 chain: the adapter's neutral-home pointer does not
             RESOLVE — it names no legal home at all, or names one absent on disk. (SPEC-0125 Rule 3:
             "the adapter's pointer MUST resolve".)
@@ -9645,7 +9658,7 @@ def adapter_conformance(repo_path, *, kernel_root=None) -> dict:
 
 # ── ADOPTION-COMPLETENESS conformance (SPEC-0122 R6, T-10694 / X-0543) ──────────────────────────────
 # A pinned external-shared-library dependency proves CODE IDENTITY (R2 no-local-diff) but NOT SURFACE
-# COVERAGE: <project>'s <project> adoption ran 6/15 endpoints, 0 UI, 0 ops checks INVISIBLY for
+# COVERAGE: boomrocket's ticket-review adoption ran 6/15 endpoints, 0 UI, 0 ops checks INVISIBLY for
 # weeks (X-0543). This report-only view is the CONSUMER side of the leg — it reads the LIBRARY-shipped
 # consumer-integration MANIFEST (declared surfaces; authored by the library-side siblings X-0537/X-0542,
 # never by this reader — P5) and reports the surfaces DECLARED-but-not-INTEGRATED as a LOUD gap. It is
@@ -10114,6 +10127,14 @@ def _pinned_tree_drift(repo, sha, root, limit=10):
     return sorted(extra)[:limit], sorted(changed)[:limit], sorted(missing)[:limit]
 
 
+def _anchor_mismatch_detail(ref, repo, evidence):
+    """The refusal text for a release tree that IS the tag's yet fails the declared `anchor:` (T-14611,
+    X-2369): the declaration is the cause, so the text names it and never advises removing the cache."""
+    return (f"the declared `anchor:` does not verify release {ref} in {repo} — {evidence}. "
+            f"Correct the `anchor:` declared with this pin in the project's yitc-ops.yaml (the "
+            f"release's published fingerprint) and re-run; removing the release cache will not help")
+
+
 def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
     """Resolve a pin declared as a git TAG in a declared sibling repo (T-11758, X-1161) — return the
     release ROOT holding that tag's bytes, or None.
@@ -10176,14 +10197,26 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
             return cache
         # T-13230 — say WHICH bytes drifted, so the refusal is actionable rather than a generic
         # "does not resolve" (the recovery is removing this cache; it re-extracts from the tag).
+        # T-14611 — but only a cache that REALLY drifted is blamed: when the cache equals the tag's
+        # own tree, the failing side is the declared anchor, and removing a healthy cache changes
+        # nothing (the re-extracted tree fails the same way — X-2369).
         if why is not None:
             drift = _pinned_tree_drift(repo, sha, cache)
             named = "; ".join(f"{label}: {', '.join(paths)}" for label, paths in
                               zip(("extra", "changed", "missing"), drift or ()) if paths)
-            why.append(f"the cached release tree {cache} fails its integrity check against the "
-                       f"declared `anchor:`" + (f" — {named}" if named else "")
-                       + f". It was modified after it was verified; remove {cache} and re-run "
-                       f"(it is re-extracted from the tag)")
+            if drift is not None and not named:
+                why.append(_anchor_mismatch_detail(ref, repo, f"the cached tree {cache} matches "
+                                                   f"the tag's own tree, so the cache is intact"))
+            elif drift is None:
+                why.append(f"the cached release tree {cache} fails its integrity check against the "
+                           f"declared `anchor:`, and git could not read tag {ref} in {repo} to tell "
+                           f"whether the cache drifted. Check the `anchor:` declared with this pin "
+                           f"in the project's yitc-ops.yaml first; if it is right, remove {cache} "
+                           f"and re-run (it is re-extracted from the tag)")
+            else:
+                why.append(f"the cached release tree {cache} fails its integrity check against the "
+                           f"declared `anchor:` — {named}. It was modified after it was verified; "
+                           f"remove {cache} and re-run (it is re-extracted from the tag)")
         return None
     staging = None
     try:
@@ -10205,6 +10238,9 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
         # tree. Verifying after the rename (the shape audit-pre caught) would have published first
         # and judged second, which is not what "before any write" means.
         if not _pinned_release_integrity_ok(staging, anchor):
+            if why is not None:           # T-14611: a fresh extraction IS the tag — the anchor is the cause
+                why.append(_anchor_mismatch_detail(ref, repo, "the tree was freshly extracted "
+                                                   "from the tag"))
             return None
         try:
             os.rename(str(staging), str(cache))   # ATOMIC publish — partial trees never appear
@@ -11058,7 +11094,7 @@ def _deliver_cadence_scaffold(REPO_ROOT, ENGINE_ROOT, write_text_atomic, *, appl
     bytes drifted from the engine is NO LONGER rewritten silently: it is returned as `pending` (the
     caller reports it — the staleness signal X-0365 found missing) and re-derived only when the operator
     passes `--refresh-scaffolds`. Silently rewriting it dragged a +31-line runner refresh into an
-    unrelated task's diff when an init sweep ran inside a task worktree (X-0358, <project> T-0170).
+    unrelated task's diff when an init sweep ran inside a task worktree (X-0358, boomrocket T-0170).
     The `refresh` gate is the LAST condition, so it NARROWS the SPEC-0154 rule-5 identity gate below and
     never widens it: an update still requires the producer identity to positively match the scaffold.
     The absent→INSTALL branch is untouched (a fresh consumer bootstraps flag-free — T-9463), matching
@@ -11067,7 +11103,7 @@ def _deliver_cadence_scaffold(REPO_ROOT, ENGINE_ROOT, write_text_atomic, *, appl
     SPEC-0154 rule 5 — PRODUCER-IDENTITY-GATED INSTALL/UPDATE. The runner is the kernel's GENERIC probe
     and rule 1 makes the unmodified core "the sole report assembler, delivered + updated by `init`" — so
     if-absent alone would strand every landed consumer on the runner it was born with, which is the
-    divergence SPEC-0154 exists to end (the <project> fork already lags the §5 schema). The runner is
+    divergence SPEC-0154 exists to end (the social-parser fork already lags the §5 schema). The runner is
     therefore UPDATED in place (overwrite-if-different against the ENGINE copy — the same shape as
     cmd_init's `_REMATERIALIZE_TEMPLATES` loop), but ONLY when the consumer's findings producer identity
     POSITIVELY matches the scaffold (`_scaffold_owned_security_producer`). An existing renamed fork stays
@@ -12708,7 +12744,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # CROSS-TASKS guard and therefore before ANY filesystem write. `--adopt-concern` declares one job
     # (record one adoption entry, SPEC-0143 Rule 2); running it through the bootstrap body below
     # re-delivered every if-absent born scaffold as a silent side effect — re-materializing files a
-    # consumer had deliberately deleted (<project>: bin/security-audit + .trigger, the X-0239 hazard).
+    # consumer had deliberately deleted (social-parser: bin/security-audit + .trigger, the X-0239 hazard).
     # Scaffold delivery stays single-homed on the BARE init path below, unchanged.
     # PURE CONTRACT-COMMENT RE-HOME MODE (T-12475) — the same early return, for the same X-0251 reason,
     # placed FIRST so every other pure-carrier-write flag reaches its refusal instead of being dropped.
@@ -13097,7 +13133,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # T-10275 (SPEC-0147 §7): seed the project OWNER's onboarding station pointers into the buffer.
     # COMPUTE-ONLY HERE — the WRITE + EMIT are DEFERRED to the bootstrap-commit seam below (T-10470).
     #
-    # Why deferred (X-0332, <project>, twice on 2026-07-12): this fold used to WRITE MEMORY.md right
+    # Why deferred (X-0332, social-parser, twice on 2026-07-12): this fold used to WRITE MEMORY.md right
     # here, while init's ONLY commit is the bootstrap commit at the very END — behind two FAIL-CLOSED
     # sweeps (`_sweep_ops_carrier`, the SPEC-0112 catalog-completeness sweep) and the on_main gate. So an
     # init run that seeded a station and THEN aborted at a sweep (or ran off `main`, where no commit fires)
@@ -13360,7 +13396,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # NEWBORN-ONLY (T-10262 / X-0240): gated on the carrier being BORN THIS RUN, because only then is the
     # sweep above a genuine BIRTH review. A pre-existing carrier holds stances authored against the OLD
     # concern definitions; mirroring them @current would silence real pending drift under the `init` sentinel
-    # (<project>: 14 lines) — the tool consuming the signal that is the owner's to consume. Deliberately
+    # (social-parser: 14 lines) — the tool consuming the signal that is the owner's to consume. Deliberately
     # NOT the `_seed_catalog_waives` fresh_carrier expression below/above: its `or "<section>" in
     # ops_sections_pulled` disjunct (and its wholly-absent-section fallback) would re-admit exactly that
     # case — a concern section freshly PULLED into a LEGACY carrier, and a legacy carrier with no

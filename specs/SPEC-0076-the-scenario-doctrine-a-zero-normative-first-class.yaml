@@ -259,7 +259,7 @@ body: "## Scenario\n\nThe owner sees a **scenario** as the primary HUMAN-facing 
   \ the node-type requires the 4 filters + owner approval at authoring (the negative\
   \ probe, rule below).\n\n## Rationale\n\nPrior-art (CHARTER §P1 F4): v1 first-class\
   \ `SCN-*` graph nodes; external BDD feature-files / UML\nuse-cases / user-story\
-  \ maps; production yitc-consumers — <project> (`SCN ↔ FSM ↔ code`, 67 YAML,\n`error_class`\
+  \ maps; production yitc-consumers — Boomrocket (`SCN ↔ FSM ↔ code`, 67 YAML,\n`error_class`\
   \ branches), <project> + <project> `scenarios/` dirs; the live v2-self recurrence\
   \ (Review/Build\nmicro-scenarios). The distinct node-type (not `pattern` reuse)\
   \ is settled on the **primary-instrument**\nargument (the scenario is the owner's\

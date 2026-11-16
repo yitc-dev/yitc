@@ -441,7 +441,7 @@ def derive_remote_w(fingerprint: "dict | None", durations: "dict | None", *,
 
 
 def consumer_request_width(fingerprint: "dict | None") -> "int | None":
-    """T-13974 — the width a CONSUMER request carries (SPEC-1032 rule 3): the box's thread count, the
+    """T-13974 — the width a CONSUMER request carries (SPEC-1059 rule 3): the box's thread count, the
     fingerprint's `cores` (`os.cpu_count()` on the box). A pass alone on the box has the whole box;
     the project's own `verify.layer_worker_shares` divide it among layers, so rule 5's derivation
     (`derive_remote_w`) does not apply. None when the fingerprint states no positive count — never a
@@ -1156,7 +1156,7 @@ done
 CAP=@MAX_REQUESTS@
 S6MAX=@STAGE6_MAX@
 HEADROOM=@STAGE6_HEADROOM@
-# SPEC-1032 rule 3 (T-13974) — 1 for a CONSUMER request, 0 for every kernel request. Rendered by
+# SPEC-1059 rule 3 (T-13974) — 1 for a CONSUMER request, 0 for every kernel request. Rendered by
 # `box_lease_prologue(consumer=...)`, never read off the box: the host decided what this request is.
 CONSUMER=@CONSUMER@
 # AN UNSUBSTITUTED TEMPLATE FAILS FAST AND LOUD, IT DOES NOT SPIN. This prologue is a TEMPLATE:
@@ -1199,7 +1199,7 @@ CLASS=land
 # as the leg's argument 6, because the nice no longer tells it from a land. Only the value `stage6`
 # is read; anything else, and every leg that passes no sixth argument, keeps the derivation above.
 [ "${LEGCLASS:-}" = stage6 ] && CLASS=stage6
-# A CONSUMER request IS a Stage-6 request (SPEC-1032 rule 3): its bound is the Stage-6 count against
+# A CONSUMER request IS a Stage-6 request (SPEC-1059 rule 3): its bound is the Stage-6 count against
 # $S6MAX beside the same load headroom, so it is admitted on the Stage-6 question whatever its nice.
 # Its lease carries an EIGHTH field, `consumer`, which is what keeps the core-split applier off its
 # CPUs (`_venue_core_split_apply`); field 7 stays the class every reader already reads.
@@ -1218,7 +1218,7 @@ LOCK="$(dirname "$LEASES")/.venue-admission.lock"
 WAITED=0; LIVE=0; LIVE_S6=0; LOAD1=0; DEG=-; ATOMIC=1
 command -v flock > /dev/null 2>&1 || ATOMIC=0
 [ "$ATOMIC" = 1 ] && { exec 9>"$LOCK" || ATOMIC=0; }
-# A CONSUMER REQUEST IS ADMITTED ATOMICALLY OR NOT AT ALL (SPEC-1032 rule 3). The degraded unlocked
+# A CONSUMER REQUEST IS ADMITTED ATOMICALLY OR NOT AT ALL (SPEC-1059 rule 3). The degraded unlocked
 # path below exists for the kernel's own box and NEVER applies to a consumer pass: without the lock
 # primitive the pass ends here, INDETERMINATE `atomic-admission-unavailable`, before it writes a lease
 # and before any test starts — checked at EVERY admission, because `flock` present at publish says
@@ -1363,7 +1363,7 @@ EOF
     # `headroom_degraded` is printed UNCONDITIONALLY (`-` when the load was measured) for the same
     # reason the verdict line carries it that way: a field that appears only sometimes is a field a
     # reader gets wrong exactly when it matters.
-    # A CONSUMER wait names the bound that holds it (SPEC-1032 rule 3): `cap` while the live Stage-6
+    # A CONSUMER wait names the bound that holds it (SPEC-1059 rule 3): `cap` while the live Stage-6
     # count is at $S6MAX, else `headroom` (the load, or a load that could not be read). Kernel lines
     # are unchanged.
     WHY=
@@ -1583,7 +1583,7 @@ def _venue_core_split_apply(leases, me, record_path, interval, mode,
             continue
         if len(f) < 4:
             continue
-        # T-13974 — a CONSUMER pass's CPUs are its project's (SPEC-1032 rule 3): its lease carries an
+        # T-13974 — a CONSUMER pass's CPUs are its project's (SPEC-1059 rule 3): its lease carries an
         # eighth field `consumer`, and such a tree is never read as live, never masked, never paired.
         if len(f) > 7 and f[7] == "consumer":
             continue
@@ -2480,7 +2480,7 @@ def box_lease_prologue(max_requests: "int | None" = None, *,
     Returned as text, and separately from `box_leg_script`, so the concurrency logic is EXECUTABLE
     by a test without a box — the same reason `box_leg_script` returns text at all.
 
-    T-13974 — `consumer=True` renders the prologue for a CONSUMER request (SPEC-1032 rule 3): admitted
+    T-13974 — `consumer=True` renders the prologue for a CONSUMER request (SPEC-1059 rule 3): admitted
     on the Stage-6 question, atomically or not at all, its lease marked `consumer`. Its concurrency
     bound is the SAME machine setting, `YITC_VENUE_STAGE6_MAX_CONCURRENT`, read with NO derivation and
     a default of 1 — unset, a consumer venue admits one pass at a time; the project sets how many
@@ -2492,7 +2492,7 @@ def box_lease_prologue(max_requests: "int | None" = None, *,
     if stage6_max_concurrent is not None:
         s6max = int(stage6_max_concurrent)
     elif consumer:
-        s6max = venue_stage6_max_concurrent(default=1)    # SPEC-1032: 1 when unset, never derived
+        s6max = venue_stage6_max_concurrent(default=1)    # SPEC-1059: 1 when unset, never derived
     else:
         s6max = venue_stage6_max_concurrent()
     if s6max <= 0:                     # never a cap of 0: that would DISABLE Stage-6, not slow it
@@ -4877,7 +4877,7 @@ def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_not
                    placement: "str | None" = "auto") -> dict:
     """PURE, box-free, and therefore testable without a venue: should THIS pass run remotely?
 
-    T-13976 — SPEC-1032 is active: this is the ONE routing decision, and it answers through the
+    T-13976 — the consumer venue rule is active (SPEC-1059 since T-14586): this is the ONE routing decision, and it answers through the
     rule-2 order of `consumer_venue_decision`. A consumer caller hands in what it holds (`declaration`,
     `repo_common_dir`, `placement`); a caller that hands in none of them — every land — gets exactly
     the answers below, plus `venue-consumer-only` for a kernel pass on a record published for a
@@ -4888,7 +4888,7 @@ def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_not
     pass that silently stayed local is exactly the reading the venue exists to make impossible:
       `no-venue`        nothing published (or the record did not parse — `record_note` travels with it
                         to the land tail, rule 1: an unreadable record reads ABSENT, never honoured);
-      `consumer`        a `-C <consumer>` pass that declares no `verify.venue` (SPEC-1032 rule 1) —
+      `consumer`        a `-C <consumer>` pass that declares no `verify.venue` (SPEC-1059 rule 1) —
                         the record is not consulted;
       `small-selection` the owner directive of 2026-09-06T13:39:24Z, bounded by the owner decision of
                         2026-09-30 (T-13287) — a narrowed SPEC-0181 selection of at most
@@ -4943,10 +4943,10 @@ def consumer_venue_decision(*, kernel: bool, kind: str, record: "dict | None",
                             repo_common_dir=None, placement: "str | None" = "auto",
                             full_suite: bool = True, sandbox: bool = False,
                             selection_size=None) -> dict:
-    """T-13975 — the SPEC-1032 rule-2 routing ORDER, as a PURE function: no I/O, no environment, no
+    """T-13975 — the SPEC-1059 rule-2 routing ORDER, as a PURE function: no I/O, no environment, no
     box. Same return shape as `venue_decision` (`{"remote", "reason", "record", "note"}`).
 
-    `venue_decision` answers through this since T-13976 activated SPEC-1032. The
+    `venue_decision` answers through this since T-13976 activated the consumer venue rule (now SPEC-1059). The
     caller hands in what it already holds — the parsed `verify.venue` result of
     `venue.consumer_declaration` (`declaration`), the routing record, and the real path of THIS
     repository's git common dir (`repo_common_dir`, resolved by the caller) — so the order stays
@@ -5010,7 +5010,7 @@ def consumer_venue_decision(*, kernel: bool, kind: str, record: "dict | None",
 
 
 def box_leases_script(leases_dir: str = BOX_LEASES_DIR) -> str:
-    """T-13975 — the box-side text `venue show --leases` runs (SPEC-1032 rule 6): one line per lease
+    """T-13975 — the box-side text `venue show --leases` runs (SPEC-1059 rule 6): one line per lease
     file, then `leases-end`. READ-ONLY and NON-WAITING by construction: it writes nothing, removes
     nothing, kills nothing and never touches the admission lock beside the dir, so a stale lease
     stays for the next admission to reap and a held lock delays nothing.
@@ -5727,6 +5727,16 @@ def preship_need_mb(journal_path) -> int:
             size = max(size, Path(jp).stat().st_size if jp else 0)
         except OSError:
             pass
+        # T-14567 (SPEC-0190 rule 1c) — an APPENDABLE dated file changes between versions exactly as
+        # the root does, so the pack carries its versions too: the largest of them counts.
+        if jp:
+            try:
+                from lib import events as _events   # noqa: PLC0415 — leaf import, kept local
+                for seg in _events.segment_paths(jp)[:-1]:
+                    if _events.is_appendable_segment(seg, jp):
+                        size = max(size, Path(seg).stat().st_size)
+            except (OSError, ImportError):
+                pass
     mb = size / (1024 * 1024)
     return max(PRESHIP_NEED_FLOOR_MB, math.ceil(PRESHIP_NEED_MB_PER_JOURNAL_MB * mb))
 
@@ -6208,9 +6218,9 @@ class ParkedPreship:
         return rec
 
 
-# ── a CONSUMER pass: the executor and the envelope (SPEC-1032 rules 4-5, T-13973) ────────────────
+# ── a CONSUMER pass: the executor and the envelope (SPEC-1059 rules 4-5, T-13973) ────────────────
 #
-# Routed since T-13976 activated SPEC-1032: `consumer_route` (the end of this module) composes this
+# Routed since T-13976 activated the consumer venue rule (now SPEC-1059): `consumer_route` (the end of this module) composes this
 # section for a declared consumer Stage-6 pass the rule-2 order sends to its venue; no kernel pass
 # reads any of it.
 #
@@ -6229,11 +6239,11 @@ class ParkedPreship:
 CONSUMER_PLAN_SCHEMA = "yitc.remote-verify.consumer-plan/1"
 CONSUMER_ENVELOPE_SCHEMA = "yitc.remote-verify.consumer-envelope/1"
 
-#: SPEC-1032 rule 5 — the ONE class every consumer identity mismatch reads. It is NOT added to
+#: SPEC-1059 rule 5 — the ONE class every consumer identity mismatch reads. It is NOT added to
 #: `INDETERMINATE_CLASSES`, which is SPEC-1029 rule 4's closed set for a KERNEL pass and stays exactly
 #: that; the consumer set below is the one a consumer envelope can return.
 CONSUMER_IDENTITY_MISMATCH = "consumer-identity-mismatch"
-#: SPEC-1032 rule 3 (T-13976) — the class of a consumer admission the box could not take atomically:
+#: SPEC-1059 rule 3 (T-13976) — the class of a consumer admission the box could not take atomically:
 #: the prologue ends the pass before any test with this class in the leg record, and the host reads it
 #: there because no envelope is written.
 ATOMIC_ADMISSION_UNAVAILABLE = "atomic-admission-unavailable"
@@ -6246,7 +6256,7 @@ CONSUMER_INDETERMINATE_CLASSES = ("truncated", "duplicate-or-stale", CONSUMER_ID
 #: `<run>/out-consumer`, beside the kernel legs' `cand` / `pinned` under the same `box_run_dir`.
 CONSUMER_LEG = "consumer"
 
-#: SPEC-1032 rules 1 and 3 (T-13994) — the width policies a consumer declares as `verify.venue.width`.
+#: SPEC-1059 rules 1 and 3 (T-13994) — the width policies a consumer declares as `verify.venue.width`.
 #: `whole` (also the reading of an absent key): every pass runs at the box's thread count. `per-live-pass`:
 #: a pass runs at that count divided by the consumer passes live on the box at its admission, itself
 #: included, floor 1 — computed on the box, under the admission lock, from the prologue's own count.
@@ -6255,31 +6265,26 @@ CONSUMER_WIDTH_PER_LIVE_PASS = "per-live-pass"
 CONSUMER_WIDTH_POLICIES = (CONSUMER_WIDTH_WHOLE, CONSUMER_WIDTH_PER_LIVE_PASS)
 
 
-def _engine_identity(root, local=(), skip=()):
-    """The identity of the engine release installed at `root`: `{bin_digest, files, source_ref,
-    tree_digest}`.
+def _engine_identity(root, local=(), skip=(), blobs=None):
+    """The identity of the engine at `root`: `{bin_digest, files}` — one digest over the engine's CODE,
+    the files under `<root>/bin`, which is what a consumer pass ships and runs (SPEC-1059 rules 4-5).
 
     SELF-CONTAINED ON PURPOSE — the box computes the SAME function: `consumer_box_script` embeds this
     function's own source text, so the host's reading and the box's cannot be two spellings of one
-    rule. `bin_digest` is a sha256 over every file under `<root>/bin` in sorted path order, as
-    `<relative path> NUL <sha256 of its bytes>` lines — the code that runs, not the directory's
-    metadata; byte-cache dirs and files (`__pycache__`, `*.pyc`) are left out, because running the
-    engine writes them. `source_ref` is the release tag the root's `release-manifest.yaml` names
-    (None for a source checkout). `files` 0 → `bin_digest` None: there is no engine there.
+    rule. `bin_digest` is a sha256 over every regular file under `<root>/bin` in sorted path order, as
+    `<relative path> NUL <sha256 of its bytes>[NUL x]` lines — the trailing `NUL x` marks an
+    executable file (T-14586: a mode change alone must move the identity, or a box holding the same
+    bytes without the exec bit reads equal and keeps the old mode) — the code that runs, not the
+    rest of the directory's metadata. Left out: byte-cache dirs and files (`__pycache__`, `*.pyc`, `*.pyo` — running the engine
+    writes them), symlinks and anything not a regular file, a path with a component matching a pattern
+    of `skip` (`release.NON_ARTIFACT_COMPONENTS`), and a file at or under one of `local` (the install's
+    own paths, `release.INSTALL_LOCAL_PATHS` — the venue binding at its default home). The host passes
+    both lists and the box text renders them. `files` 0 → `bin_digest` None: there is no engine there.
 
-    `local` (T-13994, SPEC-1032 rule 6) — the install's own paths, relative to `root`
-    (`_install_local_paths`, which the host passes and the box text renders): a file at or under one
-    of them is left out, as the byte cache is, because the release does not carry it. `bin_digest`
-    also reads past what the image build reads past — symlinks, anything not a regular file, and a
-    path with a component matching `skip` — so a file the build leaves off the image never moves it.
-
-    `tree_digest` (T-13994, SPEC-1032 rules 5-6) — where `root` holds a `release-manifest.yaml` (a
-    release install), the same fold over EVERY regular file under `root`, not only `bin/`, leaving out
-    `local`, symlinks and every path with a component matching a pattern of `skip`
-    (`release.NON_ARTIFACT_COMPONENTS`, which the host passes and the box text renders — the image
-    build's own exclusion), so a file added, changed or removed anywhere moves the identity exactly as
-    it fails the image's digest. None for a root with no manifest (a source checkout, which no
-    consumer image ships)."""
+    `blobs` (T-14586) — when a dict, it receives `rel -> (bytes, executable)` for every file folded, from
+    the SAME read the digest is taken over (None as the bytes for a file that could not be read), so what
+    the host ships is exactly what it hashed. The box calls it without `blobs`. One rule for every root:
+    a source checkout and an installed release are read alike, nothing else under the root is read."""
     import fnmatch as _fn
     import hashlib as _hl
     import os as _os
@@ -6299,55 +6304,63 @@ def _engine_identity(root, local=(), skip=()):
             try:
                 with open(path, "rb") as fh:
                     data = fh.read()
+                read = data
             except OSError:
-                data = b"<unreadable>"
-            rel = _os.path.relpath(path, root)
-            h.update(rel.encode("utf-8", "surrogateescape") + b"\0"
-                     + _hl.sha256(data).hexdigest().encode() + b"\n")
+                data, read = b"<unreadable>", None
+            try:
+                executable = bool(_os.stat(path).st_mode & 0o111)
+            except OSError:
+                executable = False
+            if blobs is not None:
+                blobs[rel] = (read, executable)
+            h.update(_os.path.relpath(path, root).encode("utf-8", "surrogateescape") + b"\0"
+                     + _hl.sha256(data).hexdigest().encode() + (b"\0x" if executable else b"") + b"\n")
             n += 1
-    source_ref = None
-    try:
-        with open(_os.path.join(root, "release-manifest.yaml"), encoding="utf-8") as fh:
-            for line in fh:
-                if line.startswith("source_ref:"):
-                    source_ref = line.split(":", 1)[1].strip().strip("'\"") or None
-                    break
-    except OSError:
-        pass
-    tree_digest = None
-    if _os.path.isfile(_os.path.join(root, "release-manifest.yaml")):
-        th = _hl.sha256()
-        for dirpath, dirnames, filenames in _os.walk(root):
-            dirnames[:] = sorted(d for d in dirnames if not any(_fn.fnmatch(d, pat) for pat in skip))
-            for name in sorted(filenames):
-                path = _os.path.join(dirpath, name)
-                rel = _os.path.relpath(path, root).replace(_os.sep, "/")
-                if any(_fn.fnmatch(part, pat) for part in rel.split("/") for pat in skip) \
-                        or _os.path.islink(path) or not _os.path.isfile(path) \
-                        or any(rel == p or rel.startswith(p + "/") for p in local):
-                    continue
-                try:
-                    with open(path, "rb") as fh:
-                        data = fh.read()
-                except OSError:
-                    data = b"<unreadable>"
-                th.update(rel.encode("utf-8", "surrogateescape") + b"\0"
-                          + _hl.sha256(data).hexdigest().encode() + b"\n")
-        tree_digest = th.hexdigest()
-    return {"bin_digest": h.hexdigest() if n else None, "files": n, "source_ref": source_ref,
-            "tree_digest": tree_digest}
+    return {"bin_digest": h.hexdigest() if n else None, "files": n}
 
 
-def engine_release_identity(engine_root) -> dict:
-    """SPEC-1032 rule 5 — the engine release identity the host reads off the engine it runs, which
-    the box's must equal (`_engine_identity`, the one rule both sides compute). T-13994: the
-    install's own paths (`release.INSTALL_LOCAL_PATHS`) are left out, here and in the box text."""
-    return _engine_identity(engine_root, _install_local_paths(), _release_non_artifact())
+def engine_release_identity(engine_root, blobs=None) -> dict:
+    """SPEC-1059 rule 5 — the identity the host reads off the engine it runs, which the box's must
+    equal (`_engine_identity`, the one rule both sides compute). T-13994: the install's own paths
+    (`release.INSTALL_LOCAL_PATHS`) are left out, here and in the box text. T-14586: `blobs`, when a
+    dict, receives the bytes of every file the identity folded — what a consumer pass ships."""
+    return _engine_identity(engine_root, _install_local_paths(), _release_non_artifact(), blobs)
+
+
+#: T-14586 (SPEC-1059 rule 4) — the per-pass input names the shipped engine travels under, beside
+#: `plan.json` / `checks.json` in the pass's box run dir (`consumer_box_inputs`).
+CONSUMER_ENGINE_BUNDLE = "engine.tar.gz"
+CONSUMER_ENGINE_HOST_IDENTITY = "engine-host.json"
+
+
+def consumer_engine_bundle(blobs: dict) -> bytes:
+    """T-14586 (SPEC-1059 rule 4) — the engine a consumer pass ships, as ONE gzip tarball of exactly
+    the files `_engine_identity` folded (`blobs`: `rel -> (bytes, executable)`), entries in sorted path
+    order, mode 0755 for an executable file and 0644 otherwise. The bytes are the ones the identity was
+    taken over — never a second read of the engine root. Raises ValueError on an unread file (None
+    bytes): a file the host could not read is never shipped as a stand-in."""
+    import io
+    import tarfile
+    bad = sorted(rel for rel, (data, _x) in blobs.items() if data is None)
+    if bad:
+        raise ValueError(f"engine files this host could not read: {bad[:5]}")
+    buf = io.BytesIO()
+    now = int(time.time())
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for rel in sorted(blobs):
+            data, executable = blobs[rel]
+            info = tarfile.TarInfo(rel)
+            info.size = len(data)
+            info.mode = 0o755 if executable else 0o644
+            info.mtime = now
+            tar.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
 
 
 def _install_local_paths() -> tuple:
     """T-13994 — `release.INSTALL_LOCAL_PATHS`, the one carrier both identity readings take: the
-    host passes it to `_engine_identity`, `consumer_box_script` renders it into the box text."""
+    host passes it to `_engine_identity`, `consumer_box_script` renders it into the box text. Of it,
+    only the venue binding at its default home lies under `bin/`, the one tree the identity reads."""
     try:  # the release module under either import spelling (`_git`'s way)
         from lib import release as _release
     except ImportError:
@@ -6356,8 +6369,8 @@ def _install_local_paths() -> tuple:
 
 
 def _release_non_artifact() -> tuple:
-    """T-13994 — `release.NON_ARTIFACT_COMPONENTS`, the image build's own exclusion, which both
-    identity readings take for the whole-tree fold (passed by the host, rendered into the box text)."""
+    """T-13994 — `release.NON_ARTIFACT_COMPONENTS`, the component exclusion both identity readings
+    take (passed by the host, rendered into the box text)."""
     try:  # the release module under either import spelling (`_git`'s way)
         from lib import release as _release
     except ImportError:
@@ -6366,7 +6379,7 @@ def _release_non_artifact() -> tuple:
 
 
 def declared_check_passes(got, check) -> bool:
-    """SPEC-1032 rule 1 — does ONE declared environment check pass: it exited 0 AND its stdout equals
+    """SPEC-1059 rule 1 — does ONE declared environment check pass: it exited 0 AND its stdout equals
     the declared `expect` exactly, with the trailing newlines removed (the shell's own `$(…)` reading
     of an output — `expect: "Noto Sans"` matches `echo Noto Sans`). Exit 0 with the wrong text fails,
     and so does the right text with a non-zero exit. PURE. T-13976: THE one comparison — the
@@ -6381,7 +6394,7 @@ def declared_check_passes(got, check) -> bool:
 
 
 def consumer_plan(guard_plan: dict, *, sweep_paths, sweep_only=None) -> dict:
-    """SPEC-1032 rule 4 — THE plan a consumer pass ships, assembled from what the host decided:
+    """SPEC-1059 rule 4 — THE plan a consumer pass ships, assembled from what the host decided:
     `guard_plan` is what `_consumer_zero_probe_guard(plan_out=...)` filled (`tree` — the tree the
     plan was taken over —, `skip`, `attempt`, `layers`), `sweep_paths` the repo-relative test-sweep
     directories the run sweeps (none where a layer's `covers:` takes the sweep over), `sweep_only`
@@ -6421,18 +6434,21 @@ def consumer_plan_digest(plan: dict) -> str:
 
 def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, checks=(),
                      width: int, request: str, attempt: int = 1, width_policy=None) -> dict:
-    """SPEC-1032 rules 4-5 — the REQUEST of one consumer pass, computed BEFORE any transport so a
+    """SPEC-1059 rules 4-5 — the REQUEST of one consumer pass, computed BEFORE any transport so a
     fault on the way can never redefine what was asked about (`shipped_identity`'s stance):
     `{kind, request, attempt, ref, cand_sha, cand_tree, box_cand_ref, plan, plan_digest, engine_root,
-    engine_identity, checks, width}`. `ref` is the commit to ship (a Stage-6 pass: the working-tree
+    engine_identity, engine_bundle, checks, width}`. `ref` is the commit to ship (a Stage-6 pass: the working-tree
     snapshot, `working_tree_snapshot`); `plan` is `consumer_plan`'s; `engine_root` the ABSOLUTE path
-    of the engine release the host runs, which the box runs from the same path; `checks` the
+    of the engine the host runs, which the box installs and runs at the same path; `engine_bundle`
+    (T-14586) is that engine's code, `bin/`, read ONCE with its identity and shipped with the pass
+    (`consumer_engine_bundle`) — a source checkout and an installed release alike; `checks` the
     declaration's environment checks (`venue.consumer_declaration`); `width` the width the pass runs
-    at — the box's thread count. `width_policy` (T-13994, SPEC-1032 rule 3) is the declared
+    at — the box's thread count. `width_policy` (T-13994, SPEC-1059 rule 3) is the declared
     `verify.venue.width`: None or `whole` adds nothing (the request is the one it was);
     `per-live-pass` is recorded on the request as `width_policy`, and the box then divides `width`
     by the live passes at its admission. Raises RemoteVerifyError on what makes the request
-    unanswerable: a relative engine path, no engine there, a width that is not a positive integer, a
+    unanswerable: a relative engine path, no engine there, an engine file this host cannot read
+    (nothing would ship in its place), a width that is not a positive integer, a
     width policy that is not one of `CONSUMER_WIDTH_POLICIES`, a malformed check, a plan that names no
     tree or another tree than the one being shipped (it was taken over another tree), or a ref git
     cannot resolve."""
@@ -6440,7 +6456,7 @@ def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, c
     eng = Path(str(engine_root))
     if not eng.is_absolute():
         raise RemoteVerifyError(f"the engine path {str(engine_root)!r} is not absolute — the box runs "
-                                f"the engine from the host's own absolute path (SPEC-1032 rule 6)")
+                                f"the engine at the host's own absolute path (SPEC-1059 rule 4)")
     if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
         raise RemoteVerifyError(f"the width {width!r} is not a positive integer")
     if width_policy is not None and width_policy not in CONSUMER_WIDTH_POLICIES:
@@ -6455,9 +6471,15 @@ def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, c
         raise RemoteVerifyError("two declared checks share one name")
     if not (isinstance(plan, dict) and plan.get("schema") == CONSUMER_PLAN_SCHEMA):
         raise RemoteVerifyError("the plan is not a consumer plan (`consumer_plan`)")
-    ident = engine_release_identity(eng)
+    blobs: dict = {}
+    ident = engine_release_identity(eng, blobs)
     if ident["bin_digest"] is None:
-        raise RemoteVerifyError(f"no engine release at {eng} (no files under its bin/)")
+        raise RemoteVerifyError(f"no engine at {eng} (no files under its bin/)")
+    try:
+        bundle = consumer_engine_bundle(blobs)
+    except ValueError as exc:
+        raise RemoteVerifyError(f"the engine at {eng} cannot ship: {exc} — nothing was shipped "
+                                f"(SPEC-1059 rule 4)") from None
     cand_sha = _git(repo_root, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
     cand_tree = _git(repo_root, "rev-parse", f"{cand_sha}^{{tree}}").strip()
     ran = plan.get("tree")
@@ -6468,7 +6490,8 @@ def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, c
            "cand_sha": cand_sha, "cand_tree": cand_tree,
            "box_cand_ref": box_ref(request, attempt, "cand"),
            "plan": plan, "plan_digest": consumer_plan_digest(plan),
-           "engine_root": str(eng), "engine_identity": ident, "checks": want, "width": int(width)}
+           "engine_root": str(eng), "engine_identity": ident, "engine_bundle": bundle,
+           "checks": want, "width": int(width)}
     if width_policy == CONSUMER_WIDTH_PER_LIVE_PASS:
         req["width_policy"] = CONSUMER_WIDTH_PER_LIVE_PASS
     return req
@@ -6478,18 +6501,23 @@ def consumer_box_inputs(req: dict) -> dict:
     """The per-pass INPUT files of a consumer pass, `{name: bytes}`, written into its box run dir
     beside the script (the kernel legs' `exclude.json` / `only.json` way): the plan in its ONE byte
     form, and the declared checks the box runs — the commands only; what each must print stays on
-    the host, which judges the outputs (`validate_consumer_envelope`)."""
+    the host, which judges the outputs (`validate_consumer_envelope`). T-14586 (SPEC-1059 rule 4):
+    the engine the host runs rides here too — its tarball and the host's identity of it, which the
+    box text compares with the engine installed at the host's path before it installs anything."""
     return {"plan.json": consumer_plan_bytes(req["plan"]),
             "checks.json": json.dumps([{"name": c["name"], "cmd": c["cmd"]} for c in req["checks"]],
-                                      sort_keys=True).encode("utf-8")}
+                                      sort_keys=True).encode("utf-8"),
+            CONSUMER_ENGINE_BUNDLE: req["engine_bundle"],
+            CONSUMER_ENGINE_HOST_IDENTITY: json.dumps(req["engine_identity"],
+                                                      sort_keys=True).encode("utf-8")}
 
 
 _CONSUMER_BOX_TEMPLATE = r"""#!/bin/bash
 # usage: consumer-box.sh <request> <attempt> <width>   — generated by bin/lib/remote_verify.py (T-13973)
-# ONE consumer pass (SPEC-1032 rules 4-5): check out the shipped tree, run the declared environment
-# checks, read the installed engine's identity, take the tree that runs, run THAT engine over the
-# checkout with the host's plan, and assemble the envelope. The host decided the pass; nothing here
-# selects anything.
+# ONE consumer pass (SPEC-1059 rules 4-5): install the engine the host shipped, check out the shipped
+# tree, run the declared environment checks, read the engine's identity, take the tree that runs, run
+# THAT engine over the checkout with the host's plan, and assemble the envelope. The host decided the
+# pass; nothing here selects anything.
 set -uo pipefail
 REQ=$1; ATT=$2; W=$3
 # THE CLIENT HANDLE first, as the kernel leg takes it (its lease names it; the sweep reaps a lease
@@ -6501,11 +6529,51 @@ RUN="$RUNS/$REQ-$ATT"; D="$RUN/%(leg)s"; OUT="$RUN/out-%(leg)s"
 LEG=%(leg)s; LEASES=%(leases)s; LEASE="$LEASES/$REQ-$ATT-$LEG"
 CANDREF="refs/venue/$REQ-$ATT/cand"
 rm -rf "$OUT"; mkdir -p "$OUT"
-# THE ADMISSION (SPEC-1032 rule 3, T-13976): the box lease prologue rendered for a consumer request —
+# THE ADMISSION (SPEC-1059 rule 3, T-13976): the box lease prologue rendered for a consumer request —
 # atomic or not at all — before anything is checked out or run. Empty when the text is rendered
 # without one (`consumer_box_script(admission="")`).
 %(admission)s
 %(width_step)s
+# THE ENGINE IDENTITY of what is installed at the host's path — the host's own function, embedded below
+# as its source text (one rule, two sides). Children run with the engine lock's descriptor closed.
+engine_identity() {
+python3 -I - "$ENGINE" 7>&- <<'PYENGINE'
+%(engine_identity)s
+import json, sys
+print(json.dumps(_engine_identity(sys.argv[1], %(install_local)s, %(non_artifact)s), sort_keys=True))
+PYENGINE
+}
+# THE ENGINE THIS PASS SHIPPED (SPEC-1059 rule 4, T-14586): the host's engine code, its `bin/`, shipped
+# beside the plan. It is installed at the host's absolute path under the box's ENGINE LOCK, taken
+# EXCLUSIVE without waiting — so only while no other pass holds the engine — and only when the engine
+# there does not already have the shipped identity; then the lock is held SHARED to the end of this
+# pass, so no install replaces an engine a live pass runs. A pass that could not install runs on what
+# is there, and the host judges the identity the envelope carries.
+ENGINE_LOCK=%(engine_lock)s
+ENGINE_STEP=held
+mkdir -p "$(dirname "$ENGINE_LOCK")" 2>>"$OUT/engine.err"
+exec 7>>"$ENGINE_LOCK"
+if flock -x -n 7; then
+  if [ "$(engine_identity 2>>"$OUT/engine.err")" = "$(cat "$RUN/%(engine_host)s" 2>>"$OUT/engine.err")" ]; then
+    ENGINE_STEP=equal
+  elif { mkdir -p "$ENGINE" 2>>"$OUT/engine.err" && [ -w "$ENGINE" ]; } \
+       || sudo -n install -d -o "$(id -un)" -g "$(id -gn)" "$ENGINE" 2>>"$OUT/engine.err"; then
+    rm -rf "${ENGINE:?}/bin" 2>>"$OUT/engine.err"
+    if tar -xzf "$RUN/%(engine_bundle)s" -C "$ENGINE" 2>>"$OUT/engine.err"; then
+      ENGINE_STEP=installed
+    else
+      ENGINE_STEP=install-failed
+    fi
+  else
+    ENGINE_STEP=install-failed
+  fi
+fi
+# NO SHARED LOCK, NO RUN: a pass that cannot hold the engine (the lock file cannot be opened, or an
+# install holds it past the bound) runs nothing and records no engine identity, so the host reads it
+# INDETERMINATE — never a run on an engine an install may replace under it.
+ENGINE_HELD=0
+if flock -s -w %(lock_wait_s)d 7; then ENGINE_HELD=1; else ENGINE_STEP="$ENGINE_STEP-unheld"; fi
+echo "consumer_engine $ENGINE_STEP" >&2
 # THE PER-REQUEST CHECKOUT of the shipped commit, from this request's own transport ref (SPEC-1029
 # rule 3) — fresh every pass, so two passes on one box share no working tree.
 git -C "$REPO" worktree prune
@@ -6513,9 +6581,9 @@ rm -rf "$D"
 git -C "$REPO" worktree add -q -f --detach "$D" "$CANDREF" 2>"$OUT/checkout.err" || true
 cd "$D" 2>>"$OUT/checkout.err" || true
 unset YITC_SESSION_REF YITC_EXPECTED_SESSION_REF
-# THE DECLARED ENVIRONMENT CHECKS (SPEC-1032 rule 1): each command runs here and its exit code and
+# THE DECLARED ENVIRONMENT CHECKS (SPEC-1059 rule 1): each command runs here and its exit code and
 # stdout are RECORDED; the host judges them against what it declared.
-python3 -I - "$RUN/checks.json" "$OUT/checks.json" <<'PYCHECKS'
+python3 -I - "$RUN/checks.json" "$OUT/checks.json" 7>&- <<'PYCHECKS'
 import json, subprocess, sys
 src, dst = sys.argv[1:3]
 try:
@@ -6531,13 +6599,9 @@ if isinstance(checks, list):
         out.append({"name": c.get("name"), "exit": r.returncode, "stdout": r.stdout})
 json.dump(out, open(dst, "w"))
 PYCHECKS
-# THE ENGINE RELEASE IDENTITY of what is installed at the host's path — the host's own function,
-# embedded below as its source text.
-python3 -I - "$ENGINE" > "$OUT/engine.json" <<'PYENGINE'
-%(engine_identity)s
-import json, sys
-print(json.dumps(_engine_identity(sys.argv[1], %(install_local)s, %(non_artifact)s)))
-PYENGINE
+# THE ENGINE IDENTITY the envelope carries — read under the shared engine lock, so it is the engine
+# the run below runs.
+if [ "$ENGINE_HELD" = 1 ]; then engine_identity > "$OUT/engine.json"; else echo null > "$OUT/engine.json"; fi
 # IDENTITY = the tree that RUNS: taken LAST before the run — after the checks, which may write — over
 # a temporary index seeded from the checkout's own (the kernel leg's way, T-13002). Any failing step
 # leaves it EMPTY, which the envelope check reads as a mismatch, never as a match.
@@ -6548,15 +6612,17 @@ if [ "$(pwd -P)" = "$(cd "$D" 2>>"$OUT/wt-add.err" && pwd -P)" ] \
   WT_TREE=$(GIT_INDEX_FILE="$OUT/wt.index" git write-tree 2>>"$OUT/wt-add.err") || WT_TREE=
 fi
 echo "$WT_TREE" > "$OUT/wt-tree.txt"
-# THE RUN: the INSTALLED engine, at the host's absolute path, over the shipped checkout (-C) with the
-# host's plan. `-I` keeps the checkout off `sys.path`, so a consumer tree can never stand in for the
-# engine; the engine follows the plan (`consumer_box_main`).
-python3 -I - "$ENGINE" -C "$D" --plan "$RUN/plan.json" --out "$OUT/result.json" --workers "$W" <<'PYRUN'
+# THE RUN: the engine at the host's absolute path — the one this pass shipped, or one equal to it —
+# over the shipped checkout (-C) with the host's plan. `-I` keeps the checkout off `sys.path`, so a
+# consumer tree can never stand in for the engine; the engine follows the plan (`consumer_box_main`).
+if [ "$ENGINE_HELD" = 1 ]; then
+python3 -I - "$ENGINE" -C "$D" --plan "$RUN/plan.json" --out "$OUT/result.json" --workers "$W" 7>&- <<'PYRUN'
 import sys
 sys.path.insert(0, sys.argv[1] + "/bin")
 from lib import remote_verify
 sys.exit(remote_verify.consumer_box_main(sys.argv[2:]))
 PYRUN
+fi
 # THE ENVELOPE — written whole to a temp path, then renamed (`envelope_script`'s way).
 python3 -I - "$REQ" "$ATT" "$W" "$OUT" "$D" "$RUN/envelope.json" <<'PYENV'
 import json, os, subprocess, sys, time
@@ -6586,13 +6652,13 @@ echo CONSUMER-DONE
 """
 
 
-#: T-13994 (SPEC-1032 rule 3) — the `per-live-pass` width step, placed right after the admission. The
+#: T-13994 (SPEC-1059 rule 3) — the `per-live-pass` width step, placed right after the admission. The
 #: prologue leaves `LIVE_S6` = the OTHER live Stage-6 passes it counted under the lock when it admitted
 #: this one (on a consumer venue every Stage-6 pass is a consumer pass, rule 2), so the pass runs at the
 #: box's thread count divided by those plus itself, floor 1. With no admission rendered there is no
 #: count, and the pass reads as alone. The derivation is written beside the run for the envelope, where
 #: the host checks the width against it (`validate_consumer_envelope`).
-_CONSUMER_WIDTH_STEP = r"""# THE WIDTH POLICY (SPEC-1032 rule 3, T-13994): per-live-pass.
+_CONSUMER_WIDTH_STEP = r"""# THE WIDTH POLICY (SPEC-1059 rule 3, T-13994): per-live-pass.
 THREADS=$W
 LIVE_AT_ADMISSION=${LIVE_S6:-0}
 case "$LIVE_AT_ADMISSION" in ''|*[!0-9]*) LIVE_AT_ADMISSION=0 ;; esac
@@ -6612,29 +6678,39 @@ def _box_shell_path(path: str) -> str:
 
 
 def consumer_box_script(req: dict, *, repo_git: str = BOX_REPO_GIT, runs_dir: str = BOX_RUNS_DIR,
-                        leases_dir: str = BOX_LEASES_DIR, admission: str = "") -> str:
-    """SPEC-1032 rule 4 — the box-side TEXT of one consumer pass. Returned rather than written, as
+                        leases_dir: str = BOX_LEASES_DIR, admission: str = "",
+                        lock_wait_s: int = 600) -> str:
+    """SPEC-1059 rule 4 — the box-side TEXT of one consumer pass. Returned rather than written, as
     `box_leg_script` is, so its shape is assertable without a box — and here also EXECUTABLE without
     one: `repo_git` / `runs_dir` point it at any bare clone and run root. The request, attempt and
     width are runtime ARGUMENTS; only the engine path (the request's) is part of the text.
 
-    It invokes the installed engine at `req["engine_root"]` with `-C <the shipped checkout>` and the
-    shipped plan, and carries NO selection step: no SPEC-1030 ladder, no `related`, no SPEC-0181
+    T-14586: it first installs the engine the pass shipped (`consumer_box_inputs`) at
+    `req["engine_root"]` under the box's engine lock (`engine.lock` beside the run root): exclusive
+    without waiting, and only when the installed engine's identity differs from the shipped one; the
+    lock is then held shared to the end of the pass; a pass that cannot take it shared within
+    `lock_wait_s` runs nothing and records no engine identity (INDETERMINATE on the host). It invokes
+    that engine with `-C <the shipped checkout>` and the shipped plan, and carries NO selection step: no SPEC-1030 ladder, no `related`, no SPEC-0181
     selection, no previous-attempt read, no skip decision — every one of them is the host's, inside
-    the plan. Admission to the box (SPEC-1032 rule 3) is the caller's `admission` text — the
+    the plan. Admission to the box (SPEC-1059 rule 3) is the caller's `admission` text — the
     consumer box lease prologue (`box_lease_prologue(consumer=True)`), placed before the checkout and
     given the lease names it reads (`leases_dir`); `run_consumer_pass` passes it, and the lease is
     removed when the envelope is written.
 
-    T-13994 (SPEC-1032 rule 3) — a request recording `width_policy: per-live-pass` gets the width step
+    T-13994 (SPEC-1059 rule 3) — a request recording `width_policy: per-live-pass` gets the width step
     (`_CONSUMER_WIDTH_STEP`) after the admission and a `width_derivation` in its envelope; every other
     request (`whole` and an absent key alike) renders one text with neither."""
     import inspect
+    import posixpath
     per_live = req.get("width_policy") == CONSUMER_WIDTH_PER_LIVE_PASS
     return _CONSUMER_BOX_TEMPLATE % {
         "engine": shlex.quote(str(req["engine_root"])),
         "runs": _box_shell_path(runs_dir), "repo": _box_shell_path(repo_git),
         "leases": _box_shell_path(leases_dir),
+        "engine_lock": _box_shell_path(posixpath.join(posixpath.dirname(str(runs_dir).rstrip("/")),
+                                                      "engine.lock")),
+        "engine_bundle": CONSUMER_ENGINE_BUNDLE, "engine_host": CONSUMER_ENGINE_HOST_IDENTITY,
+        "lock_wait_s": int(lock_wait_s),
         "leg": CONSUMER_LEG, "schema": CONSUMER_ENVELOPE_SCHEMA,
         # substituted as VALUES, so their own `%` is never read as a format specifier
         "admission": admission,
@@ -6751,7 +6827,7 @@ def _consumer_check_faults(got, declared) -> list:
 
 def _consumer_classify(failed_checks) -> str:
     """`_classify` for a consumer envelope: the most specific cause first, and every consumer
-    identity check under its one class (SPEC-1032 rule 5)."""
+    identity check under its one class (SPEC-1059 rule 5)."""
     names = {c["check"] for c in failed_checks}
     if "parse" in names or "completion_marker" in names:
         return "truncated"
@@ -6772,7 +6848,7 @@ def _consumer_classify(failed_checks) -> str:
 
 
 def consumer_expected_width(request: dict, env: dict) -> "int | None":
-    """T-13994 (SPEC-1032 rules 3 and 5) — the width a consumer pass must have run at. A request with
+    """T-13994 (SPEC-1059 rules 3 and 5) — the width a consumer pass must have run at. A request with
     no `width_policy` (absent or `whole`): its own `width`, the box's thread count, as before. A
     `per-live-pass` request: `width // (live + 1)`, floor 1, where `live` is the count the box recorded
     at the admission (`env["width_derivation"]`) — and only when that record is whole: a mapping
@@ -6794,7 +6870,7 @@ def consumer_expected_width(request: dict, env: dict) -> "int | None":
 
 
 def validate_consumer_envelope(text: "str | None", *, request: dict, seen: "set | tuple" = ()) -> dict:
-    """SPEC-1032 rule 5 — the complete check of a consumer pass's envelope, and the only place its
+    """SPEC-1059 rule 5 — the complete check of a consumer pass's envelope, and the only place its
     outcome is decided. Returns `{outcome, indeterminate_class, checks, failing, layers, result,
     envelope}`: GREEN, FAILED (`failing["consumer"]`: the run's own failure messages, as a local run
     names them) or INDETERMINATE with one of `CONSUMER_INDETERMINATE_CLASSES`. `layers` is the box's
@@ -6871,7 +6947,7 @@ def validate_consumer_envelope(text: "str | None", *, request: dict, seen: "set 
                failing=failing, layers=result["layers"], result=result)
 
 
-# ── T-13976 (SPEC-1032 rules 3-5) — THE ROUTE OF ONE DECLARED CONSUMER STAGE-6 PASS ───────────────
+# ── T-13976 (SPEC-1059 rules 3-5) — THE ROUTE OF ONE DECLARED CONSUMER STAGE-6 PASS ───────────────
 # The pieces C2-C4 built are composed here and nowhere else: the working-tree snapshot, the host's
 # plan over that tree, the request, the push of its commit to the request's own ref in the consumer's
 # bare clone, the box text with the consumer admission prologue in it, one run, the envelope fetched
@@ -7066,7 +7142,7 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
         width = consumer_request_width(record.get("fingerprint"))
         if width is None:
             raise RemoteVerifyError("the venue record's fingerprint carries no core count, and a "
-                                    "consumer pass runs at the box's thread count (SPEC-1032 rule 3)")
+                                    "consumer pass runs at the box's thread count (SPEC-1059 rule 3)")
         ref = working_tree_snapshot(repo_root, filemode=True) or "HEAD"
         guard_plan = take_plan()
         if not (isinstance(guard_plan, dict) and guard_plan.get("tree")):
@@ -7074,7 +7150,8 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
                                     "HEAD, or an unreadable tree), and a consumer pass ships one tree "
                                     "id — run this pass with --placement local")
         plan = consumer_plan(guard_plan, sweep_paths=sweep_paths, sweep_only=sweep_only)
-        # the engine release this host runs — the root holding the `bin/lib/` this module is in
+        # the engine this host runs — the root holding the `bin/lib/` this module is in; its code
+        # ships with the pass (SPEC-1059 rule 4)
         req = consumer_request(repo_root, ref, plan=plan,
                                engine_root=engine_root or Path(__file__).resolve().parents[2],
                                checks=checks, width=width, request=request, attempt=attempt,

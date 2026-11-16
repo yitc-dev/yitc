@@ -27,27 +27,30 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ from any active stage). The\n`plan stage` verb stays the SOLE writer, advancing\
   \ exactly ONE linear step; the verb GATES the prior\nstage's completion, so \"enter\
   \ N\" == \"exit N-1\".\n\n### 2. The cut is its own stage (what `decomposition`\
-  \ IS)\n- **Entry gate `accepted → decomposition`** = the plan is verified — a fresh\
-  \ GREEN/YELLOW\n  `plan check` (canonical shape + fresh `content_hash`) **+** the\
-  \ `implementation_plan` composed **+**\n  the plan's specs `proposed` (the deliberate-never-active\
-  \ `withdrawn`/`rejected` exemption\n  carries over unchanged). **The MANDATORY big-plan\
-  \ check (LARGE plans) RELOCATES to THIS gate** — it\n  audits the plan TEXT + the\
-  \ `implementation_plan` decomposition MAP, which is the TEXT boundary that\n  sits\
-  \ BEFORE the cut (the cards do not exist yet), so it belongs at the entry to the\
-  \ cut, not at the\n  entry to build.\n- **A plan that opts into a prototype carry\
-  \ registry** (frontmatter `prototype_ref`) is verified on\n  more inputs: its accept\
-  \ check judged the registry beside the prototype's diff against its\n  merge-base\
-  \ with main, and `plan stage accepted` pinned the audited prototype commit as\n\
-  \  `prototype_tip` — the rules are homed in SPEC-1058 §2-§3, not restated here.\
-  \ A plan without\n  `prototype_ref` is unchanged.\n- **Work** = the CUT, relocated\
-  \ from `executing`: slice the plan into task cards per SPEC-0046 (one\n  coherent\
-  \ change-set per card, split only on its grounds; order via `requires:`; the verifier-after-settled\
-  \ rule;\n  a long serial chain of cards on one spec lineage is the cue to assess\
-  \ splitting that spec first —\n  the check is homed in SPEC-0046 §A), file them\n\
-  \  via `task file`, and SET the single `activation_owner_task` on each `proposed`\
-  \ spec (the HARD\n  invariant — one activating task per spec; the others `cite`\
-  \ it). The plan↔spec linkage-chain\n  born→activate slice (SPEC-0034) is exercised\
-  \ HERE — the cut SETS these, so it is cut-bundle content.\n- **Exit gate `decomposition\
+  \ IS)\n- **Entry gate `accepted → decomposition`** = the plan is verified — a FRESH\n\
+  \  `plan check` (canonical shape; what «fresh» admits is SPEC-1061 §4, `bin/yitc-v2\
+  \ graph query SPEC-1061`) **+** the `implementation_plan` composed **+**\n  the\
+  \ plan's specs `proposed` (the deliberate-never-active `withdrawn`/`rejected` exemption\n\
+  \  carries over unchanged). **The MANDATORY big-plan check (LARGE plans) RELOCATES\
+  \ to THIS gate** — it\n  audits the plan TEXT + the `implementation_plan` decomposition\
+  \ MAP, which is the TEXT boundary that\n  sits BEFORE the cut (the cards do not\
+  \ exist yet), so it belongs at the entry to the cut, not at the\n  entry to build.\n\
+  - **A plan that opts into a prototype carry registry** (frontmatter `prototype_ref`)\
+  \ is verified on\n  more inputs: its accept check judged the registry beside the\
+  \ prototype's diff against its\n  merge-base with main, and `plan stage accepted`\
+  \ pinned the audited prototype commit as\n  `prototype_tip` — the rules are homed\
+  \ in SPEC-1058 §2-§3, not restated here. A plan without\n  `prototype_ref` is unchanged.\n\
+  - **Work** = the CUT, relocated from `executing`: slice the plan into task cards\
+  \ per SPEC-0046 (one\n  coherent change-set per card, split only on its grounds;\
+  \ order via `requires:`; the verifier-after-settled rule;\n  a long serial chain\
+  \ of cards on one spec lineage is the cue to assess splitting that spec first —\n\
+  \  the check is homed in SPEC-0046 §A), file them\n  via `task file`, and SET the\
+  \ single `activation_owner_task` on each `proposed` spec (the HARD\n  invariant\
+  \ — one activating task per spec; the others `cite` it). The plan↔spec linkage-chain\n\
+  \  born→activate slice (SPEC-0034) is exercised HERE — the cut SETS these, so it\
+  \ is cut-bundle content.\n  When the plan declares its units, `plan show <slug>\
+  \ --unit-skeletons` prints the card skeletons\n  to file, and `plan stage decomposition`\
+  \ names it on entry; the Units form is SPEC-0043 item 10.\n- **Exit gate `decomposition\
   \ → executing`** = the cut is verified (§3).\n- **`executing`** narrows to PURE\
   \ BUILD: the cards run their own 9 stages; no \"incidental\" cutting.\n  Its delivered\
   \ bundle narrows to \"how to build\" (SPEC-1038 / SPEC-0041 / the per-task stage\
@@ -65,14 +68,29 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ per-task audit-pre cannot reach):\n  coverage (every plan part mapped 1:1), cross-task\
   \ `requires:` ordering, verifier-after-settled\n  edges, a singular `activation_owner_task`\
   \ across siblings, probe quality (no future-bound /\n  luck-only probes), and no\
-  \ card reopening a settled choice.\n- **A split recommendation is advisory.** A\
-  \ finding that a card bundles more than one\n  claim and should be split never holds\
-  \ the transition: the project's declared grouping rules\n  decide (SPEC-0046 §A);\
-  \ the question and its bound are asked in the SPEC-0083 P5 template. Every\n  other\
-  \ finding of this gate holds the transition as before.\n- **Anchor wiring carried\
-  \ by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task` card\
-  \ either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card that\
-  \ does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
+  \ card reopening a settled choice.\n- **Three cut questions.** The gate also asks,\
+  \ per card: successor or in-place for each active\n  spec the card changes; path\
+  \ evidence for a verifier card, whose template has its one home in\n  SPEC-1058\
+  \ §3; and fixtures only for preconditions the card names. The questions are asked\
+  \ in\n  the SPEC-0083 P5 template; a re-run after a RED also carries the prior findings\
+  \ and asks for\n  the absorption sweep (SPEC-1040 §Absorption sweep).\n- **Mechanical\
+  \ cut-set pre-check, printed before the gate.** `plan stage executing` first prints,\n\
+  \  over the cut's cards, one report-only line for each of: a `requires:` cycle;\
+  \ two writers of one\n  spec not ordered by `requires:`; a file one card declares\
+  \ it creates (its unit's `(new)` locator,\n  SPEC-0043 item 10) used by another\
+  \ card not ordered after the creator; a spec named in a card's\n  `Owns:` missing\
+  \ from that card's `expected_touch`; an EXISTING file edited by cards not ordered\n\
+  \  by `requires:` — an overlap line, never a defect and never given a defining card;\
+  \ and the\n  longest `requires:` chain. The lines are recorded on the transition's\
+  \ `plan_stage_entered` row.\n  The pre-check never holds the transition: the gate\
+  \ runs and decides exactly as without it.\n- **A split recommendation is advisory.**\
+  \ A finding that a card bundles more than one\n  claim and should be split never\
+  \ holds the transition: the project's declared grouping rules\n  decide (SPEC-0046\
+  \ §A); the question and its bound are asked in the SPEC-0083 P5 template. Every\n\
+  \  other finding of this gate holds the transition as before.\n- **Anchor wiring\
+  \ carried by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task`\
+  \ card either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card\
+  \ that does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
   \  disposition; and the owner card is `requires:`-ordered after every implementing\
   \ card. The question is asked in the SPEC-0083 P5 template; no new gate, no validator.\
   \ How a cut meets this clause when a plan spec restates an ACTIVE spec and several\
@@ -88,9 +106,14 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ the sorted set of cut task ids; for EACH card\n  its content hash + its `requires:`\
   \ list + its `activation_owner_task` + its acceptance/probe\n  fields; for a plan\
   \ with `prototype_ref`, also what SPEC-1058 §3 names. Editing any of these after\n\
-  \  the audit re-fingerprints → stale → REFUSE.\n- **This contract is homed HERE**\
-  \ (single source); SPEC-0034's `executing` entry-gate and the verb\n  POINT here,\
-  \ they do not restate it.\n\n### 5. Claim-block — a card of an un-decomposed-and-verified\
+  \  the audit re-fingerprints → stale → REFUSE.\n- **A cut that changes while the\
+  \ plan is `executing`** (a card filed into it after the freeze) leaves\n  the recorded\
+  \ verdict bound to the old cut: `plan show` names the gate STALE, and\n  `plan stage\
+  \ executing <slug> --recut` re-runs THIS gate on the live cut — same record, same\
+  \ pass\n  rules, the plan stays `executing`. It is refused `nothing changed` when\
+  \ a GREEN/YELLOW verdict\n  already binds the live cut.\n- **This contract is homed\
+  \ HERE** (single source); SPEC-0034's `executing` entry-gate and the verb\n  POINT\
+  \ here, they do not restate it.\n\n### 5. Claim-block — a card of an un-decomposed-and-verified\
   \ plan is NOT claimable\nCards exist in `decomposition` BEFORE `executing`; under\
   \ parallel/background dispatch a\n`worktree new --task` could otherwise claim+build\
   \ a card before the fidelity gate passes, defeating\n\"audit the cut, THEN build\"\
@@ -301,10 +324,17 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ gate rounds over two\nplans that restated an active spec across several cards:\
   \ a cut that activated the restatement\nwith its first card failed this gate, and\
   \ a cut that activated it last landed behaviour the\nstill-active predecessor forbids.\
-  \ The recipe is in the pattern the pointer names.\n\n## Implementation notes\n\n\
-  ### Moved from the rule body\n\nEach entry is a passage moved word for word out\
-  \ of the rule text of the section it names\n(its class per <workshop-spec> rule\
-  \ 3 in brackets); every acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity\
+  \ The recipe is in the pattern the pointer names.\n\n### The three cut questions\n\
+  \nThe §3 bullet naming the three cut questions was added, in place, from a consumer's\n\
+  cut passes (cross items X-2376, X-2378, X-2379), where passes 2-5 each found the\
+  \ same class\nfixed at one card and not swept across the cut.\n\n### The mechanical\
+  \ cut-set pre-check\n\nThe §3 pre-check bullet was added, in place as an additive\
+  \ extension, from the same\nconsumer hand-over (X-2379 part E3, report X-2376):\
+  \ a script that checked the cut before the\nexternal gate left that gate's first\
+  \ pass to spec ownership and semantic order.\n\n## Implementation notes\n\n### Moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names\n(its class per <workshop-spec> rule 3 in brackets);\
+  \ every acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity\
   \ gate» [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From\
   \ «5. Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
   \  `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4), `_plan_card_set_context`\n\

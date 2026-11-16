@@ -1,7 +1,7 @@
 ---
 name: plan-finalization-runbook
 class: discipline
-sourced_from: owner-directive 2026-06-28 ( — "make the finalization runbook") + the migrate-<project>-onto-yitc-v2-v1-incumbent-gat finalization done ad hoc (re-grade→COMPLETE→close→plan realized orchestrated by hand) + SPEC-0034 (plan lifecycle per-stage mechanics + plan↔spec finalization chain) + SPEC-0070 (decomposition-fidelity audit) + <workshop-spec> (audit-loop ceiling) + patterns/realize-on-evidenced-soak-not-just-the-gate.md (the EVIDENCED-soak gate) + LIFECYCLE §Plan lifecycle + patterns/plan-lifecycle.md + the sibling navigational runbook patterns/inspection-triage-launch-runbook.md (format model)
+sourced_from: owner-directive 2026-06-28 ( — "make the finalization runbook") + the migrate-trend-finder-onto-yitc-v2-v1-incumbent-gat finalization done ad hoc (re-grade→COMPLETE→close→plan realized orchestrated by hand) + SPEC-0034 (plan lifecycle per-stage mechanics + plan↔spec finalization chain) + SPEC-0070 (decomposition-fidelity audit) + <workshop-spec> (audit-loop ceiling) + patterns/realize-on-evidenced-soak-not-just-the-gate.md (the EVIDENCED-soak gate) + LIFECYCLE §Plan lifecycle + patterns/plan-lifecycle.md + the sibling navigational runbook patterns/inspection-triage-launch-runbook.md (format model)
 applies_to: finalizing a plan that has reached the build's end — driving it postcheck → realized (or to a terminal partial/rejected/cancelled). Read BEFORE `plan stage realized`. This pattern is the SEQUENCING/navigation only — every rule it invokes homes elsewhere (it cites, it does not restate; <workshop-spec> rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
 ---
 
@@ -17,7 +17,7 @@ applies_to: finalizing a plan that has reached the build's end — driving it po
 A plan's END — the `postcheck → realized` finalization — is a multi-step verb sequence whose steps and
 gates are spread across SPEC-0034 / SPEC-1040 / the realize-on-evidenced-soak pattern / LIFECYCLE §Plan
 lifecycle. There was **no named, repeatable runbook**, so each finalization (e.g. the
-migrate-<project> plan) re-derived the order by hand. That ad-hoc re-derivation is the cost this
+migrate-trend-finder plan) re-derived the order by hand. That ad-hoc re-derivation is the cost this
 runbook removes (CHARTER §P1 F3): the finalization order becomes a named, grep-resolvable procedure.
 
 ## §The order (postcheck → realized)

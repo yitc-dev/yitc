@@ -512,7 +512,7 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ not `relates_to` (the incident).** Keying the fire on\nprovenance made a followup\
   \ fire the instant the task it was merely ABOUT closed — which is precisely NOT\n\
   what it waited for. On 2026-07-10 **all 9** live `fired` rows were false: each awaited\
-  \ a FUTURE event\n(the next real revizia run, the next `-C` consumer init, <project>'s\
+  \ a FUTURE event\n(the next real revizia run, the next `-C` consumer init, trend-finder's\
   \ next land, the next\nowner-invoked T7 run, a plan's revival) that had not occurred.\
   \ Fingerprint:\n`followup-fire-on-relates-to-not-awaited-condition`. The cost is\
   \ not noise — it is a debt echo that\ntrains its reader to ignore it.\n\n**Re-arming\

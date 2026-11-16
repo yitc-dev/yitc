@@ -8,6 +8,7 @@ consumed: false
 extension: null
 implements:
 - bin/lib/deploy.py#cmd_deploy
+- bin/lib/deploy.py#_seam_pin_candidate
 - bin/v2-security-gate#evaluate_report
 - bin/security-audit
 - bin/lib/deploy.py#_apply_security_gate_override
@@ -17,31 +18,41 @@ body: "## Scenario\n\nA consumer runs a governed `deploy`. BEFORE the pre-deploy
   \ security producer (the <workshop-spec> scaffold /\nthe declared runner), so the\
   \ gate judges a report produced from the code being deployed — not\nwhatever vintage\
   \ the cron last wrote. A deploy can no longer be blocked by findings already\nfixed\
-  \ in the code (the <project> stale-block: 13 already-fixed npm HIGHs held two C1\n\
-  deploys), nor passed on evidence older than the deploy candidate. Scheduled cadence\
-  \ runs\ncontinue unchanged; the operator never has to \"run the producer by hand\
-  \ to unblock\".\n\n## Internal\n\nTHE DEPLOY-SEAM PRODUCER-RUN CONTRACT — the per-deploy\
-  \ sibling of the SPEC-0145 cadence concern\n(same `security:` carrier family, distinct\
-  \ surface; the SPEC-0098 cadence-vs-deploy-seam split is\nthe placement precedent).\
-  \ Six rules:\n\n1. **Seam execution — the verb runs the evidence.** The governed\
-  \ `deploy` (SPEC-0094 machinery)\n   runs the project's DECLARED producer at the\
-  \ deploy seam, then the pre-deploy gate judges the\n   FRESH report. Kernel-side\
+  \ in the code (the trend-finder stale-block: 13 already-fixed npm HIGHs held two\
+  \ C1\ndeploys), nor passed on evidence older than the deploy candidate. Scheduled\
+  \ cadence runs\ncontinue unchanged; the operator never has to \"run the producer\
+  \ by hand to unblock\".\n\n## Internal\n\nTHE DEPLOY-SEAM PRODUCER-RUN CONTRACT\
+  \ — the per-deploy sibling of the SPEC-0145 cadence concern\n(same `security:` carrier\
+  \ family, distinct surface; the SPEC-0098 cadence-vs-deploy-seam split is\nthe placement\
+  \ precedent). Six rules:\n\n1. **Seam execution — the verb runs the evidence.**\
+  \ The governed `deploy` (SPEC-0094 machinery)\n   runs the project's DECLARED producer\
+  \ at the deploy seam, then the pre-deploy gate judges the\n   FRESH report. Kernel-side\
   \ in the deploy verb — the invariant belongs to the verb, never a\n   consumer wrapper\
   \ (prior-art: the C1 pg_dump seam; the Class-S security_probe).\n   The producer\
   \ the seam runs IS the declared `security.audit` runner (SPEC-0145 §6) — no second\n\
-  \   producer identity, no seam-only fork.\n\n2. **Single-writer, atomic publication\
-  \ (consult req a).** ONE producer identity serves BOTH\n   triggers (cron cadence\
-  \ + deploy seam). The run is lock-guarded (concurrent cadence/seam runs\n   serialize,\
-  \ never interleave); the run writes to a run-scoped temp location and ONLY a\n \
-  \  COMPLETED report is atomically promoted to latest. A transport/partial failure\
-  \ never\n   overwrites the last completed report — a run killed mid-write leaves\
-  \ the prior latest intact.\n\n3. **Advisory-fetch cache semantics (consult req b).**\
-  \ Cadence runs PREWARM the advisory data;\n   a deploy-seam run MAY use a bounded-fresh\
-  \ cache instead of a live advisory fetch.\n   **\"Bounded-fresh\" is SINGLE-SOURCED\
-  \ (no new key):** the cache is bounded-fresh iff its\n   advisory data is no older\
-  \ than the project's DECLARED `freshness_sla` on the\n   `security.audit` carrier\
-  \ (SPEC-0145 §6 — the SAME window the gate already judges reports\n   by; there\
-  \ is no separate cache-freshness value anywhere). An external\n   advisory-service\
+  \   producer identity, no seam-only fork.\n   **The candidate holds still across\
+  \ the dump and the seam.** A forward deploy that reaches the\n   pre-deploy dump\
+  \ (SPEC-0097 §4/§5) or this seam takes the project's land reservation right before\n\
+  \   the first of them, through SPEC-1051 rule 3's look and take: a land already\
+  \ holding it refuses the\n   deploy at once (exit 3), nothing dumped or produced;\
+  \ otherwise the deploy waits as a parked land\n   waits, and a spent park limit\
+  \ refuses (exit 3). Holding it, the deploy refuses (exit 4) when HEAD\n   is no\
+  \ longer the revision it resolved, before the dump. It releases the reservation\
+  \ once the gate\n   has judged, before the load window and before any SPEC-1051\
+  \ rule-3 take; a land started meanwhile\n   parks and moves `main` only after. A\
+  \ release order already holds the reservation and takes none.\n\n2. **Single-writer,\
+  \ atomic publication (consult req a).** ONE producer identity serves BOTH\n   triggers\
+  \ (cron cadence + deploy seam). The run is lock-guarded (concurrent cadence/seam\
+  \ runs\n   serialize, never interleave); the run writes to a run-scoped temp location\
+  \ and ONLY a\n   COMPLETED report is atomically promoted to latest. A transport/partial\
+  \ failure never\n   overwrites the last completed report — a run killed mid-write\
+  \ leaves the prior latest intact.\n\n3. **Advisory-fetch cache semantics (consult\
+  \ req b).** Cadence runs PREWARM the advisory data;\n   a deploy-seam run MAY use\
+  \ a bounded-fresh cache instead of a live advisory fetch.\n   **\"Bounded-fresh\"\
+  \ is SINGLE-SOURCED (no new key):** the cache is bounded-fresh iff its\n   advisory\
+  \ data is no older than the project's DECLARED `freshness_sla` on the\n   `security.audit`\
+  \ carrier (SPEC-0145 §6 — the SAME window the gate already judges reports\n   by;\
+  \ there is no separate cache-freshness value anywhere). An external\n   advisory-service\
   \ outage MUST NOT become fail-closed deploy flakiness: with a bounded-fresh\n  \
   \ cache present the seam run completes normally; with NO cache the PINNED degrade\
   \ applies — the\n   in-scope advisory check records `unavailable` with its exit\
@@ -139,7 +150,7 @@ body: "## Scenario\n\nA consumer runs a governed `deploy`. BEFORE the pre-deploy
   \ freshness bound is NOT a new value — it IS the project's\ndeclared `freshness_sla`\
   \ (`security.audit` carrier, single-sourced in SPEC-0145 §6; rule 3).\nThe producer\
   \ lock/timeout values are carrier/env config (SPEC-0093 family), not spec-embedded\n\
-  scalars.\n\n## Rationale\n\nX-0328 (<project>, kind=task, owner-authorized 2026-07-12;\
+  scalars.\n\n## Rationale\n\nX-0328 (trend-finder, kind=task, owner-authorized 2026-07-12;\
   \ requester-side external consult\nYELLOW — requirements a/b/c absorbed as rules\
   \ 2/3/4). Real incidents: — all frontend\ndev-dep advisories fixed in the lockfile\
   \ while the cadence-old report kept listing 13\nalready-fixed npm HIGHs, TWO C1\
@@ -154,16 +165,28 @@ body: "## Scenario\n\nA consumer runs a governed `deploy`. BEFORE the pre-deploy
   \ FIELD homes in SPEC-0145 §5 via additive\namendment + explicit delegation line,\
   \ this spec keeps only the seam-judgement rule (RED-2);\nimplements anchors + activation-owner\
   \ carry the code enforcement (YELLOW-3); the cache bound\nsingle-sources to the\
-  \ declared `freshness_sla` (YELLOW-4).\n\n## Verification\n\n- **Stale-block killed\
-  \ (differential):** fixture consumer where the code fixed a finding after\n  the\
-  \ last cadence report — governed deploy runs the producer, the fresh report drops\
-  \ the\n  finding, the gate PASSES (pre-change: the stale report blocks).\n- **Fresh\
-  \ regression caught (differential):** a regression introduced after the cadence\
-  \ report —\n  the seam run surfaces it, the gate REFUSES (pre-change: the stale\
-  \ report passes it).\n- **Atomicity (differential):** a producer run killed mid-write\
-  \ leaves the prior completed\n  report as latest (the partial overwrite fails the\
-  \ test).\n- **Code identity (differential):** the gate refuses a report whose commit/lockfile\
-  \ hashes do\n  not match the deploy candidate.\n- **Override (rule 7 — differential):**\
+  \ declared `freshness_sla` (YELLOW-4).\n\nRule 1's candidate hold was added by (X-2324,\
+  \ <project> 2026-11-09): three deploys were\nrefused in seven minutes because a\
+  \ land completed inside each ~80 s pg_dump, the producer stamped\nthe new HEAD,\
+  \ and the gate refused identity-mismatch after the dump; the land reservation existed\n\
+  only around the SPEC-1051 pre-deploy run, which an ungated deploy never reached.\
+  \ In place, as an\nadditive extension (SPEC-1037 §7): a land during the dump or\
+  \ the seam is a case the rule did not\naddress, and every covered case reads as\
+  \ before.\n\n## Verification\n\n- **Stale-block killed (differential):** fixture\
+  \ consumer where the code fixed a finding after\n  the last cadence report — governed\
+  \ deploy runs the producer, the fresh report drops the\n  finding, the gate PASSES\
+  \ (pre-change: the stale report blocks).\n- **Fresh regression caught (differential):**\
+  \ a regression introduced after the cadence report —\n  the seam run surfaces it,\
+  \ the gate REFUSES (pre-change: the stale report passes it).\n- **Atomicity (differential):**\
+  \ a producer run killed mid-write leaves the prior completed\n  report as latest\
+  \ (the partial overwrite fails the test).\n- **Code identity (differential):** the\
+  \ gate refuses a report whose commit/lockfile hashes do\n  not match the deploy\
+  \ candidate.\n- **Candidate hold (rule 1 — differential):** a Class-C1 dump that\
+  \ starts a land on the\n  real reservation — the land parks, the producer runs on\
+  \ the deploy revision, the gate passes and\n  the land moves `main` after the seam\
+  \ (pre-change: the land commits during the dump and the gate\n  refuses identity-mismatch);\
+  \ a land already holding the reservation refuses the deploy before the\n  dump —\
+  \ tests/test_t14557_seam_candidate_pin.py.\n- **Override (rule 7 — differential):**\
   \ the SAME blocking fixture deploys WITH the owner\n  flags and REFUSES without\
   \ them (the flags, not the fixture, carry the pass — the default gate is\n  unweakened);\
   \ the override event carries the reason + the named advisory + the GATE's own blocking\n\
@@ -179,7 +202,7 @@ body: "## Scenario\n\nA consumer runs a governed `deploy`. BEFORE the pre-deploy
   \ counts as no-cache; no cache →\n  the rule-3 degrade: check recorded `unavailable`,\
   \ report complete + accepted, deploy not\n  fail-closed, `warning` finding present\
   \ (differential: a silently-absent check or a\n  fail-closed refuse fails the test).\n\
-  - **Real-data soak:** ≥1 real consumer deploy (<project> is the live case) through\
+  - **Real-data soak:** ≥1 real consumer deploy (trend-finder is the live case) through\
   \ the\n  seam-run path, 0 stale-evidence blocks, 0 gate regressions.\n"
 cites:
 - SPEC-0145
@@ -198,7 +221,8 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/deploy.py#_apply_security_gate_override: 2c69de2dfcaeea6090c6f0ab17ca6de02280ed4608e94752aa3b9f7867630f46
-  bin/lib/deploy.py#cmd_deploy: b2726455fbe1306a8557abc99eff4a05f9c373bdf07135ded36d2f3ee81cbd12
+  bin/lib/deploy.py#_seam_pin_candidate: aa88370e284091990506c0bf5b931194b623176a44d28923cff84609c90f8a4f
+  bin/lib/deploy.py#cmd_deploy: 34a3fa95620a11e9e576c19a122546b0187052aa5c7bdac5fc9e18490008d3e6
   bin/security-audit: ced9ce8efe91f45e035ca9cf7b593e2230590e237af3b5a1fcfccaf1e06589a4
   bin/v2-security-gate#_publish_verdict: a2cb16b9a68474c8ad6e9e916343d7b025fcf56187fda41d2fdda3ea9adaaa3f
   bin/v2-security-gate#evaluate_report: f64c2e897d4d83dc2c28d78ab17d1e6c49c0ff01e4ea39e235c3fd39b016645d

@@ -1,7 +1,7 @@
 ---
 name: hermetic-in-time-suite-latency-triage
 class: technique
-sourced_from: <project> X-0431 / (declared-hermetic backend suite hid a ~19.5s-per-test celery result-backend connect-retry stall — 7 tests ≈ 136s of a 145s file — found only by a faulthandler stack dump; owner-authorized cross-intake to the kernel 2026-07-16)
+sourced_from: boomrocket X-0431 / (declared-hermetic backend suite hid a ~19.5s-per-test celery result-backend connect-retry stall — 7 tests ≈ 136s of a 145s file — found only by a faulthandler stack dump; owner-authorized cross-intake to the kernel 2026-07-16)
 applies_to: any project whose test suite is DECLARED hermetic yet whose per-test durations are suspiciously uniform, or whose land/CI wall-clock is dominated by one test layer that grows with the suite
 ---
 
@@ -61,9 +61,9 @@ in your code.
    fix the hermeticity, do not just raise the land timeout (that treats the symptom and lets the floor
    keep growing).
 
-## Worked example — <project>
+## Worked example — boomrocket
 
-<project>'s backend suite was declared hermetic; PuzzleBot and email were mocked. But prod endpoints
+boomrocket's backend suite was declared hermetic; PuzzleBot and email were mocked. But prod endpoints
 fire celery `.delay`, the hermetic container has no Redis, and the celery **result-backend retried
 ~19.5s per call** waiting for the absent broker. `pytest --durations` showed 7 tests clustered at
 ~19.5s (≈136s of a 145s file); `pytest -o faulthandler_timeout=10` dumped the stack mid-wait onto the

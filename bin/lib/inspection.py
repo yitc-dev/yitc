@@ -1478,7 +1478,7 @@ def parse_cadence(roster_text: str) -> dict:
 # A CONSUMER-declared `probe.sweep` theme (SPEC-0093 rule 12) names a `surfaces:` glob (+ an optional
 # `against:` canon file). Running that revizia by hand — or inlining those surfaces into an `audit
 # adhoc` consult (the launch runbook path) — risks the SAME payload-timeout that X-0275 hit on the
-# SIBLING adhoc path (<project> inlined 80838B of sweeps and ABORTed past the auditor's 300s wall).
+# SIBLING adhoc path (boomrocket inlined 80838B of sweeps and ABORTed past the auditor's 300s wall).
 # The `audit adhoc` fix is `bin/lib/audit.py:_adhoc_payload_budget_warn` (report-only, env-tunable,
 # never a gate). inspection.py is stdlib-only + identity-agnostic (it never back-imports the host or a
 # sibling leaf — §module header), so we MIRROR that report-only pattern locally rather than import it,

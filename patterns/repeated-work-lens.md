@@ -227,16 +227,16 @@ only the `surfaces:` glob to this project's own layout:
 inspection:
   themes:
   - theme: repeated-work
-    owner: kernel # REQUIRED — the entry is KERNEL-OWNED and `init` seeds it into
+    owner: kernel            # REQUIRED  — the entry is KERNEL-OWNED and `init` seeds it into
                              # every consumer with no opt-out; stripping this is a fail-closed error
     probe:
       sweep:
         # ONE brace group per token, and every root ends `/**/*` — the shape the reader
         # matches (it splits on whitespace, expands ONE group per token, and keeps FILES:
         # in pathlib `X/**` yields directories only, so `X/**` and a two-group token each
-        # match ZERO files). Verified on a fixture, not assumed —.
+        # match ZERO files). Verified on a fixture, not assumed — .
         surfaces: "backend/**/*.{py,js,jsx,ts,tsx} app/**/*.{py,js,jsx,ts,tsx} api/**/*.{py,js,jsx,ts,tsx} src/**/*.{py,js,jsx,ts,tsx} frontend/src/**/*.{py,js,jsx,ts,tsx} scripts/**/*.{py,js,jsx,ts,tsx} workers/**/*.{py,js,jsx,ts,tsx} tasks/**/*.{py,js,jsx,ts,tsx}"
-        against: patterns/repeated-work-lens.md # the seven classes, severity rubric + report shape
+        against: patterns/repeated-work-lens.md   # the seven classes, severity rubric + report shape
         checks:
         - n-plus-one-queries-in-loops
         - file-config-row-re-read-per-request-or-iteration

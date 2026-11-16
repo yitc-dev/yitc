@@ -523,6 +523,135 @@ def _warn_anchor_rule(sid: str, rec, *, verb: str, specs_dir=None) -> None:
     print(f"⚠ anchor-rule (SPEC-0151) after `{verb}`: {sid} {reason}{note}", file=sys.stderr)
 
 
+# ── T-14638 — history ADDED to a rule body outside `## Rationale` (report-only, SPEC-1037 rule 3) ──
+# The classifier below is the one the 2026-10-08 history-in-rule-body measurement used (its scratch
+# script heur2.py, `cls_frag` and its regexes), ported verbatim so the warning and the measurement
+# judge a sentence the same way. It is the only copy kept in the engine; do not add a second one.
+_HIST_ID = re.compile(r"\b(?:T|X|E|D|B|F)-\d{3,5}\b")
+_HIST_DATE = re.compile(r"\b20\d\d-\d\d(?:-\d\d)?(?:T[\d:]+Z?)?\b")
+_HIST_NARR = re.compile(
+    r"\b(measured|incident|happened|twice|thrice|three times|\d+ times|prior[- ]art|used to|previously|"
+    r"formerly|originally|re-?homed|was|were|had been|amended|absorbed (?:from|per)|"
+    r"audit-(?:pre|post) (?:finding|F\d)|finding \d|four-filter|bench|observed|lesson|motivat\w+|caught|"
+    r"recurr\w*|occurrences?|surfaced|born (?:from|of)|closes? the|this closes|the defect|the gap|"
+    r"the hole|precedent|same class|split (?:from|by)|moved (?:from|here)|replac(?:ed|es) the|"
+    r"retired by|superseded by|consumer [A-Z]-\d|evidence)\b", re.I)
+_HIST_CODE = re.compile(
+    r"`?(?:bin/lib/|tests/)[\w/.]+(?:#[\w.]+)?`?|`?\b\w+\.py(?:#\w+|:\d+)?\b`?|`test_\w+`|\btest_\w+|"
+    r"`_[a-z]\w{3,}(?:\(\))?`|\b_[a-z]\w{3,}\(\)|\bcmd_\w+")
+_HIST_RULE = re.compile(
+    r"\b(must|MUST|never|NEVER|refuses?|REFUSES?|only|ONLY|always|ALWAYS|do not|DO NOT|required|"
+    r"forbidden|FORBIDDEN|should|may not|cannot|is a|are)\b")
+_HIST_PAREN = re.compile(r"\([^()]{3,500}\)")
+_HIST_SENT = re.compile(r"(?<=[.;!?])\s+(?=[A-Z(*«\"`\[])")
+# The body sections that are NOT rule text (SPEC-1037 rule 3): history belongs in the first.
+_NOT_RULE_TEXT = ("Rationale", "Implementation notes", "Verification")
+
+
+def _history_frag_class(t: str, paren: bool = False) -> str:
+    """heur2 `cls_frag`: "H" history, "M" code detail, "R" rule text."""
+    n, d, i = len(_HIST_NARR.findall(t)), len(_HIST_DATE.findall(t)), len(_HIST_ID.findall(t))
+    c, r = len(_HIST_CODE.findall(t)), len(_HIST_RULE.findall(t))
+    if paren:
+        if c and c >= i:
+            return "M"
+        return "H" if (d or n or i) else "R"
+    if c >= 2 and r == 0:
+        return "M"
+    if d and r <= 1:
+        return "H"
+    if n >= 2 and r == 0:
+        return "H"
+    if n >= 1 and (i * 150 / max(len(t), 1)) >= 1 and r == 0:
+        return "H"
+    if (n + d) >= 3 and n + d > r:
+        return "H"
+    return "R"
+
+
+def _is_history_sentence(sent: str) -> bool:
+    """heur2's per-sentence reading: a non-rule parenthetical is cut out first, and the sentence is
+    history when a parenthetical of it or what remains of it classifies "H"."""
+    rest = sent
+    for m in _HIST_PAREN.finditer(sent):
+        cls = _history_frag_class(m.group(0), paren=True)
+        if cls == "H":
+            return True
+        if cls != "R":
+            rest = rest.replace(m.group(0), "", 1)
+    return _history_frag_class(rest) == "H"
+
+
+def _rule_text_sentences(body) -> list:
+    """(section, sentence) for every sentence of the body's rule text — every section except
+    `## Rationale`, `## Implementation notes` and `## Verification`; a `###` heading stays inside its
+    `##` section, and text before the first `##` heading is rule text."""
+    if not isinstance(body, str):
+        return []
+    sections, name, lines = [], "", []
+    for ln in body.split("\n"):
+        m = re.match(r"\s*##\s+(\S.*?)\s*$", ln)
+        if m and not ln.lstrip().startswith("###"):
+            sections.append((name, lines))
+            name, lines = m.group(1), []
+        else:
+            lines.append(ln)
+    sections.append((name, lines))
+    out = []
+    for name, lines in sections:
+        if name in _NOT_RULE_TEXT:
+            continue
+        flat = re.sub(r"\s+", " ", "\n".join(lines)).strip()
+        out.extend((name, s) for s in _HIST_SENT.split(flat) if s)
+    return out
+
+
+def history_in_rule_text(old_body, new_body) -> list:
+    """(section, sentence) for each history sentence the edit ADDED to the rule text: the new rule-text
+    sentences minus the old ones, counted as a multiset, so a sentence that was already there — moved,
+    re-wrapped or untouched — is never reported."""
+    from collections import Counter
+    before = Counter(s for _n, s in _rule_text_sentences(old_body))
+    added = []
+    for name, s in _rule_text_sentences(new_body):
+        if before[s] > 0:
+            before[s] -= 1
+            continue
+        if _is_history_sentence(s):
+            added.append((name, s))
+    return added
+
+
+def _chain_body(paths, bodies: dict, *, _read_yaml) -> str:
+    """The ONE body of a spec across its SPEC-0120 part chain, in chain order: a path in `bodies` takes
+    that text, any other path is read from disk. A part then sits in the section the part before it
+    ended in."""
+    parts = []
+    for p in paths:
+        if p in bodies:
+            b = bodies[p]
+        else:
+            rec = _read_yaml(p) if p.exists() else None
+            b = rec.get("body") if isinstance(rec, dict) else None
+        parts.append(b if isinstance(b, str) else "")
+    return "\n".join(parts)
+
+
+def _warn_history_in_rule_text(sid: str, old_body, new_body, *, verb: str) -> None:
+    """Report-only (T-14638): name each history sentence the verb ADDED to the rule text outside
+    `## Rationale`. Never refuses; a caller wraps it so a failure here never breaks the edit."""
+    added = history_in_rule_text(old_body, new_body)
+    if not added:
+        return
+    print(f"⚠ history-in-rule-text (SPEC-1037 rule 3) after `{verb}`: {sid} — {len(added)} added "
+          f"sentence(s) carry a date, a run of ids or a measured figure; history goes to the spec's "
+          f"`## Rationale`, the rule text keeps the rule (report-only, nothing was refused):",
+          file=sys.stderr)
+    for name, s in added:
+        shown = s if len(s) <= 160 else s[:157] + "..."
+        print(f"    §{name or '(before the first heading)'}: «{shown}»", file=sys.stderr)
+
+
 def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _yaml_scalar,
                  _utc_now_iso, PLANS_DIR, _require_reads, PLACEMENT_REALMS, _SPEC_CLASS_DEFAULT,
                  _kernel_content_file, _scaffold_read_validate, _id_alloc_lock, SPECS_DIR, _slug,
@@ -680,6 +809,10 @@ def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _
           "(the code-decompose rule, SPEC-0088); NOT line ranges (D-0036) + body "
           "Statement/Rationale/Verification (GRAPH §Schema for specs).")
     print(f"cue: {SPEC_BODY_EDIT_CUE}")  # T-10159 (a-d single-SoT)
+    try:  # T-14638 — report-only: history the born body carries in its rule text
+        _warn_history_in_rule_text(sid, "", (state.load_str(content) or {}).get("body"), verb="spec new")
+    except Exception:
+        pass
     # T-10298 (SPEC-0151) — report-only anchor-rule WARN on the born record. Parsed from the text just
     # written (never re-read from disk): the scaffold IS the record. A parse failure here must never
     # break the birth of a spec whose file is already on disk, so it degrades to silence.
@@ -687,6 +820,33 @@ def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _
         _warn_anchor_rule(sid, state.load_str(content), verb="spec new")
     except Exception:
         pass
+
+
+def _regen_manifest_after_spec_edit(rec, updated_rec, is_part, *, _manifest_path,
+                                    _auto_rebuild_graph, _regen_manifest_managed_regions) -> str:
+    """T-14608 — regenerate the kernel-vs-self manifest's GEN regions after a `spec edit` that moved
+    the spec's `implements:` or `status:` (rule home SPEC-0073 rule 5). Returns the outcome word:
+    `skipped-part` (a SPEC-0120 continuation part carries neither field), `unchanged` (neither field
+    moved, or the host injected no regen — the verb's direct callers keep their behaviour), `no-manifest`
+    (a consumer corpus or a sandbox has no such file), `regenerated` (the file changed) or `current`.
+
+    The index is REBUILT first, through the same `_auto_rebuild_graph` audit/test/close/land run, and
+    the regions are rendered from THAT index by the single T-12236 regen function — so the manifest and
+    the committed index agree the moment the edit is done. RAISES on a rebuild that produced no index or
+    a regen that failed: the caller restores the spec and refuses, never leaves the stale pair behind."""
+    if is_part:
+        return "skipped-part"
+    if _auto_rebuild_graph is None or _regen_manifest_managed_regions is None or _manifest_path is None:
+        return "unchanged"
+    before, after = rec or {}, updated_rec or {}
+    if before.get("implements") == after.get("implements") and before.get("status") == after.get("status"):
+        return "unchanged"
+    if not _manifest_path().exists():
+        return "no-manifest"
+    index = _auto_rebuild_graph("spec_edit")
+    if index is None:
+        raise RuntimeError("the graph index rebuild produced no index")
+    return "regenerated" if _regen_manifest_managed_regions(index) else "current"
 
 
 def _spec_edit_target(base_path, base_rec, old, *, _read_yaml, _die):
@@ -835,6 +995,11 @@ def _create_spec_part(args, base_path, sid, status, *, _die, _governing_contract
     print(f"spec part created: {rel} (part {n} of {sid}) — spec_edited emitted; before-rule-change "
           f"governing contract: {', '.join(contract_specs) or '(none active-bound yet — run graph build)'}")
     print("next: `yitc-v2 graph build`; edit the part's text later with `spec edit` --old/--new.")
+    try:  # T-14638 — report-only: the new part continues the section the chain ended in
+        old_chain = _chain_body(chain, {}, _read_yaml=lambda p: state.load_str(p.read_text(encoding="utf-8")))
+        _warn_history_in_rule_text(sid, old_chain, old_chain + "\n" + body, verb="spec edit --new-part")
+    except Exception:
+        pass
     if contract_specs and _deliver_before_rule_change is not None:
         _deliver_before_rule_change("spec-edit", contract_specs)
 
@@ -865,7 +1030,8 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                   _read_yaml, SPEC_ABANDONED_TERMINAL, write_text_atomic, _governing_contract_for,
                   _append_event, REPO_ROOT, _run_git_cap=None,
                   _require_before_rule_change_read=None, _manifest_path=None,
-                  _deliver_before_rule_change=None) -> None:
+                  _deliver_before_rule_change=None, _auto_rebuild_graph=None,
+                  _regen_manifest_managed_regions=None) -> None:
     """In-place chokepoint for editing an EXISTING active/proposed spec (T-0273) — the before-rule-change
     gate for MODIFYING a spec, the inverse of `spec new` (which gates CREATION). Resolves the spec by id,
     refuses superseded/retired (post-active frozen history), but ALLOWS a `draft` (plan-local, SPEC-0005
@@ -953,6 +1119,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         # signs EVERY file whose governed content moved, one diff-bound spec_edited per file. A part
         # absent on one side reads as an empty record (an added or deleted part).
         blessed = []
+        chain_bodies = []   # T-14638 — (main body, working body) of EVERY chain file, in chain order
         for fpath in _spec_chain_with_main_parts(path, _run_git_cap=_run_git_cap, REPO_ROOT=REPO_ROOT):
             relpath = str(fpath.relative_to(REPO_ROOT))
             base_show = _run_git_cap(["show", f"main:{relpath}"], REPO_ROOT)
@@ -966,6 +1133,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                 new_rec = (state.load_str(new_blob) if new_blob is not None else None) or {}
             except Exception as e:
                 _die(f"--bless: cannot parse {relpath} at main/working ({str(e)[:120]})")
+            chain_bodies.append((base_rec.get("body"), new_rec.get("body")))
             body_moved = base_rec.get("body") != new_rec.get("body")
             impl_moved = base_rec.get("implements") != new_rec.get("implements")
             fields = [fld for fld, moved in (("body", body_moved), ("implements", impl_moved)) if moved]
@@ -1014,6 +1182,14 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         print("Safe to run now (T-11207): `spec reverify` does NOT invalidate this bless — the "
               "fingerprint covers body+implements only, so re-signing `implements_signature:` (what "
               "the anchor-drift WARN asks for) leaves it intact. Order between the two does not matter.")
+        try:  # T-14638 — report-only: history the blessed edit added to the rule text, vs `main`
+            if any("body" in fields for *_r, fields in blessed):
+                _warn_history_in_rule_text(
+                    sid, "\n".join(b if isinstance(b, str) else "" for b, _n in chain_bodies),
+                    "\n".join(n if isinstance(n, str) else "" for _b, n in chain_bodies),
+                    verb="spec edit --bless")
+        except Exception:
+            pass
         return
     # Input resolution (T-10051): old/new may come flat via --old/--new OR — for the multi-line /
     # full-section body replacements the flat CLI cannot carry — as a YAML mapping {old, new,
@@ -1484,6 +1660,27 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                  f"<realm>`. The file is untouched.")
     write_text_atomic(path, updated)
     is_part = path != base_path
+    # T-14608 — an edit that moves `implements:` or `status:` regenerates the kernel-vs-self manifest's
+    # GEN regions in the SAME verb (rule home SPEC-0073 rule 5), so the §3 SPEC<->CODE map never lags a
+    # governed edit until somebody runs `graph build`. All-or-nothing: a failed regen restores the spec
+    # file and refuses, BEFORE `spec_edited` is journaled.
+    try:
+        regen_outcome = _regen_manifest_after_spec_edit(
+            rec, updated_rec, is_part, _manifest_path=_manifest_path,
+            _auto_rebuild_graph=_auto_rebuild_graph,
+            _regen_manifest_managed_regions=_regen_manifest_managed_regions)
+    except Exception as exc:                  # noqa: BLE001 — any failure restores the pre-edit file
+        write_text_atomic(path, text)
+        # The rebuild may already have written an index describing the refused edit: rebuild it from
+        # the restored spec, so the index, the manifest and the spec all describe the pre-edit corpus.
+        try:
+            _auto_rebuild_graph("spec_edit_restore")
+        except Exception:                     # noqa: BLE001 — `_auto_rebuild_graph` is failure-tolerant
+            pass
+        _die(f"`spec edit` restored {path.name}: the edit moves `implements:`/`status:`, and "
+             f"regenerating kernel-vs-self-manifest.md from it failed ({exc}). The edit and its "
+             f"manifest regen are all-or-nothing (SPEC-0073 rule 5), so nothing was changed. Fix the "
+             f"cause (`bin/yitc-v2 graph build` shows it), then re-run the same `spec edit`.")
     # T-10298 (SPEC-0151) — report-only anchor-rule WARN on the POST-edit record (reusing the record the
     # write-guard above already parsed). Reads the updated record's OWN status, not the pre-edit `status`
     # captured from disk: an edit may itself change it. Report-only — the edit has already succeeded.
@@ -1525,8 +1722,21 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     else:
         print("reading: edited as body text — `old` was taken as text of the parsed body, and `new` "
               "was stored so the body reads as given.")
+    if regen_outcome in ("regenerated", "current"):
+        print(f"manifest: kernel-vs-self-manifest.md GEN regions {regen_outcome} from the rebuilt "
+              f"graph index (the edit moved `implements:`/`status:` — SPEC-0073 rule 5)")
     print("next: `yitc-v2 graph build` to refresh rules/binding views if the body changed governing text.")
     print(f"cue: {SPEC_BODY_EDIT_CUE}")  # T-10159 (a-d single-SoT)
+    try:  # T-14638 — report-only: history this edit added to the rule text, judged on the whole chain
+        chain = state.spec_part_paths(base_path)
+        # each unchanged sibling part is read ONCE and its body reused on both sides
+        siblings = {p: _chain_body([p], {}, _read_yaml=_read_yaml) for p in chain if p != path}
+        _warn_history_in_rule_text(
+            sid, _chain_body(chain, {**siblings, path: (rec or {}).get("body")}, _read_yaml=_read_yaml),
+            _chain_body(chain, {**siblings, path: (updated_rec or {}).get("body")}, _read_yaml=_read_yaml),
+            verb="spec edit")
+    except Exception:
+        pass
     # T-10727 — fire the re-pin companion cue ONLY when this edit actually CHANGED `travels:`. Both
     # records are already in hand (`rec` pre-edit from disk, `updated_rec` from the write-guard parse),
     # so the detection costs no extra read/parse and cannot fail the edit — it runs after the atomic

@@ -49,8 +49,8 @@ import asyncio
 from playwright.async_api import async_playwright
 
 PAGES = ["/", "/dashboard", "/settings"]
-BASE = "https://app.example.com" # the REAL production origin — same secure/non-secure class
-MAIN_SELECTOR = "main, #root > *" # project-chosen: an element only a rendered page has
+BASE = "https://app.example.com"  # the REAL production origin — same secure/non-secure class
+MAIN_SELECTOR = "main, #root > *"  # project-chosen: an element only a rendered page has
 
 async def smoke:
     failures = []
@@ -62,7 +62,7 @@ async def smoke:
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             resp = await page.goto(BASE + path)
-            try: # render check: the main content must actually appear
+            try:  # render check: the main content must actually appear
                 await page.locator(MAIN_SELECTOR).first.wait_for(state="visible", timeout=10_000)
             except Exception as e:
                 errors.append(f"main content not rendered: {e}")
@@ -71,7 +71,7 @@ async def smoke:
             await ctx.close
         await browser.close
     if failures:
-        notify(failures) # webhook to Telegram/Slack/etc.
+        notify(failures)  # webhook to Telegram/Slack/etc.
         return 1
     return 0
 

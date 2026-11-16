@@ -55,7 +55,7 @@ AMENDMENT that elevates the orchestrate/dispatch posture is a SEPARATE, **in-tri
 - [[dispatch-via-sub-sessions-only-subagents-forbidden]] — §Scope of the ban (the dispatch-design direction home);
 - [[stage-entry-contract-unread-close-the-pointer-not-]] — §within-fleet (the `session_ref`-only identity gate deepening).
 
-## Lessons — owner-request intake (distilled from the <project>-pilot meta-analysis of <project> + <project>)
+## Lessons — owner-request intake (distilled from the <project>-pilot meta-analysis of boomrocket + <project>)
 
 These four lessons RECORD how owner-request intake went wrong (or right) in two predecessor consumer
 practices, so the kernel does not re-cross them. Each is **cap-excluded, non-normative** (a recorded
@@ -70,13 +70,13 @@ maintenance obligations, and not necessarily present in this checkout.
 
 **The lesson.** A standing accumulation queue paired with an automatic/nightly re-emit loop will
 **manufacture** owner-questions on autopilot: when the owner is disengaged, the same unanswered
-question is re-surfaced cycle after cycle instead of being resolved or dropped. In <project> the
+question is re-surfaced cycle after cycle instead of being resolved or dropped. In boomrocket the
 **same owner-question was re-emitted 6× over 24–45 cycles with zero code commits** — pure process
 churn, no progress. The defect is structural (a re-emit loop with no owner-presence gate and no
 burn-down), not a one-off. **Why it matters here:** it is the same failure class CHARTER §6 retirements
 forbid — auto-launch / autopilot-FSM / a stateful queue that runs without an owner cue. Do NOT
 re-introduce an intake queue + auto re-emit; intake stays owner-cued.
-**Refs (provenance):** `D-169`, `reports/methodologist/2026-06-19.yaml` (<project>). **Adjacent guard:** CHARTER §6 retirements (no auto-launch / batch-bounded / no stateful orchestrator).
+**Refs (provenance):** `D-169`, `reports/methodologist/2026-06-19.yaml` (boomrocket). **Adjacent guard:** CHARTER §6 retirements (no auto-launch / batch-bounded / no stateful orchestrator).
 
 ### Lesson 3 — UNDER-RESOLVE: writer outpaces resolver, requests/decisions idle with no burn-down
 
@@ -194,4 +194,4 @@ lesson is its why and worked example, never a second home of the rule. [relates:
 - `SPEC-0008` — request classification (distinct concern from the intake lessons 2–5; cited as adjacent, not duplicated).
 - `CHARTER.md §Principle 6` — the orchestrate/auto-launch retirements (adjacent guard for Lesson 2 OVER-PROCESS).
 - `QUEUE.md §Re-review triggers` (adjacent guard for Lesson 3 UNDER-RESOLVE), `AGENTS.md §Recommendation Default` (adjacent for Lesson 4 RECORD-THEN-CORRECT).
-- Read-only provenance pointers for Lessons 2–5 (<project>-pilot meta-analysis of <project> + <project> — NOT maintenance targets): `D-169`, `reports/methodologist/2026-06-19.yaml` (<project>); `reports/methodologist/2026-06-17.yaml`, `D-075` (<project>); cross `X-0043`.
+- Read-only provenance pointers for Lessons 2–5 (<project>-pilot meta-analysis of boomrocket + <project> — NOT maintenance targets): `D-169`, `reports/methodologist/2026-06-19.yaml` (boomrocket); `reports/methodologist/2026-06-17.yaml`, `D-075` (<project>); cross `X-0043`.

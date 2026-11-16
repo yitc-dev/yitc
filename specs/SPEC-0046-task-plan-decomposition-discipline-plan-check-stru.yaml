@@ -359,13 +359,30 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ §A red-flags / the producer-owns-the-seam rule),\nenforced by the decomposition\
   \ reviewer + audit-pre + the `requires:` dep, NOT by the §C structural\npre-pass.\
   \ (Same enforcement posture as red-flag (d) + the add-new-before-remove-old ordering\
-  \ rule.)\n\n## Verification\n\n- **VP1 (structural findings recorded).** `plan check`\
-  \ on a fixture plan carrying (a) an unresolved\n  id and (b) a prose-only deferral\
-  \ records both under `structural_findings:` in the audit YAML and\n  emits `draft_checked`\
-  \ with `structural_findings_count > 0`\n  (`tests/test_plan_check_structural.py`).\
-  \ AC1.\n- **VP2 (single normative home).** This spec is ACTIVE,\n  `patterns/task-decomposition.md`\
-  \ is a tombstone pointer (no load-bearing doctrine), and\n  `patterns/big-plan-checklist.md`\
-  \ / `patterns/plan-lifecycle.md` carry only links/pointers here —\n  `grep -rl \"\
+  \ rule.)\n\n### C2. Pre-pass lines (iii)-(v) — added beside §C\n\nThe §C pre-pass\
+  \ also draws these lines:\n\n- **(iii) used before created.** A plan unit — a bullet\
+  \ opening with a bold id (`- **U5 — …`,\n  `- **A** …`) — may DECLARE what it creates\
+  \ with `Creates:` followed by backticked names. A unit\n  that names such a declared\
+  \ name without `requires:` reaching the creator (directly or through\n  other units'\
+  \ `requires:`) draws one line. Only declared names count: what is a name is the\
+  \ plan's\n  own declaration, and an undeclared name draws nothing.\n- **(iv) owner\
+  \ answers outside the plan.** Each `owner_directive` row of the journal that names\
+  \ the\n  plan or its `prototype_ref` (the plan-naming match of the owner-words reconciliation,\
+  \ SPEC-1058 §2,\n  read through its reader — no new store) and whose `ts` the plan\
+  \ body does not cite\n  (`events.jsonl#ts=<ts>`) draws one line.\n- **(v) no card-id\
+  \ line before `decomposition`.** While the plan's `status` is a stage before\n \
+  \ `decomposition` (`draft`, `specs`, `trial`, `accepted`) no card exists yet, so\
+  \ the\n  `deliverables_mapping` bare-name line that asks for a tracked id is not\
+  \ drawn; from `decomposition`\n  on it is drawn as before.\nLines (iii)-(v) are\
+  \ report-only like the rest of this section: WARN-level, recorded under\n`structural_findings:`,\
+  \ and the pre-pass never refuses on them.\n\n## Verification\n\n- **VP1 (structural\
+  \ findings recorded).** `plan check` on a fixture plan carrying (a) an unresolved\n\
+  \  id and (b) a prose-only deferral records both under `structural_findings:` in\
+  \ the audit YAML and\n  emits `draft_checked` with `structural_findings_count >\
+  \ 0`\n  (`tests/test_plan_check_structural.py`). AC1.\n- **VP2 (single normative\
+  \ home).** This spec is ACTIVE,\n  `patterns/task-decomposition.md` is a tombstone\
+  \ pointer (no load-bearing doctrine), and\n  `patterns/big-plan-checklist.md` /\
+  \ `patterns/plan-lifecycle.md` carry only links/pointers here —\n  `grep -rl \"\
   one coherent change-set per card\" specs` resolves to this spec as the doctrine\
   \ home\n  (SPEC-0083 / SPEC-0060 / SPEC-0032 carry only a cue + pointer). AC2/AC3.\n\
   - **VP3 (new-machinery scope declared).** The `### New machinery scope` subsection\
@@ -443,6 +460,6 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
-  bin/lib/plan.py#cmd_plan_check: be1dace2208f1558777a8f8bf1aae5c52cdac9e97e1e39e55db2a8d19029936e
+  bin/lib/cli.py#_plan_structural_findings: 5d540ec2113d51fb48ec6da186c1b2d7e198baa6b264b136c509c73648981f63
+  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
   bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a

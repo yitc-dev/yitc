@@ -212,8 +212,8 @@ pointer, not a theme — it does not match the `### T<n> ` shape the theme reade
   the live path read ZERO for 50, and the segment-aware reader recovered NON-ZERO rows for **17 of
   those 50 — a 34% false-zero rate**. A T1 finding resting on a raw-grep zero is unproven; state which
   reader each count came from.
-- **Repo-shape inputs — READ THESE BEFORE A T1 MECHANICAL PASS, on any repo (X-0666, <project>
-  2026-08-06).** Every mechanical probe above takes repo-shape INPUTS — the FIVE <project>
+- **Repo-shape inputs — READ THESE BEFORE A T1 MECHANICAL PASS, on any repo (X-0666, boomrocket
+  2026-08-06).** Every mechanical probe above takes repo-shape INPUTS — the FIVE boomrocket
   measured: **id namespaces**, **test roots**, **ledger/table shape**, **waive-contract shape**,
   **ledger-parse shape** — and each is **DERIVED FROM THE INSPECTED REPO**, never assumed to
   be the kernel's. Where to read each: id namespaces per the dangling-`cites` probe above; test roots
@@ -222,10 +222,10 @@ pointer, not a theme — it does not match the `### T<n> ` shape the theme reade
   per row, so the shape to read is where the row's fields actually come from, not one assumed
   per-row form; ledger-parse shape from the inspected ledger FILE's own sectioning — a ledger may be
   one table, or many sections a flat parse merges into one, so read how that file is cut before
-  parsing it. (The last two are stated here because they are where <project>'s false positives 4
+  parsing it. (The last two are stated here because they are where boomrocket's false positives 4
   and 5 came from — X-0756, filed at our invitation in X-0755.) These five are T1 probe INPUTS; the
   rule about what an unvalidated pass YIELDS is no longer stated here — it was lifted, realm-agnostic
-  and run-wide, to **part 2 §Run-mode → «Validate before you report»** (which carries the <project>
+  and run-wide, to **part 2 §Run-mode → «Validate before you report»** (which carries the boomrocket
   5-of-5 false-positive rate as one of its two groundings). Read that step; it binds this pass on any
   repo, kernel included. One home — this note points, it does not restate (P5 / <workshop-spec> rule 8).
   This is a
@@ -407,7 +407,7 @@ data mutations → background jobs).
 - **Output-quality** is NOT a revizia probe: the frozen-template judge
   (`dev-utilities/bench/judge-template.md`, `scorecard.py` (d)) runs only inside an owner-invoked
   bench batch (0 verdicts to 2026-09-21).
-- **B5-delta — per-land verify-status (CONSUMER runs only; grounding: <project> B5, run_ref
+- **B5-delta — per-land verify-status (CONSUMER runs only; grounding: trend-finder B5, run_ref
   migration-b5-baseline-2026-06-28):** for EACH `land`, a foundational land with `consumer_verify:
   waiver` is a FINDING (not test-gated). The kernel has no consumer verify layer, so its
   `land_completed` carries no `consumer_verify` — B5 is N/A there (record it as such).
@@ -455,7 +455,7 @@ data mutations → background jobs).
   carry-forward each item → its found carrier (with status/parked-reason) or confirmed absence.
 - **B5-delta — CONSUMER-scoped (a kernel run records both N/A, never "clean"):** (a) deploy-still-on-v1
   — a migrated consumer whose deploy path still SOURCES the v1 framework (e.g. `deploy.sh` sourcing
-  `<project>/.../deploy-common.sh`, incl. a fallback search) = INCOMPLETE v1 retirement,
+  `ai-team-framework/.../deploy-common.sh`, incl. a fallback search) = INCOMPLETE v1 retirement,
   a finding absent an EXPLICIT recorded decision; (b) product-state clarifier — a repo-ROOT file whose
   NAME resembles an archived v1 governance file (`BACKLOG.md` / `DECISIONS.md`) is product-state IFF
   (1) a `docker-compose` bind-mount target, (2) created by a tracked consumer task, AND (3)

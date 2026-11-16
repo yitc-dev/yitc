@@ -25,7 +25,7 @@ body: "## Scenario\nA `-C <consumer>` session reads a handbook retrieved-tier po
   \ specs resolve exactly as before).\n\n**Same collision, second node type — the\
   \ `error` case file (cross X-0583).** The error\ncorpus collides the same way and\
   \ worse: the kernel's `errors/E-0002` is «AI hand-allocated a\ndecision id instead\
-  \ of using the verb», while <project>'s own `E-0002` is an unrelated 2026-07-12\n\
+  \ of using the verb», while boomrocket's own `E-0002` is an unrelated 2026-07-12\n\
   stats-pipeline incident — and consumer artifacts cite those ids BARE. Recurrence-matching\
   \ («have\nwe hit this before?») is the entire reason the `error` node type exists,\
   \ so a bare\n`graph query E-0002` answering from whichever corpus the reader stands\
@@ -153,5 +153,5 @@ implements_signature:
   bin/lib/cli.py#_find_spec_path: 10c38f01ca507ce79cac9a2f777c625c788873fcf6e89f9a5e3d319793f9aca9
   bin/lib/graph.py#_node_source_path: 09cc8af62f98803e375ca4665f47da39e399591d1438142edc4b978228342738
   bin/lib/graph.py#cmd_graph_query: b6686bef39239aa658686f9ea5ac5d7eeb07b97296db976a04b10bc8fec79aca
-  bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
+  bin/lib/spec.py#cmd_spec_new: 1da6dbd9c26d3d5ed2d5cdf785e1b7261348d5ae0b1ad9f10e0f2030868c5555
   bin/lib/spec.py#spec_id_zone: bd518d1b7370110d676b6bc50fc17cb02ca888e2ec27e3cb0dc79e53868a436c

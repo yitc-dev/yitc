@@ -138,12 +138,12 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ Prior-art / analogs: <workshop-spec> (any role on any provider),\nCHARTER §P4\
   \ (provider-neutral methodology language), SPEC-0073 (project-realm placement).\
   \ Real\ntrigger: the `over-scoped-deploy-rule-into-consumer-the AI provider-md`\
-  \ incident (<project>).\nDeliberation, the rejected shapes, and the ratification\
+  \ incident (trend-finder).\nDeliberation, the rejected shapes, and the ratification\
   \ act live in the proposing plan\n`consumer-the AI provider-md-provider-divergence-doctrine-ne`\
   \ (<workshop-spec> rule 3 content-boundary).\n\n### History moved from the rule\
   \ body\n\nEach entry is a passage moved word for word out of the rule text of the\
   \ section it names;\nthe rule it explains stays there.\n\n- From «Rule 2»: (origin\
-  \ incident: the <project> `## Deploy` over-scope, reverted)\n\nRule 1a's quick-rule\
+  \ incident: the trend-finder `## Deploy` over-scope, reverted)\n\nRule 1a's quick-rule\
   \ line and the `context-home-growth` signal were added by (owner\ndirectives 2026-10-27):\
   \ a consumer's home had grown to 537 lines in 25 days, 328 of them queue and\ncard-cut\
   \ rules no stage hands to a worker, although Rule 1a already said the home holds\
@@ -200,7 +200,7 @@ init_concern:
   tier: universal
 implements_signature:
   bin/lib/cli.py#_context_home_growth: 9b4cc9f3f5765e347af17e80b1ce73f25c0f95a1a6bf746d18f3f9d185047867
-  bin/lib/cli.py#cmd_session_start: ae9d05e9937d230797c02085c66c212528a741f292b47a32af7175eae8e36357
+  bin/lib/cli.py#cmd_session_start: ed74b65d0224ef77a26deadc9a8992cc76fc7b024fda7cb7ef10d875ff728b5f
   bin/lib/init.py#_ensure_consumer_vendor_adapter: 0b5971bedd41b2e4b8f90cf9d3bb56eb79aeacdc7539414dd29918b5b5f1bae6
   bin/lib/init.py#home_reference_drift: deefa92df72a8994bb5d8b69ac8831856f86db48549b0cbaa2c061d4eb52cf44
   bin/lib/inspection.py#context_home_growth_lines: 07ad328ce82c74d41b240962c0d5bac83e7d0d0e8350545aced9c0c3792b32b4

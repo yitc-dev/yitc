@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 from lib import state      # noqa: E402
 from lib import test_discovery   # noqa: E402  # T-12694 — the ONE `test_*.py` discovery home (stdlib-only leaf)
+from lib import unit_table   # noqa: E402  # T-14568 — the compact per-unit table of a layer row's adapter record (SPEC-1046)
 from lib import graph as graph_lib   # T-11992: the shared SPEC-0092 retrieval-hint renderer (`spec_query_hint`) — graph.py imports only lib.state + stdlib, so this stays acyclic
 from lib import events     # noqa: E402
 from lib import observe    # noqa: E402  # SPEC-0135 / T-10121: task_closed outcome + wait_reason capture
@@ -312,7 +313,7 @@ def _reject_joined_id_list(flag: str, values, *, _die) -> None:
 # --- `task file --from-stdin` × argv content-flag conflict (T-10437, X-0304) ---
 # The from_stdin branch of cmd_task_file reads the WHOLE field set from the stdin YAML and never
 # looks at argv, so a content-bearing argv flag passed ALONGSIDE --from-stdin used to be dropped
-# SILENTLY (exit 0): the <project> filed T-0123 with `--resolves-cross X-0300`, the link never
+# SILENTLY (exit 0): the trend-finder filed T-0123 with `--resolves-cross X-0300`, the link never
 # reached the card, X-0300 stayed needs-decision and the close-side auto `cross_done` no-opped.
 # The two modes stay mutually exclusive — but the conflict now FAILS CLOSED, naming the offending
 # flag + the stdin key that carries it (the refusal shape `spec edit` already uses for
@@ -429,9 +430,45 @@ STRUCTURED_EDIT_LINK_FIELDS = ("resolves_cross",)
 # prototype may carry (a YAML list of entries, each a path and a reason; an empty list withdraws it).
 # Validated fail-closed by `prototype_identical_error`, and this is its ONLY writer.
 STRUCTURED_EDIT_DECLARATION_FIELDS = ("prototype_identical",)
+# T-14621 (SPEC-1058 §3): `prototype_lines` — the registry items a carry card builds (`all`, a list of
+# `R-<n>`, or []). Before this its only writer was `task file --prototype-lines`, so a correction after
+# filing was a hand-edit. Validated fail-closed by `prototype_lines_set_error`.
+STRUCTURED_EDIT_CARRY_FIELDS = ("prototype_lines",)
 STRUCTURED_EDIT_FIELDS = (STRUCTURED_EDIT_LIST_FIELDS + STRUCTURED_EDIT_PROSE_FIELDS
                           + STRUCTURED_EDIT_MAP_FIELDS + STRUCTURED_EDIT_LINK_FIELDS
-                          + STRUCTURED_EDIT_DECLARATION_FIELDS)
+                          + STRUCTURED_EDIT_DECLARATION_FIELDS + STRUCTURED_EDIT_CARRY_FIELDS)
+
+
+def prototype_lines_set_error(card, value, plans_dir) -> "str | None":
+    """T-14621 — validate a `--set-field prototype_lines` value (SPEC-1058 §1, §3): the card is cut from
+    a plan that names a prototype, the value is well-formed, and every listed id is a registry item
+    that is not `not-carried`. None when admitted, else the fault naming the offending item. Reads the
+    plan the way `task file` does (`plans_dir` = the verb's PLANS_DIR)."""
+    from lib import plan as plan_lib   # noqa: PLC0415 — plan.py imports this module lazily too
+    slug = str(card.get("decomposed_from") or "").strip()
+    if not slug:
+        return "the card is not decomposed_from a plan — prototype_lines belongs to a card of an opted-in plan's cut (SPEC-1058 §1)"
+    try:
+        fm, body = state.split_frontmatter_text((Path(plans_dir) / f"{slug}.md").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return f"plan {slug} cannot be read ({e})"
+    if not plan_lib._plan_is_prototype_opted_in(fm):
+        return f"plan {slug} names no prototype_ref — prototype_lines belongs to a card of an opted-in plan's cut (SPEC-1058 §1)"
+    err = plan_lib._plan_prototype_lines_error(value)
+    if err:
+        return f"{err} — use `all`, a list of `R-<n>`, or [] (SPEC-1058 §3)"
+    if not isinstance(value, list):
+        return None                                    # `all` — the verifier names no item
+    _owner_read, items, fault = plan_lib._plan_prototype_registry(body)
+    if fault:
+        return f"plan {slug}: {fault}"
+    by_id = {str(it.get("id")): it for it in items}
+    for rid in value:
+        if rid not in by_id:
+            return f"prototype_lines names {rid}, which the registry of plan {slug} does not carry"
+        if by_id[rid].get("disposition") == "not-carried":
+            return f"prototype_lines names {rid}, a `not-carried` item of plan {slug}"
+    return None
 
 
 def _resolves_cross_link_error(tid, value, current, items, self_name, tasks_dir):
@@ -550,7 +587,12 @@ def _probe_moments_rearm_error(value, current, probes):
     return value, None, changed
 
 
-def _probe_moments_withdraw_error(value, current):
+# T-14593 (X-2344): an ADD stated on the withdrawal arm names the declare route (T-13247) it meant.
+_PROBE_MOMENT_DECLARE_ROUTE = ("; to DECLARE a moment, run the same command without --reason: "
+                               "`bin/yitc-v2 task update {tid} --set-field probe_moments --from-file <yaml>`")
+
+
+def _probe_moments_withdraw_error(value, current, tid="<id>"):
     """T-14541 (<project> X-2259): the LIVE-card WITHDRAWAL of `probe_moments` entries — a moment made
     conditional in the plan whose condition failed. PURE. `value` is the raw mapping the caller states
     (an empty one withdraws every entry). Returns (normalized, None, withdrawn_labels) or
@@ -562,7 +604,8 @@ def _probe_moments_withdraw_error(value, current):
         if cid is not None:
             cur[f"{cid[0]}{cid[1]}"] = v
     if not cur:
-        return None, "the card records no probe_moments, so there is nothing to withdraw", None
+        return None, ("the card records no probe_moments, so there is nothing to withdraw"
+                      + _PROBE_MOMENT_DECLARE_ROUTE.format(tid=tid)), None
     if not isinstance(value, dict):
         return None, (f"needs a YAML MAPPING of the moments to KEEP (`{{}}` withdraws all; got "
                       f"{type(value).__name__})"), None
@@ -572,7 +615,7 @@ def _probe_moments_withdraw_error(value, current):
         label = f"{cid[0]}{cid[1]}" if cid is not None else str(k)
         if label not in cur:
             return None, (f"{label} has no recorded moment — a withdrawal only drops entries, it never "
-                          f"adds one"), None
+                          f"adds one" + _PROBE_MOMENT_DECLARE_ROUTE.format(tid=tid)), None
         if v != cur[label]:
             return None, (f"{label}'s moment differs from the recorded one — a withdrawal keeps every "
                           f"other entry unchanged"), None
@@ -744,7 +787,7 @@ PROSE_BEARING_REFUSE_FIELDS = ("reason",)
 # it cannot see) now lives in the pure-text leaf `textutil.shell_substitution_findings`, relocated
 # there by T-10719 when `cross request --brief` became its second consumer (case file E-0054 — the
 # class survives on every prose-bearing flag). This module keeps only the task-SHAPED wrapper below.
-# <project> (X-0414) was caught only because a stray `rmdir` printed a usage error; a silent command
+# boomrocket (X-0414) was caught only because a stray `rmdir` printed a usage error; a silent command
 # would have left no trace at all.
 PROSE_BEARING_TASK_FIELDS = ("title", "scope", "acceptance")
 
@@ -1749,14 +1792,32 @@ _PROTOTYPE_REF_RE = re.compile(r"^spike/[A-Za-z0-9._-]+$")
 
 
 def prototype_main_journal(repo_root) -> Path:
-    """MAIN's `events.jsonl` (the spike-set fold source) — the git common dir's checkout; falls back to
-    `repo_root/events.jsonl`."""
+    """MAIN's `events.jsonl` (the spike-set fold source) — the journal of the PRIMARY checkout. Git
+    lists the main working tree FIRST and only linked worktrees after it, so only the first entry of
+    `git worktree list` can be the primary: when its path carries a checkout `.git` marker it is the
+    primary. A --separate-git-dir repo lists the git dir itself there, without a marker; then the
+    primary is `repo_root`'s own toplevel when `repo_root` is that checkout (its git dir IS the common
+    dir). The branch is not consulted. Never a file picked by existence (a stray `events.jsonl` at the
+    common dir's parent) and never a linked worktree's journal standing in for the primary's
+    (T-14621). Falls back to `repo_root/events.jsonl` when git fails, or when called from a linked
+    worktree of a separate-git-dir repo — git records no path of that primary checkout anywhere."""
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess   # noqa: PLC0415
-    r = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    r = subprocess.run(["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
                        capture_output=True, text=True, env=_git_env._git_child_env())
-    cand = Path(r.stdout.strip()).parent / "events.jsonl" if r.returncode == 0 and r.stdout.strip() else None
-    return cand if cand is not None and cand.exists() else Path(repo_root) / "events.jsonl"
+    lines = r.stdout.split("\n\n", 1)[0].splitlines() if r.returncode == 0 else []
+    if not (lines and lines[0].startswith("worktree ")):
+        return Path(repo_root) / "events.jsonl"
+    first = Path(lines[0][len("worktree "):])
+    if (first / ".git").exists():
+        return first / "events.jsonl"
+    q = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--path-format=absolute",
+                        "--git-dir", "--git-common-dir", "--show-toplevel"],
+                       capture_output=True, text=True, env=_git_env._git_child_env())
+    out = q.stdout.splitlines() if q.returncode == 0 else []
+    if len(out) == 3 and Path(out[0]).resolve() == Path(out[1]).resolve():
+        return Path(out[2]) / "events.jsonl"
+    return Path(repo_root) / "events.jsonl"
 
 
 def prototype_ref_error(repo_root, ref, events_path=None) -> "str | None":
@@ -4834,7 +4895,7 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                     _value, _merr = _probe_moments_value_error(_value, task.get("acceptance") or [])
                 if not _merr and _withdraw_live:
                     _value, _merr, _withdrawn = _probe_moments_withdraw_error(
-                        _value, task.get("probe_moments"))
+                        _value, task.get("probe_moments"), tid=tid)
                     if not _merr:
                         _extra.update({"withdrawn": _withdrawn, "reason": reason.strip()})
                 if _merr:
@@ -4854,6 +4915,11 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                     _die(f"task update: --set-field {_field} refused — {_derr}. Nothing was written. A card "
                          f"with no prototype names it first: `bin/yitc-v2 task update {tid} --prototype-ref "
                          f"spike/<slug>`. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+            elif _field in STRUCTURED_EDIT_CARRY_FIELDS:
+                _perr = prototype_lines_set_error(task, _value, PLANS_DIR)   # T-14621
+                if _perr:
+                    _die(f"task update: --set-field {_field} refused — {_perr}. Nothing was written. See "
+                         f"`bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
             elif not (isinstance(_value, str) and _value.strip()):
                 _die(f"task update: --set-field {_field} needs a non-empty YAML STRING (use a `|` "
                      f"block for multiline text). Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
@@ -5702,7 +5768,7 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # UNCHANGED — the pathspecs stay EXPLICIT and narrow, never a blanket `git add -A`, so unrelated
         # worktree dirt (retro edits, another task's YAML, a new card) stays untouched (E-0037/T-9539).
         own_audit = _foldable_audit_records(tid, REPO_ROOT)
-        staged = [rel_task, "events.jsonl", *own_audit]
+        staged = [rel_task, *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT), *own_audit]   # T-14605: the journal family
         # T-11756 (X-1159) — NAME what this scoped staging leaves out, computed BEFORE the commit.
         # Before-not-after is load-bearing twice over: the commit itself clears the staged paths from
         # `git status`, and the trailing `commit_landed` append RE-dirties events.jsonl — so an AFTER
@@ -5776,7 +5842,7 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 rel_task,
                 f"chore({tid}): park record — status:parked + reason (+ folds dirty RED audit/consult/adhoc records; "
                 f"or audit-post already recorded — ordinary commit foreclosed, T-13249)",
-                pathspecs=[rel_task, "events.jsonl", *own_audit])
+                pathspecs=[rel_task, *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT), *own_audit])   # T-14605
             _append_event("commit_landed", tid, {"commit": short, "kind": "park"})
             print(f"  park record committed {short} — worktree land-clean (T-9622; folds the dirty RED "
                   f"audit-post/consult + slug-named adhoc records; or its audit-post is already recorded, so the "
@@ -5970,7 +6036,7 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
     # SCOPED staging (T-10499, X-0359 — E-0037/T-9539 precedent, the shape wont-do/park already use):
     # this self-commit passed NO `pathspecs`, i.e. a blanket `git add -A`. The old rationale — "safe:
     # D-0037 makes one worktree == one unit" — is FALSE for a pause: a pause is precisely the HALT of a
-    # session that is MID-work, so its worktree routinely carries unrelated in-flight dirt (<project>
+    # session that is MID-work, so its worktree routinely carries unrelated in-flight dirt (boomrocket
     # pause commit b545577 swept a mid-Execution WIP source file onto main as un-audited product code).
     # So stage EXACTLY the pause record: the task YAML + events.jsonl + this task's OWN dirty audit
     # records (the T-9320 RED-audit fold is a NAMED part of the contract, so it stays — tid-scoped, never
@@ -5991,7 +6057,7 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
         _, short = _commit_worktree(
             rel_task,
             f"chore({tid}): pause record — paused_at + reason (+ folds dirty audit/adhoc YAML)",
-            pathspecs=[rel_task, "events.jsonl", *own_audit])
+            pathspecs=[rel_task, *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT), *own_audit])   # T-14605
         _append_event("commit_landed", tid, {"commit": short, "kind": "pause"})
         print(f"  pause record committed {short} — worktree land-clean (T-9320; folds a dirty "
               f"RED audit-post + any slug-named adhoc verdict if present). Pause-shape fork (SPEC-0103 §5): a BOOKKEEPING-ONLY pause "
@@ -6116,7 +6182,7 @@ def cmd_task_refuse(args: argparse.Namespace, *, REPO_ROOT, _append_event, _die,
     existing verb covered the moment. What it REPLACES is the ad-hoc hand `event bg_dispatch_halted`
     the `cmd_task_pause` docstring already names as the anti-pattern it retired, and the
     re-dispatch loop that `launch-stall` (a DEAD bootstrap) taught the controller to run over a
-    worker that was never dead (the X-0271 incident, <project> 2026-07-09).
+    worker that was never dead (the X-0271 incident, trend-finder 2026-07-09).
 
     NO new event family (the card's constraint): it emits the EXISTING `bg_dispatch_halted` terminal
     marker with a `kind: refused` discriminator on its `data`, exactly the shape
@@ -8505,9 +8571,6 @@ def _project_is_deploying(repo_root) -> bool:
 # config (incl. yitc-ops.yaml), a hook, scheduler, or startup path — keeps the explicit declare-or-waive.
 _NON_RUNTIME_SURFACE_DIRS = ("tasks/", "specs/", "decisions/", "plans/", "ideas/", "graph/",
                              "patterns/", "lessons/", "tests/")
-_NON_RUNTIME_SURFACE_FILES = ("events.jsonl",)
-
-
 def _path_is_non_runtime_surface(path: str) -> bool:
     """True iff a single touched path is a non-runtime methodology/paperwork surface (the allowlist):
     any `*.md` doc (handbook / README / MEMORY), the `events.jsonl` journal (incl. its rotated archive
@@ -8522,11 +8585,9 @@ def _path_is_non_runtime_surface(path: str) -> bool:
         return False
     if p.endswith(".md"):
         return True
-    if p in _NON_RUNTIME_SURFACE_FILES:
-        return True
-    # T-12802: a ROTATED segment of the root journal IS the journal (SPEC-0190 rule 1) — asked of the
-    # definer, never re-spelled here, so the segment naming stays single-home in lib/events.
-    if events.is_archive_segment(p, _NON_RUNTIME_SURFACE_FILES[0]):
+    # T-12802 / T-14587: every segment of the journal (root, day partitions, .yitc forms) IS the
+    # journal (SPEC-0190 rule 1) — asked of the ONE definer predicate, never re-spelled here.
+    if events.is_journal_family_path(p):
         return True
     return any(p.startswith(d) for d in _NON_RUNTIME_SURFACE_DIRS)
 
@@ -10993,7 +11054,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                     # `main` posture below stages — this card plus the one journal receipt — so
                     # the two postures agree. The add-all DEFAULT is untouched.
                     _, short = _commit_worktree(_lp_rel, _lp_msg,
-                                                pathspecs=[_lp_rel, "events.jsonl"])
+                                                pathspecs=[_lp_rel, *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT)])
                     _append_event("commit_landed", tid, {"commit": short, "kind": "live_probe_settle_link"})
                     print(f"  live_probe settlement committed {short} — worktree land-clean (T-11413)")
                 elif _lp_posture == "main":
@@ -11091,7 +11152,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                            f"({_oc_result}) (--live-probe-outcome, T-11674)")
                 if _oc_posture == "worktree":
                     _, short = _commit_worktree(_oc_rel, _oc_msg,
-                                                pathspecs=[_oc_rel, "events.jsonl"])
+                                                pathspecs=[_oc_rel, *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT)])
                     _append_event("commit_landed", tid, {"commit": short, "kind": "live_probe_outcome_link"})
                     print(f"  attested outcome committed {short} — worktree land-clean (T-11674)")
                 elif _oc_posture == "main":
@@ -13249,6 +13310,10 @@ def cmd_task_execute(args: argparse.Namespace, *, _append_event, _die, _load_tas
 _STAGE6_FAILURE_EVIDENCE_BOUND = 4000
 
 
+#: T-14598 — the word of the last Stage-6 terminal token this process rendered (PASS / FAIL / NONE).
+_LAST_TOKEN: list = [None]
+
+
 def _test_run_token(ok: bool, summary: str, *, word: str = "") -> str:
     """T-12431 — the ONE machine-readable terminal line `task test --run` ends its stdout with.
 
@@ -13267,7 +13332,8 @@ def _test_run_token(ok: bool, summary: str, *, word: str = "") -> str:
     T-13170 — `word` overrides the verdict word for the one run that has NO verdict: zero executed
     layers renders `TEST: NONE`, never a PASS it did not earn (process exit stays the poll's
     terminality arm, SPEC-0180 rule 2c)."""
-    return f"TEST: {word or ('PASS' if ok else 'FAIL')} {summary}"
+    _LAST_TOKEN[0] = word or ('PASS' if ok else 'FAIL')   # T-14598: what `--then-land` reads
+    return f"TEST: {_LAST_TOKEN[0]} {summary}"
 
 _LAYER_FAILED_TEST_RE = re.compile(r"^FAILED (\S+?)::", re.M)
 
@@ -13309,6 +13375,21 @@ def _message_named_paths(text) -> set:
         if tok:
             out.add(tok)
     return out
+
+
+#: T-14597 — what `not-in-diff` means, written on a `tests_failed` row that carries one and printed beside
+#: its record line, so a reader of the row does not read it as a verdict (the rule: SPEC-0025 tests_failed).
+NOT_IN_DIFF_MEANING = ("not-in-diff = no changed path of this card matches the failing file or a path "
+                       "its failure text names; it does not establish that the failure is "
+                       "pre-existing or unrelated — it may still be this card's")
+
+
+def _not_in_diff_note(layers) -> dict:
+    """T-14597 — `{"attribution_note": NOT_IN_DIFF_MEANING}` when any entry's final attribution is
+    `not-in-diff`, else `{}`. Reads the attribution as recorded (after the named-path rule)."""
+    if any(isinstance(l, dict) and l.get("attribution") == "not-in-diff" for l in (layers or [])):
+        return {"attribution_note": NOT_IN_DIFF_MEANING}
+    return {}
 
 
 def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs=(),
@@ -13549,14 +13630,14 @@ def _stage6_layer_scope(cguard) -> str:
                      f"decides on the same diff, SPEC-0152 rule 16)")
     if waived:
         parts.append(f"waived: {', '.join(waived)}")
-    # T-13994 (SPEC-1032 rule 5): a layer whose `list` named no unit on the consumer venue while the
+    # T-13994 (SPEC-1059 rule 5): a layer whose `list` named no unit on the consumer venue while the
     # shipped plan listed units for it is NAMED — its row may read passed, yet it verified nothing
     # there. With no such row the clause is absent and the line is byte-identical.
     empty = [e["layer"] for e in _lvl.venue_empty_layers(rows)]
     if empty:
         parts.append(f"listed NO unit on the consumer venue: {', '.join(empty)} (the shipped plan "
                      f"listed units for each; the land takes no verdict for it from this pass, "
-                     f"SPEC-1032 rule 5)")
+                     f"SPEC-1059 rule 5)")
     # T-13545: a layer whose `passed` came from its isolated re-run is NAMED — a PASS line that hid
     # the first-run failure would read as «green on the first try» (SPEC-0152 rule 16).
     retried = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed" and r.get("retried")]
@@ -14879,7 +14960,7 @@ def _stage6_resolve_breadth(root, dirs, test_dir, *, _governed_selection, _run_g
 
 def _stage6_repo_common_dir(root, _run_git_cap) -> "str | None":
     """T-13976 — the real path of THIS repository's git common dir: what a consumer venue record's
-    `serves` names (SPEC-1032 rule 6), so a linked worktree reads its repository's. None when git
+    `serves` names (SPEC-1059 rule 6), so a linked worktree reads its repository's. None when git
     cannot say, and None matches no record."""
     if _run_git_cap is None:
         return None
@@ -14897,7 +14978,7 @@ def _stage6_repo_common_dir(root, _run_git_cap) -> "str | None":
 def _stage6_routing_record(decision, *, declared: bool) -> dict:
     """T-13976 — the routing reason the Stage-6 row carries (`verify_metrics.venue_routing`): every
     reason of a consumer pass that DECLARES `verify.venue` (valid or not), and a kernel pass's
-    `venue-consumer-only` — the cases SPEC-1032 adds. Every other row stays as SPEC-1029 left it: an
+    `venue-consumer-only` — the cases SPEC-1059 adds. Every other row stays as SPEC-1029 left it: an
     undeclared consumer's and every other kernel pass's carry no such key."""
     reason = (decision or {}).get("reason")
     if reason and (declared or reason == "venue-consumer-only"):
@@ -14907,7 +14988,7 @@ def _stage6_routing_record(decision, *, declared: bool) -> dict:
 
 def _stage6_consumer_venue(root, tid, placement, *, take_plan, sweep_dirs, select, _append_event,
                            _run_git_cap) -> tuple:
-    """T-13976 — the SPEC-1032 rule-2 decision of ONE consumer Stage-6 pass and, when it says
+    """T-13976 — the SPEC-1059 rule-2 decision of ONE consumer Stage-6 pass and, when it says
     `venue`, the pass itself on the box (`remote_verify.consumer_route`). Returns `(decision,
     declaration, routed result or None, selection summary or None, local selection or None)` — the
     last is the resolved selection a `small-selection` pass runs locally, so the local run does not
@@ -14943,12 +15024,12 @@ def _stage6_consumer_venue(root, tid, placement, *, take_plan, sweep_dirs, selec
                 presel = gsel             # the local run takes THIS selection — no pass selects twice
         elif gsel is not None:
             full_reason = gsel.get("reason")
-    print(f"{tid} task test --run: venue routing {dec['reason']} (SPEC-1032 rule 2)"
+    print(f"{tid} task test --run: venue routing {dec['reason']} (SPEC-1059 rule 2)"
           + (f" — {dec['note']}" if dec.get("note") else ""))
     if not dec["remote"]:
         return dec, decl, None, None, presel
     print(f"task test --run: routed to the published consumer venue {rec.get('box')} — the whole "
-          f"pass, its test sweep and its declared layers (SPEC-1032 rule 4)")
+          f"pass, its test sweep and its declared layers (SPEC-1059 rule 4)")
     summary = None
     if files:
         summary = _stage6_selection_summary(
@@ -14964,7 +15045,7 @@ def _stage6_consumer_venue(root, tid, placement, *, take_plan, sweep_dirs, selec
 
 
 def refuse_kernel_local_placement(args, *, kernel: bool, _die) -> None:
-    """T-13975 — `task test --placement local` names a CONSUMER pass's placement (SPEC-1032 rule 6):
+    """T-13975 — `task test --placement local` names a CONSUMER pass's placement (SPEC-1059 rule 6):
     it keeps a declared consumer's Stage-6 pass on its own host while a venue is published. A kernel
     pass has no such choice — SPEC-1029 rule 7 is unchanged for it — so the flag is REFUSED there,
     class `placement-kernel-unsupported`, before anything runs or is written. `auto` (the default)
@@ -14973,7 +15054,7 @@ def refuse_kernel_local_placement(args, *, kernel: bool, _die) -> None:
     T-13976) and a declared pass asking `local` runs here under the reason `placement-local`."""
     if kernel and getattr(args, "placement", None) == "local":
         _die(f"placement-kernel-unsupported: `--placement local` names where a declared CONSUMER "
-             f"project's Stage-6 pass runs (SPEC-1032 rule 6); a kernel pass is routed by SPEC-1029 "
+             f"project's Stage-6 pass runs (SPEC-1059 rule 6); a kernel pass is routed by SPEC-1029 "
              f"alone and has no local placement. Run `bin/yitc-v2 task test {args.task} --run` "
              f"without it (`--placement auto` is the default).")
 
@@ -15230,7 +15311,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     _stage6_retry_metrics: dict = {}   # T-13545: the guard's layer re-run record, as a verify_metrics fragment
     _stage6_priority: dict = {}        # T-13904: what THIS invocation's run ran at, as a verify_metrics fragment
     _stage6_walls: dict = {}           # T-14241: the run's per-file walls, as a verify_metrics fragment
-    _s6_routing: dict = {}             # T-13976: the SPEC-1032 routing reason, as a verify_metrics fragment
+    _s6_routing: dict = {}             # T-13976: the SPEC-1059 routing reason, as a verify_metrics fragment
     _s6_pd_skip = None                 # T-14211: the skip set the run applied — only a run this verb ran sets it
     _s6_selected = None                # T-14228: the names a NARROWED run selected — only a run this verb ran sets it
     _s6_budget: dict = {}              # T-13971: the width budget the local run was sized by (SPEC-0132 §1c)
@@ -15385,7 +15466,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # T-14006 — the order among waiting local passes reads the LIVE mark, re-asked while waiting
         _s6_mark_live = lambda: _stage6_queue_jump(root, tid, _main_worktree=_main_worktree)  # noqa: E731
         _s6_mark_kw = {"queue_jump": True} if _s6_mark else {}
-        # T-13976 (SPEC-1032 rule 2) — A CONSUMER PASS IS DECIDED HERE, before the sweep/layers fork:
+        # T-13976 (SPEC-1059 rule 2) — A CONSUMER PASS IS DECIDED HERE, before the sweep/layers fork:
         # a routed consumer pass runs WHOLE on the box (rule 1), its sweep and its declared layers
         # alike, so its decision cannot sit in the sweep arm the kernel decision sits in. The host
         # takes the plan (rule 4) only when the pass routes, over the same working tree it ships.
@@ -15656,7 +15737,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             _stage6_full_reason = None
             # T-13287 — the resolved names a LARGE narrowed selection ships with; None = full suite.
             _stage6_route_selection = None
-            # T-13976: a consumer pass was decided above (SPEC-1032 rule 2); this block is the kernel's
+            # T-13976: a consumer pass was decided above (SPEC-1059 rule 2); this block is the kernel's
             if _is_consumer_build is not None and not _is_consumer_build():
                 _vrec, _vnote = venue.routing_record()   # T-13000: unbound ⇒ record ignored
                 # T-12272 — SPEC-0203 rule 7's sandbox carve-out, resolved ONCE into a local before
@@ -15695,7 +15776,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                             _stage6_presel = None
                 if _vdec.get("note"):
                     print(f"task test --run: {_vdec['note']}", file=sys.stderr)
-                # T-13976 — a kernel pass on a consumer venue says so on its row (SPEC-1032 rule 2)
+                # T-13976 — a kernel pass on a consumer venue says so on its row (SPEC-1059 rule 2)
                 _s6_routing = _s6_routing or _stage6_routing_record(_vdec, declared=False)
                 if _vdec["remote"]:
                     print(f"task test --run: routed to the published venue {_vrec.get('box')} "
@@ -16113,10 +16194,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                             _s6_red = {_wt_s6.STAGE6_RUN_KEY: _s6_rec}
                     except Exception:          # noqa: BLE001 — absent, never a guess
                         _s6_red = {}
-                _append_event("tests_failed", tid, {
+                _note = _not_in_diff_note(_layers)   # T-14597: the meaning of not-in-diff, on the row
+                _append_event("tests_failed", tid, unit_table.encode_skip_row({   # T-14569: compact skip evidence
                     "current_stage": task.get("current_stage"),
                     "failed": len(bad),
                     "layers": _layers,
+                    **_note,
                     "evidence": _evidence,
                     "duration_ms": _fail_ms,
                     "counts_source": "harness_measured",
@@ -16134,13 +16217,15 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     # row and `land_completed` carry — so a FAILED run keeps its per-unit report.
                     # A run with no adapter-backed layer writes this row exactly as before.
                     **({"consumer_verify": _stage6_guard.get("mode"),
-                        "consumer_verify_layers": list(_stage6_guard["layers"])}
+                        "consumer_verify_layers": unit_table.encode_layers(list(_stage6_guard["layers"]))}
                        if isinstance(_stage6_guard, dict) and any(
                            isinstance(_r, dict) and "adapter" in _r
                            for _r in (_stage6_guard.get("layers") or [])) else {}),
-                })
+                }))
                 print(f"{tid} tests_failed recorded ({len(_layers)} layer(s)) — "
                       f"`yitc-v2 journal query --type tests_failed --task {tid}` reads it back")
+                if _note:
+                    print(f"  attribution: {_note['attribution_note']}")
             except Exception as _e:      # never convert a test failure into a traceback
                 print(f"{tid}: note — the failing run could not be recorded ({_e!r}); "
                       f"the refusal below is unaffected.")
@@ -16184,8 +16269,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 if _none_rec:
                     _none_row = {"current_stage": "Tests", "evidence": args.evidence,
                                  "acceptance": list(acceptance), "outcome": STAGE6_NONE_DISJOINT,
-                                 _none_key: _none_rec, "consumer_verify": cguard.get("mode"),
-                                 "consumer_verify_layers": list(cguard.get("layers") or [])}
+                                 _none_key: _stage6_run_mark(_none_rec, _auto_rebuild_graph),
+                                 "consumer_verify": cguard.get("mode"),
+                                 "consumer_verify_layers": unit_table.encode_layers(list(cguard.get("layers") or []))}
                     if _whole:
                         _none_row["whole"] = True        # T-14098: the measuring form
                     if _measured_run_ms is not None:
@@ -16296,7 +16382,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # only when THIS invocation ran the suite; a hand-authored `--evidence` measured nothing.
         if _stage6_priority:
             data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_stage6_priority}
-        # T-13976 — and the SPEC-1032 routing reason of a pass it decided (`_stage6_routing_record`).
+        # T-13976 — and the SPEC-1059 routing reason of a pass it decided (`_stage6_routing_record`).
         if _s6_routing:
             data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_s6_routing}
         if _s6_pd_skip is not None:            # T-14211: the run's skip set (SPEC-1051 rule 2)
@@ -16330,7 +16416,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         if isinstance(_stage6_guard, dict) and _stage6_guard.get("mode"):
             data["consumer_verify"] = _stage6_guard["mode"]
             if _stage6_guard.get("layers"):
-                data["consumer_verify_layers"] = list(_stage6_guard["layers"])
+                data["consumer_verify_layers"] = unit_table.encode_layers(list(_stage6_guard["layers"]))
         if _stage6_step_lines:   # T-13645: ONLY when this run printed a step line (report-only)
             data["layer_duration_step"] = list(_stage6_step_lines)
         if selection_summary:
@@ -16387,7 +16473,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 except Exception as _e:        # noqa: BLE001 — a recording fault never fails a green run
                     _s6_rec, _s6_why = None, f"the record could not be taken ({type(_e).__name__})"
             if _s6_rec:
-                data[_s6_key] = _s6_rec
+                data[_s6_key] = _s6_rec = _stage6_run_mark(_s6_rec, _auto_rebuild_graph)
                 _s6_note = (f"{tid} stage6_run recorded (tree {_s6_rec['tree'][:12]}, base "
                             f"{_s6_rec['base'][:12]}) — the land may take this run as its CANDIDATE leg "
                             f"while main stays at that base and its tree is this one apart from inert "
@@ -16398,7 +16484,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                             f"verify as usual (SPEC-0065 §Bound).")
         if _whole and getattr(args, "run", False):
             data["whole"] = True                         # T-14098: the measuring form
-        _append_event("tests_passed", tid, data)
+        _append_event("tests_passed", tid, unit_table.encode_skip_row(data))   # T-14569: compact skip evidence
         print(f"{tid} tests_passed recorded ({len(evidence)} chars) — the Closure-time coverage check "
               f"(SPEC-1038 §Tests) reads it")
         if _s6_note:
@@ -16679,7 +16765,7 @@ def cmd_task_analyze(args: argparse.Namespace, *, REPO_ROOT, _append_event, _die
         existing = [str(x) for x in (task.get("expected_touch") or []) if str(x).strip()]
         # T-10586 (X-0440): the write-back reads a DECLARATION, never the analysis PROSE. It used to call
         # `derive_path_tokens(analysis, exists=...)` — every path the narrative NAMED became a scope-boundary
-        # authorization (SPEC-0103), so on <project> T-0262 it wrote 6 paths where 1 was real: an out-of-repo
+        # authorization (SPEC-0103), so on boomrocket T-0262 it wrote 6 paths where 1 was real: an out-of-repo
         # /tmp scratch, two files cited READ-ONLY as prior-art, and two bare directories (each authorizing a
         # whole subtree). Mention-set and touch-intent are not separable by shape — which is why T-10545/T-10563
         # could only narrow the extractor, never fix this — so the SOURCE changes instead: an explicit
@@ -18030,7 +18116,8 @@ def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
 
 def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_paths, _test_basename_re,
                   _run_git_cap, _verify_test_timeout_seconds, _consumer_tests_delegation=None,
-                  notes_out=None, _selection_always_set=None, failures_out=None) -> list:
+                  notes_out=None, _selection_always_set=None, failures_out=None,
+                  _layer_eligible=None) -> list:
     """T-14034 (SPEC-1038 §Execution, the own-tests check) — run ONLY the changed test files, each
     through the project's OWN test declarations by the machinery the governed run uses, and return
     one entry per changed test file: `{file, runner, result: passed|failed|not-determined}` (+
@@ -18197,9 +18284,16 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
 
     unlisted: list = []                                    # T-14084: (name, subject_globs, reason)
     consulted = bool(left) and bool(layers)                # T-14084: the layers were read for a changed file
+    # T-14564: a layer whose subject_globs no changed file left here reaches is not listed and gets no
+    # install hint — the SPEC-0152 rule-16 judge the land skips it by, HANDED IN by the host: this module
+    # never calls that judge itself (tests/test_subject_scoping_would_skip.py S4). No judge = every layer
+    # counts (fail-closed). Judged once, on the files before any layer runs, so a layer is never skipped
+    # because an earlier one took a shared file.
+    judge = _layer_eligible if callable(_layer_eligible) else (lambda _paths, _globs: True)
+    reached = {i for i, ly in enumerate(layers) if judge(left, ly.get("subject_globs"))}
 
     for idx, decl in sorted(adapters.items()):
-        if not left or not decl.get("list"):
+        if not left or not decl.get("list") or idx not in reached:
             continue
         name = str(layers[idx].get("layer") or "").strip() or f"layer-{idx}"
         try:
@@ -18282,7 +18376,7 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
             out.append({"file": f, "runner": None, "result": "not-determined",
                         "reason": why or claim or "no declared test runner maps this file"})
     if notes_out is not None and consulted:
-        hint = _own_tests_install_hint(root, layers)
+        hint = _own_tests_install_hint(root, [ly for i, ly in enumerate(layers) if i in reached])
         if hint:
             notes_out.append(hint)
     return sorted(out, key=lambda e: e["file"])
@@ -18336,7 +18430,8 @@ def _git_blob_id(path) -> "str | None":
 
 def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_task_for_transition,
                       _run_verify_tests, _declared_test_sweep_paths, _run_git_cap, _test_basename_re,
-                      _verify_test_timeout_seconds, REPO_ROOT, _consumer_tests_delegation=None) -> None:
+                      _verify_test_timeout_seconds, REPO_ROOT, _consumer_tests_delegation=None,
+                      _layer_eligible=None) -> None:
     """T-14034 — `task test <T> --own`, the own-tests check of SPEC-1038 §Execution (proposed; the
     rule's home): run ONLY the test files the card's diff adds or changes (`own_tests_run`) and record
     ONE `own_tests_ran` row `{current_stage, files, outcome, partial: true}`.
@@ -18387,7 +18482,7 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
                           _test_basename_re=_test_basename_re, _run_git_cap=_run_git_cap,
                           _consumer_tests_delegation=_consumer_tests_delegation,
                           _verify_test_timeout_seconds=_verify_test_timeout_seconds, notes_out=notes,
-                          failures_out=failures)
+                          failures_out=failures, _layer_eligible=_layer_eligible)
     results = {e["result"] for e in files}
     outcome = ("empty" if not files else "red" if "failed" in results
                else "not-determined" if "not-determined" in results else "green")
@@ -21677,10 +21772,51 @@ def _stage6_activation_guard(root):
 
 class _Stage6Flipped(list):
     """T-14365 — the activated ids `_stage6_close_activation` yields, carrying `.paths`: the files the
-    window flipped that held HEAD's bytes before it (what the uncommitted-surface note leaves out)."""
-    def __init__(self, ids, *, paths=()):
+    window flipped that held HEAD's bytes before it (what the uncommitted-surface note leaves out).
+    T-14559 — and `.blobs`: per such path, `{"path", "from", "to"}` = the blob HEAD held and the blob
+    the window wrote, the exact pair the merge-integration tested-is-head check may discount."""
+    def __init__(self, ids, *, paths=(), blobs=()):
         super().__init__(ids)
         self.paths = list(paths)
+        self.blobs = list(blobs)
+
+
+STAGE6_ACTIVATION_FLIPPED_KEY = "activation_flipped"
+
+
+def _stage6_run_mark(rec: dict, prepare) -> dict:
+    """T-14559 — the runner's `stage6_run` mark, plus `activation_flipped` (the `.blobs` the run's own
+    close-time activation window recorded, carried on `prepare` by `_stage6_prepared_tree`) when that
+    window flipped anything. The recorded tree was read INSIDE the window, so it carries those flips;
+    this names them, exactly, so a reader can tell them from any other difference. No flip, no key."""
+    blobs = [b for b in (getattr(prepare, "flipped_blobs", None) or ()) if isinstance(b, dict)]
+    if not blobs:
+        return rec
+    return {**rec, STAGE6_ACTIVATION_FLIPPED_KEY: sorted(
+        ({"path": str(b.get("path")), "from": str(b.get("from")), "to": str(b.get("to"))} for b in blobs),
+        key=lambda b: b["path"])}
+
+
+def _stage6_flip_blobs(root, rels) -> list:
+    """T-14559 — `[{"path", "from", "to"}]` for each repo-relative `rel` in `rels`: `from` = the blob at
+    HEAD, `to` = the blob git would store for the file on disk now (read while the flip is held). A path
+    either git question cannot answer is left out — never a guess (fail-closed: its difference stays
+    reportable)."""
+    import subprocess   # noqa: PLC0415
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    out = []
+    for rel in rels:
+        try:
+            a = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "-q", f"HEAD:{rel}"],
+                               capture_output=True, text=True, env=_git_env._git_child_env())
+            b = subprocess.run(["git", "-C", str(root), "hash-object", "--", rel],
+                               capture_output=True, text=True, env=_git_env._git_child_env())
+        except Exception:   # noqa: BLE001
+            continue
+        f, t = (a.stdout or "").strip(), (b.stdout or "").strip()
+        if a.returncode == 0 and b.returncode == 0 and f and t:
+            out.append({"path": rel, "from": f, "to": t})
+    return out
 
 
 def _head_bytes(root, rel):
@@ -21751,8 +21887,8 @@ def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_p
                       "(restored after the run)")
                 # T-14365: the repo-relative paths this window itself rewrote, but only those that held
                 # HEAD's bytes before it — a spec with uncommitted edits of its own stays reportable.
-                ids = _Stage6Flipped(ids, paths=sorted(
-                    rel[p] for p in snap if _head_bytes(root, rel[p]) == snap[p]))
+                _kept = sorted(rel[p] for p in snap if _head_bytes(root, rel[p]) == snap[p])
+                ids = _Stage6Flipped(ids, paths=_kept, blobs=_stage6_flip_blobs(root, _kept))
             yield ids
         finally:
             for p, raw in snap.items():

@@ -55,7 +55,7 @@ body: "## Scenario\n\nA consumer project already captures its frontend errors in
   \ (a cluster chains back to\n     its captured rows) · **fingerprintable** (a shape\
   \ stable enough to fold on) · **covering the\n     in-scope error classes** (not\
   \ one narrow slice).\n     Measured against that contract <project>'s `system_errors`\
-  \ qualifies, and <project>'s capture\n     fails it on four of the six — its sinks\
+  \ qualifies, and boomrocket's capture\n     fails it on four of the six — its sinks\
   \ are an external SaaS, one unstructured log line and a\n     fire-and-forget webhook\
   \ (not consumer-owned, not durably queryable, no kernel-readable trace at\n    \
   \ all across 30h of live logs), and it covers only React render crashes, missing\

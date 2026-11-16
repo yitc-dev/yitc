@@ -225,7 +225,7 @@ SPEC-0170 · SPEC-0174 — and 1 is `internal-only` (<workshop-spec>, no adopt-p
 5 offerings × 10 consumers = **50 cells**: 16 adopted · 26 waived · 8 without a stance.
 - **SETTLED by a declared stance: 42** — incl. SPEC-0094 (5 adopt / 5 waive / 0 open), SPEC-0164
   (6 / 4 / 0) and SPEC-0162 (1 / 9 / 0), each fully settled.
-- **OPEN (ACTIVATED, no stance): 6** — SPEC-0170 **3** and SPEC-0174 **3**, in <project> · <project> ·
+- **OPEN (ACTIVATED, no stance): 6** — SPEC-0170 **3** and SPEC-0174 **3**, in <project> · trend-finder ·
   <project> (each `surface: public (signal)`). **Whether an ask is outstanding is READ, not remembered:**
   the cross asks these three carry are all TERMINAL (`cross inbox` at this cutoff shows 0
   non-terminal `kind: task` rows; every `task`-kind row reads `done`). So the earlier «a LIVE ask is
@@ -268,7 +268,7 @@ cited spec keeps its own anti-detector stance):
   event; impl `bin/lib/init.py#_ensure_consumer_vendor_adapter`) — mandatory-born, not opt-in.
   **Adoption/conformance probe — WITH its denominator, which the trail alone does not carry:** the
    rollout wave (done, resolves X-0163/X-0164) — conformance cross trail **X-0291..X-0294**
-  (<project> / <project> / <project> / <project>: thin adapter VP1-clean + populated neutral
+  (<project> / boomrocket / <project> / trend-finder: thin adapter VP1-clean + populated neutral
   home VP2-met). That trail names **4** projects; the population is **10**. Re-measured 2026-09-20
   across all ten registry `yitc_v2` consumers: **10 of 10** carry a thin vendor adapter (`<vendor-adapter>.md`
   14–19 lines) AND a populated neutral home (`CHARTER.md` and/or `AGENTS.md`) — so the state is
@@ -286,8 +286,8 @@ cited spec keeps its own anti-detector stance):
   DIFFERENT offering in the same family and is NOT retired — it still carries open cells (see the
   ACTIVE row's reading). **Adoption/conformance probe, denominator stated:** all **10** registry
   `yitc_v2` consumers, re-measured 2026-09-20 from each project's OWN declaration — **6 declared**
-  (<project> · <project> · <project> · <project> · <project> · <project>) · **4 waived**
-  (<project> · <project> · <project> · <project>) · **0 open**.
+  (<project> · trend-finder · <project> · boomrocket · <project> · <project>) · **4 waived**
+  (<project> · <project> · ticket-review · <project>) · **0 open**.
 
 - **Backup restore-DRILL → SPEC-0162** (fold 2026-09-20, RECORD-ONLY — **RETIRED from the
   T9 ACTIVE rows above by that row's own `retire when the drill's freshness is graded by the
@@ -307,7 +307,7 @@ cited spec keeps its own anti-detector stance):
   live portfolio fact, not only a proof:** the one project that adopted the drill is currently STALE
   against its own 336h SLA — precisely the signal the graduated offering exists to surface, and the
   ADOPTING PROJECT's to act on, never the portfolio scan's (T9 reads the cell, never the remedy). **Adoption/conformance probe, denominator stated:** all **10** consumers, re-measured
-  2026-09-20 — **1 declared** (<project>) · **9 waived** (the other nine) · **0 open**. A 1-of-10
+  2026-09-20 — **1 declared** (boomrocket) · **9 waived** (the other nine) · **0 open**. A 1-of-10
   adoption is a SETTLED portfolio question, not a thin one: nine projects answered «not for us» with
   a reason, which is outcome (w) of the PROJECT lens, not an open cell.
 
@@ -325,15 +325,15 @@ cited spec keeps its own anti-detector stance):
   against NINE projects; <project> was registered as a first-class consumer afterwards, so the
   population is ten.
   - **Declared (3)** — `extensions.adopts[] spec: SPEC-0174` + `freshness.reachability.target`:
-    <project> (`https://<project-domain>/api/v1/health`, plus the `*/15` host cron
-    `product_cron.host_crons[<project>-edge-availability]`) · <project>
+    boomrocket (`https://boomrocket.me/api/v1/health`, plus the `*/15` host cron
+    `product_cron.host_crons[boomrocket-edge-availability]`) · <project>
     (`https://<project-domain>`) · <project> (`http://<ip>:8002/health`).
   - **Waived (3)** — explicit `extensions.waives[] spec: SPEC-0174`, forward-aware reason: <project>
     (waive is about VALUE not applicability — live edge, deploy seam covered by the adopted SPEC-0094
     `live_probe`, no unnoticed-outage incident; owner waive 2026-08-13, X-0645) · <project>
-    (X-0646) · <project> (X-0650).
+    (X-0646) · ticket-review (X-0650).
   - **No stance (4) as of 2026-08-25** — `extensions:` section PRESENT with a `waives:` list but NO
-    SPEC-0174 entry in either list: <project> (X-0647) · <project> / <project> (X-0648, a real UI +
+    SPEC-0174 entry in either list: <project> (X-0647) · social-parser / trend-finder (X-0648, a real UI +
     live deploy) · <project> (X-0651) · <project> (X-0653). **That is this record's HISTORICAL reading
     and it stays as filed. For the CURRENT split of those four, read the ACTIVE row's current-reading
     block above — the single carrier — which resolves them under an applicability reader this record
@@ -341,7 +341,7 @@ cited spec keeps its own anti-detector stance):
 
   **The key-name grep does NOT reproduce this result, in EITHER direction — it is why this row was
   filed at candidate grade (X-0851 precedent).** `grep -ic uptime` over the whole of each consumer's
-  `yitc-ops.yaml` gives <project> 2, all others 0. Both of <project>'s lines are PROSE inside an
+  `yitc-ops.yaml` gives boomrocket 2, all others 0. Both of boomrocket's lines are PROSE inside an
   `alert_routing:` comment stating «THIS IS NOT EXTERNAL UPTIME MONITORING» — not a declaration; and
   the nine «misses» conceal three adoptions and three explicit waivers. No `uptime:` carrier exists
   anywhere: no SPEC-0093 concern declares a `section:`/`carrier_path:` of that name, so the literal
@@ -368,7 +368,7 @@ cited spec keeps its own anti-detector stance):
   SCANNING `existing-pointer` (<workshop-spec> rule 6 — `bin/security-audit` CHECK 4, init-seeded — + the
   SPEC-0163 §4a land floor, project `verify.floor.dependencies.command` additive). Open question is
   ADOPTION (project lens): registry sweep 2026-09-23 — 3 of 10 consumers declare that command, 7 do not
-  (<project> · <project> · <project> · <project> · <project> · <project> · <project>; three
+  (<project> · trend-finder · <project> · ticket-review · <project> · boomrocket · <project>; three
   of them run their own pip-audit in a Dockerfile); auth/authz baseline `other-theme`/doctrine (X-0205 shared
   PATTERN); access-audit / least-privilege `product-local`; pentest cadence `product-local`;
   supply-chain / lockfile integrity `product-local`.
@@ -384,7 +384,7 @@ cited spec keeps its own anti-detector stance):
   threshold at which spend becomes a task, plus where the number is read)*; capacity/scaling headroom
   `product-local`.
 - **Reuse & shared code:** shared-CODE extraction `other-theme`/doctrine (X-0205 + plan
-  `extract-the-<project>-system-into-a-shared-cro`); cross-project engineering-knowledge exchange
+  `extract-the-ticket-review-system-into-a-shared-cro`); cross-project engineering-knowledge exchange
   `other-theme` (idea `engineering-knowledge-exchange-between-projects`); shared-PATTERN promotion
   `other-theme` (T7/SPEC-0090 lesson-generalization).
 - **Docs & onboarding:** operational RUNBOOK (logs / rollback / contact) `existing-pointer`

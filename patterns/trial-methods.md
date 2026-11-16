@@ -241,7 +241,7 @@ SPEC-0035 rule 3) — this catalog is what you consult to fill the `mode` line:
 - exit criteria: SPEC-0035 rule 5 floor + plan & both draft specs unchanged across 2 runs.
 - safety envelope: emulated dispatch only; no production task status mutated.
 - eligibility rationale (rule 2b): paper audit cannot surface the gate/race classes —
-  prior-art: the run-1/run-2 incident.
+  prior-art: the run-1/run-2 incident .
 ```
 
 The raw runs go to `events.jsonl`; the verdict-against-criteria goes back into the plan as

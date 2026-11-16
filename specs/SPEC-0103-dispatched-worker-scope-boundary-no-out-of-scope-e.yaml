@@ -263,7 +263,7 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ so the WIP survives; re-entry is\n  `task resume T-XXXX` IN PLACE, no re-claim.\n\
   \nThe two shapes never both apply, so the §3 / preamble worktree-intact instruction\
   \ does NOT contradict\n`task pause`: intact preservation IS the work-carrying shape;\
-  \ commit+land IS the bookkeeping-only shape.\nThis resolves X-0427 (the <project>\
+  \ commit+land IS the bookkeeping-only shape.\nThis resolves X-0427 (the boomrocket\
   \ contradiction where the preamble said worktree-intact but\n`task pause` printed\
   \ an UNCONDITIONAL \"commit + land\", and `task resume`'s \"re-enter WITHOUT re-claim\"\
   \nmisled after a landed pause — the worktree it would re-enter is gone).\n\nDELIVERY.\
@@ -333,4 +333,4 @@ implements_signature:
   bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
   bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
   bin/lib/worktree.py#cmd_blocked_on_land: cb0b9703421a1ef91e54ee37ec43b4505427c9bf13214f4be66ec42cc869acb1
-  bin/lib/worktree_lifecycle.py#cmd_worktree_park: ddb52db48faff4941506ad8c40e0a56ef47d6239a697a8640f9842b55e757654
+  bin/lib/worktree_lifecycle.py#cmd_worktree_park: aead06fe67f2d0ec0586109d3630b9aa2a18eda77cb51283f84a164ea9a66278

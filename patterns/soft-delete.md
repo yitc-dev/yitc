@@ -60,9 +60,9 @@ async def soft_delete_parent(session, parent, *, tenant_id, user_id):
     parent.deleted_at = datetime.now(timezone.utc)
     stmt = (
         update(ChildLink)
-.where(ChildLink.parent_id == parent.id, ChildLink.deleted_at.is_(None))
-.values(deleted_at=datetime.now(timezone.utc))
-)
+        .where(ChildLink.parent_id == parent.id, ChildLink.deleted_at.is_(None))
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
     await session.execute(stmt)
 ```
 

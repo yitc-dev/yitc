@@ -1,7 +1,7 @@
 ---
 name: legacy-docs-assessment-and-migration
 class: runbook
-sourced_from: the 2026-07-18/19 <project> + <project> legacy-docs semantic audits (kernel session; <project> 243 claims / <project> 111 claims verified against code) + the external-audit consult `decisions/docs-legacy-governance-<project>-audit-adhoc.yaml` (YELLOW — model confirmed, 4 refinements folded in) + owner directive 2026-07-19 «методику записать в ранбук». Routed to consumers as X-0516/X-0517/X-0518 (<project>), X-0519/X-0520 (<project>).
+sourced_from: the 2026-07-18/19 <project> + boomrocket legacy-docs semantic audits (kernel session; <project> 243 claims / boomrocket 111 claims verified against code) + the external-audit consult `decisions/docs-legacy-governance-<project>-audit-adhoc.yaml` (YELLOW — model confirmed, 4 refinements folded in) + owner directive 2026-07-19 «методику записать в ранбук». Routed to consumers as X-0516/X-0517/X-0518 (<project>), X-0519/X-0520 (boomrocket).
 applies_to: any brownfield project migrating onto v2 that carries a pre-v2 prose docs corpus (docs/*.md and kin) — and any already-migrated consumer that never assessed its corpus. Reached from patterns/onboarding-onto-yitc-runbook.md §Branch B (the brownfield path); self-runnable by a consumer on an owner cue.
 ---
 
@@ -10,7 +10,7 @@ applies_to: any brownfield project migrating onto v2 that carries a pre-v2 prose
 > **The problem this closes.** A migrated project inherits a legacy prose corpus that LOOKS
 > authoritative and is measurably part-false. Measured on two real corpora (2026-07): <project> —
 > 50% of 243 checkable claims true, 12% direct lies, 23% never-built-described-as-existing;
-> <project> — 63% of 111 true, 12% lies. An AI session that trusts such a corpus hallucinates
+> boomrocket — 63% of 111 true, 12% lies. An AI session that trusts such a corpus hallucinates
 > WITH CITATIONS — the doc is the fuel. The fix is NOT a mass rewrite: it is measure → triage →
 > banner → lazily promote into governed homes, with the dangerous docs fixed first.
 
@@ -20,7 +20,7 @@ applies_to: any brownfield project migrating onto v2 that carries a pre-v2 prose
 2. Age histogram: `git log -1 --format=%cs` per file, bucketed by month. The pre-migration bulk
    is your legacy candidate set; anything actively touched is a different animal.
 3. Origin note: which dirs are DATED plans/archives BY NAME (honest historical framing) vs
-   undated files claiming current reality. Dated-plan culture (<project>) measurably halves the
+   undated files claiming current reality. Dated-plan culture (boomrocket) measurably halves the
    asserting-lie surface vs intent-as-reality culture (<project>).
 
 ## Phase 1 — Mechanical scan (cheap, ~1 hour, no agents)
@@ -31,7 +31,7 @@ Two greps with classification — they give the corpus-health HEADLINE before an
    bin/ scripts/ …`), check existence. Classify each DEAD ref by context: inside a plan-natured dir
    OR with future-markers in ±3 lines («будет/план/TODO/Phase/deferred/planned…») → **dead-plan**
    (honest); else → **dead-ASSERTING** (the lie signal). Report: alive % / dead-plan % /
-   dead-asserting %. Calibration: <project> 60/24/16, <project> 69/13/17.
+   dead-asserting %. Calibration: <project> 60/24/16, boomrocket 69/13/17.
 2. **Ghost symbols.** Extract backticked code-like identifiers near alive path refs; check
    (a) in the named file, (b) anywhere in the codebase, (c) nowhere. Bucket (c) — the GHOSTS —
    is pure signal: names asserted that exist nowhere (<project>'s ghost list contained the
@@ -72,7 +72,7 @@ py/js; a guard may exist under another name/place — search by MEANING before v
    (not lazily); unsettled build-vs-redocument forks stay EXPLICIT owner decision points — never
    silently promote an unsettled choice as a rule.
 4. **Honest historical** (dated plans, archives, superseded layers) → keep, ensure a per-file
-   HISTORICAL header + pointer to the live successor. Verify the freeze claim is TRUE (<project>'s
+   HISTORICAL header + pointer to the live successor. Verify the freeze claim is TRUE (boomrocket's
    «no longer edited» catalog was edited 3× after the freeze note — a false freeze header undermines
    every other header).
 5. **Everything else** → per-file **LEGACY banner** in one mechanical commit («не источник истины;
@@ -102,5 +102,5 @@ py/js; a guard may exist under another name/place — search by MEANING before v
   `patterns/onboarding-onto-yitc-runbook.md §Branch B`), so a corpus is measured BEFORE it starts
   feeding sessions.
 - Calibration corpus for estimates: <project> 2026-07-19 (243 claims: 50/10/23/12/5) ·
-  <project> 2026-07-19 (111 claims: 63/14/4.5/12/7) — order: верно/переехало/не-построено/ложь/
+  boomrocket 2026-07-19 (111 claims: 63/14/4.5/12/7) — order: верно/переехало/не-построено/ложь/
   непроверяемо.

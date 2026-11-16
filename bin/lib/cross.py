@@ -34,7 +34,7 @@ terminals by a FIXED TOTAL ORDER (earliest `ts`, content-hash tiebreak) + a surf
 A participant id is the project's CANONICAL REGISTRY KEY; its main-checkout BASENAME is an ALIAS of
 that key, normalized away at read time. The two used to be different ids: `_cross_self` minted the
 basename while the nightly concern-drift auto-file addressed the registry key, so for the one project
-whose key != basename (`<project>` at `.../<project>`) three live inbound items were folded by
+whose key != basename (`trend-finder` at `.../social-parser`) three live inbound items were folded by
 NO session and stayed invisible for weeks. T-9587's fail-closed `--to` validation could not catch it —
 it guards `cross request` only, and the nightly appends via `cross_emit` directly.
 
@@ -1810,7 +1810,7 @@ def resolution_note_for_close(task: dict, tid: str):
 
     WHY it exists: the manual `cross done --note` (T-10273) let a receiver say WHAT they did, but the
     AUTO-emit carried `{id, by, task}` only — so an auto-resolved item reached its author note-less
-    (X-0346 / X-0351 arrived bare; <project> filed X-0356 on exactly this) and the author had to re-ask.
+    (X-0346 / X-0351 arrived bare; boomrocket filed X-0356 on exactly this) and the author had to re-ask.
     The task card already HOLDS the answer (its title + the closing commit), so the note is DERIVED at
     emit time — no new field, no new store, nothing for a receiver to remember to type.
 
@@ -2729,7 +2729,7 @@ def _re_entry_disposition(args, *, item, events, self_name, local_append, die, a
     COVERAGE BOUND, stated so it is not rediscovered as a bug: the predicate is MARKER-KEYED, and
     X-0387's "re-issue" is not one of its markers, so this gate would not have fired on it. Widening
     was measured and DECLINED — over the live log `re-?issue|re-?file|re-?submit|re-?send` adds 26
-    hits of which ~2 are genuine, the rest NARRATING a past re-file ("re-filed to:<project>").
+    hits of which ~2 are genuine, the rest NARRATING a past re-file ("re-filed to:social-parser").
     The predicate GUARDS AN ACTION, so it fails closed and its precision is the property that must
     not erode (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate.md`). X-0387 is
     dispositioned by the T-11180 backfill instead."""
@@ -3300,7 +3300,7 @@ def inbox_picked_untracked_rows(events: list, self_name: str, *, linked_cross_id
     items it has already promised to do. Measured on the live ledger 2026-08-16: 8 of 8 picked items
     read `task: (none)`; re-measured at this task's Stage 1 the same day, 6 of 11 picked were unlinked
     while the requested cut had fallen to ZERO — the existing line fully silent with six accepted items
-    tracked by nothing. HARM CONFIRMED on X-0595 (<project>): picked, then FULLY delivered (SPEC-0174
+    tracked by nothing. HARM CONFIRMED on X-0595 (boomrocket): picked, then FULLY delivered (SPEC-0174
     active, activation_owner_task T-10801 done), yet it sat at `picked` with no resolution note, so the
     reporter who volunteered as the first exercise ground was never told — closed by hand ~10 days late.
 
@@ -3886,8 +3886,8 @@ def _cross_self(*, REPO_ROOT, _cross_peer_aliases, _main_worktree, cross) -> str
     through `_cross_peer_aliases()`, which maps that basename onto the registry key.
 
     Step 2 is what closes X-0259: for the one project whose registry key differs from its checkout
-    basename (`<project>` at `.../<project>`), self used to be `<project>` while the nightly
-    addressed `<project>`, so three live inbound items were folded by nobody. Fail-soft: an unreadable
+    basename (`trend-finder` at `.../social-parser`), self used to be `social-parser` while the nightly
+    addressed `trend-finder`, so three live inbound items were folded by nobody. Fail-soft: an unreadable
     registry or an unregistered checkout yields the basename, i.e. exactly the pre-T-10260 behaviour."""
     return cross.canonical_peer((_main_worktree(REPO_ROOT) or REPO_ROOT).name, _cross_peer_aliases())
 
@@ -3963,7 +3963,7 @@ def _cross_peer_aliases(*, ENGINE_ROOT, KERNEL_NAME, REGISTRY_PATH, nightly_mod)
 def _cross_known_registry_peers(*, ENGINE_ROOT, KERNEL_NAME, REGISTRY_PATH, nightly_mod) -> set:
     """The cross participant ids derivable from the registry (T-9587): the CANONICAL id — the registry KEY
     — of every yitc_v2 project (T-10260 corrects this from basename(path); the two diverge for
-    `<project>`/`<project>`, the X-0101 + X-0259 incidents). Serves two consumers: the `cross
+    `trend-finder`/`social-parser`, the X-0101 + X-0259 incidents). Serves two consumers: the `cross
     request --to` fail-closed membership set, and the routability test behind the unroutable WARN. Reuses
     the read-only nightly._v2_projects scan (D-0019-safe); tolerant of a missing/invalid registry (returns
     the empty set, so `cross request` validation then rests on the log-participant union + the --force

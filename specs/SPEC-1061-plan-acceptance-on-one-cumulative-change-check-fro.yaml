@@ -1,0 +1,170 @@
+id: SPEC-1061
+title: Plan acceptance on one cumulative change check from its confirmation anchor
+  - two admission arms, the change check, what needs a fresh anchor
+status: active
+created_at: 2026-11-15 19:26:34+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/plan.py#cmd_plan_check
+- bin/lib/plan.py#_plan_accept_freshness_hash
+- bin/lib/plan.py#_plan_accept_core
+- bin/lib/plan.py#cmd_plan_stage
+- bin/lib/plan.py#_plan_change_check_admission
+- bin/lib/plan.py#_require_plan_decomposition_ready
+- bin/lib/plan.py#_plan_prototype_cut_faults
+- bin/lib/plan.py#plan_change_check_packet
+- bin/lib/audit.py#cmd_audit_adhoc
+body: "## Scenario\n\nA plan's accept check comes back RED. The author fixes what\
+  \ it found in one batch and runs ONE\nchange check over everything that changed\
+  \ since that check, instead of buying another full pass.\n`plan stage accepted`\
+  \ admits the plan either on the full check, when nothing it judged has changed\n\
+  since, or on the latest change check from it, when that check reaches the plan as\
+  \ it stands now and\ncloses every high the full check found. The gates after acceptance\
+  \ read freshness the same way. A\nchange the change check cannot judge — a spec\
+  \ of the corpus edited outside the plan, a new\nprototype commit — needs a fresh\
+  \ full check.\n\n## Internal\n\n### 1. The confirmation anchor\n- The record of\
+  \ the plain `plan check <slug>` — `decisions/<slug>-audit.yaml` — is the ANCHOR,\
+  \ the\n  one full pass every admission starts from. Its verdict is the one it records;\
+  \ its HIGHS are its\n  findings of severity `high`, read by severity alone — no\
+  \ other label of a finding waives one.\n  An anchor recorded ABORT, or with no verdict,\
+  \ completed no pass: no change check starts from it\n  and it admits on neither\
+  \ arm — run `plan check` again.\n- A GREEN or YELLOW anchor admits as it stands\
+  \ (§3 arm (i)). A RED anchor admits only through a\n  change check that closes every\
+  \ high it carries (§2, §3 arm (ii)) — at every gate that reads it.\n- Beside its\
+  \ freshness hash, `plan check` records the digest of each input that hash covers.\
+  \ An\n  anchor recorded without them admits on arm (i) only — run `plan check` for\
+  \ an anchor a change check\n  can start from.\n- After a RED anchor `plan check`\
+  \ prints the next step as a cue and a pointer to §2.\n\n### 2. The change check\
+  \ — one fix batch, one check, always from the anchor\n- Fix the anchor's highs,\
+  \ and whichever other findings you choose, in ONE batch; then run ONE change\n \
+  \ check: `bin/yitc-v2 audit adhoc --plan <slug>`. The kernel assembles its packet:\
+  \ the anchor's\n  findings as the CLOSURE LIST, and the CUMULATIVE diff of every\
+  \ changed eligible input from its text\n  at the anchor to its text now. It asks\
+  \ whether each listed finding is closed and whether the change\n  introduces a contradiction\
+  \ or a regression. A `--prompt` adds to the packet; `--read-corpus` inlines\n  the\
+  \ files it names in full.\n- The anchor-time text of an input is read from the repository's\
+  \ history, found by the digest the\n  anchor recorded: commit the plan with its\
+  \ check before editing it. When the anchor-time text of a\n  changed input is not\
+  \ in the history, the cumulative diff cannot be shown and no change check is\n \
+  \ possible from that anchor — `audit adhoc --plan` refuses before the auditor, naming\
+  \ the input, and\n  a fresh `plan check` is the anchor.\n- The record is `decisions/<slug>-change-check-audit-adhoc.yaml`,\
+  \ one per plan: each run replaces it,\n  so the record on disk is the LATEST change\
+  \ check. It binds the plan's freshness hashes at the anchor\n  and now, carries\
+  \ the diff of each changed eligible input, the closure list and the anchor findings\n\
+  \  it marks closed.\n- Its verdict follows the anchor's reading: RED when any finding\
+  \ is a high — still open or newly\n  introduced; otherwise the auditor's GREEN (no\
+  \ finding) or YELLOW.\n- A RED change check is a failed attempt, not a link: fix\
+  \ again and run the change check again —\n  from the ANCHOR, never from the attempt.\
+  \ A fix that breaks an earlier fix is the CHARTER §Failure\n  trigger case, applied\
+  \ from that home.\n- ELIGIBLE inputs: the plan body (the registry included) and\
+  \ the plan's own plan-born specs. Every\n  other input of the freshness hash is\
+  \ NOT eligible and needs a fresh anchor (a new `plan check`):\n  an active or proposed\
+  \ spec of the corpus outside the plan, the prototype pair (`prototype_tip`),\n \
+  \ the scenario-fidelity slice. `audit adhoc --plan` refuses before the auditor,\
+  \ naming the input,\n  when one changed since the anchor, and when nothing changed\
+  \ at all.\n\n### 3. Admission — two arms\n`plan stage accepted` admits a plan when\
+  \ EITHER\n- **(i)** the anchor is GREEN or YELLOW and the plan's current freshness\
+  \ hashes (the body's and the\n  accept gate's) equal the anchor's; OR\n- **(ii)**\
+  \ the latest change check starts at exactly this anchor (its hashes and its findings),\
+  \ ends\n  at exactly the current hashes, carries the diff of every input it reports\
+  \ changed, is GREEN or\n  YELLOW, and marks every high of the anchor closed.\nNothing\
+  \ else admits. Every check the gate makes besides freshness — the prototype pin\
+  \ of an opted-in\nplan among them — applies on both arms alike. A refusal names\
+  \ its cause: the anchor high left open,\nthe hash the latest change check does not\
+  \ reach, the RED attempt, a changed input it shows no diff\nfor, or the not-eligible\
+  \ change that needs a fresh anchor. The `plan_stage_entered` row names the arm\n\
+  and the record it admitted on.\n\n### 4. «Fresh» at the gates after acceptance\n\
+  A FRESH accept check at `accepted → decomposition` (SPEC-0070 §2) and at the cut's\
+  \ check (SPEC-1058\n§3) reads the same two arms over that gate's own basis — the\
+  \ plan body; arm (i) still needs a GREEN\nor YELLOW anchor, so a RED anchor is fresh\
+  \ there only through arm (ii), whether or not the body moved\nsince. At the cut\
+  \ the pinned `prototype_tip` is also checked against the prototype commit the anchor\n\
+  audited, which no change check moves.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\
+  \nBorn work-first by from the cancelled plan `sandbox-exit-plan-check-and-cut-kernel-mechanism`\n\
+  (cancelled 2026-11-15; its §Evidence base holds the measurements) and the <project>\
+  \ lesson\n`sandbox-to-plan-carry-and-owner-read-back` (cross items X-2371, X-2376,\
+  \ X-2379). Before this rule\n`plan stage accepted` admitted only on a full check\
+  \ whose hash equalled the current one, so every fix\nafter a check bought a fresh\
+  \ full pass: <project> paid 13 passes (about 10.4 h auditor, 26 h wall) and\na neutral\
+  \ pass afterwards still read 0 high / 33 medium; the kernel trial's fresh pass found\
+  \ the one\nhigh its rounds had missed (about 86 min) and the change check of its\
+  \ fix was GREEN in 26 s routine /\n234 s full. The cancelled plan ran five plain\
+  \ checks on itself with nearly disjoint finding sets.\nDropped from that plan's\
+  \ draft (<workshop-spec>, withdrawn) and decided against here: a closure union over\n\
+  failed attempts, a retention contract for attempt records, pinned blob endpoints\
+  \ with a commit-first\nrefusal, consumed project content and parent registries as\
+  \ freshness inputs, a `corpus_rechecked`\nmarker; rounds under a scope lens and\
+  \ the theme fold are their own cards. The risk\nthat a failed attempt's new high\
+  \ is missed by a later check is the one the owner accepted on\n2026-11-13 («как\
+  \ с тестами»). The admission rule moved here from SPEC-0034 §accepted, and «fresh»\n\
+  from SPEC-0070 §2 and SPEC-1058 §3, by the route SPEC-0070 took out of SPEC-0034\
+  \ in 2026-06: an\nadditive extension (SPEC-1037 §7) — arm (i) is the old predicate\
+  \ unchanged.\n\n## Implementation notes\n\n- [REF] The anchor's per-input digests\
+  \ are `accept_freshness_parts` (`body`, `own_specs` per plan-born\n  spec, `corpus`\
+  \ — None while the plan has no plan-born spec, the corpus being then no input —,\n\
+  \  `scenario`, `prototype`) beside `content_hash` / `accept_freshness_hash` in `decisions/<slug>-audit.yaml`.\n\
+  - [REF] The change-check record carries `change_check:` — `plan`, `anchor` (path),\
+  \ `anchor_verdict`,\n  `anchor_findings_digest`, `from` / `to` (`content_hash` +\
+  \ `accept_freshness_hash`), `changed`\n  (`input`, `path`, `diff`), `closure_list`\
+  \ (`id` A<n> by finding position, `severity`, `what`) and\n  `closed`. The `plan_stage_entered`\
+  \ row carries `admitted_on` (`arm`, `anchor`, `change_check`).\n- [MECH] `accept_freshness_parts`\
+  \ is filled inside the one pass of `_plan_accept_freshness_hash`\n  (`parts_out=`),\
+  \ so the hash it records is byte-identical to before and no second corpus scan runs.\n\
+  - [MECH] One reader, `_plan_change_check_admission`, serves the accept gate (`_plan_accept_core`),\
+  \ the\n  decomposition entry (`_require_plan_decomposition_ready`) and the cut check\n\
+  \  (`_plan_prototype_cut_faults`); each passes the hashes of its own basis. With\
+  \ no change-check record\n  on disk each gate refuses with its old text plus one\
+  \ cue line.\n- [MECH] `plan_change_check_packet` finds the anchor-time text of a\
+  \ changed input with `git log --all\n  -n 200` + `git show` on its path, matched\
+  \ by the recorded digest.\n- [MECH] The closed ids come from the `closed:` key the\
+  \ packet asks for in the auditor's YAML block,\n  read by the YAML parser (`_plan_closed_ids`):\
+  \ only a list whose every element is an exact\n  closure-list id counts; a missing,\
+  \ malformed or partly malformed value closes nothing.\n- [MECH] The current plan-born\
+  \ specs' paths come from the same freshness pass (`own_paths_out=`), so\n  the change\
+  \ check makes no second corpus pass.\n\n## Verification\n\n- VP1 (arm i): a fixture\
+  \ plan with a GREEN anchor and an unchanged hash is admitted and its\n  `plan_stage_entered`\
+  \ row names the anchor (tests/test_plan_accept_change_check.py).\n- VP2 (arm ii):\
+  \ a RED anchor, a body edit and a GREEN change check closing every anchor high admit,\n\
+  \  the row citing the change-check record; leaving one high open, or a change check\
+  \ that does not bind\n  exactly anchor -> current, refuses naming the cause; the\
+  \ prototype-pin check runs on arm (ii) too;\n  a changed input whose anchor-time\
+  \ text is not in the history refuses the change check.\n- VP3 (not eligible): a\
+  \ corpus spec edited outside the plan, or a changed prototype pair, after the\n\
+  \  anchor refuses naming the fresh-anchor requirement; the same plan without the\
+  \ edit admits.\n- VP4 (record): `audit adhoc --plan` writes both ends' hashes, the\
+  \ eligible-input diffs and the closed\n  list.\n- VP5 (later gates): the decomposition\
+  \ entry and the cut check admit on the same arms and refuse on\n  the same break\
+  \ — a RED anchor with an unchanged body and a non-admitting latest change check\n\
+  \  included.\n- VP6 (cue): after a RED anchor `plan check` prints the cue naming\
+  \ §2, after a GREEN none; the cue\n  carries no recipe.\n- VP7 (one home): SPEC-0034\
+  \ §accepted, SPEC-0070 §2 and SPEC-1058 §3 point here and no longer state\n  the\
+  \ admission rule themselves.\n"
+cites:
+- SPEC-0034
+- SPEC-0070
+- SPEC-1058
+- SPEC-1037
+- SPEC-1040
+- SPEC-0083
+- CHARTER.md#failure-trigger
+- sandbox-exit-plan-check-and-cut-kernel-mechanism
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- plan-stage-entry:accepted
+- plan-stage-entry:decomposition
+init_concern: null
+implements_signature:
+  bin/lib/audit.py#cmd_audit_adhoc: 485831717b1ccef3832e7b8770c5c2b17364c34f867e26341c2db8fc2f49288c
+  bin/lib/plan.py#_plan_accept_core: c21844f46d3aee701e320b600c5d9998696534b22fcd7e18aec79d22f6189277
+  bin/lib/plan.py#_plan_accept_freshness_hash: c01e877b6b37a1fb06071553132c2d0cc9df847a4473e295b0b1929d614003e6
+  bin/lib/plan.py#_plan_change_check_admission: b6696663cd836884b6815ce49eb29a5950a5a126b0e9e8764e9a87d1c46eac1a
+  bin/lib/plan.py#_plan_prototype_cut_faults: 52f8cc1e5bee426c18d026271cf4bc561cd54a3c3fae512fcd8fd3904cdb4299
+  bin/lib/plan.py#_require_plan_decomposition_ready: 8b215f0a3130d64a99ad0cab88b980b81682dfc160d05fad73150579819aa746
+  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
+  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2
+  bin/lib/plan.py#plan_change_check_packet: 7a6514cc3084dba8514dbc1f30a29ab1d3f4f3b63b3587a33c53918fb4994225

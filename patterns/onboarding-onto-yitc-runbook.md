@@ -69,13 +69,13 @@ the project needs from the kernel is silently dropped» guarantee.
 
 **Symptom (X-0109 /, 2026-06-28).** In a `-C <consumer>` session, writing a temp working file to
 the **harness session scratchpad** (a `/tmp/.../scratchpad` path the AI tool offers) is **refused**,
-forcing a `stdin`-heredoc fallback (first hit: the <project> migration).
+forcing a `stdin`-heredoc fallback (first hit: the social-parser migration).
 
 **The actual refusal source — NAMED (do not mis-attribute).** It is **NOT** the yitc-v2 engine guard:
 `SPEC-0078`'s `_assert_write_in_repo` (installed at `bin/yitc-v2#write_text_atomic`) only refuses writes
 **under `ENGINE_ROOT`**, and the `/tmp` scratchpad is outside BOTH `ENGINE_ROOT` and `REPO_ROOT` — so the
 engine never sees that write. The refusal comes from the **V1 `scope-guard.sh` PreToolUse hook**
-(`<project>/bin/hooks/scope-guard.sh`, wired globally in `~/<provider-config>/settings.json` alongside
+(`ai-team-framework/bin/hooks/scope-guard.sh`, wired globally in `~/<provider-config>/settings.json` alongside
 `~/bin/user-scope-guard.sh`): it blocks every `Edit`/`Write` whose path is **outside the owned project
 root**, anchored on session identity (not cwd). A `/tmp/.../scratchpad` path is outside the owned
 consumer root → blocked. This is a **harness-level (provider hook) confinement**, external territory
@@ -105,7 +105,7 @@ Shared core + preflight the LIVE repo + in-place overlay on a running product + 
 of existing code + the two-gate proof. Governing plan: `plans/real-project-integration-onto-v2-phased-migration-`.
 
 > **Legacy prose-docs corpus — MEASURE it, don't trust or bulk-rewrite it.** A brownfield project's
-> pre-v2 `docs/` corpus is measurably part-false (<project> 2026-07: 50% of claims true; <project>:
+> pre-v2 `docs/` corpus is measurably part-false (<project> 2026-07: 50% of claims true; boomrocket:
 > 63%) and is prime hallucination fuel for every future session. Run the sibling runbook
 > **`patterns/legacy-docs-assessment-and-migration.md`** (inventory → mechanical dead-ref scan →
 > semantic agent verification → 5-class triage → per-file LEGACY banner → MANDATORY lazy promotion
@@ -163,9 +163,9 @@ produces a short **META-ANALYSIS** of its pre-study (the <project> gate-1.5 mode
 X-0085..X-0090), and every kernel-absent gap is fed BACK to the kernel as a `cross request` (→ a kernel
 task/plan), so the kernel grows to model it before the NEXT migration hits the same gap (seed-and-grow:
 the migrations are the real-incident pull that grows the kernel). This is a STANDING B2 step, not a
-one-off — <project>/<project> will each pre-study + meta-analyze their own components.
+one-off — boomrocket/<project> will each pre-study + meta-analyze their own components.
 
-**A liveness/freshness signal is often a LIVE query, not declarative config — and the kernel reads it via a PROJECT-OWNED adapter (<project> L3 gate-2, drained from `fu_2169157e34d6` after; deviation `l3-freshness-source-registry-block-assumption-vs-live-db-logs-reality`).** When a KERNEL-ABSENT liveness/freshness component surfaces in the pre-study, do NOT assume its freshness source is a static config block — INSPECT the real incumbent monitor to see what it ACTUALLY reads (<project>'s v1 watchdog computes freshness LIVE: a Postgres `last_scanned_at`-vs-`scan_interval_hours` query for discovery + a celery docker-log heartbeat for tracking — there is NO thresholds block). → **generalised: a freshness source can be a live DB query / logs, not a file — verify against the incumbent, never the assumption.** The fix pattern (external consult, RED→adopted): the kernel L3 monitor stays a GENERIC grader; each project supplies a thin **read-only freshness ADAPTER** returning normalized per-pipeline `{fresh|stale|miss}`+age, consumed through the monitor's injectable `_read_pipeline_state` seam — NEVER project-specific SQL/docker embedded in kernel code (P1 + the territory smell). → **generalised: a kernel monitor that must read a project's live state reads it via a project-owned read-only adapter behind an injectable seam.** Recon trap: a project's **name ≠ its repo path** — "<project>" is the registry KEY, its repo is `<host-home>/projects/<project>` (registry `path:`); resolve every repo via `registry.yaml path:`, never the product name (a path built from the product name does not exist).
+**A liveness/freshness signal is often a LIVE query, not declarative config — and the kernel reads it via a PROJECT-OWNED adapter (trend-finder L3 gate-2, drained from `fu_2169157e34d6` after; deviation `l3-freshness-source-registry-block-assumption-vs-live-db-logs-reality`).** When a KERNEL-ABSENT liveness/freshness component surfaces in the pre-study, do NOT assume its freshness source is a static config block — INSPECT the real incumbent monitor to see what it ACTUALLY reads (trend-finder's v1 watchdog computes freshness LIVE: a Postgres `last_scanned_at`-vs-`scan_interval_hours` query for discovery + a celery docker-log heartbeat for tracking — there is NO thresholds block). → **generalised: a freshness source can be a live DB query / logs, not a file — verify against the incumbent, never the assumption.** The fix pattern (external consult, RED→adopted): the kernel L3 monitor stays a GENERIC grader; each project supplies a thin **read-only freshness ADAPTER** returning normalized per-pipeline `{fresh|stale|miss}`+age, consumed through the monitor's injectable `_read_pipeline_state` seam — NEVER project-specific SQL/docker embedded in kernel code (P1 + the territory smell). → **generalised: a kernel monitor that must read a project's live state reads it via a project-owned read-only adapter behind an injectable seam.** Recon trap: a project's **name ≠ its repo path** — "trend-finder" is the registry KEY, its repo is `<host-home>/projects/social-parser` (registry `path:`); resolve every repo via `registry.yaml path:`, never the product name (a path built from the product name does not exist).
 
 **Make the migration visible to `/start` (completion step — easy to miss):** set `methodology: yitc_v2`
 on the consumer's `<host-home>/registry.yaml` entry (same token as the kernel entry). A migrated project
@@ -205,20 +205,20 @@ up, no error spike); **(3) what rollback path exists** if a cutover is involved 
 old path keeps running until the redeploy is confirmed — that IS the rollback). This is a recorded packet,
 not a new gate — it makes the zero-impact claim auditable instead of anecdotal.
 
-**Quiesce the project's LIVE v1 background writers BEFORE running content-import cards (<project>
+**Quiesce the project's LIVE v1 background writers BEFORE running content-import cards (boomrocket
 gate-3 finding, 2026-06-30).** Any cron / systemd timer / app daemon that AUTO-WRITES into a file you
 are migrating (a backlog, a decisions log, a scenario dir) will dirty the consumer `main` checkout
 mid-migration, and every `land` correctly refuses to fast-forward over the foreign churn — so it blocks
-the WHOLE import wave (<project>: 2 of 5 background import workers died-but-unlanded on it). Before the
+the WHOLE import wave (boomrocket: 2 of 5 background import workers died-but-unlanded on it). Before the
 content-import, ENUMERATE every live writer into a to-be-migrated path — `grep` the crontab + `systemctl
 list-timers` + app daemons for the target paths — and disable/redirect EACH. Do NOT trust the "named sync
 apparatus" list alone: a migrated file is a RETIRED file, so anything still auto-writing it is in scope,
-even a product-health cron nobody thought of as "sync". See §Frictions (<project> gate-3).
+even a product-health cron nobody thought of as "sync". See §Frictions (boomrocket gate-3).
 
-**Transform the project's OWN surface too — not just stand up the corpus (<project> gate-3
+**Transform the project's OWN surface too — not just stand up the corpus (boomrocket gate-3
 generalization, 2026-06-30).** Standing up specs/graph/queue is only HALF a migration; the project's own
 OPERATIONAL + INSTRUCTION surface must also move off v1, or the §B5 revizia keeps DISCOVERING the same
-residue (it recurred across <project>, <project>, <project>). Three standing B2 sub-steps, each a
+residue (it recurred across <project>, <project>, boomrocket). Three standing B2 sub-steps, each a
 recurring miss — do them HERE so B5 CONFIRMS rather than discovers:
 - **Wire the ops-contract (`yitc-ops.yaml` + `yitc-verify.yaml`) to REAL surfaces.** `init` seeds every
   section born-WAIVED (deploy / rollback / live_probe / verify / ui / tests / host_config / security). A
@@ -245,7 +245,7 @@ recurring miss — do them HERE so B5 CONFIRMS rather than discovers:
 - **Move the project's OWN AI-instruction docs off v1 AND out of the vendor-specific `<vendor-adapter>.md`
   (the consumer vendor-adapter doctrine — SPEC-0125).** The project's `<vendor-adapter>.md` (and any project
   charter/README) routinely still INSTRUCTS the AI to load v1 methodology (a "Team Mode" /
-  `<project>/core/*.md` methodology-source table) — a HIGH instruction-fidelity defect, because
+  `ai-team-framework/core/*.md` methodology-source table) — a HIGH instruction-fidelity defect, because
   a fresh session reads it and loads the retired pipeline. Two moves, per SPEC-0125:
   - **Substantive project operating-context → a PROVIDER-NEUTRAL home, NEVER inside `<vendor-adapter>.md`.**
     `<vendor-adapter>.md` is an AI provider-vendor-specific filename other providers won't read, so product rules
@@ -257,7 +257,7 @@ recurring miss — do them HERE so B5 CONFIRMS rather than discovers:
     neutral home. **CRITICAL — a consumer session has NO local `bin/yitc-v2`, so the adapter MUST show
     the engine-absolute verb form `<engine>/bin/yitc-v2 -C <path> <verb>`** (a bare `bin/yitc-v2` is
     command-not-found in the consumer repo — the X-0144 class). NO product rules, methodology, or deploy
-    sections inside `<vendor-adapter>.md` (the <project> `## Deploy` over-scope, reverted).
+    sections inside `<vendor-adapter>.md` (the trend-finder `## Deploy` over-scope, reverted).
 
   Drop this thin adapter block into the consumer `<vendor-adapter>.md` (fill in the two absolute paths + the
   neutral-home filename); put the product rules in the neutral home:
@@ -269,7 +269,7 @@ recurring miss — do them HERE so B5 CONFIRMS rather than discovers:
   `<engine>` (e.g. `<repo-root>`). This repo has NO local `bin/yitc-v2` — run every
   yitc verb through the engine binary in `-C` mode, targeting THIS repo:
 
-      <engine>/bin/yitc-v2 -C <this-repo-abs-path> <verb> # e.g. … -C <path> graph query SPEC-0007
+      <engine>/bin/yitc-v2 -C <this-repo-abs-path> <verb>      # e.g. … -C <path> graph query SPEC-0007
 
   Session start: `<engine>/bin/yitc-v2 -C <this-repo-abs-path> session start` (or the `/yitc` entry).
   Read the kernel handbook (CHARTER -> AGENTS -> AGENTS-SESSIONS -> AGENTS-PROTOCOL -> LIFECYCLE ->
@@ -290,7 +290,7 @@ recurring miss — do them HERE so B5 CONFIRMS rather than discovers:
   HISTORICAL is necessary but not sufficient — the same sweep covers the SIBLINGS: `CROSS-TASKS.md` (the
   retired per-repo cross-log), `REVIEW-TASKS.md`, stale `drafts/auto-*` dirs, `knowledge/`, and the deploy
   path's v1-framework dependency. Enumerate every v1-corpus-named file + every v1-tooling reference and
-  mark/empty/justify EACH. (<project> gate-3: F2d marked BACKLOG/DECISIONS but left CROSS-TASKS.md a live
+  mark/empty/justify EACH. (boomrocket gate-3: F2d marked BACKLOG/DECISIONS but left CROSS-TASKS.md a live
   1405-line v1 log + drafts/ stale + deploy.sh on the v1 deploy-common.sh.)
 
 ### B2-import-safety — imported-card provenance + premise-verify + product-card owner-gate (SPEC-0166 · SPEC-0167, both active/code-enforced)
@@ -351,7 +351,7 @@ A migration stands up TWO of the three legs already: **leg 1 = spec-extraction**
 for the load-bearing rules) and **leg 2 = module→spec coverage admission** (the §B5 revizia confirms
 every load-bearing surface has a spec). What was MISSING is **leg 3 = spec→test mapping + gap
 closure**: nothing proved a normative rule has an executable twin, and consumer test-debt cards were
-parked non-gating and never returned to (<project> 131/1271, <project> 240/1719 land-wired but with
+parked non-gating and never returned to (boomrocket 131/1271, <project> 240/1719 land-wired but with
 NO rule→test traceability). Leg 3 closes that — under the loud-failure principle, NOT as a
 tests-for-everything sweep:
 
@@ -366,7 +366,7 @@ tests-for-everything sweep:
 - **TIERING BOUND — tier-1 upfront at migration, the rest via per-AC discipline (do NOT map the
   whole corpus here).** Map ONLY the **tier-1 dormant-risk zones UPFRONT at B2**, walked in cost-of-
   silent-breakage order: **money → outbound mutations → isolation/access → data mutations →
-  background jobs** (<project>: money, outbound messaging; <project>: tenant isolation, access
+  background jobs** (boomrocket: money, outbound messaging; <project>: tenant isolation, access
   control). Every tier-1 normative rule leaves B2 with a named tripwire test OR a contract-complete
   waive in the project's ledger. Everything BELOW tier-1 is NOT mapped in a big upfront sweep — it
   accrues through the **per-AC channel** (``): each NEW task's acceptance criteria name a
@@ -374,7 +374,7 @@ tests-for-everything sweep:
   This tiering IS the walk-order bookkeeping of the principle, not a second rule.
 
 - **LEDGER = the carrier artifact (one per project, F4-shaped — extend, don't fork).** The
-  rule→tripwire/waive links live in a per-project ledger doc (the shape of <project>'s F4
+  rule→tripwire/waive links live in a per-project ledger doc (the shape of boomrocket's F4
   module→spec coverage-admission ledger — reuse it, P1 F1). Role constraint: the ledger stores
   ONLY rule→tripwire/waive links + the waive contracts. The **links are derived bookkeeping**
   (re-derivable from specs + tests); the **waive contracts are the ledger's one class of OWNED
@@ -395,7 +395,7 @@ tests-for-everything sweep:
   specs are exempt from the tests axis; dangling tests (a test with no rule) surface there too.
 
 - **Scope — future migrations; retro rides cross asks.** This leg applies to migrations going
-  forward. Retro application to ALREADY-migrated consumers (<project>, <project>) is NOT part of a
+  forward. Retro application to ALREADY-migrated consumers (boomrocket, <project>) is NOT part of a
   new migration's runsheet — it rides the owner-gated consumer `cross` asks (plan card ``),
   not this leg.
 
@@ -441,7 +441,7 @@ and a product-touching card needs `product_dispatch_owner_ack:` while this migra
 (SPEC-0167) — both code-enforced in `dispatch`, so an unverified or unacked card is refused before it
 reaches these gates.** **Two-gate proof:** gate 1 = a low-risk smoke task (validates lifecycle FIT); gate
 2 = an intentionally REPRESENTATIVE task (the hard part of adoption). NB — for the legacy-brownfield case (no v1 incumbent, e.g. <project>) `realized` does NOT
-release the distribution-platform hard-stop; that is the v1-incumbent gate-2 (<project>).
+release the distribution-platform hard-stop; that is the v1-incumbent gate-2 (Boomrocket).
 **The two-gate proof validates the LIFECYCLE fits in-project — it is NOT migration-complete on its own.
 Completion is the §B5 gate below; do not mark the migration plan `realized` at B3.**
 
@@ -458,7 +458,7 @@ the re-seed fix):
   is RETIRED —; the land-verify home is the carrier `yitc-ops.yaml` `verify.layers` section.) Diff the
   consumer's root against a PEER v2 consumer to spot a missing one fast. **Fix a missing scaffold by
   re-running the idempotent `bin/yitc-v2 -C <consumer> init`** — it re-seeds only what's absent (it does
-  NOT clobber existing files). Real incident: <project> lost `MEMORY.md` because the v1-corpus archive
+  NOT clobber existing files). Real incident: trend-finder lost `MEMORY.md` because the v1-corpus archive
   step `git mv`'d the v1 one to `v1-archive/` and no v2 `MEMORY.md` was re-seeded — every other consumer had it.
 - **No RETIRED surface lingering.** A consumer bootstrapped before a kernel cutover can carry a now-retired
   file — notably `CROSS-TASKS.md` (the per-repo cross log, RETIRED at the cutover; live surface = the
@@ -477,7 +477,7 @@ the re-seed fix):
 When wiring a consumer's `yitc-ops.yaml` `verify.layers` per-layer `command:` (the hermetic harness — see §B3.1 + the verify
 prompt in §B2), the test compose MUST bring up **every runtime dependency the suite actually exercises**,
 discovered from the app's config / `conftest` (DB **AND** any cache / queue / broker, e.g. redis), not just
-the database. Real incident (<project>): the first verify run failed 5 auth tests purely because
+the database. Real incident (trend-finder): the first verify run failed 5 auth tests purely because
 **redis** (the auth rate-limiter backend) was missing from the test compose — the suite needed it, the DB
 alone was not enough. Still hermetic + concurrency-safe: every service on a per-run-unique compose project /
 network, no host ports, unique-per-run DB name (so parallel worker `land`s never collide).
@@ -500,7 +500,7 @@ COMPLETENESS is the §B5 criterion below — not this bench, and not the two-gat
    the graph. **Spec naming cue:** every spec is a `SPEC-XXXX.yaml` file — the SINGLE spec identifier
    shape; do NOT invent parallel `INVARIANT-*`/`CONFIG-*`/`FSM-*` spec artifacts (a v1-shaped trap — they
    are silently graph-invisible). An invariant/config/FSM is spec CONTENT, not a separate prefix — see
-   <workshop-spec> §Identity for the rule (real incident: the <project> migration, X-0195/X-0197).
+   <workshop-spec> §Identity for the rule (real incident: the boomrocket migration, X-0195/X-0197).
 2. **No code without documentation.** Every **load-bearing** code surface is governed by a spec (or a
    `scenario`) via the `implements` graph edge — no orphan load-bearing code. (`graph build` reports the
    code→spec coverage; walk the file's symbols against it.) Genuinely-trivial infra / glue may stay
@@ -551,7 +551,7 @@ and did not transform the project's other docs — so the migration plan is held
 
 ### B5-check-1 — Post-parallel-batch cross-interaction review (a PRE-completion safeguard — run before declaring B5 complete)
 
-> **Born:** <project> gate-3, 2026-07-01. **Not post-completion cleanup — a gate that must run BEFORE
+> **Born:** boomrocket gate-3, 2026-07-01. **Not post-completion cleanup — a gate that must run BEFORE
 > `plan realized`.** After you dispatch a PARALLEL batch of fixes across OVERLAPPING modules, run an
 > **external-auditor (<workshop-spec>) cross-interaction review** of the landed batch AS A WHOLE — do not treat
 > the batch as done just because each task landed green.
@@ -560,7 +560,7 @@ and did not transform the project's other docs — so the migration plan is held
   verify checks each task in ISOLATION, so a **cross-interaction** defect — two workers that each edit an
   overlapping surface in a locally-valid but jointly-inconsistent way — passes every per-task gate and
   surfaces only later.
-- **The concrete incident (fingerprint `parallel-dispatch-diverges-alembic-heads`):** <project> shipped
+- **The concrete incident (fingerprint `parallel-dispatch-diverges-alembic-heads`):** boomrocket shipped
   **19 parallel fixes across payment / tickets / buyback**; two of them each added an Alembic migration off
   the same parent → **divergent migration heads**. Every per-worktree verify was green; the conflict slipped
   all the way to **deploy pre-flight** (where `alembic upgrade` refuses multiple heads).
@@ -587,7 +587,7 @@ Controller toward a WRONG force-recovery:
 
 ### B5-check-2 — Migration-completion checklist: v1→v2 leftover-tail classes (clear each BEFORE `plan realized`)
 
-> **Born:** <project> gate-3, 2026-07-01 — these four classes had to be hand-cleaned across a full day
+> **Born:** boomrocket gate-3, 2026-07-01 — these four classes had to be hand-cleaned across a full day
 > because nothing named them. Codified here so the NEXT migration confirms them upfront instead of
 > re-discovering them. Walk this list as part of the B5 gate; a migration is not complete while any row is open.
 
@@ -603,7 +603,7 @@ Controller toward a WRONG force-recovery:
   live-looking log.
 - [ ] **Deploy path missing its migration step.** A v2-native deploy command must actually APPLY DB
   migrations (e.g. `alembic upgrade head`) — a migrated deploy path that dropped the v1 migrate-on-deploy step
-  will silently ship code ahead of the prod schema (the <project> deploy-pre-flight near-miss; see kernel
+  will silently ship code ahead of the prod schema (the boomrocket deploy-pre-flight near-miss; see kernel
   X-0145). Confirm the `deploy:` command applies migrations before `plan realized`.
 - [ ] **Imported spec corpus stranded at `proposed` with PHANTOM activation owners.** A v1→v2 spec import
   can land the whole corpus at `status: proposed` carrying an `activation_owner_task` that points at a task
@@ -622,11 +622,11 @@ Controller toward a WRONG force-recovery:
   row per phantom-owner spec (report-only by design — the route is a semantic choice no check can make for
   you; it never blocks a land). **Note the boundary:** a spec with NO `activation_owner_task` at all is
   grandfathered-VALID (<workshop-spec> §5, no retroactive backfill) and is not flagged — this row is about a
-  PRESENT-but-unresolvable owner. (Born: <project> F2a import, 2026-07-16 — 36 specs owned by nonexistent
+  PRESENT-but-unresolvable owner. (Born: boomrocket F2a import, 2026-07-16 — 36 specs owned by nonexistent
   /; kernel X-0437, sibling of the X-0433 shadowing class.)
 - [ ] **v1 liveness/freshness monitor retired WITHOUT proven like-for-like v2 coverage.** A v1 watchdog
   (e.g. `watchdog.sh`) must not be retired until v2 reads the SAME live signals via the project's freshness
-  adapter, proven by an induced real-miss catch (<project>). The kernel monitor returning `none`
+  adapter, proven by an induced real-miss catch (trend-finder). The kernel monitor returning `none`
   (no declared adapter) reads as **NON-ADOPTED, not coverage** — `none` is not a pass. Confirm the v2 monitor
   caught an induced miss before marking the v1 monitor retired.
 
@@ -766,9 +766,9 @@ The rest of the closed set delivers nothing at a moment, so a process rule does 
 exactly when it starts testing:
 
 ```yaml
-id: SPEC-NNNN # allocated by `spec new` (a project's spec ids run from 5000 to 9999)
+id: SPEC-NNNN            # allocated by `spec new` (a project's spec ids run from 5000 to 9999)
 title: How tests are written and run in this project
-status: proposed # `active` once its activation_owner_task closes
+status: proposed         # `active` once its activation_owner_task closes
 travels: project
 activation_owner_task: T-NNNN
 binding:

@@ -1,6 +1,6 @@
-# Release v2.29.0
+# Release v2.30.0
 
-Source commit: `b91aea9677cc0beee11d71d6251710500e1c66fa`
+Source commit: `db7ed96bf18e455b0a56a54d3cc57d1ffe3ac5e6`
 
 ## Proposals this release answers
 
@@ -242,31 +242,100 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag. No opt-in key was added to a kernel spec's carrier section either.
+2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1059 — Consumer Stage-6 passes on the remote verify venue - the verify.venue opt-in, the engine the host runs shipped with each pass, a box published for one consumer and shared as the project balances it, consumer envelope identity, named per-pass placement
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1059`
+- SPEC-1061 — Plan acceptance on one cumulative change check from its confirmation anchor - two admission arms, the change check, what needs a fresh anchor
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1061`
 
 ## What changed
 
-19 task(s) closed since the previous release tag, in close order:
+81 task(s) closed since the previous release tag, in close order:
 
-- T-14533 — Let the owner take a sandbox-exit item on their own responsibility (decide on main, check in a sandbox raised from main) and make the accept-gate auditor honour it (fix) — events.jsonl#ts=2026-11-05T12:04:20Z
-- T-14536 — Keep files the engine writes into the shared coordination store readable by the dev group (fix) — events.jsonl#ts=2026-11-05T19:07:14Z
-- T-14534 — Let audit post admit a clean Stage-6 sync merge whose worktree_synced row sits in the main checkout journal (fix) — events.jsonl#ts=2026-11-05T19:25:54Z
-- T-14537 — Do not fail a governed deploy because a bookkeeping-only land moved main while it ran (fix) — events.jsonl#ts=2026-11-05T19:42:10Z
-- T-14538 — Read the owner words of a spike across its whole lineage, not only the slim tag the plan points at now (fix) — events.jsonl#ts=2026-11-05T20:04:56Z
-- T-14539 — Make the suite-file subject check read what a verify layer really selects, including marker discovery (fix) — events.jsonl#ts=2026-11-05T20:26:37Z
-- T-14541 — Fix three small verb input gaps reported by <project> and <project> (empty from locator, probe_moments withdraw, forecast amend after Plan) (fix) — events.jsonl#ts=2026-11-05T21:00:46Z
-- T-14535 — Deliver the post-compaction restoration cue to every session, kernel and consumer, wherever it was started (fix) — events.jsonl#ts=2026-11-05T22:41:50Z
-- T-14540 — Make the nightly verdict-changes debt line compare the last two nights, not two nights from September (fix) — events.jsonl#ts=2026-11-06T06:32:13Z
-- T-14542 — Give a spent audit-post GREEN an admitted route through a hand-resolved admission merge (fix) — events.jsonl#ts=2026-11-06T06:49:59Z
-- T-14543 — Make the task commit --reship ceiling warning say what the command will actually open (fix) — events.jsonl#ts=2026-11-06T07:06:58Z
-- T-14544 — Admit a spent audit-post GREEN through any chain of its own sync merges with one complete merge-integration pass, and hold the reviewed candidate to land (fix) — events.jsonl#ts=2026-11-06T10:13:11Z
-- T-14546 — Admit the second --fix-red at the post ceiling that SPEC-0015 allows when the first fix folded the RED record (fix) — events.jsonl#ts=2026-11-06T12:10:33Z
-- T-14547 — Re-cut of : hold a clean sync merge open for a semantic edit (X-2289) and keep journal rows out of the merge-integration packet (X-2291) (fix) — events.jsonl#ts=2026-11-06T13:54:12Z
-- T-14548 — Name the user-level compaction cue in onboarding and stop printing cue NOT GUARANTEED when that entry is installed (fix) — events.jsonl#ts=2026-11-06T14:45:00Z
-- T-14549 — Make the merge-integration admission find a clean sync row that sits only in the main checkout journal again (regression after) (fix) — events.jsonl#ts=2026-11-06T15:13:45Z
-- T-14551 — Clear the scheduled pre-deploy red line on a passed full gated-deploy run of a descendant candidate, and name the re-run in the line (fix) — events.jsonl#ts=2026-11-06T16:07:42Z
-- T-14550 — Do not close a peer's bugfix or task cross item with only machine provenance; the resolving card carries the peer's next step (fix) — events.jsonl#ts=2026-11-06T16:33:25Z
-- T-14552 — Make audit post --preview answer the merge-integration admission exactly as the real verb does (fix) — events.jsonl#ts=2026-11-06T17:25:05Z
+- T-14554 — Merge-integration packet: carry the GREEN-judged task diff as a summary and reserve the required integration block first (X-2298) (fix) — events.jsonl#ts=2026-11-07T00:12:34Z
+- T-14556 — Make the published repo README read correctly: drop the stands paragraph, keep the tool names and the step-table columns (fix) — events.jsonl#ts=2026-11-07T11:59:20Z
+- T-14558 — Keep the abort row and its main-side copy byte-identical so the repeated-abort backstop counts one abort once (fix) — events.jsonl#ts=2026-11-09T20:11:39Z
+- T-14562 — Compare nginx vhost paths by realpath in host apply so a symlinked target is not its own collision (fix) — events.jsonl#ts=2026-11-09T20:57:50Z
+- T-14563 — Re-run the decomposition-fidelity gate for an executing plan whose card set changed (feature) — events.jsonl#ts=2026-11-09T23:20:02Z
+- T-14561 — Admit a passed-partial layer row narrowed only by the declared pre-deploy skip as a land-emitted layer ship (fix) — events.jsonl#ts=2026-11-10T02:14:11Z
+- T-14560 — Make kernel-written pre-deploy test rows citable when another row shares their second (fix) — events.jsonl#ts=2026-11-10T04:08:35Z
+- T-14564 — Skip the own-tests listing and install hint for a layer whose subject the diff does not reach (fix) — events.jsonl#ts=2026-11-10T05:05:46Z
+- T-14574 — Show a binary path in the merge-integration final task delta as path, size and blob id (fix) — events.jsonl#ts=2026-11-10T06:43:26Z
+- T-14445 — Make triage run, nightly, pre-deploy list, worktree sweep, task commit and plan check fold each segment once (fix) — events.jsonl#ts=2026-11-10T06:57:28Z
+- T-14573 — Make machine-wide settings owner-locked: a clear refusal on a locked file, and the current settings with their last changer at session start (fix) — events.jsonl#ts=2026-11-10T07:11:36Z
+- T-14443 — Make land hold the SPEC-0190 one-read-scope bound (48.1x folds per segment) (fix) — events.jsonl#ts=2026-11-10T07:26:58Z
+- T-14444 — Count or remove the whole-history parse graph query and session start do outside their counted fold (fix) — events.jsonl#ts=2026-11-10T07:42:10Z
+- T-14442 — Make task test hold the SPEC-0190 one-read-scope bound (164.9x folds per segment) (fix) — events.jsonl#ts=2026-11-10T08:02:16Z
+- T-14559 — Let the merge-integration tested-is-head check discount the spec paths the run's own close-time activation flipped (fix) — events.jsonl#ts=2026-11-10T08:16:22Z
+- T-14580 — Record the merge parent a worktree sync actually merged, and accept a clean sync row whose main moved before the merge (fix) — events.jsonl#ts=2026-11-10T08:27:54Z
+- T-14557 — Pin the deploy candidate across the C1 dump so a land during the dump cannot fail the security gate late (fix) — events.jsonl#ts=2026-11-10T09:32:46Z
+- T-14566 — Write admission settings once per distinct configuration and compact the journal JSON separators (feature) — events.jsonl#ts=2026-11-10T09:50:41Z
+- T-14583 — Forbid writing project knowledge into a provider-specific store; the project repository is its only home (feature) — events.jsonl#ts=2026-11-10T11:13:40Z
+- T-14568 — Encode the per-test-file results in test-run rows as a lossless compact table (feature) — events.jsonl#ts=2026-11-10T12:11:53Z
+- T-14567 — Prepare every journal reader for a dated live-segment family while the single writer stays (refactor) — events.jsonl#ts=2026-11-10T12:32:16Z
+- T-14569 — Give the pre-deploy skip set a versioned canonical identity and compact the land request evidence (feature) — events.jsonl#ts=2026-11-10T13:22:45Z
+- T-14585 — Write the live journal as one partition per UTC ts day and convert the single live file, carrying branch (feature) — events.jsonl#ts=2026-11-11T08:43:53Z
+- T-14593 — Name the declare route when a probe-moment withdrawal is refused on a card that has none (fix) — events.jsonl#ts=2026-11-11T13:31:15Z
+- T-14589 — Name only a commit of the card's current branch in the next-step cue that points to audit post --commit (fix) — events.jsonl#ts=2026-11-11T13:56:13Z
+- T-14588 — Make the resume-first dispatch brief run task resume and stage in the adopted worktree, not the main checkout (fix) — events.jsonl#ts=2026-11-11T14:09:41Z
+- T-14587 — Read the journal day partitions in every check that still reads only the root events.jsonl after the journal cut (fix) — events.jsonl#ts=2026-11-11T14:54:01Z
+- T-14594 — Convert a worktree opened before the journal cut so its journal is never a mixed layout (fix) — events.jsonl#ts=2026-11-11T15:34:13Z
+- T-14586 — Run a consumer venue pass on the engine its host runs, shipped with each pass (feature) — events.jsonl#ts=2026-11-11T16:04:52Z
+- T-14592 — Make every admission wait say why work waits one at a time and what is ahead of it (fix) — events.jsonl#ts=2026-11-11T16:31:52Z
+- T-14597 — Catch structural repo-wide test failures before the box and name their changed path (infra) — events.jsonl#ts=2026-11-11T16:56:50Z
+- T-14601 — Name the queued_command attachment entry when a mid-turn owner_directive cannot find its transcript entry (fix) — events.jsonl#ts=2026-11-11T17:33:33Z
+- T-14600 — Make audit post --followup find a followup born in a journal day partition (fix) — events.jsonl#ts=2026-11-11T17:53:51Z
+- T-14602 — Restore the dispatch-status byte-identity that admission_wait key broke on main (fix) — events.jsonl#ts=2026-11-11T19:03:08Z
+- T-14595 — Let a gated deploy block every land, governed run and main-moving self-commit from the moment it is queued, carrying work (fix) — events.jsonl#ts=2026-11-11T19:40:55Z
+- T-14596 — Measure the whole Stage-6 card cycle and the land on one exclusive timeline (infra) — events.jsonl#ts=2026-11-11T20:18:45Z
+- T-14603 — Keep a listed pre-deploy test in the run when the card changes a module it imports, not only a file it names (fix) — events.jsonl#ts=2026-11-11T21:21:56Z
+- T-14604 — Make the held-turn land recipe in the dispatch brief find the worker pid through the segment-aware journal reader (fix) — events.jsonl#ts=2026-11-11T22:09:52Z
+- T-14599 — Cut the largest measured fixed cost of a credited land (infra) — events.jsonl#ts=2026-11-11T23:08:51Z
+- T-14598 — Finish a green card through close, sync and land as one explicitly requested chain (infra) — events.jsonl#ts=2026-11-11T23:46:48Z
+- T-14608 — Regenerate the kernel-vs-self manifest when a spec gains or loses an implements anchor (fix) — events.jsonl#ts=2026-11-12T08:09:01Z
+- T-14606 — Run every test that pins a spec's text when a land or a run changes that spec (fix) — events.jsonl#ts=2026-11-12T09:25:56Z
+- T-14605 — Stage and restore the journal day partitions in the closure record and in a land abort, and teach the reader census the allowlist and restore shapes (fix) — events.jsonl#ts=2026-11-12T10:12:02Z
+- T-14610 — List release tags with the per-call repository trust so release check works for a user who does not own the mirror clone (fix) — events.jsonl#ts=2026-11-12T17:43:26Z
+- T-14609 — Give a governed audit-post route when a bookkeeping-only task commit displaced an unlanded authored ship (fix) — events.jsonl#ts=2026-11-12T18:17:09Z
+- T-14611 — Tell a wrong declared anchor apart from a modified release cache in the pin refusal (fix) — events.jsonl#ts=2026-11-12T19:51:45Z
+- T-14612 — Run the parts of a split plan check concurrently and record per-part timing (feature) — events.jsonl#ts=2026-11-15T11:06:09Z
+- T-14613 — Render each prototype carry hunk once in the audit-post packet, so a hunk shared by many items and locators is not repeated (X-2380) (fix) — events.jsonl#ts=2026-11-15T12:16:19Z
+- T-14614 — Read a halted worker as terminally over across its own halt-protocol rows, so its leftover test server no longer pins the re-dispatch (X-2381) (fix) — events.jsonl#ts=2026-11-15T13:06:10Z
+- T-14615 — Make land find the task closes it folded across every journal segment, so the resolves_cross cross_done fires again after the journal cut (fix) — events.jsonl#ts=2026-11-15T15:06:00Z
+- T-14616 — Open the audit packet ceiling as one tunable key under SPEC-1031, so a project can raise it without a kernel bugfix (X-2386) (feature) — events.jsonl#ts=2026-11-15T15:40:17Z
+- T-14617 — Make the post-GREEN merge-integration re-audit carry the resolution, and reference what the GREEN verdict already judged (X-2384) (fix) — events.jsonl#ts=2026-11-15T16:52:06Z
+- T-14624 — Make the cut gate ask the right questions - successor-or-in-place per spec, path evidence for a verifier, fixtures only for named preconditions, prior findings with an absorption sweep on a re-run (feature) — events.jsonl#ts=2026-11-15T20:15:31Z
+- T-14623 — Return a silent test to the land run when the diff touches the paths it declares - a returns-on glob list on the SPEC-1051 silent-list entry (feature) — events.jsonl#ts=2026-11-15T21:47:30Z
+- T-14620 — Derive the dispatch watch timeout default from the project's recorded card durations (feature) — events.jsonl#ts=2026-11-15T22:56:34Z
+- T-14625 — Emit task-card skeletons from a plan's units - the Units form in the SPEC-0043 skeleton, items, requires, expected_touch and cites derived from it (feature) — events.jsonl#ts=2026-11-15T23:41:11Z
+- T-14618 — Add the structural pre-pass lines - used-before-created, owner answers outside the plan - and stop asking for card ids before decomposition (feature) — events.jsonl#ts=2026-11-16T09:02:14Z
+- T-14632 — Let land test selection read a journal day file archive/events-YYYY-MM-DD.jsonl as the journal, so a card-filing batch stops paying the full suite (fix) — events.jsonl#ts=2026-11-16T10:11:45Z
+- T-14627 — Accept a plan on one cumulative change check from its confirmation anchor - a small method spec born by this card, the accept gate's second admission arm, the next-step cue after a RED anchor (feature) — events.jsonl#ts=2026-11-16T10:42:37Z
+- T-14619 — Give work commit explicit paths and record the from-spike park as next-round with the successor slug (feature) — events.jsonl#ts=2026-11-16T11:16:04Z
+- T-14630 — Write the sandbox and draft-documents method texts - a plan-draft-documents pattern, spike-mode sections 5c, 5d and 6, the SPEC-0043 draft-documents slot, one big-plan-checklist line (feature) — events.jsonl#ts=2026-11-16T11:58:46Z
+- T-14626 — Add the mechanical cut-set pre-check printed before the decomposition-fidelity gate - cycles, writers, declared creations, spec files in expected_touch (feature) — events.jsonl#ts=2026-11-16T12:30:58Z
+- T-14621 — Fix two prototype-carry defects - task update --set-field prototype_lines through the governed route, no stray events.jsonl picked by existence alone (fix) — events.jsonl#ts=2026-11-16T12:58:10Z
+- T-14634 — Bring session start back under the seam read bound with one request-scoped read scope (fix) — events.jsonl#ts=2026-11-16T13:21:40Z
+- T-14633 — Let a kernel card cite its consumer land row as P8 evidence - the consumer-journal ref form never resolves for a kernel card (fix) — events.jsonl#ts=2026-11-16T13:50:07Z
+- T-14628 — Add plan-check rounds under a scope lens - plan check --round with a scope on every finding, the plan-scope verdict, a record under its own name, the P4 round template and the next step after a RED round (feature) — events.jsonl#ts=2026-11-16T14:01:45Z
+- T-14622 — Let one prototype exit into several plans - a registry disposition carried-by-plan that names the earlier plan, one line per inherited item (feature) — events.jsonl#ts=2026-11-16T15:04:53Z
+- T-14635 — Bring dispatch back under the seam read bound - fold each task once and stop the watch tick re-parsing the journal (fix) — events.jsonl#ts=2026-11-16T15:30:59Z
+- T-14629 — Fold a split check's findings into themes in the record - pair-preserving members, per-scope maxima, verdict-neutral, raw findings kept with their part label (feature) — events.jsonl#ts=2026-11-16T16:34:08Z
+- T-14638 — Warn report-only when a spec edit or a new spec adds history to a rule body outside Rationale (feature) — events.jsonl#ts=2026-11-16T17:20:24Z
+- T-14640 — Find and remove the slowdown the journal day-partition cut brought to journal-writing verbs (infra) — events.jsonl#ts=2026-11-16T17:55:01Z
+- T-14653 — Rewrite the two host project names in machine_settings.py help strings so work publish can cut the next release (fix) — events.jsonl#ts=2026-11-16T18:35:58Z
+- T-14651 — Name the unit-skeletons view where the cut happens - a cue at plan stage decomposition when the plan declares Units, and one pointer sentence in SPEC-0070 (feature) — events.jsonl#ts=2026-11-16T18:53:22Z
+- T-14643 — Refuse a plan aggregate audit whose bounded packet carries none of the corpus it grades, and keep the plan's member lists in every packet (fix) — events.jsonl#ts=2026-11-16T19:37:16Z
+- T-14654 — Rewrite the two host project names in the spec.py history-narration regex so work publish can cut the next release (fix) — events.jsonl#ts=2026-11-16T19:52:37Z
+- T-14647 — Make the old-shape land refusal state the cause it actually observed and name only remedies the running engine has (fix) — events.jsonl#ts=2026-11-16T20:08:16Z
+- T-14652 — Point at the sandbox round cycle from the verbs that open and close a round - one cue line naming spike-mode 5d and 6 at the spike open, the next-round open and the spike park (feature) — events.jsonl#ts=2026-11-16T20:36:05Z
+- T-14650 — Refuse journal cut when the repository runs a pinned engine other than the one cutting, so the engine and the journal shape move together (fix) — events.jsonl#ts=2026-11-16T20:52:18Z
+- T-14644 — Admit the post-GREEN merge-integration pass across the kernel's own record-only commits between the hand merge and the re-sign, and name the real cause when it refuses (fix) — events.jsonl#ts=2026-11-16T21:14:22Z
+- T-14641 — Let land journal read scopes carry across a day partition the merge or fold rewrote (infra) — events.jsonl#ts=2026-11-16T21:30:33Z
+- T-14645 — Judge lifecycle-integrity against the first completion that actually completed - an aborted land is not a land (fix) — events.jsonl#ts=2026-11-16T21:47:05Z
 
 ## Trust surfaces
 

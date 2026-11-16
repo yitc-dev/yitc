@@ -122,23 +122,23 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ a new guard — the wave author checks the named spec is active on main before sending.\n\
   **INCIDENT (why this is a named rule):** X-0480 (a SPEC-0162 declare-or-waive wave\
   \ while SPEC-0162\nlived only on unlanded task) and X-0507 (SPEC-0164, same shape)\
-  \ — <project> burned a\ngoverned-halt and a parked intake because it was asked to\
-  \ adopt against a not-yet-resolvable cite.\n\n**RETIREMENT (named, P1 F3):** the\
-  \ FLEET-WAIT / DEFERRED-ACTIVATION reading — \"an adoptable capability\nstays `proposed`\
-  \ until EVERY consumer has declared-or-waived, so fleet completeness is an ACTIVATION\n\
-  precondition\" — is RETIRED. It was never this spec's text (rule 1 has always been\
-  \ scoped to a\nconsumer's OWN init); it arose as an INFERENCE from rule 1's completeness\
-  \ framing and is retired\nexplicitly here so it cannot re-form. What it cost while\
-  \ it stood: the kernel waited on un-editable\ncross-territory state, adopters got\
-  \ nothing until the slowest consumer answered, and consumers were\nasked to declare\
-  \ against a capability that was not yet active.\n\n### Orthogonal axes (clarification\
-  \ — carried from plan §A.2, no parallel meaning)\nThe SPEC-0101 marker (`adoptable\
-  \ | internal-only` — IS this capability consumer-adoptable at all) and\nthe SPEC-0093\
-  \ per-project declare/waive record (DID this project take it) stay TWO DISTINCT\
-  \ axes in\ndistinct files. This spec touches only the SECOND axis (and READS the\
-  \ first to compute the rule-1\nauthoritative set).\n\n### Deferred (NOT this spec\
-  \ — moved out per the 2026-06-27 external scope consult)\nTwo refinements once drafted\
-  \ here are DEFERRED to a later carrier, opened only at a real CATALOG-EXTENSION\n\
+  \ — boomrocket burned a\ngoverned-halt and a parked intake because it was asked\
+  \ to adopt against a not-yet-resolvable cite.\n\n**RETIREMENT (named, P1 F3):**\
+  \ the FLEET-WAIT / DEFERRED-ACTIVATION reading — \"an adoptable capability\nstays\
+  \ `proposed` until EVERY consumer has declared-or-waived, so fleet completeness\
+  \ is an ACTIVATION\nprecondition\" — is RETIRED. It was never this spec's text (rule\
+  \ 1 has always been scoped to a\nconsumer's OWN init); it arose as an INFERENCE\
+  \ from rule 1's completeness framing and is retired\nexplicitly here so it cannot\
+  \ re-form. What it cost while it stood: the kernel waited on un-editable\ncross-territory\
+  \ state, adopters got nothing until the slowest consumer answered, and consumers\
+  \ were\nasked to declare against a capability that was not yet active.\n\n### Orthogonal\
+  \ axes (clarification — carried from plan §A.2, no parallel meaning)\nThe SPEC-0101\
+  \ marker (`adoptable | internal-only` — IS this capability consumer-adoptable at\
+  \ all) and\nthe SPEC-0093 per-project declare/waive record (DID this project take\
+  \ it) stay TWO DISTINCT axes in\ndistinct files. This spec touches only the SECOND\
+  \ axis (and READS the first to compute the rule-1\nauthoritative set).\n\n### Deferred\
+  \ (NOT this spec — moved out per the 2026-06-27 external scope consult)\nTwo refinements\
+  \ once drafted here are DEFERRED to a later carrier, opened only at a real CATALOG-EXTENSION\n\
   pull (not at L2/L3, which are non-catalog section-adds with their own evidence —\
   \ see Rationale):\n- **a derived \"wired/firing\" view across catalog members**\
   \ — deferred until ≥2 catalog members expose\n  ONE common computable evidence surface\
@@ -147,7 +147,7 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ infra|code`** — deferred until ≥2 honest infra-vs-code cases exist (one example\
   \ does\n  not earn a new carrier axis — anti-cx F4).\nTracking home: the population\
   \ tracker + this note (no prose-only deferral — <workshop-spec>).\n\n## Rationale\n\
-  \nThe 3-project breadth study (<project> / <project> / <project>) showed a CLASS\
+  \nThe 3-project breadth study (trend-finder / boomrocket / <project>) showed a CLASS\
   \ of cross-cutting\ncapabilities each project re-derives, with the recurring failure\
   \ that \"silence\" on a capability was\nambiguous (off-by-conscious-choice vs simply\
   \ forgotten). This spec makes the catalog set's coverage\ncomplete + fail-closed\

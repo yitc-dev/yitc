@@ -887,7 +887,7 @@ def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consum
     discoverability. The corpus-BLIND `bin/yitc-v2 graph query <D>` it replaced could not SATISFY the
     gate that printed it: a fetch run from the engine cwd without `-C` records its `cli_invoked` receipt
     on the KERNEL journal while this gate reads the CONSUMER journal, so the identical list re-printed
-    and the natural retry repeated the wrong-corpus fetch (the <project> loop — 3 duplicate calls per
+    and the natural retry repeated the wrong-corpus fetch (the trend-finder loop — 3 duplicate calls per
     contract). Engine self-build (`_is_consumer_build()` False) keeps the bare form, byte-identical.
 
     `credited_out` (T-11885, additive OUT-param — the same shape `_fetched_spec_ids` already uses for

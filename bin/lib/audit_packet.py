@@ -167,6 +167,11 @@ _PACKET_PROTECTED_PREFIXES = (
     "### Plan body",             # T-13824 — the text an aggregate plan audit grades the corpus AGAINST,
                                  # the plan-target peer of the card fields below; measured unprotected
                                  # on a real 87-text corpus it was the largest section and kept 9%.
+    "### Realization corpus",               # T-14643 — the plan packet's member lists and their heading:
+    "### Specs realized by this plan",      # which specs and cards the plan is graded on. A few KB each,
+    "### Implementing tasks (cites:",       # rendered only in a plan packet; cut to 0 B they hid WHAT the
+                                            # corpus is (X-2391). The decision packet's `(refs.follow_ups`
+                                            # heading is a different prefix and stays trimmable.
     "## Ad-hoc request:",
     "## Consult target:",
     "## Focus questions",
@@ -187,6 +192,15 @@ _PACKET_PROTECTED_PREFIXES = (
 
 _PACKET_KEEP_TAIL_PREFIXES = (
     "### Adoption evidence",
+)
+
+# T-14554 (X-2298, SPEC-1018) — on an admitted merge-integration packet the trimmable set is INVERTED
+# back to a CLOSED optional set: everything else (the integration block, Extra context attachments,
+# prototype carry hunks, acceptance and test evidence, instructions) is REQUIRED and reserved first.
+MERGE_INTEGRATION_OPTIONAL_PREFIXES = (
+    "### Shipped diff",                       # the labelled summary of the duplicate task diff
+    "### Spec coverage of touched files",
+    "### Adoption evidence",                  # grows with corpus age; keeps its tail
 )
 
 # T-13538 — the `### Stage-6 test evidence` section's OWN budget. The heading is in
@@ -1385,6 +1399,8 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                        churn_tie: "dict | None" = None,
                        prototype_diff: "str | None" = None, prototype_identity: "dict | None" = None,
                        prototype_carry_block: "str | None" = None,   # T-14458 (SPEC-1058 §3)
+                       merge_integration_block: "str | None" = None,   # T-14554 — explicit input
+                       shipped_diff_summary: "str | None" = None,      # T-14554 — display only
                        yaml_dump_block, latest_event_for, diff_touched_files,
                        norm_repo_path, ac_probe_evidence_events_for,
                        spec_coverage_section, build_referenced_files_section,
@@ -1449,7 +1465,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
     `preshipped_deliverable` (T-10062, --task audit-post only, SPEC-0036 / X-0201): the SIXTH SIBLING in
     the deferred-adoption family (after event_emit_only / serve_deploy / external_action / host_config /
     land_emitted_event). For a re-claimed task whose deliverable ALREADY LANDED in a PRIOR session
-    (<project> T-0131, X-0201), the re-claim diff is gate-proof + closure bookkeeping ONLY and carries
+    (boomrocket T-0131, X-0201), the re-claim diff is gate-proof + closure bookkeeping ONLY and carries
     NO deliverable → the base post overlay false-REDs "code shipped but not invoked" / "nothing shipped".
     Appends a pre-shipped-deliverable paragraph NAMING the derived prior deliverable commit
     (`preshipped_commit`, the task's durable `commit_landed` sha the cmd_audit fail-closed guard proved)
@@ -1518,7 +1534,10 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
     norm_repo_path, ac_probe_evidence_events_for, spec_coverage_section, build_referenced_files_section)
     are INJECTED by the bin/yitc-v2 wrapper (T-9248) — this module reads no host global."""
     lens = (
-        (_AUDIT_ADHOC_REVIEW_ONLY_CLAUSE if target_kind == "ad-hoc" else _AUDIT_REVIEW_ONLY_CLAUSE) + "\n"
+        # T-14554 — the merge-integration block asks the auditor to READ pinned objects, so that route
+        # takes the existing read-only variant; every other route keeps its clause byte-identical.
+        (_AUDIT_ADHOC_REVIEW_ONLY_CLAUSE if (target_kind == "ad-hoc" or merge_integration_block)
+         else _AUDIT_REVIEW_ONLY_CLAUSE) + "\n"
         "## V2 evaluation lens\n\n"
         "CHARTER principles check: anti-complexity (4 filters) / Done = Adopted (probe evidence) /\n"
         "Documentation-first (`from:` chain + spec-coverage of touched code — see the coverage section) / Single SoT (no parallel storage) / AI Independence\n"
@@ -2206,7 +2225,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             # T-10062 (SPEC-0036 / X-0201) — PRE-SHIPPED-DELIVERABLE carve-out (--task audit-post only). The
             # SIXTH SIBLING of event-emit-only / serve-deploy / external-action / host-config /
             # land-emitted-event in the same deferred-adoption family. When a PARKED task is re-claimed but
-            # its deliverable ALREADY LANDED in a PRIOR session (<project> T-0131, X-0201), the re-claim
+            # its deliverable ALREADY LANDED in a PRIOR session (boomrocket T-0131, X-0201), the re-claim
             # diff is gate-proof + closure bookkeeping ONLY and carries NO deliverable — the base post
             # overlay reads that as "code shipped but not invoked" / "nothing shipped" → structural
             # false-RED. UNLIKE the trust-model siblings, the prior deliverable commit is DERIVED from
@@ -2631,7 +2650,9 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             + (f"### Post-audit Tests order (SPEC-1038)\n{post_audit_tests}\n\n" if post_audit_tests else "")
             + f"### Stage-6 test evidence\n{stage6}\n\n"
             f"### Adoption evidence (CHARTER §P8 + journal-event AC probes)\n{adoption}\n\n"
-            f"### Shipped diff\n```diff\n{diff or '(no diff captured)'}\n```\n"
+            + (f"### Shipped diff — SUMMARY (merge-integration route, T-14554)\n{shipped_diff_summary}\n"
+               if shipped_diff_summary else
+               f"### Shipped diff\n```diff\n{diff or '(no diff captured)'}\n```\n")
         )
     if target_kind == "consult":   # T-0429 — strict survivors/recommendation schema for the triage
         output_spec = (
@@ -2907,6 +2928,10 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                               file=sys.stderr)
                     except Exception:      # noqa: BLE001 — a closed stderr must not fail an audit run
                         pass
+    # T-14554 — the merge-integration evidence is its OWN packet part (never generic Extra context),
+    # after the task body and before Focus / Extra; it is required content of the bound below.
+    if merge_integration_block:
+        parts.append(merge_integration_block)
     # T-0350 (SPEC-0036 --focus): the composable owner/session append — AFTER the overlay+body,
     # never replacing them; deterministically BEFORE ## Extra context (--prompt-extra).
     if focus:
@@ -2935,7 +2960,9 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
     # T-11328 — the TOTAL bound, at the ONE site where the packet becomes a packet. Every ceiling
     # before this one bounded a single segment; this is the first thing that measures the join. A
     # packet inside the ceiling passes through byte-identical, so an ordinary audit is unchanged.
-    bounded, _packet_elisions = _bound_packet_total("\n".join(parts))
+    bounded, _packet_elisions = _bound_packet_total(
+        "\n".join(parts),
+        trimmable_only=MERGE_INTEGRATION_OPTIONAL_PREFIXES if merge_integration_block else None)
     return bounded
 
 
@@ -3653,7 +3680,7 @@ def _packet_bound_elisions(text: str, *, _PACKET_MANIFEST_HEADER) -> list:
     return out
 
 
-def _bound_packet_total(text: str, *, max_bytes: int = None, AUDIT_MAX_PACKET_BYTES, _keep_within_budget, _linebytes, _packet_elision_marker, _packet_section_protected, _packet_sections, _render_packet_manifest):
+def _bound_packet_total(text: str, *, max_bytes: int = None, trimmable_only=None, AUDIT_MAX_PACKET_BYTES, _keep_within_budget, _linebytes, _packet_elision_marker, _packet_section_protected, _packet_sections, _render_packet_manifest):
     """Bound the WHOLE assembled audit packet, naming every section it cuts (T-11328).
 
     WHY THIS EXISTS ALONGSIDE `_bound_diff_for_audit`: that one bounds the DIFF, and it worked — on
@@ -3682,9 +3709,15 @@ def _bound_packet_total(text: str, *, max_bytes: int = None, AUDIT_MAX_PACKET_BY
       * A section rendered oldest-first keeps its TAIL (`_PACKET_KEEP_TAIL_PREFIXES`), so bounding
         adoption evidence can never hide the NEWEST proof and manufacture a false adoption gap.
 
+    `trimmable_only` (T-14554): a CLOSED tuple of heading prefixes — when given, ONLY those sections
+    may be trimmed and every other section is protected (reserved in the floor first). The admitted
+    merge-integration packet passes it; every other packet passes None and is bounded as before.
+
     Returns (bounded_text, elisions); elisions is empty when nothing was cut.
     """
     max_bytes = AUDIT_MAX_PACKET_BYTES if max_bytes is None else max_bytes
+    _protected = ((lambda lbl: not lbl.startswith(tuple(trimmable_only))) if trimmable_only
+                  else _packet_section_protected)
     if len(text.encode("utf-8", "replace")) <= max_bytes:
         return text, []                                   # untouched — the ordinary case
 
@@ -3695,9 +3728,9 @@ def _bound_packet_total(text: str, *, max_bytes: int = None, AUDIT_MAX_PACKET_BY
 
     # FLOOR: what is emitted unconditionally — every heading, every protected body, and (worst case)
     # one marker + one manifest line per trimmable section. Computed BEFORE any content is admitted.
-    trimmable = [i for i, (lbl, _h, _b) in enumerate(sections) if not _packet_section_protected(lbl)]
+    trimmable = [i for i, (lbl, _h, _b) in enumerate(sections) if not _protected(lbl)]
     floor = sum(nbytes(h) for _l, h, _b in sections)
-    floor += sum(nbytes(b) for lbl, _h, b in sections if _packet_section_protected(lbl))
+    floor += sum(nbytes(b) for lbl, _h, b in sections if _protected(lbl))
     worst = [{"label": sections[i][0], "kept_lines": 0, "total_lines": len(sections[i][2]),
               "kept_bytes": 0, "total_bytes": nbytes(sections[i][2])} for i in trimmable]
     floor += nbytes(_render_packet_manifest(worst, over_floor=True))
@@ -3727,7 +3760,7 @@ def _bound_packet_total(text: str, *, max_bytes: int = None, AUDIT_MAX_PACKET_BY
     out, elisions = [], []
     for i, (label, header, body) in enumerate(sections):
         out.extend(header)
-        if _packet_section_protected(label):
+        if _protected(label):
             out.extend(body)                                # never cut — instructions and criteria
             continue
         keep_tail = label.startswith(_PACKET_KEEP_TAIL_PREFIXES)

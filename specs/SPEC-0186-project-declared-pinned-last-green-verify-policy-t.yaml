@@ -59,7 +59,7 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   \ the fail-closed sweep DEMANDS nothing — it never asks a project to declare this\
   \ section, and only\nchecks the SHAPE of one that is present. Two roads to the same\
   \ safe state, neither of them a presence\nrequirement. This is also why EXISTING\
-  \ consumers need no migration: <project> / <project> / <project> hold\na `yitc-ops.yaml`\
+  \ consumers need no migration: <project> / <project> / boomrocket hold\na `yitc-ops.yaml`\
   \ that will not receive the new section, and that is correct BY CONSTRUCTION rather\
   \ than\nan undelivered carrier — so the parked born-subfield-delivery card is NOT\
   \ triggered by this\nconcern.\n\n**The schema is VALUE-DEPENDENT, stated here so\
@@ -141,7 +141,7 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   \ publication of a release already cut; ONE\n`verify.layers` entry, its whole suite;\
   \ ONE `moment: pre-deploy` class in `tests.classes`; its\nown `thresholds:` (SPEC-1031\
   \ rule 4); and a `verify.venue` mapping naming what its suite needs on a\nverify\
-  \ box (SPEC-1032 rules 1 and 6), which the engine's own Stage-6 and land routing\
+  \ box (<workshop-spec> rules 1 and 6), which the engine's own Stage-6 and land routing\
   \ do not read. `init.engine_declaration_errors` is the one admission that\njudges\
   \ which of these the file holds. The engine stays exempt from the consumer contract\
   \ checks,\nso carrying these keys makes it no consumer of its ops contract. The\
@@ -316,4 +316,4 @@ implements_signature:
   bin/lib/init.py#engine_declaration_errors: c412ae20127e6e7f9c2feb2fe460f04a78f3a52cb008d1d1c16fd3763f5e05b1
   bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc
   bin/lib/task.py#_verify_policy_stage6_credit: c40c97aedbc5d0ef2b7d051528dce313b6c27284402d16107aef77673de3b74f
-  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663
+  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800

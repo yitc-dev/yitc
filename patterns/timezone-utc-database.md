@@ -54,7 +54,7 @@ Critical details:
 **PostgreSQL config check:**
 
 ```sql
-SHOW timezone; -- should be 'UTC'
+SHOW timezone;  -- should be 'UTC'
 ALTER DATABASE mydb SET timezone TO 'UTC';
 ```
 

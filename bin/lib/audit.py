@@ -43,6 +43,7 @@ from lib import state  # lower extracted leaf (CHARTER §P5 one parser library) 
 from lib import journal as journal_mod  # T-11444: the SPEC-0190 segment-aware journal folds
 from lib import events as events_mod  # T-11536: the SPEC-0190 segment-membership definer
 from lib import observe  # SPEC-0135 / T-10121: auditor-side observation-loop identity+timing capture
+from lib import machine_settings  # T-14616: the packet ceiling's one inventory home (stdlib-only leaf)
 from lib import audit_consult  # T-12696: the extracted consult subsystem (stdlib-only leaf; the
                               # host keeps a residue under every historical name, see _consult_inject)
 
@@ -91,7 +92,13 @@ AUDIT_MAX_DIFF_BYTES = 300_000       # T-11136: the BYTE axis. A 2.3MB packet is
                                      # verdict at all, while a 331KB / 5000-line packet is measured to
                                      # answer — so the ceiling sits under the proven-answering size. The
                                      # line axis alone cannot bound bytes (one 240KB line satisfies it).
-AUDIT_MAX_PACKET_BYTES = 450_000     # T-11328: the TOTAL axis — the ceiling on the WHOLE assembled
+#: T-14616 (X-2386, SPEC-1031 rule 3) — the ceiling is the OPENED THRESHOLD key below; its number lives in
+#: the inventory entry alone (rule 9). Read the value in force through `audit_packet_ceiling`, never this
+#: constant: it is the BUILT-IN default only, kept as a module name because the read site answers it
+#: whenever no project value is set (so a test that patches it still steers the built-in arm).
+PACKET_CEILING_KEY = "lib.audit.AUDIT_MAX_PACKET_BYTES"
+AUDIT_MAX_PACKET_BYTES = machine_settings.BY_NAME[PACKET_CEILING_KEY].default
+                                     # T-11328: the TOTAL axis — the ceiling on the WHOLE assembled
                                      # packet, the level the two ceilings above never reached. They
                                      # bound ONE SEGMENT (the diff); nothing measured the join. MEASURED
                                      # on T-11319: the packet was 979708 B (~245k tokens) and the auditor
@@ -116,9 +123,6 @@ AUDIT_FULL_TIMEOUT_SECONDS = 2160    # T-13450 (was 900, T-13205) — the FULL-t
                                      # 10-03; p99 926, max 948 — right-censored at the old 900 wall)
                                      # x 2.677 = 2149.6 -> ceil to the minute = 2160. Per machine:
                                      # `config set auditor.full.timeout <secs>` (SPEC-0202 rule 1).
-#: T-12233 — the CONSULT-packet bound, defaulting to today's effective whole-packet ceiling so the
-#: registered default IS the current behaviour. Read through `consult_packet_max_bytes`, never here.
-CONSULT_PACKET_MAX_BYTES = AUDIT_MAX_PACKET_BYTES
 
 AUDIT_INSPECTION_TIMEOUT_SECONDS = 1320  # T-13450 RE-DERIVED (was 540): inspection primary p95 473 s
                                      # (n=523 successful ad-hoc/consult runs, 2026-09-03..10-03) x the
@@ -223,6 +227,32 @@ def _inspection_timeout_seconds() -> int:
     except Exception:            # noqa: BLE001 — SPEC-0193 rule 6: never a prerequisite
         return AUDIT_INSPECTION_TIMEOUT_SECONDS
     return val if val > 0 else AUDIT_INSPECTION_TIMEOUT_SECONDS
+
+
+#: T-14616 — the checkout whose yitc-ops.yaml `thresholds:` the packet ceiling is read from: the host's
+#: REPO_ROOT, recorded by `cmd_audit` / `cmd_audit_consult` on entry (this leaf reads no host global of
+#: its own). None outside an audit verb: the read then answers the built-in default.
+_PACKET_CEILING_ROOT = None
+
+
+def audit_packet_ceiling() -> dict:
+    """T-14616 (SPEC-1031 rules 4-6) — the whole-packet ceiling IN FORCE for the project this audit runs
+    in, as `{"key", "value", "source"}`: the THRESHOLD `lib.audit.AUDIT_MAX_PACKET_BYTES` read from the
+    project's yitc-ops.yaml `thresholds:` section (`_PACKET_CEILING_ROOT` — the audited checkout), else the built-in
+    default. Every ignored section entry is named once on stderr (rule 5). A `built-in` source answers the
+    LIVE module constant, so the default stays one name for every reader. Never raises: a carrier or
+    settings fault reads as the built-in default (rule 8) — the gate it feeds stays hard either way."""
+    try:
+        from lib import profile as _profile      # deferred: the ops-carrier reader land/config use
+        root = _PACKET_CEILING_ROOT
+        ops = _profile._load_ops(Path(root)) if root is not None else None
+        rec = machine_settings.in_force(PACKET_CEILING_KEY, ops=ops)
+        machine_settings.say_notes(rec["notes"])
+    except Exception:            # noqa: BLE001 — SPEC-1031 rule 8: never a prerequisite
+        rec = {"source": "built-in"}
+    if rec.get("source") != "yitc-ops.yaml":
+        return {"key": PACKET_CEILING_KEY, "value": AUDIT_MAX_PACKET_BYTES, "source": "built-in"}
+    return {"key": PACKET_CEILING_KEY, "value": int(rec["value"]), "source": rec["source"]}
 
 
 @functools.wraps(audit_consult.consult_packet_max_bytes)
@@ -2817,6 +2847,10 @@ def prototype_diff_text(repo_root, ref: str) -> "str | None":
 # plan is read at `main`, where an owner amendment lands, so the next audit sees it without a sync.
 PROTOTYPE_CARRY_ITEMS_HEADING = "### Prototype carry items"
 PROTOTYPE_CARRY_HUNKS_HEADING = "### Prototype carry hunks"
+PROTOTYPE_CARRY_HUNKS_LEGEND = (   # T-14613 — each distinct hunk once, the locators mapped onto it
+    "Each item locator below names the prototype hunk(s) it falls in; each distinct hunk is shown once, "
+    "whole, after the map.\n\n"
+)
 PROTOTYPE_CARRY_PRE_OVERLAY = (
     "PROTOTYPE CARRY (SPEC-1058 §3): the prototype diff is the SPECIFICATION, not the deliverable. A plan "
     "that reduces to copying named paths from it is RED; state your own design and your own tests. Build "
@@ -2867,8 +2901,8 @@ def prototype_carry_context(repo_root, task: dict) -> "dict | None":
     for iid in map(str, lines):
         if iid not in by_id:
             return {"fault": f"prototype_lines names {iid}, which the registry does not carry"}
-        if by_id[iid]["disposition"] == "not-carried":
-            return {"fault": f"prototype_lines names {iid}, a `not-carried` item"}
+        if by_id[iid]["disposition"] != "carry":   # not-carried, or carried-by-plan (T-14622)
+            return {"fault": f"prototype_lines names {iid}, a `{by_id[iid]['disposition']}` item"}
     own = [by_id[str(i)] for i in lines]
     surfaces = {str(it["surface"]) for it in own}
     return {
@@ -2882,21 +2916,40 @@ def prototype_carry_context(repo_root, task: dict) -> "dict | None":
     }
 
 
-def prototype_carry_hunks(repo_root, ctx: dict, item: dict) -> "tuple[str, str | None]":
+def _prototype_carry_hunk_registry() -> dict:
+    """T-14613 (X-2380) — the one-render registry of a carry block: each distinct prototype hunk keyed by
+    (path, exact hunk text), labelled H1..Hn in first-seen order, and each path's diff read once."""
+    return {"labels": {}, "hunks": [], "diffs": {}}
+
+
+def _prototype_carry_render_hunks(registry: dict) -> str:
+    """Every distinct hunk of the registry, once, under its label (T-14613)."""
+    return "\n".join(f"{label} {path}:\n```diff\n{text}\n```" for label, path, text in registry["hunks"])
+
+
+def prototype_carry_hunks(repo_root, ctx: dict, item: dict, registry: "dict | None" = None
+                          ) -> "tuple[str, str | None]":
     """The prototype hunks of one item's locators (text, fault): those overlapping the locator's range
-    on the new side, the old side for a `removed` item (its locator points into the base)."""
+    on the new side, the old side for a `removed` item (its locator points into the base). T-14613: each
+    locator yields ONE map line naming the label(s) of the hunk(s) it falls in, or «(no hunk at this
+    locator)»; the hunk text itself goes into `registry` once, however many locators and items reach it.
+    With no `registry`, the item's map is followed by its own distinct hunks."""
     from lib import plan as plan_lib   # noqa: PLC0415
+    own_registry = registry is None
+    reg = _prototype_carry_hunk_registry() if own_registry else registry
     old_side, out = item.get("kind") == "removed", []
     for loc in item.get("locators") or ():
         m = plan_lib._PROTO_LOCATOR_RE.match(str(loc).strip())
         path, a = m.group("path"), int(m.group("a"))
         b = int(m.group("b") or a)
-        diff, err = plan_lib._plan_prototype_git(repo_root, "diff", "--no-ext-diff", "--no-renames",
-                                                 f"{ctx['base']}...{ctx['tip']}", "--", path)
-        if err:
-            return "", f"git diff of {path} failed: {err}"
+        if path not in reg["diffs"]:
+            diff, err = plan_lib._plan_prototype_git(repo_root, "diff", "--no-ext-diff", "--no-renames",
+                                                     f"{ctx['base']}...{ctx['tip']}", "--", path)
+            if err:
+                return "", f"git diff of {path} failed: {err}"
+            reg["diffs"][path] = diff or ""
         hunks, cur = [], None
-        for ln in (diff or "").splitlines():
+        for ln in reg["diffs"][path].splitlines():
             h = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", ln)
             if h:
                 start, count = ((h.group(1), h.group(2)) if old_side else (h.group(3), h.group(4)))
@@ -2906,9 +2959,18 @@ def prototype_carry_hunks(repo_root, ctx: dict, item: dict) -> "tuple[str, str |
                     hunks.append(cur)
             elif cur is not None:
                 cur.append(ln)
-        body = "\n".join("\n".join(h) for h in hunks) or "(no hunk at this locator)"
-        out.append(f"{item['id']} {loc}:\n```diff\n{body}\n```")
-    return "\n".join(out), None
+        labels = []
+        for h in hunks:
+            key = (path, "\n".join(h))
+            if key not in reg["labels"]:
+                reg["labels"][key] = f"H{len(reg['hunks']) + 1}"
+                reg["hunks"].append((reg["labels"][key], path, key[1]))
+            labels.append(reg["labels"][key])
+        out.append(f"- {item['id']} {loc} -> " + (", ".join(labels) or "(no hunk at this locator)"))
+    text = "\n".join(out)
+    if own_registry and reg["hunks"]:
+        text += "\n\n" + _prototype_carry_render_hunks(reg)
+    return text, None
 
 
 def prototype_carry_diff(repo_root, ctx: dict) -> "tuple[str | None, str | None]":
@@ -2931,17 +2993,51 @@ def _prototype_carry_item_text(it: dict) -> str:
                f"trial evidence for it is not a finding\n" if it.get("owner_risk") else ""))
 
 
-def prototype_carry_block(repo_root, stage: str, ctx: dict) -> "tuple[str | None, str | None]":
+def _prototype_carry_item_paths(it: dict) -> set:
+    """The paths an item's locators name (T-14617)."""
+    from lib import plan as plan_lib   # noqa: PLC0415
+    out = set()
+    for loc in it.get("locators") or ():
+        m = plan_lib._PROTO_LOCATOR_RE.match(str(loc).strip())
+        if m:
+            out.add(m.group("path"))
+    return out
+
+
+def prototype_carry_block(repo_root, stage: str, ctx: dict, *, touched=None, green=None
+                          ) -> "tuple[str | None, str | None]":
     """The packet block of a carry card (block, fault). None at audit-pre for a `[]` card: it builds
-    no item, so rule 5's packet stands there."""
+    no item, so rule 5's packet stands there.
+
+    T-14617 (SPEC-1018 «The merge-integration packet») — `touched` (a post-GREEN merge-integration
+    pass whose GREEN judged this same registry): only the items, own and not-carried, with a locator
+    on a touched path render, with their hunks; every other item is named by id with `green` (the
+    GREEN verdict's locator) and read-only retrieval pointers. Without `touched`: unchanged."""
     own = ctx["items"]
     if stage == "post" and not own:
         return (f"\n{PROTOTYPE_CARRY_ITEMS_HEADING} (SPEC-1058 §3)\n\n" + PROTOTYPE_CARRY_FORWARD_ONLY_QUESTION.format(
             surfaces=", ".join(ctx["all_surfaces"]) or "none")), None
     if not own:
         return None, None
-    items = "".join(_prototype_carry_item_text(it) for it in own)
-    head = f"\n{PROTOTYPE_CARRY_ITEMS_HEADING} (SPEC-1058 §3 — prototype commit {ctx['tip']})\n\n{items}\n"
+    not_carried, by_ref = ctx["not_carried"], ""
+    if stage == "post" and touched is not None:
+        keep = lambda it: bool(_prototype_carry_item_paths(it) & set(touched))   # noqa: E731
+        ref_ids = [str(it["id"]) for it in [*own, *not_carried] if not keep(it)]
+        own, not_carried = [it for it in own if keep(it)], [it for it in not_carried if keep(it)]
+        if ref_ids:
+            by_ref = (
+                f"BY REFERENCE (T-14617, SPEC-1018 «The merge-integration packet»): this post-GREEN "
+                f"merge-integration pass renders only the items with a locator on a path the merge chain "
+                f"or main touched since the GREEN. The GREEN verdict (journal {green or 'not recorded'}) "
+                f"judged every item both ways with its hunks, the registry is unchanged since it (same "
+                f"carry fingerprint), and no step of the chain touched these items' paths, so they are "
+                f"named, not rendered again: {', '.join(ref_ids)}. Read them read-only: the plan's "
+                f"`## Prototype registry` on main, and a hunk with `git --literal-pathspecs diff "
+                f"{ctx['base']}...{ctx['tip']} -- <path>`.\n\n")
+    items = ("".join(_prototype_carry_item_text(it) for it in own)
+             or "(none of this card's items has a locator on a path the integration touched)\n")
+    head = (f"\n{PROTOTYPE_CARRY_ITEMS_HEADING} (SPEC-1058 §3 — prototype commit {ctx['tip']})\n\n"
+            f"{by_ref}{items}\n")
     if stage == "pre":
         open_ids = [str(it["id"]) for it in own if not it.get("owner_row") and not it.get("owner_risk")]
         ask = (f"An unresolved departure from the expected state of {', '.join(open_ids)} is a stop-and-ask: "
@@ -2950,15 +3046,20 @@ def prototype_carry_block(repo_root, stage: str, ctx: dict) -> "tuple[str | None
                + ("cited owner amendment or an owner-risk marker. " if any(it.get("owner_risk") for it in own)
                   else "cited owner amendment. "))
         return head + PROTOTYPE_CARRY_PRE_OVERLAY + ask + "\n", None
-    nc = "".join(_prototype_carry_item_text(it) for it in ctx["not_carried"]) or "(none on these surfaces)\n"
-    hunks = []
-    for it in [*own, *ctx["not_carried"]]:
-        text, fault = prototype_carry_hunks(repo_root, ctx, it)
+    nc = "".join(_prototype_carry_item_text(it) for it in not_carried) or "(none on these surfaces)\n"
+    # T-14613 (X-2380) — one registry for the whole block: a hunk many locators and items reach is
+    # rendered once, and each locator names the hunk(s) it falls in.
+    registry, locator_map = _prototype_carry_hunk_registry(), []
+    for it in [*own, *not_carried]:
+        text, fault = prototype_carry_hunks(repo_root, ctx, it, registry)
         if fault:
             return None, fault
-        hunks.append(text)
+        if text:
+            locator_map.append(text)
     return (head + f"Not-carried items on the same surfaces:\n\n{nc}\n" + PROTOTYPE_CARRY_POST_QUESTION
-            + f"\n{PROTOTYPE_CARRY_HUNKS_HEADING}\n\n" + "\n".join(hunks) + "\n"), None
+            + f"\n{PROTOTYPE_CARRY_HUNKS_HEADING}\n\n" + PROTOTYPE_CARRY_HUNKS_LEGEND
+            + "\n".join(locator_map) + "\n\n" + (_prototype_carry_render_hunks(registry) or "(no hunk)")
+            + "\n"), None
 
 
 def prototype_identical_shown_fields(pass_shown, prior_record, *, no_verdict: bool) -> dict:
@@ -7386,7 +7487,7 @@ def _survivor_is_hold_for_owner(*a, **kw):
 
 
 def _repin_stale_forward_path(tid: str, stage: str, custody_repin_from: str, ship_sha: str | None) -> str:
-    """T-10739 (X-0605 / <project> T-0404) — the executable forward path appended to a `--repin-ship`
+    """T-10739 (X-0605 / boomrocket T-0404) — the executable forward path appended to a `--repin-ship`
     stale-consult `--owner-reset` refusal.
 
     A pause/park bookkeeping commit displaces a task's audit custody; the ship is recovered with
@@ -7495,6 +7596,14 @@ def _custody_mismatch_recovery_route(repo_root, tid: str, ship_sha: "str | None"
             return (repin + f" — and it is available WITHOUT landing first: that ship is not on `main` "
                             f"yet, but it is on THIS branch and carries {tid}'s authored content, "
                             f"which is what the re-pin's fence actually requires (T-11613).")
+        # T-14609 — refused HERE is not refused everywhere: the unlanded arm judges against HEAD, so
+        # from a checkout whose HEAD does not carry the ship (the main one) LAND FIRST names the one
+        # step the block makes impossible. When the ship sits on this card's attached unlanded
+        # worktree, route there; the re-pin is judged (and named only if admitted) in that checkout.
+        _wt = unlanded_ship_worktree(tid, ship_sha, repo_root)
+        if _wt:
+            return ("the custody re-pin cannot be judged from THIS checkout. "
+                    + unlanded_ship_worktree_route(tid, ship_sha, _wt))
         return land_first + "."
     return (f"the ancestry of that ship against `main` could not be determined, so both routes are "
             f"named — if the ship HAS landed, {repin}; if it has NOT, {land_first}.")
@@ -9355,7 +9464,9 @@ def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, re
             continue
         if fu_items is None:                      # ONE fold, and only when a `fu_` id is named
             from lib import followup as _followup   # noqa: PLC0415 — leaf, imports no host module
-            fu_items = _followup._fold(events_paths)
+            # T-14600 (X-2363): inject the segment reader — the leaf's default reads ONE physical
+            # file per path (the root journal only), blind to a row in a day partition (SPEC-0190).
+            fu_items = _followup._fold(events_paths, journal_mod.segment_fold_lines)
         if fu_items.get(fid) is None:
             _die(f"--followup {fid}: unknown followup id — nothing in this checkout's journal NOR the "
                  f"main checkout's ever captured it (see `yitc-v2 followup list`); nothing was recorded")
@@ -10599,6 +10710,8 @@ def _packet_bound_elisions(*a, **kw):
 def _bound_packet_total(*a, **kw):
     """T-12701 host residue — the body now lives in `bin/lib/audit_packet.py#_bound_packet_total`."""
     _packet_inject(kw, "_bound_packet_total")
+    if kw.get("max_bytes") is None:      # T-14616: the ceiling in force, not the bare default
+        kw["max_bytes"] = audit_packet_ceiling()["value"]
     return audit_packet._bound_packet_total(*a, **kw)
 
 
@@ -12391,6 +12504,52 @@ def _same_checkout(worktree, REPO_ROOT) -> bool:
         return False
 
 
+def unlanded_ship_worktree(tid: str, ship_sha, repo_root) -> "str | None":
+    """T-14609 (<project> X-2368) — the attached worktree of an UNLANDED `task/<tid>` branch that
+    carries `ship_sha`, when that worktree is NOT this checkout. None otherwise.
+
+    WHY. The custody re-pin's unlanded arm (T-11613) judges the ship against HEAD, so it can only be
+    admitted in the checkout whose HEAD carries the ship. A refusal printed from ANOTHER checkout
+    (the main one) used to say «LAND FIRST» or refuse the re-pin outright, naming no route at all.
+    This answers WHERE the route is judged — and only that: it never claims the re-pin is ADMITTED
+    there, because its other legs (a record above the ship carrying authored content, leg (c)) can
+    only be judged in that checkout (audit-pre p1 fp1:c52e973a85595e65). The refusal routes to
+    `-C <worktree> audit post --task <tid>`, whose own refusal names the re-pin when it is admitted.
+
+    Conjuncts, each fail-closed to None: the branch tip resolves; that tip is provably NOT on `main`;
+    the ship is an ancestor of the tip (rc 0 only); a worktree is attached to the branch; that
+    worktree is not this checkout. Pure git read; never raises."""
+    if not ship_sha or not tid:
+        return None
+    try:
+        branch = f"task/{tid}"
+        tip = (_git_out(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+                        repo_root=repo_root) or "").strip()
+        if not tip or _git_ship_landed(tip, repo_root=repo_root) is not False:
+            return None
+        # `_git_out` answers "" on exit 0 and None on any other exit — rc 0 (an ancestor) only.
+        if _git_out(["merge-base", "--is-ancestor", str(ship_sha), tip], repo_root=repo_root) is None:
+            return None
+        worktree = _attached_worktree_for_branch(branch, repo_root)
+        if not worktree or _same_checkout(worktree, repo_root):
+            return None
+        return worktree
+    except Exception:  # noqa: BLE001 — guidance must never crash the refusal it decorates
+        return None
+
+
+def unlanded_ship_worktree_route(tid: str, ship_sha, worktree) -> str:
+    """T-14609 — the one sentence every refusal prints when `unlanded_ship_worktree` found the
+    checkout: run the verb THERE, where the re-pin is judged. Never names the re-pin as admitted."""
+    return (f"This card's ship {str(ship_sha)[:12]} is on the UNLANDED branch `task/{tid}`, whose "
+            f"worktree is attached at {worktree}. The custody re-pin is judged against HEAD "
+            f"(T-11613), so it can only be decided THERE — run:\n"
+            f"  bin/yitc-v2 -C {shlex.quote(str(worktree))} audit post --task {tid}\n"
+            f"If that run refuses because a bookkeeping task commit displaced the ship, its refusal "
+            f"names the evidence-checked `--commit <ship> --repin-ship` re-pin when that checkout's "
+            f"fence admits it (T-14609).")
+
+
 def _ship_on_unlanded_task_branch(tid: str, subject_sha: str, REPO_ROOT,
                                   *, _bookkeeping_commit_authored_paths) -> "tuple | None":
     """T-12738 (<project> X-1493) — is this card's ship PROVABLY committed on an unlanded `task/<tid>`
@@ -13070,7 +13229,8 @@ def _require_nonempty_audit_subject(args, tid: str, sha: str, *,
                                     _bookkeeping_commit_authored_paths, _die, REPO_ROOT,
                                     _prior_audit_record=None, _recorded_commit_landed=None,
                                     _git_resolve_sha=None, _red_cause_is_card_record=None,
-                                    _custody_commit_landed=None) -> None:
+                                    _custody_commit_landed=None,
+                                    _ship_custody_repin_check=None) -> None:
     """T-11405 AC1 — refuse an audit-post whose RESOLVED subject provably carries no authored content.
 
     WHICH LEG THIS GUARDS, stated because the placement is NOT universal and reading it as universal
@@ -13115,7 +13275,8 @@ def _require_nonempty_audit_subject(args, tid: str, sha: str, *,
         REPO_ROOT=REPO_ROOT, _prior_audit_record=_prior_audit_record,
         _recorded_commit_landed=_recorded_commit_landed, _git_resolve_sha=_git_resolve_sha,
         _red_cause_is_card_record=_red_cause_is_card_record,
-        _custody_commit_landed=_custody_commit_landed)
+        _custody_commit_landed=_custody_commit_landed,
+        _ship_custody_repin_check=_ship_custody_repin_check)
     if message:
         _die(message)
 
@@ -13157,10 +13318,36 @@ def _declared_deletion_deliverable(tid: str, sha: str, REPO_ROOT) -> bool:
         return False
 
 
+def _admitted_repin_route(tid: str, ship_sha, _ship_custody_repin_check) -> "str | None":
+    """T-14609 (<project> X-2368) — the custody re-pin sentence, ONLY when the ENFORCING predicate
+    (`_ship_custody_repin_check`, the one the `--repin-ship` guard runs) ADMITS this exact ship in
+    THIS checkout; None when it is unwired, refuses, or raises (the caller keeps its old text).
+
+    The shape it serves: a bookkeeping-only `task commit` (kind-less; the card + the journal) became
+    the recorded commit above an UNLANDED authored ship. Custody does not pass over it — a kind-less
+    card-touching commit stays the subject (the T-13941 card-repair pin) — so the T-11405 guard
+    refuses it, and the refusal used to say «escalate». But the re-pin's unlanded arm (T-11613)
+    already admits that ship from this checkout; the route existed and no refusal named it."""
+    if _ship_custody_repin_check is None or not ship_sha:
+        return None
+    try:
+        _full, _label, refusal = _ship_custody_repin_check(tid, str(ship_sha))
+    except Exception:  # noqa: BLE001 — guidance must never crash the refusal it decorates
+        return None
+    if refusal or not _full:
+        return None
+    return (f"THE ROUTE — the evidence-checked custody re-pin, which this checkout's fence ADMITS for "
+            f"the ship (T-11613: an unlanded ship reachable from HEAD carrying this card's authored "
+            f"content; every commit it steps past is record-only):\n"
+            f"  bin/yitc-v2 audit post --task {tid} --commit {str(_full)[:12]} --repin-ship\n"
+            f"It audits the SHIP's diff and records `custody_repin` (SPEC-0015). T-14609. ")
+
+
 def empty_audit_subject_refusal(args, tid: str, sha: str, *, _bookkeeping_commit_authored_paths,
                                 REPO_ROOT, _prior_audit_record=None, _recorded_commit_landed=None,
                                 _git_resolve_sha=None, _red_cause_is_card_record=None,
-                                _custody_commit_landed=None, seam="pass") -> "str | None":
+                                _custody_commit_landed=None, seam="pass",
+                                _ship_custody_repin_check=None) -> "str | None":
     """T-12542 — the T-11405 JUDGEMENT without the die: the refusal message, or None to proceed.
 
     `_require_nonempty_audit_subject` above is this plus `_die`, so the pass's behaviour and message
@@ -13291,11 +13478,13 @@ def empty_audit_subject_refusal(args, tid: str, sha: str, *, _bookkeeping_commit
                 f"the commit this card's `commit_landed` rows resolve to: custody passes over a commit "
                 f"only when it touches the journal and derived artifacts alone, or is a proven "
                 f"record-only park/pause/wont-do self-commit, and in both cases only while the ship "
-                f"before it is unlanded (T-13941 / T-12362); {sha[:12]} was not passed over. If it is a "
-                f"card-record repair after a RED audit-post, "
-                f"`task commit --fix-red --card-repair` is its governed route; otherwise escalate "
-                f"(`blocked-on-land {tid} <reason>`) naming {sha[:12]} and {ship_sha[:12]}. "
-                f"T-13941 / T-12738.")
+                f"before it is unlanded (T-13941 / T-12362); {sha[:12]} was not passed over. "
+                + (_admitted_repin_route(tid, ship_sha, _ship_custody_repin_check) or
+                   (f"If it is a "
+                    f"card-record repair after a RED audit-post, "
+                    f"`task commit --fix-red --card-repair` is its governed route; otherwise escalate "
+                    f"(`blocked-on-land {tid} <reason>`) naming {sha[:12]} and {ship_sha[:12]}. "))
+                + "T-13941 / T-12738.")
         return (
             f"{tid}: the resolved audit-post subject {sha[:12]} carries NO authored content — every "
             f"path in it is lifecycle bookkeeping (the task's own card / its own audit records / "
@@ -13311,9 +13500,12 @@ def empty_audit_subject_refusal(args, tid: str, sha: str, *, _bookkeeping_commit
             f"  bin/yitc-v2 -C {worktree_arg} audit post --task {tid}\n"
             f"  (add `--on-decisions --sweep '<where you looked for the same defect class and what you found>'` if you are spending the SPEC-0204 rule-3 pass.)\n"
             f"NOT `task commit` (this card's work is already committed, at {ship_sha[:12]}), NOT the "
-            f"`--repin-ship` custody re-pin (its ancestor-of-`main` precondition would refuse an "
-            f"unlanded ship), and NOT any of the diff-free overlay flags (this ship HAS a diff — each "
-            f"would misrecord it). T-12738 / X-1493.")
+            f"`--repin-ship` custody re-pin from THIS checkout (its ancestor-of-`main` precondition "
+            f"fails for an unlanded ship, and this checkout's HEAD does not carry the ship, which its "
+            f"unlanded arm needs — T-11613), and NOT any of the diff-free overlay flags (this ship HAS "
+            f"a diff — each would misrecord it). If that `-C` run refuses because a bookkeeping task "
+            f"commit displaced the ship there, its refusal names the evidence-checked re-pin when that "
+            f"checkout's fence admits it (T-14609). T-12738 / X-1493.")
     return (
         f"{tid}: the resolved audit-post subject {sha[:12]} carries NO authored content — every path "
         f"in it is lifecycle bookkeeping (the task's own card / its own audit records / events.jsonl)."
@@ -13926,6 +14118,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
               _commit_worktree=None, _in_writing_worktree=None, _worktree_dirty_paths=None, _archive_task_audits=None, _git_mv_tracked=None, AUDIT_NO_READ_TOOLING_RETRIES, AUDIT_PASS_CEILING, PLANS_DIR, PLAN_FINALIZATION_LENS_VERSION, TASK_AUDIT_LENS_VERSION, REPO_ROOT, TASK_ID_RE, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _audit_ceiling_blocked, _auto_rebuild_graph, _build_audit_prompt, _classify_inert_paths, _consult_basis, _count_audit_passes, _decision_realization_block, _die, _find_decision_yaml, _find_task_yaml, _get_audit_post_diff, _git_resolve_sha, _governing_contract_for, _governing_rule_pointer, _invoke_auditor, _is_no_read_tooling_abort, _load_draft, _parse_audit_verdict, _parse_consult_result, _plan_content_hash, _plan_corpus_signature, _plan_fsm_line, _plan_gate_recorded_signature, _plan_realization_block, _plan_task_carrier, _print_scenario_staleness_warn, _prior_audit_record, _read_consult_adjudication, _recorded_commit_sha, _recorded_commit_kind, _recorded_commit_landed, _reject_id_shaped_plan_slug, _custody_commit_landed=None, _task_commit_landed_chain=None, _BOOKKEEPING_COMMIT_KINDS=(), _require_plan_finalized, _require_reads, _require_stage_correspondence, _require_writing_worktree, _require_zero_ship_diff, _require_ship_custody_repin, _ship_custody_repin_check, _governed_land_evidence=None, _require_preshipped_deliverable, _require_settlement_sweep, _require_post_ship_observation, _require_land_emitted_event, _require_activation_gated_radius, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _write_task_transition=None, _plan_target_scenario_lines=None,
               _main_events_path=None) -> None:   # T-13542 — the SPEC-0168 main-journal resolver the --followup fold reads
     """Run audit pre либо post via external auditor (codex). Per AGENTS.md §External auditor invocation contract."""
+    global _PACKET_CEILING_ROOT
+    _PACKET_CEILING_ROOT = REPO_ROOT   # T-14616: the project whose packet ceiling this run applies
     # T-0399 / E-0014: an audit verb WRITES decisions/<id>-audit-<stage>.yaml — a substantive
     # artifact write, so it is bound by the D-0037/D-0051 write-isolation guard (mirror of
     # cmd_task_file). Stage 4/8 already run INSIDE the task/ worktree (guard passes); a
@@ -14800,7 +14994,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                             _recorded_commit_landed=_recorded_commit_landed,
                                             _git_resolve_sha=_git_resolve_sha,
                                             _red_cause_is_card_record=_red_cause_is_card_record,
-                                            _custody_commit_landed=_custody_commit_landed)
+                                            _custody_commit_landed=_custody_commit_landed,
+                                            _ship_custody_repin_check=_ship_custody_repin_check)
             # T-13256 (SPEC-0204 rule 3) — THE WORKTREE-SYNC MERGE `fix` SUBJECT REDIRECT. A `fix` whose
             # evidence IS the `worktree sync` merge on this card's branch names a revision the recorded
             # commit does not contain (the merge descends from it), and D-0082 keeps `--commit` on the
@@ -14865,13 +15060,14 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     from lib import cli as _cli  # local import: `lib.cli` imports this module
                     _rc, _out = _mi_git(["show", f"{_rev}:{textutil.anchor_file(_anchor)}"])
                     return _cli._anchor_signature_of_text(_anchor, _out) if _rc == 0 else None
-                def _mi_tested_is_head(_tree, _subject):
+                def _mi_tested_is_head(_tree, _subject, flipped=None):
                     # T-14544 — the run's `stage6_run.tree` differs from the subject only by inert
-                    # paths (the SPEC-0064 taxonomy the land's Stage-6 credit reads); fail-closed
+                    # paths (the SPEC-0064 taxonomy the land's Stage-6 credit reads); T-14559 — or by
+                    # the spec files its own close-time activation flipped, blob-exact; fail-closed
                     from lib import cli as _cli  # local import: `lib.cli` imports this module
-                    _rc, _out = _mi_git(["diff", "--name-only", "--no-renames", "-z", _tree, _subject])
-                    return _rc == 0 and all(_cli._inert_path_class(_p) == "inert"
-                                            for _p in _out.split("\0") if _p)
+                    return audit_ceiling.mi_tested_is_head(
+                        _tree, _subject, git=_mi_git, flipped=flipped,
+                        inert=lambda _p: _cli._inert_path_class(_p) == "inert")
                 _mi_view = _decide_journal_view(   # T-13332: the scope's task rows when held
                     tid, "post", _iter_events=_scoped_task_iter(EVENTS_PATH, tid, _iter_events),
                     events_path=EVENTS_PATH)
@@ -14897,7 +15093,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                         tested_is_head=_mi_tested_is_head,
                         # T-14545 (X-2291) — the final-delta context leaves out record-only paths
                         inert=lambda _p: __import__("lib.cli", fromlist=["_inert_path_class"])
-                        ._inert_path_class(_p) == "inert"))
+                        ._inert_path_class(_p) == "inert",
+                        # T-14644 — the re-sign commit's own lifecycle records are not judged as re-signs
+                        lifecycle=lambda _p, _t: __import__("lib.cli", fromlist=["_lifecycle_record_path"])
+                        ._lifecycle_record_path(_p, _t)))
                 _mi_ev, _mi_refusal = _mi_admit()
                 # T-14534 — the land Stage-6 admission sync runs `worktree sync --task` FROM THE MAIN
                 # CHECKOUT, so the `worktree_synced` row of that clean merge sits in main's journal and
@@ -15316,6 +15515,22 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         if _carry:
             _carry_fp = (_carry["fingerprint"] if stage == "pre"
                          else hashlib.sha256((_carry_block or "").encode("utf-8")).hexdigest())
+        # T-14617 (X-2384, SPEC-1018 «The merge-integration packet») — on an admitted post-GREEN merge
+        # integration whose GREEN judged this same registry (the GREEN record's carry fingerprint equals
+        # the full block's, which stays `_carry_fp`), only the items on paths the chain or main touched
+        # render; the rest are named with the GREEN locator. A changed registry keeps the full block.
+        _mi_carry_ev = merge_integration_reaudit or sync_merge_below_ceiling
+        if (_carry and stage == "post" and isinstance(_mi_carry_ev, dict)
+                and _mi_carry_ev.get("touched_paths") is not None
+                and (_prior_audit_record(tid, "post") or {}).get("prototype_carry_fingerprint") == _carry_fp):
+            _carry_narrow, _carry_fault = prototype_carry_block(
+                REPO_ROOT, stage, _carry, touched=set(_mi_carry_ev["touched_paths"]),
+                green=_mi_carry_ev.get("prior_verdict_at"))
+            if _carry_fault:
+                _die(f"audit {stage}: {tid}'s prototype carry registry cannot be read: {_carry_fault} "
+                     f"(SPEC-1058 §3). Fix the plan's registry or the card's prototype_lines, then re-run "
+                     f"`yitc-v2 audit {stage} --task {tid}`.")
+            _carry_block = _carry_narrow
     if target_kind == "task" and stage == "pre" and plan_fp:
         _prior_pre = _prior_audit_record(tid, "pre")
         if (_prior_pre is not None and _prior_pre.get("plan_fingerprint") == plan_fp
@@ -15479,7 +15694,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # explicit owner authorization dead-ends with no verb path to proceed (pre = the T-0437 incident;
     # post = the T-0509 / T-0513 forced-hand-edit closures). The current subject fingerprint the
     # re-open verifies the consult against: pre = the plan_fingerprint, post = the recorded commit SHA.
-    # T-10739 (X-0605 / <project> T-0404) — under --repin-ship the post ceiling_fp is the DISPLACED
+    # T-10739 (X-0605 / boomrocket T-0404) — under --repin-ship the post ceiling_fp is the DISPLACED
     # CUSTODY, not the ship. `custody_repin_from` is the AUTHORITATIVE carrier for a consult basis on
     # this path: it is `_git_resolve_sha(_recorded_commit_sha(tid))` (3665) — the IDENTICAL value
     # cmd_audit_consult pins basis_fingerprint to, and the identical value the downstream --owner-reset
@@ -16613,13 +16828,17 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # T-13996 — repeatable: every file, each under its own heading (`from_file_attachments`).
         extra = (extra or "") + "\n\n" + from_file_attachments(
             args.from_file, _resolve_prompt_file=_resolve_prompt_file, _die=_die)
-    if merge_integration_reaudit:
-        # T-13260 — the prior GREEN + the hand resolution, as CONTEXT beside the whole merged subject.
-        extra = (extra or "") + "\n\n" + audit_ceiling.merge_integration_context(merge_integration_reaudit)
-    elif sync_merge_below_ceiling:
-        # T-14181 — the same context for the ordinary below-ceiling pass at the merge.
-        extra = (extra or "") + "\n\n" + audit_ceiling.merge_integration_context(
-            sync_merge_below_ceiling, below_ceiling=True)
+    # T-13260 / T-14181 / T-14554 — the prior GREEN + every merge's resolution, built ONCE as an
+    # EXPLICIT packet input (never generic Extra context): required content the bound reserves first,
+    # and the same value the completeness backstop below looks for. Off a red-fix route the ordinary
+    # shipped diff is DISPLAYED as a labelled summary (the block carries the final task delta whole);
+    # `diff` itself is untouched, so every machine check keeps reading the complete real diff.
+    _mi_packet_ev = merge_integration_reaudit or sync_merge_below_ceiling
+    _mi_block = (audit_ceiling.merge_integration_context(
+        _mi_packet_ev, below_ceiling=not merge_integration_reaudit) if _mi_packet_ev else None)
+    _mi_summary = (audit_ceiling.merge_integration_diff_summary(
+        _mi_packet_ev, diff, _prior_audit_record(tid, "post"))
+        if _mi_packet_ev and not _mi_packet_ev.get("red_fix") else None)
     if test_found_fix_reaudit:
         # T-14090 — the prior GREEN + the red run, as CONTEXT beside the fix subject.
         extra = (extra or "") + "\n\n" + test_found_fix_context(test_found_fix_reaudit)
@@ -16853,6 +17072,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         prompt = _build_audit_prompt(artifact, stage, diff, extra, target_kind, focus=focus,
                                      prototype_diff=_proto_diff, prototype_identity=_proto_identity,
                                      prototype_carry_block=_carry_block,   # T-14458
+                                     merge_integration_block=_mi_block,   # T-14554
+                                     shipped_diff_summary=_mi_summary,     # T-14554
                                      event_emit_only=event_emit_only, serve_deploy=serve_deploy,
                                      reaudit_after_close=reaudit_after_close_flag,
                                      external_action=external_action, host_config=host_config,
@@ -16886,8 +17107,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         packet_bytes = len(prompt.encode("utf-8", "replace"))
         packet_sections = _packet_section_breakdown(prompt)
         packet_elisions = _packet_bound_elisions(prompt)
+        _ceiling = audit_packet_ceiling()    # T-14616: the value in force and its source (SPEC-1031 r6)
         print(f"# audit packet: {packet_bytes} bytes (~{packet_bytes // 4} tokens), ceiling "
-              f"{AUDIT_MAX_PACKET_BYTES}; top sections: "
+              f"{_ceiling['value']} [{_ceiling['source']}]; top sections: "
               + ", ".join(f"{r['label'][:48]}={r['bytes']}B" for r in packet_sections[:4]),
               file=sys.stderr)
         if packet_elisions:
@@ -16898,14 +17120,12 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # when the assembled packet is over the whole-packet ceiling, or the context block carrying the
         # ordered resolution diffs is not wholly in it, refuse by name BEFORE `audit_prompt_sent` (no
         # auditor, no pass). A preview reports the same line and stops as previews do.
-        _mi_packet_ev = merge_integration_reaudit or sync_merge_below_ceiling
         if _mi_packet_ev:
-            _mi_block = audit_ceiling.merge_integration_context(
-                _mi_packet_ev, below_ceiling=not merge_integration_reaudit)
-            _mi_short = (packet_bytes > AUDIT_MAX_PACKET_BYTES) or (_mi_block not in prompt)
+            _mi_short = (packet_bytes > _ceiling["value"]) or (_mi_block not in prompt)
             if _mi_short:
                 _mi_line = (f"merge_integration_packet_incomplete: the assembled packet ({packet_bytes} "
-                            f"bytes, ceiling {AUDIT_MAX_PACKET_BYTES}) does not carry the whole ordered "
+                            f"bytes, ceiling {_ceiling['value']} [{_ceiling['source']}] — "
+                            f"{PACKET_CEILING_KEY}) does not carry the whole ordered "
                             f"resolution of the merge chain — nothing is truncated and no pass is spent")
                 if preview:
                     print(f"# {_mi_line}", file=sys.stderr)
@@ -16914,12 +17134,44 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                         _append_event("read_gate_refused", tid, {
                             "verb": f"audit {stage}", "action": "send the merge-integration packet",
                             "kind": "merge-integration-packet", "stage": stage,
-                            "reason": "merge_integration_packet_incomplete"})
+                            "reason": "merge_integration_packet_incomplete",
+                            "packet_bytes": packet_bytes, "packet_ceiling": dict(_ceiling)})
                     except (Exception, SystemExit):     # noqa: BLE001 — never mask the refusal
                         pass
                     _die(f"audit {stage}: {tid}: {_mi_line}. Read the packet with `yitc-v2 audit "
                          f"{stage} --task {tid} --preview`; return to the GREEN commit or re-cut the "
                          f"merges onto a new card (SPEC-1018 «Exits from a spent GREEN»).")
+        # T-14643 (X-2391) — an aggregate PLAN packet that shows none of the corpus it grades is not sent:
+        # refused by name BEFORE `audit_prompt_sent` (no auditor, no pass, no decisions file) when the
+        # bound ran over its floor (the packet is still over the ceiling) or kept 0 bytes of EVERY spec
+        # and card text. A GREEN on such a packet is vacuous. Plan targets only: measured over the kernel
+        # journal, no task packet ever ran over the ceiling or cut a section to 0 B (the card's Analysis).
+        if target_kind == "plan":
+            _texts = [r["label"] for r in packet_sections
+                      if r["label"].startswith(("### Spec text —", "### Card text —"))]
+            _zero = {e["label"] for e in packet_elisions if e["kept_bytes"] == 0}
+            if packet_bytes > _ceiling["value"] or (_texts and all(t in _zero for t in _texts)):
+                _needed = packet_bytes + sum(e["total_bytes"] - e["kept_bytes"] for e in packet_elisions)
+                _pl_line = (f"plan_packet_subject_unshown: the assembled packet ({packet_bytes} bytes; "
+                            f"{_needed} bytes needed to show the whole corpus) is over the ceiling "
+                            f"{_ceiling['value']} [{_ceiling['source']}] — {PACKET_CEILING_KEY} — or keeps "
+                            f"none of its {len(_texts)} spec/card text(s), so a verdict on it would grade "
+                            f"a corpus it does not show — nothing is sent and no pass is spent")
+                if preview:
+                    print(f"# {_pl_line}", file=sys.stderr)
+                else:
+                    try:
+                        _append_event("read_gate_refused", None, {
+                            "verb": f"audit {stage}", "action": "send the aggregate plan packet",
+                            "kind": "plan-packet", "stage": stage, "plan": tid,
+                            "reason": "plan_packet_subject_unshown",
+                            "packet_bytes": packet_bytes, "bytes_needed": _needed,
+                            "packet_ceiling": dict(_ceiling)})
+                    except (Exception, SystemExit):     # noqa: BLE001 — never mask the refusal
+                        pass
+                    _die(f"audit {stage}: {tid}: {_pl_line}. Read the packet with `yitc-v2 audit "
+                         f"{stage} --plan {tid} --preview`; shorten the plan body or raise "
+                         f"{PACKET_CEILING_KEY} in the project's yitc-ops.yaml `thresholds:`.")
         # T-13508 — NAME the task-tied event types the packet excluded by the card opt-in, in ONE
         # line. Above the preview return on purpose: a preview and the real run both say it, and the
         # preview is where it is still free to act on. STDERR, like the report lines above — stdout
@@ -16986,7 +17238,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # T-11328 (AC2): the packet's own measurements, recorded on the EXISTING event rather than
             # a new type — the durable per-section breakdown, and the named cuts when it was bounded.
             "packet_bytes": packet_bytes,
-            "packet_ceiling_bytes": AUDIT_MAX_PACKET_BYTES,
+            "packet_ceiling_bytes": _ceiling["value"],
+            "packet_ceiling_source": _ceiling["source"],   # T-14616: SPEC-1031 rule 6
             "packet_sections": packet_sections,
             "packet_elisions": packet_elisions,
             "packet_sha256": packet_sha256,   # T-13110: the key into the machine-local packet store
@@ -19120,7 +19373,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         _rel_consults = sorted(p.relative_to(REPO_ROOT).as_posix()
                                for p in (REPO_ROOT / "decisions").glob(f"{tid}-audit-consult-*.yaml")
                                if p.is_file())
-        _scoped = [_rel_audit, "events.jsonl", *_rel_consults]
+        # T-14605: the journal FAMILY (every present day partition + the live root), never the root alone
+        _scoped = [_rel_audit, *events_mod.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT),
+                   *_rel_consults]
         # T-13085 — DISPLACE IN THE SAME INVOCATION. The flag is done-only (the gate above), so this task
         # is TERMINAL and SPEC-0052 rule 4 wants its audit YAMLs in the archive lane; left in the active
         # lane they wait for the backstop `triage sweep` (measured: 17 kernel + 22 <project> + 49
@@ -19151,7 +19406,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             reaudit_self_committed = True
             # The scope note names what was ACTUALLY staged (P7 — a hint that overstates its own scope is
             # the same untrue claim T-11163 fixed): the consult records are listed only when they exist.
-            _scope_note = " + ".join(_scoped)
+            _scope_note = " + ".join([*(p for p in _scoped if not events_mod.is_journal_family_path(p)),
+                                      "the journal"])
             print(f"  post-close re-audit record committed {_short} — worktree land-clean (T-10724/E-0056, "
                   f"consult fold T-11163; scoped to {_scope_note}); `yitc-v2 land --task {tid} --rebaseline "
                   # T-10898: `--rebaseline-kind` is REQUIRED with `--rebaseline`, so a hint that omits
@@ -19337,7 +19593,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     raise _exit
 
 
-def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _capacity_retry_hint=None, ADHOC_SLUG_RE, REPO_ROOT, _adhoc_ceiling_steer, _adhoc_ceiling_steer_route, _append_event, _auto_rebuild_graph, _build_audit_prompt, _count_audit_passes, _die, _inline_corpus_files, _inline_sweep_files, _invoke_auditor, _parse_audit_verdict, _require_writing_worktree, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> None:
+def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _capacity_retry_hint=None, ADHOC_SLUG_RE, REPO_ROOT, _adhoc_ceiling_steer, _adhoc_ceiling_steer_route, _append_event, _auto_rebuild_graph, _build_audit_prompt, _count_audit_passes, _die, _inline_corpus_files, _inline_sweep_files, _invoke_auditor, _parse_audit_verdict, _require_writing_worktree, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _iter_events=None, EVENTS_PATH=None, _plan_change_check=None) -> None:
     """Open-form (ad-hoc) external-audit verb (T-0361) — ONE verb for an arbitrary consult, so
     sessions stop hand-reconstructing the codex invocation (the 12 hand-authored
     decisions/*-audit-adhoc.yaml artifacts are the incident evidence).
@@ -19379,7 +19635,14 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     DATA instead of NO-DATA. Inlined as raw DATA, NOT the primary track's findings (the SPEC-0057
     §1(c) independence invariant). A named-but-unreadable sweep FAILS LOUD. The inlined file list +
     byte count are journaled and recorded in the saved YAML (`inlined_sweep_files` /
-    `inlined_sweep_bytes` — positive proof sweep content reached the prompt)."""
+    `inlined_sweep_bytes` — positive proof sweep content reached the prompt).
+
+    --plan SLUG (T-14627, SPEC-1061 §2): the plan CHANGE CHECK. The kernel builds the packet (the
+    anchor's findings as the closure list + the cumulative diff of every changed eligible input) through
+    the injected `_plan_change_check`, refusing before any auditor call when no change check is possible;
+    `--prompt` / `-f` add to it and there is no stdin fallback. The record is the ONE file
+    `decisions/<plan>-change-check-audit-adhoc.yaml` (the latest change check), carrying `change_check:`
+    beside the usual ad-hoc keys, its verdict floored to RED on any high finding."""
     # T-0399 / E-0014: writes decisions/<slug>-audit-adhoc.yaml — bound by the D-0037/D-0051
     # write-isolation guard (mirror of cmd_task_file). An ad-hoc consult is a Review/main filing,
     # so it takes a work/<slug> worktree; a main-checkout invocation is refused with the hint
@@ -19390,6 +19653,16 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     except ImportError:
         _die("PyYAML required for `audit` (pip install pyyaml)")
 
+    plan_slug = (getattr(args, "plan", None) or "").strip()
+    if plan_slug:
+        want = f"{plan_slug}-change-check"
+        if (args.slug or "").strip() not in ("", want):
+            _die(f"--plan records the change check as decisions/{want}-audit-adhoc.yaml (the one record of "
+                 f"the latest change check, SPEC-1061 §2) — drop --slug: `yitc-v2 audit adhoc --plan {plan_slug}`")
+        args.slug = want
+    elif not (args.slug or "").strip():
+        _die("audit adhoc: --slug is required — `yitc-v2 audit adhoc --slug <id> --prompt <text>`, or "
+             "`yitc-v2 audit adhoc --plan <plan-slug>` for a plan change check (SPEC-1061 §2)")
     slug = (args.slug or "").strip()
     if not ADHOC_SLUG_RE.match(slug):
         _die(f"--slug {slug!r} must be filename-safe kebab/ID form ([A-Za-z0-9][A-Za-z0-9-]*) — "
@@ -19432,10 +19705,19 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
             parts.append(fp.read_text(encoding="utf-8"))
         except (FileNotFoundError, PermissionError, OSError) as e:
             _die(f"--from-file {args.from_file!r} unreadable: {e}")
-    if not parts and not sys.stdin.isatty():
+    if not parts and not plan_slug and not sys.stdin.isatty():
         stdin_text = sys.stdin.read()
         if stdin_text.strip():
             parts.append(stdin_text)
+    # T-14627 (SPEC-1061 §2) — the plan change check: the kernel's packet leads the request; it
+    # refuses (before any auditor call) when no change check is possible from the plan's anchor.
+    plan_ctx = None
+    if plan_slug:
+        if _plan_change_check is None:
+            _die("audit adhoc --plan: no plan change-check builder is wired into this verb — run it through "
+                 "the engine CLI: `bin/yitc-v2 audit adhoc --plan <plan-slug>`")
+        plan_ctx = _plan_change_check(plan_slug)
+        parts.insert(0, plan_ctx["prompt"])
     request = "\n\n".join(p.strip() for p in parts if p and p.strip())
     if not request:
         _die("audit adhoc: empty request — pass --prompt, -f/--from-file, or pipe the prompt via stdin")
@@ -19581,6 +19863,11 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         verdict, findings = "ABORT", []
     else:
         verdict, findings, parse_notes = _parse_audit_verdict(stdout)
+    # T-14627 (SPEC-1061 §2) — the plan change check: the verdict follows the anchor's reading (any
+    # high is RED) and the record gains the `change_check:` block with the closed ids it parsed.
+    change_block = None
+    if plan_ctx is not None:
+        verdict, change_block = plan_ctx["finalize"](stdout if rc == 0 else "", verdict, findings)
 
     clean_stdout = _strip_degenerate_tail(stdout)
     if rc == 0 and clean_stdout.strip():
@@ -19634,6 +19921,8 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         # marker at all. DERIVED from the `no_data` field above, never a second notion of it; why this
         # is verb-local and spec-less rather than a SPEC-0173 amendment: adhoc_no_data_class.
         audit["no_data_class"] = _no_data_class
+    if change_block is not None:
+        audit["change_check"] = change_block   # T-14627 — what `plan stage accepted` reads (arm ii)
 
     # T-12350 (SPEC-0201 rule 2) — the ONE saved-verdict writer helper: stamp + same-provider row.
     stamp_auditor_verdict(audit, provider=provider, model=model, full=full,
@@ -19652,6 +19941,8 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         _die(f"SPEC-0001 self-test failed: {e}")
 
     audit_path = REPO_ROOT / "decisions" / f"{slug}-audit-adhoc.yaml"
+    if plan_ctx is not None:   # T-14627 — the one record the plan's gates read (SPEC-1061 §2)
+        audit_path = Path(plan_ctx["record_path"])
     write_text_atomic(audit_path, content)
 
     _append_event("external_audit_completed", slug, {
@@ -20085,7 +20376,7 @@ CONSULT_NO_ANSWER_ROUTE_UNAVAILABLE = "auditor-unavailable"
 
 #: T-12233 — the CLOSED packet-scope enum. Exactly two values; there is no truncating third, because
 #: a truncating scope would change the auditor's input and so could change a verdict (SPEC-0193
-#: rule 2), which is what keeps `CONSULT_PACKET_MAX_BYTES` out of GATE.
+#: rule 2). The bound it applies is the packet-ceiling THRESHOLD since T-14616 (`audit_packet_ceiling`).
 CONSULT_PACKET_SCOPE_FULL = "full"
 CONSULT_PACKET_SCOPE_DELTA = "delta-since-baseline"
 CONSULT_PACKET_SCOPES = (CONSULT_PACKET_SCOPE_FULL, CONSULT_PACKET_SCOPE_DELTA)
@@ -20796,6 +21087,8 @@ def consult_status_refusal(*a, **kw):
 @functools.wraps(audit_consult.cmd_audit_consult)
 def cmd_audit_consult(*a, **kw):
     """T-12696 host residue — the body now lives in `bin/lib/audit_consult.py#cmd_audit_consult`."""
+    global _PACKET_CEILING_ROOT
+    _PACKET_CEILING_ROOT = kw.get("REPO_ROOT")   # T-14616: the consult bound reads the same key
     _consult_inject(kw, "cmd_audit_consult")
     return audit_consult.cmd_audit_consult(*a, **kw)
 

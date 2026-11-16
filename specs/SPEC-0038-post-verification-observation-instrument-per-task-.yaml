@@ -32,20 +32,20 @@ body: "## Scenario\n\nWhen the AI closes a task, it writes down — at the momen
   \ policy is OUT of\nscope, carved to `plans/post-verification-action-policy-graduation-settled`).\n\
   \n### 1. The field (B1) — `post_verification` on the task YAML\nONE optional top-level\
   \ field (catalog home: SPEC-0028; this spec is the rule home it points to):\n```yaml\n\
-  post_verification: # optional; authored at Closure (rule 2) or explicitly waived\
-  \ (rule 3)\n  criterion: <what counts as \"it worked\" in real operation — positive\
-  \ + observable>\n  signal: <event / state / measurable that proves it — SAME grammar\
-  \ as acceptance probes / P8\n              live_trigger_evidence (post-dated, not\
-  \ a new probe vocabulary — P5)>\n  # NO threshold field in phase 1 — threshold is\
-  \ an ACTION-policy parameter (PART-2 plan),\n  # calibrated from the observations\
-  \ this instrument accumulates; never guessed.\nnone: <reason> # the explicit-waive\
-  \ alternative shape (rule 3) — mutually exclusive\n                            \
-  \  # with criterion/signal.\n```\n`signal` MUST be non-trivial (NOT \"any invocation\"\
-  ) — interpreting note: any future action policy\nover these observations (PART-2\
-  \ scope, not this rule) can only be as honest as the signal authored\nhere, so THIS\
-  \ authoring moment carries all the judgement.\n\n### 2. Authoring moment (B2) —\
-  \ Closure, Stage 9\nThe field is filled at `task close` time by the task author\
-  \ (closure contract home: SPEC-0015\npoints here). Rationale-as-interpretation:\
+  post_verification:            # optional; authored at Closure (rule 2) or explicitly\
+  \ waived (rule 3)\n  criterion: <what counts as \"it worked\" in real operation\
+  \ — positive + observable>\n  signal:    <event / state / measurable that proves\
+  \ it — SAME grammar as acceptance probes / P8\n              live_trigger_evidence\
+  \ (post-dated, not a new probe vocabulary — P5)>\n  # NO threshold field in phase\
+  \ 1 — threshold is an ACTION-policy parameter (PART-2 plan),\n  # calibrated from\
+  \ the observations this instrument accumulates; never guessed.\nnone: <reason> \
+  \               # the explicit-waive alternative shape (rule 3) — mutually exclusive\n\
+  \                              # with criterion/signal.\n```\n`signal` MUST be non-trivial\
+  \ (NOT \"any invocation\") — interpreting note: any future action policy\nover these\
+  \ observations (PART-2 scope, not this rule) can only be as honest as the signal\
+  \ authored\nhere, so THIS authoring moment carries all the judgement.\n\n### 2.\
+  \ Authoring moment (B2) — Closure, Stage 9\nThe field is filled at `task close`\
+  \ time by the task author (closure contract home: SPEC-0015\npoints here). Rationale-as-interpretation:\
   \ the closer holds maximum context about what correct\noperation looks like; the\
   \ inspection must never have to GUESS what \"settled\" means per task.\nWhere the\
   \ task is plan-born and the plan ran a `trial` (SPEC-0035), the trial's observed\n\
@@ -151,6 +151,6 @@ proposed_by: task-burn-in-soak-period-post-closure-observation-
 binding:
 - stage-entry:Closure
 implements_signature:
-  bin/lib/task.py#cmd_task_close: e99f65b3c341f14eb1a08e79aceab2186911076b79265fb79b83951da171169a
+  bin/lib/task.py#cmd_task_close: c103936b70022c2d9ad013036717ff6ea9c0c11e30ec92768b713d147890ae18
   bin/lib/task_closure_evidence.py#_post_verification_gap: 80836ae11dd9ceadd8a1fbc5a57cca0ea0f8b888e45b447f49c843aeed3df502
   tasks/_template.yaml: e0581df32a513ee7d63a42cc789597adc4b7395ed4a2f54db8ada1a39d80380c

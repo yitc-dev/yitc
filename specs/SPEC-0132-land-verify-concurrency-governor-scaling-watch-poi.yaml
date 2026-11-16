@@ -655,13 +655,14 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ a baseline and every one of them moved past\nthe relative bar — a short layer\
   \ under the absolute floor still counts as having moved — the whole\nverify moved\
   \ together — host load, not a layer — and nothing is reported; and when\nthe observation\
-  \ carries per-unit rows (<workshop-spec>), the line names the slowest unit.\n**Two\
-  \ seams, and nowhere else.** The layer subject is rendered where the land that produced\
-  \ the\nnewest observation finishes — both readings — and the step reading also at\
-  \ the Stage-6 run, over\nthat run's own layer rows against the recorded lands, where\
-  \ the green row records the printed\nline only when one printed. On the land tail\
-  \ a step is printed only while its land is the newest\nland; a later land that ran\
-  \ no layer does not repeat it. Neither seam is the session-start debt\necho (SPEC-0119),\
+  \ carries per-unit rows (<workshop-spec>; read through the record's unit table,\
+  \ SPEC-1046\nrule 13), the line names the slowest unit.\n**Two seams, and nowhere\
+  \ else.** The layer subject is rendered where the land that produced the\nnewest\
+  \ observation finishes — both readings — and the step reading also at the Stage-6\
+  \ run, over\nthat run's own layer rows against the recorded lands, where the green\
+  \ row records the printed\nline only when one printed. On the land tail a step is\
+  \ printed only while its land is the newest\nland; a later land that ran no layer\
+  \ does not repeat it. Neither seam is the session-start debt\necho (SPEC-0119),\
   \ whose content is unchanged. SPEC-0208's bound calibration is a different\nquestion\
   \ (is a declared timeout derived from measurement) and reads the same series for\
   \ the LEVEL;\nthis rule never does.\n\n## Parameters\nNone consumed. The thresholds\
@@ -738,10 +739,10 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/land_verify_legs.py#_consumer_layer_duration_fold: 8fe4811218efa2b39f0b462a837ba3c5d5fef3e5b5999743cbbfaee74b70d5fc
+  bin/lib/land_verify_legs.py#_consumer_layer_duration_fold: 41ad72cf8395bc049c4ea2d6159f8f21a6c234706d201bbee810f6b477e44ddd
   bin/lib/land_verify_legs.py#_consumer_layer_durations_report: b26e241a3fe5c09e97041c5d5a3d7b40919e1b7ea38b95c1a82119c68f8170a0
   bin/lib/land_verify_legs.py#_verify_duration_drift_signals: 8ac2cdbb412625dc21a0c47d7598451a16c5bc2a4be0c9b2267909863c3f5911
-  bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: eabc3ff50bd06ba7cec1e4065e194efa60857590d292cf296946237fd2df0818
+  bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: 5f6f93003e07e3aa1fe6d0d3791c27b0e70599b2eff28df3096dfdb89059c6d5
   bin/lib/land_verify_legs.py#_verify_layer_duration_drift_signals: a3221546efaffd7a8593688e5fd91adce8e97de66e35075c06dfe2975b426030
   bin/lib/land_verify_legs.py#_verify_layer_duration_step_signals: b6fa67021b2584cfa67287c1b30c703ad6a6792896701a1b234302dbcbae073a
   bin/lib/land_verify_legs.py#_verify_scaling_signals: 7ee92cd34c76de1c8132efd9bf7142b9800a00ebf7ede273dd2fa5b3f14a3625
@@ -750,7 +751,7 @@ implements_signature:
   bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87
   bin/lib/verify_runner.py#cmd_verify_durations: e6dfc4e11bace9598795780e08cf0cb5feb612a824e578567b90a645b5ae6cc7
   bin/lib/views.py#_view_admission_series: a46e84f334ad70fea8b2f2233f15ebd4c47e852c73594a0c54dc46eaaf5b45df
-  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663
+  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800
   bin/lib/worktree.py#_refresh_verify_duration_table: a2fa1d6db88f1c07a7b8744c3ee927dfcea385ec7953eda8e76a763a506da818
   bin/lib/worktree.py#_verify_makespan_ms: 73dc708938203c66a69417af5d1457415d4801b80de3fbb7b346f5f86bacf78d
   bin/lib/worktree.py#_verify_median_durations: 3f1384108794642657d9c720d73f0a272d58fc736154b9bf89a75cc3b27c0d52

@@ -74,6 +74,7 @@ queue's cards call.
 """
 from __future__ import annotations
 
+import errno
 import json
 import os
 import tempfile
@@ -640,20 +641,6 @@ INVENTORY: "tuple[Knob, ...]" = (
        "registering either would make a GATE audit machine-dependent (SPEC-0132). Measured need: "
        "T-12220, 2026-09-07, where the hand `YITC_AUDIT_TIMEOUT_SECONDS=1200` env dance was the only "
        "reachable lever and its expiry still ended the episode"),
-    _p("lib.audit.CONSULT_PACKET_MAX_BYTES", "int", 450_000,
-       "bin/lib/audit.py#consult_packet_max_bytes",
-       "T-12233 — the byte bound on an ASSEMBLED consult packet. It is a SOFT, RECORDED target and "
-       "by construction cannot change what the auditor is asked to judge: over the bound at a RETEST "
-       "it chooses the DELTA SINCE THE BASELINE REVISION instead of the full subject diff. A retest "
-       "round exists only inside a ceiling-consult episode, and those episodes are retired "
-       "(SPEC-0204 rule 6). Under the superseded SPEC-0200 rule 4 of those retired episodes a retest "
-       "judged only the open blocking ids and regressions the fix introduced, which is why the two "
-       "scopes were equivalent there — and when the packet is STILL over the bound it is sent WHOLE and UNTRUNCATED "
-       "with `packet_over_bound: true` and the measured size recorded. It NEVER truncates and NEVER "
-       "refuses a round, which is exactly what keeps it out of GATE. DELIBERATELY NOT REACHED BY IT: "
-       "the pre-existing AUDIT_MAX_DIFF_LINES / AUDIT_MAX_DIFF_BYTES diff truncation stays an "
-       "unregistered CODE CONSTANT, so no `config set` on any machine can change what an auditor "
-       "sees. Authority: owner_directive events.jsonl#ts=2026-09-07T23:44:44Z (OPTION A)"),
     _p("lib.journal.WATCH_MAX_RUNTIME_SECS", "int", 1500, "bin/lib/journal.py#watch_max_runtime_secs",
        "T-14002 — how long an armed `dispatch --watch` (and the launch's self-armed watch) runs with no "
        "wake condition before it exits `WATCH: TIMEOUT` with its re-arm cue. PERFORMANCE: the watcher "
@@ -669,6 +656,14 @@ INVENTORY: "tuple[Knob, ...]" = (
        "coded cap»), so by its own governing rule it can decide nothing — the printers echo it as a "
        "SUGGESTED bound the controller judges against. It is per-server by definition, which is "
        "exactly what the machine file is for"),
+    _p("lib.plan.PLAN_CHECK_SLICE_WORKERS", "int", 0, "bin/lib/plan.py#cmd_plan_check",
+       "T-14612 — how many parts of a split `plan check` (SPEC-1058 §3) run at once: 0 = every part "
+       "at once, 1 = one after another in part order. PERFORMANCE: it changes only the round's wall "
+       "clock — each part sends the same packet to the same auditor seam and the recorded verdict is "
+       "the worst part's either way, folded in part order. Measured need: a consumer, X-2376, 76-77 min "
+       "per round of four parts run back to back. Per-server by nature (how many auditor calls this "
+       "host and its provider account take at once), so it lives in the machine file",
+       bounds=(0, 64)),
     _p("lib.nightly.VENUE_IDLE_BUFFER_MIN", "float", 15.0,
        "bin/lib/nightly.py#venue_idle_report",
        "T-12219 — how long every repo on this machine must have NO in-progress task before the "
@@ -809,6 +804,20 @@ INVENTORY: "tuple[Knob, ...]" = (
        "its yitc-ops.yaml `thresholds:` section. Admissible 1..8760 (an hour to a year). REPORT-ONLY: "
        "it decides when a line prints, never what is picked or dispatched",
        bounds=(1, 8760)),
+    _t("lib.audit.AUDIT_MAX_PACKET_BYTES", "int", 450_000, "bin/lib/audit.py#audit_packet_ceiling",
+       "the whole-packet ceiling of an external audit (T-11328), OPENED by T-14616 (X-2386): the bound "
+       "the packet bounder trims an ordinary packet's trimmable sections to, and the size past which a "
+       "merge-integration packet is refused `merge_integration_packet_incomplete` (nothing truncated, "
+       "no pass spent). The consult packet's soft bound reads this same key (T-14616 folded the former "
+       "second name lib.audit.CONSULT_PACKET_MAX_BYTES in). A THRESHOLD: a refusal compares against it "
+       "and two machines auditing one card must bound its packet alike, so one value per project, set "
+       "in its yitc-ops.yaml `thresholds:` section (`config set --project`). Admissible 450000..800000: "
+       "the lower end is the default (only raising has a case — a consumer's merge chains, X-2384 at "
+       "521478 B); the upper end is a guard ~18% under the 979708 B packet the auditor refused for its "
+       "model window (T-11319), not a proven capacity — the largest answered packet on record is "
+       "451731 B. A packet over the auditor's real window fails LOUD (a no-findings ABORT, no pass "
+       "burnt) and the project lowers the value with the same command",
+       bounds=(450_000, 800_000)),
     _t("lib.cli.LAND_REPEATED_ABORT_THRESHOLD", "int", 2, "bin/lib/cli.py#cmd_land",
        "the T-0655 repeated-abort backstop: a land is refused once this many consecutive same-cause "
        "aborts are on record, so it decides whether a land runs. A THRESHOLD (T-13969): one value "
@@ -1519,6 +1528,11 @@ def set_value(name, raw, env=None):
     path = resolve_settings_path(env)
     data = _raw_load(path)
     old = data.get(name)
+    # T-14573 (SPEC-1031 rule 10): a machine-scoped value is the OWNER's. A file this process cannot
+    # replace — the owner made it immutable, or it/its directory is read-only — is OWNER-LOCKED: refuse
+    # with one line BEFORE any temp file exists, never a raw PermissionError traceback.
+    if lock_state(path) == "locked":
+        raise SettingsRefused(_owner_locked_message(name, old, path))
     # A governed write LEAVES THE FILE HONEST (audit-pre finding 2). Whatever else the file was
     # carrying — a hand-added gate-class key, a key retired from the inventory — the read path
     # already drops, so keeping it on disk only preserves the illusion that it does something. Drop
@@ -1530,9 +1544,12 @@ def set_value(name, raw, env=None):
     data = {k: v for k, v in data.items() if k not in dropped}
     data[name] = value
     from lib import cross      # deferred, as in resolve_settings_path: the store's shared file mode
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".machine-settings-")
+    tmp = None
     try:
+        # mkdir + mkstemp ride inside the net too (audit-post finding 1): a directory that turns
+        # read-only after the pre-check fails HERE, before any temp file exists.
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".machine-settings-")
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, sort_keys=True)
             fh.write("\n")
@@ -1541,13 +1558,114 @@ def set_value(name, raw, env=None):
         # of a group-readable file included -- leaves a file only its writer can read.
         os.chmod(tmp, cross.SHARED_FILE_MODE)
         os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
+    except BaseException as exc:
+        if tmp is not None:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        # The second net (T-14573): a lock `lock_state` could not see (another writer locking it in
+        # between, a read-only mount) still ends as the owner-locked line, with the temp removed above.
+        if isinstance(exc, OSError) and exc.errno in _LOCKED_ERRNOS:
+            raise SettingsRefused(_owner_locked_message(name, old, path)) from None
         raise
     return old, value, dropped
+
+
+# ── T-14573 (SPEC-1031 rule 10): the machine file is the owner's ─────────────────────────────────
+_LOCKED_ERRNOS = frozenset({errno.EPERM, errno.EACCES, errno.EROFS})
+
+
+def lock_state(path) -> str:
+    """`absent` | `locked` | `unlocked` for the machine settings file at `path`.
+
+    LOCKED: the file exists and this process cannot write it (an immutable file reads so for every
+    user, a read-only mode for a non-root one), or its directory cannot take a new entry. The ONE
+    predicate `set_value` refuses on and the session-start line reports, so the two cannot disagree.
+    Never raises."""
+    p = Path(path)
+    try:
+        if p.exists() and not os.access(p, os.W_OK):
+            return "locked"
+        parent = p.parent
+        if parent.exists() and not os.access(parent, os.W_OK | os.X_OK):
+            return "locked"
+        return "unlocked" if p.exists() else "absent"
+    except OSError:
+        return "locked"
+
+
+def _owner_locked_message(name, old, path) -> str:
+    """The ONE-LINE owner-locked refusal (T-14573 AC1): the key, its current value, and that only the
+    owner changes it — with the unlock / set / re-lock steps the owner takes."""
+    knob = BY_NAME.get(name)
+    current = (f"current value {old!r}" if old is not None
+               else f"current value: built-in default {knob.default!r}" if knob is not None
+               else "no current value")
+    return (f"{name} is owner-locked: the machine settings file {path} cannot be replaced "
+            f"({current}); machine-scoped settings are the owner's, and only the owner changes them "
+            f"- unlock with `sudo chattr -i {path}`, set, re-lock with `sudo chattr +i {path}` "
+            f"(SPEC-1031 rule 10)")
+
+
+def in_force_overrides(env=None) -> "tuple[dict, int]":
+    """`({key: value}, shadowed)` — the machine-file values IN FORCE that differ from their built-in
+    default, and how many differing file values the environment shadows (SPEC-1031 rule 4: the read
+    site applies a `YITC_*` environment value above the file). Never raises."""
+    env_map = os.environ if env is None else env
+    try:
+        file_values = load(env)
+    except Exception:                  # noqa: BLE001 — a settings fault is never a caller's problem
+        return {}, 0
+    out, shadowed = {}, 0
+    for key in sorted(file_values):
+        knob = BY_NAME[key]
+        if file_values[key] == knob.default:
+            continue
+        value, source = applied(knob, env_map, file_values, {})
+        env_raw = env_map.get(key) if key.startswith("YITC_") else None
+        if source != "machine-file" or (env_raw is not None and str(env_raw).strip()):
+            shadowed += 1
+            continue
+        out[key] = value
+    return out, shadowed
+
+
+def last_change(rows, path):
+    """The newest `config_changed` row (journal order) for the machine file at `path` — a project-door
+    row (`scope: project`) is another file and never counts. None when there is none."""
+    want = str(path)
+    found = None
+    for row in rows or ():
+        data = row.get("data") or {}
+        if data.get("path") == want and data.get("scope") != "project":
+            found = row
+    return found
+
+
+def overrides_line(env=None, rows=None):
+    """The session-start machine-overrides line (T-14573 AC2), or None when no override is in force.
+
+    Pure over the settings file and the `config_changed` rows the caller read (`rows`); `rows=None`
+    means the caller read no journal, and the line points at the journal query instead."""
+    values, shadowed = in_force_overrides(env)
+    if not values:
+        return None
+    path = resolve_settings_path(env)
+    pairs = ", ".join(f"{k}={v}" for k, v in values.items())
+    row = None if rows is None else last_change(rows, path)
+    if rows is None:
+        last = "not read on this start - `bin/yitc-v2 journal query --type config_changed`"
+    elif row is None:
+        last = "none in this project's journal"
+    else:
+        d = row.get("data") or {}
+        last = (f"{row.get('ts')} {d.get('key')} {d.get('old')!r}->{d.get('new')!r} "
+                f"session {row.get('session_ref')}")
+    tail = f" ({shadowed} file value(s) shadowed by the environment)" if shadowed else ""
+    return (f"machine settings in effect on this host (differ from built-ins): {pairs} - file {path} "
+            f"{lock_state(path)}; last config_changed for this file in this project's journal: {last}"
+            f"{tail} - machine-scoped settings are the owner's (SPEC-1031 rule 10)")
 
 
 def resolve(name, default, env=None):

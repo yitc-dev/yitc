@@ -149,7 +149,8 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
                       _controller_acting_holder=None,
                       _kernel_is_local_peer=None, _project_name=None,
                       _read_only_journal=None, _own_floor_map=None,
-                      _standing_post_lines=None) -> "tuple[str, str]":
+                      _standing_post_lines=None,
+                      _machine_override_lines=None) -> "tuple[str, str]":
     """Session activation (per D-0041): durable journal MARKUP + startup-protocol ECHO.
 
     Returns the session's AUTHORITATIVE `(resolved_session_ref, source_kind)` (T-10246; the provenance
@@ -464,7 +465,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         # auto-read the MEMORY.md buffer — its startup read-set is the mandatory handbook seed + the
         # active stage bundle only. The buffer's cross-session-continuity content is controller-
         # oriented (continuation seeds / near-term to-dos) — irrelevant to a task-bounded worker AND a
-        # confabulation source (real incident 2026-07-01: a worker read the <project> seed and
+        # confabulation source (real incident 2026-07-01: a worker read the boomrocket seed and
         # confabulated a FOREIGN-scenario land-halt). So this MEMORY read-nudge fires for the
         # Controller path only. Normative home: SPEC-0039 §0 (worker exemption).
         if _sess_type != "build":
@@ -665,6 +666,9 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # host-computed VALUE, as above; the rows stay in `journal query --type external_action`.
     for _standing_ln in (_standing_post_lines or ()):
         print(_kq(_standing_ln + " " + REPORT_ONLY))
+    # T-14573 (SPEC-1031 rule 10): the machine-wide overrides in force — a host-computed VALUE, as above.
+    for _machine_ln in (_machine_override_lines or ()):
+        print(_kq(_machine_ln + " " + REPORT_ONLY))
     # (3) Posture-dispatch (per D-0052, amended T-9698): a NON-MUTATING startup SUMMARY. The
     # Build|Review interactive type CHOICE is retired (T-9697 / CHARTER §6) — `--type build` is the
     # dispatched Worker (build-framed resume-or-await); NO `--type` is the interactive Controller
@@ -1965,7 +1969,7 @@ def _context_measure(path, cfg):
     once, centrally, and getting one of the two cases wrong (lessons/fail-closed-belongs-to-the-reader-
     not-the-parser.md).
 
-    T-10749 (X-0588, <project>): a session whose model is ABSENT from the `context_window` map cannot
+    T-10749 (X-0588, boomrocket): a session whose model is ABSENT from the `context_window` map cannot
     be measured — but this function used to report it as `state: "ok"` with `verdict: None`, i.e. the
     only two machine-readable fields a consumer has BOTH read as "measured, and not over the bound".
     That is how the threshold went dark for an hour with nothing saying so, leaving AI self-estimation
@@ -2418,7 +2422,7 @@ def _resolve_declared_executable(exe: str, repo_root, run) -> "tuple[str | None,
     consults PATH. So the pre-T-10587 reader called a repo-relative command unrunnable whenever the
     engine ran via `-C` from any cwd but the repo root — contradicting the `-C` contract (operate on
     the NAMED repo regardless of cwd) and inventing provisioning gaps for tooling already present
-    (X-0436: <project>'s `bin/verify-hermetic.sh` + `bin/verify-alembic-topology.sh` read as 2 gaps
+    (X-0436: boomrocket's `bin/verify-hermetic.sh` + `bin/verify-alembic-topology.sh` read as 2 gaps
     from `/home/dev`, 0 from the repo root — the same call).
 
     A repo-relative token therefore resolves ONLY against `repo_root/<token>` (exists + executable),

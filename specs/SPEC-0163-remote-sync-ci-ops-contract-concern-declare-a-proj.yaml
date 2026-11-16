@@ -37,7 +37,7 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   \ independent\ntoggles. They are inseparable because each is worthless alone: a\
   \ declared remote nobody can push to\nis not a sync path; a pusher with no declared\
   \ remote names no destination; a CI stance without a\nremote describes work that\
-  \ cannot run (the X-0346 <project> shape — a dormant workflow whose repo\nhas no\
+  \ cannot run (the X-0346 boomrocket shape — a dormant workflow whose repo\nhas no\
   \ remote at all). A project takes ONE stance on the three together: declare, or\
   \ waive.\n\n### 2. Implementation-agnostic — this concern mandates NO forge, NO\
   \ CI system, NO push mechanism\nLike `verify:` and `tests:`, this concern asks WHETHER\
@@ -470,7 +470,7 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   \ extra check, not the land gate) were all settled AD HOC inside one\n  migration\
   \ card and recorded only as a plan leftover-tail row. The decisions were sound;\
   \ the\n  problem is that no concern surface asked for them, so nothing keeps them\
-  \ legible or re-asks them\n  of the next project.\n- **<project> (followup `fu_d7881b6b0864`,\
+  \ legible or re-asks them\n  of the next project.\n- **boomrocket (followup `fu_d7881b6b0864`,\
   \ 2026-07-11 → routed X-0346).** It carries\n  `.github/workflows/product-safety-guards.yml`\
   \ with NO git remote — a dormant CI leftover the B5\n  leftover-tail missed, found\
   \ only by an ad-hoc human read.\nClass prior-art: **X-0088** (a deploy-autonomy\

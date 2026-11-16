@@ -181,8 +181,8 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ more tests AND frees the host, so the two agree. The resolved selection\nis THREADED\
   \ to whichever path takes the pass (the box via `route(selection=...)`, or the local\n\
   runner), so no pass selects twice (the bound).\n\n**A `-C <consumer>` pass, and\
-  \ any pass on a record published for a consumer, routes as SPEC-1032 rule 2 states**\
-  \ (`bin/yitc-v2 graph query SPEC-1032`).\n\n### 3. Transport — the SAME trees, the\
+  \ any pass on a record published for a consumer, routes as SPEC-1059 rule 2 states**\
+  \ (`bin/yitc-v2 graph query SPEC-1059`).\n\n### 3. Transport — the SAME trees, the\
   \ SAME runner, over ssh; git carries history AND identity\nThe venue keeps ONE persistent\
   \ bare clone of the repo (`~/venue/repo.git`) that lives in the box\nSNAPSHOT `venue\
   \ raise` raises from — it is SEEDED ONCE, on a bare-image box, and snapshotted;\
@@ -712,7 +712,7 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
   \ Its verbs: **`venue raise`** (create from the snapshot, wait for ssh, run the\n\
   readiness probe — fingerprint + `nofile` + the test deps the kernel declares in\
-  \ its own `yitc-ops.yaml` (SPEC-1032 rules 1 and 6) — and emit an `external_action`\n\
+  \ its own `yitc-ops.yaml` (<workshop-spec> rules 1 and 6) — and emit an `external_action`\n\
   `from:` the session's card, <workshop-spec>), **`venue publish`** (mirror the host's\
   \ main onto the box\nclone, THEN write rule 1's record; refused when the probe or\
   \ the mirror failed), **`venue unpublish`** (remove the record — the explicit break-glass\
@@ -996,9 +996,9 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ classes):** injected disconnect, truncated envelope, stale-attempt reply and\n\
   \  duplicate reply each abort with their own named class; an idempotent re-run completes;\
   \ none is\n  reported as a test failure and none burns an audit pass.\n- **VP3 (routing\
-  \ + opt-in):** with a kernel record present (one naming no consumer, SPEC-1032 rule\
-  \ 6), `task test --run` on the engine executes\n  zero local test subprocesses and\
-  \ the box runs the suite; with the record absent, the local path\n  is byte-identical\
+  \ + opt-in):** with a kernel record present (one naming no consumer, <workshop-spec>\
+  \ rule 6), `task test --run` on the engine executes\n  zero local test subprocesses\
+  \ and the box runs the suite; with the record absent, the local path\n  is byte-identical\
   \ to the pre-venue run; a `-C <consumer>` pass with no declaration never\n  consults\
   \ the record.\n- **VP4 (lifecycle):** `external_action` rows for raise and delete\
   \ `from:` the compute-controller's\n  card; the record appears at publish and is\
@@ -1042,10 +1042,10 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#cmd_venue_publish: 953dc19580c2dbaa96dd6d84f1c94c42c47dabb04f01def3499d617ec9d953b1
+  bin/lib/cli.py#cmd_venue_publish: 4513ac7984b575d38a6d1de0eefa70593459bd4689393a3a4b8116dc3837c6f5
   bin/lib/remote_verify.py#ParkedPreship: 0faeee925227453f0ad571bcd11393c1729e55ad23ce78bff9819a8bcfbdb1ac
   bin/lib/remote_verify.py#SHIP_PUSH_TIMEOUT_S: 2c319cde46aece5469cebfff02bfbe21ddf7659aefe0dc7fb7065d49809596ef
-  bin/lib/remote_verify.py#box_lease_prologue: 5519e46317f9b8cfae6bfc08efcf06a6c9708c3975f1043aea2e68104db6613a
+  bin/lib/remote_verify.py#box_lease_prologue: 8a31ad7adfefee5c38e06ab222f997b7b2beeb9386c810e4230eceeb89d1af78
   bin/lib/remote_verify.py#derive_remote_w: 5bc98f158f768fb598533c9379027e9808ab5230667bca97fbb0cf88fdc97578
   bin/lib/remote_verify.py#execute_remote_verify: 64dff88a11a5216cecb1781fde8c318f0f40ffe165afb0888ebf8e2f5b0a852a
   bin/lib/remote_verify.py#local_probe_set: 854ec715e1a8aae300f37e1d5666fdc8e801b7ea37b9400026c4c2cab3472524
@@ -1055,7 +1055,7 @@ implements_signature:
   bin/lib/remote_verify.py#route: 53c1bb6e53a1dad368b8ec2bb98fdbf89200c440518dd07ad222086b53caf486
   bin/lib/remote_verify.py#ship_trees: 459a2c93cc9099edc3f64877224cd07eb0d3e557780f00059a4a95f0407482b0
   bin/lib/remote_verify.py#validate_envelope: a8e909c647215b15cd9c084d2b4f194c72a87ef7c85d18736d5688071dae6374
-  bin/lib/remote_verify.py#venue_decision: eb7bf56758396fd2a9293264928121e5f209153bd23dd7588ce86a389bb20590
+  bin/lib/remote_verify.py#venue_decision: 1575b1011c703cacb1c13ec4e9320ddfa079806c1d77442383d079cb0a1061f1
   bin/lib/remote_verify.py#venue_max_requests: 750fd2a701e6ee5f98f42f5e4d1e6ceef694655f18003b1166086332be48e87e
   bin/lib/remote_verify.py#venue_preship_max_concurrent: 7d6f1542ecb8f17569f3c970d94d539eddd512fbe955f3c6faf0a7779d728af2
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
@@ -1066,13 +1066,13 @@ implements_signature:
   bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
   bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
-  bin/lib/task.py#cmd_task_test: 6118eeaee705c3e0dfee4669c823bae571a74d797461ec3a0fb03b2b17c5568a
+  bin/lib/task.py#cmd_task_test: 6545d2b1cd2555eb414731e02ba65370cb92b045a2dda1f424d46596ba335945
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd
   bin/lib/venue.py#delete_server: 388fcce4ebe8a6d3c1fe726b9d5f1af13234b089e9aad45dbc70412d0151a6b3
   bin/lib/venue.py#main_mirror_state: 6369f46a53cbbd1ca2bda6984e87d1edb7c940591b24ee6345ebd098b07120a9
-  bin/lib/venue.py#probe_readiness: b649b0bbbe6742851d0b92f30971f5d368ad8a3213194f77ff725f1ec0594cb1
+  bin/lib/venue.py#probe_readiness: 8aedbe79c199b938629a467be7d9d36fbe47c2e371f0b95580910bf5cc1feed1
   bin/lib/venue.py#read_record: f1629b1c5e2e8add73bf1e067b15eef287a1c96a45b0c7322e85800b3e49e01f
   bin/lib/venue.py#resolve_record_path: 231f50071cfee672ad49319cf14cc522e92e7513c49953e5b588350662a0b64b
   bin/lib/venue.py#teardown_refresh: 3ef38e26cfece1075edaa9a19bccdbfc0176b990b6b15e1d79183968cb627d84
@@ -1081,4 +1081,4 @@ implements_signature:
   bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663
+  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800

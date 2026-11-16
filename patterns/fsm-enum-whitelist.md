@@ -40,8 +40,8 @@ class OrderStatus(StrEnum):
 ORDER_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.DRAFT: {OrderStatus.ACTIVE, OrderStatus.CANCELLED},
     OrderStatus.ACTIVE: {OrderStatus.COMPLETED, OrderStatus.CANCELLED},
-    OrderStatus.COMPLETED: set, # terminal
-    OrderStatus.CANCELLED: set, # terminal
+    OrderStatus.COMPLETED: set,   # terminal
+    OrderStatus.CANCELLED: set,   # terminal
 }
 ```
 

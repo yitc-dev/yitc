@@ -158,15 +158,15 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ + the REALIZATION-EXIT block FIRST → `plan check` → `plan stage\n    accepted`\
   \ → `plan stage decomposition`**. BASIS: the accept-gate freshness hash (`content_hash`)\n\
   \    covers the plan **BODY** only, and the realization-exit block IS a body section\
-  \ — so composing it\n    AFTER the check stales the verdict and costs a full re-`plan\
-  \ check` before `decomposition` (which\n    re-checks the SAME hash), for no design\
-  \ change. `implementation_plan` is a FRONTMATTER field and\n    does NOT stale the\
-  \ check, so the cost is the body half. Ordering GUIDANCE, not a new gate — no\n\
-  \    mechanical refusal moves. And a fresh `plan check` does **NOT** preserve mode-b\
-  \ `absorbed:`\n    entries: a fresh verdict is a fresh record, by design — one more\
-  \ reason to compose the body\n    BEFORE the check rather than re-checking after\
-  \ it.\n  - Work (REALIZATION-EXIT criteria, UP FRONT): ALSO compose the\n    plan's\
-  \ REALIZATION-EXIT criteria here — the postcheck probe block (observed-behaviour\
+  \ — so composing it\n    AFTER the check stales the verdict and costs a further\
+  \ check before `decomposition` (which\n    re-checks the SAME hash — SPEC-1061 §4),\
+  \ for no design change. `implementation_plan` is a FRONTMATTER field and\n    does\
+  \ NOT stale the check, so the cost is the body half. Ordering GUIDANCE, not a new\
+  \ gate — no\n    mechanical refusal moves. And a fresh `plan check` does **NOT**\
+  \ preserve mode-b `absorbed:`\n    entries: a fresh verdict is a fresh record, by\
+  \ design — one more reason to compose the body\n    BEFORE the check rather than\
+  \ re-checking after it.\n  - Work (REALIZATION-EXIT criteria, UP FRONT): ALSO compose\
+  \ the\n    plan's REALIZATION-EXIT criteria here — the postcheck probe block (observed-behaviour\
   \ / min-runs /\n    failure-threshold / evidence-home) — the way a TASK authors\
   \ its `acceptance` at FILING, not reactively\n    at postcheck entry. The plan declares\
   \ HOW it will be proven realized BEFORE it is built. (The front-load\n    prompt\
@@ -177,69 +177,70 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ moves no mechanical REFUSAL earlier in the FSM — compliance is unchanged (in-place\
   \ amend, not\n    a supersede — <workshop-spec> §7). The criteria stay author-declared\
   \ + owner-judged; no parser/gate enforces them.\n  - Side-effect (`plan stage accepted`):\
-  \ the plan's `draft` specs are BORN\n    `proposed`; GATED on a FRESH GREEN/YELLOW\
-  \ `plan check` (the accept-gate,\n    freshness = a content hash — the mirror of\
-  \ `decision accept`).\n  - **Accept-gate covers the draft specs vs the corpus (\
-  \ — closes the activation-before-finalize\n    content-audit hole).** A PLAN-BORN\
-  \ spec governs only when `active`, but it reaches `active` via its\n    activation_owner_task\
-  \ close (an ADOPTION probe, NOT a content audit) — so without this, its OWN\n  \
-  \  content first gets a dedicated external audit only at `plan stage realized` (`audit\
-  \ post --plan`),\n    LATE. The accept-gate `plan check` therefore AUDITS the plan's\
-  \ PLAN-BORN draft specs\n    (`proposed_by==slug AND status==draft` — the SAME set\
-  \ `_birth_plan_draft_specs` births) against the\n    active+proposed corpus for\
-  \ overlap / duplication / contradiction (P7 / one-active-lineage),\n    and the\
-  \ draft→proposed BIRTH is GATED on it: a draft spec that conflicts/duplicates the\
-  \ corpus is\n    NOT born — rework first. Freshness reflects the draft specs + the\
-  \ corpus CONTENT too: editing a draft spec OR a corpus spec after the check invalidates\n\
-  \    the accept gate (re-run `plan check`). SCOPE = the PLAN-BORN path ONLY — a\
-  \ WORK-FIRST spec\n    (`proposed_by==<task>`) is content-audited by its own task's\
-  \ audit-pre/post and is NOT\n    double-audited here.\n  - **A partial corpus read\
-  \ never renders as a full pass (X-0706).** The accept-gate corpus\n    block is\
-  \ byte-bounded (`_CORPUS_BLOCK_BUDGET`) so it can never overflow the auditor — that\
-  \ ceiling\n    STAYS. What must not stay silent is CROSSING it: a gate whose reach\
-  \ is shorter than its declared\n    scope is worse than a gate that refuses. So\
-  \ whenever the gate's reach falls short of the corpus it\n    claims to judge —\
-  \ either MECHANICALLY (draft bodies / corpus rows dropped at the ceiling) or by\
-  \ the\n    auditor's OWN SELF-REPORT that it could not fully read or verify the\
-  \ corpus — `plan check` records\n    the shortfall STRUCTURALLY in the verdict (`corpus_coverage`,\
-  \ naming what was not reached) and\n    escalates a GREEN to YELLOW. Never RED:\
-  \ a partial read is a statement about CONFIDENCE, not a\n    proven defect (the\
-  \ posture SPEC-0082 settled for baseline-not-live). The shortfall may NOT live\n\
-  \    only in auditor prose, where it reads as a normal pass. STRICTLY CONDITIONAL\
-  \ — a gate that reached\n    the whole corpus (the ordinary small-plan path) records\
-  \ no key, gains no finding and keeps its\n    verdict byte-for-byte, so the honest\
-  \ floor taxes only the runs that actually fell short.\n    **Separate reservations,\
-  \ refuse rather than audit a partial subject (X-1529).** Draft\n    bodies and the\
-  \ corpus index do not share one first-fit pool: the index keeps a reserved share,\n\
-  \    the drafts fill the rest, and the drafts' RELATED comparands may use whatever\
-  \ remains. When the\n    drafts exceed their pool, or a related comparand no longer\
-  \ fits, `plan check` REFUSES BEFORE the\n    auditor — naming the budget and each\
-  \ draft's size, spending no pass — instead of letting the\n    auditor judge a plan\
-  \ whose drafts it never saw. Every shortfall reason names the budget and the\n \
-  \   measured sizes, and the block's fetch pointers carry the session's `-C <repo>`\
-  \ prefix so a\n    consumer's own spec ids resolve against the consumer corpus.\n\
-  \  - **A YELLOW residual is absorbed ONTO the verdict, not by editing the plan.**\
-  \ LIFECYCLE\n  Stage 4's two ways to absorb a YELLOW finding govern this gate too:\
-  \ (a) EDIT the plan — which\n  re-hashes the body, stales `content_hash` and forces\
-  \ a whole fresh FULL `plan check` — or (b)\n  RECORD the residual on the EXISTING\
-  \ accept-gate verdict without changing the plan. Mode (b)'s\n  governed route here\
-  \ is **`bin/yitc-v2 plan check --absorb \"<text>\" <slug>`**: it runs NO auditor,\n\
-  \  appends `absorbed:`/`notes:` on `decisions/<slug>-audit.yaml`, emits `audit_finding_absorbed`,\
-  \ and\n  leaves `verdict:` / `content_hash:` / `accept_freshness_hash:` / `passes:`\
-  \ byte-identical — so\n  `plan stage accepted` still accepts that record and NO\
-  \ ceiling pass is burned (<workshop-spec>\n  §Audit-loop ceiling; mode (a) is the\
-  \ only mode that generates a pass, unchanged). It is the SAME\n  writer, on the\
-  \ SAME record, as `audit pre --plan <slug> --gate trial-accepted --absorb`\n  —\
-  \ a plan-check-shaped spelling of an existing route, not a second one. TWO REFUSALS,\
-  \ neither\n  loosened: a NON-YELLOW record (RED/ABORT = STOP: re-plan or escalate;\
-  \ GREEN carries no accepted\n  finding), and a plan body that no longer matches\
-  \ the recorded `content_hash` — absorption after\n  body drift is REFUSED, because\
-  \ the cheap path is cheap only while the recorded verdict still\n  judges the CURRENT\
-  \ body. **A body edit therefore still forces a fresh `plan check`**, exactly as\n\
-  \  before; what this removes is the extra FULL check paid when nothing about the\
-  \ plan changed.\n- **Plan check role (narrowed — SPEC-0035 rule 7).** For a trial-ELIGIBLE\
-  \ plan, `plan check` is NOT\n    the design-convergence gate: convergence evidence\
-  \ is produced in `trial` against the baked criteria,\n    and `plan check` at this\
+  \ the plan's `draft` specs are BORN\n    `proposed`. WHEN the accept gate admits\
+  \ — the `plan check` anchor, its two admission arms and\n    what needs a fresh\
+  \ anchor — is SPEC-1061 (`bin/yitc-v2 graph query SPEC-1061`), delivered here.\n\
+  \  - **Accept-gate covers the draft specs vs the corpus ( — closes the activation-before-finalize\n\
+  \    content-audit hole).** A PLAN-BORN spec governs only when `active`, but it\
+  \ reaches `active` via its\n    activation_owner_task close (an ADOPTION probe,\
+  \ NOT a content audit) — so without this, its OWN\n    content first gets a dedicated\
+  \ external audit only at `plan stage realized` (`audit post --plan`),\n    LATE.\
+  \ The accept-gate `plan check` therefore AUDITS the plan's PLAN-BORN draft specs\n\
+  \    (`proposed_by==slug AND status==draft` — the SAME set `_birth_plan_draft_specs`\
+  \ births) against the\n    active+proposed corpus for overlap / duplication / contradiction\
+  \ (P7 / one-active-lineage),\n    and the draft→proposed BIRTH is GATED on it: a\
+  \ draft spec that conflicts/duplicates the corpus is\n    NOT born — rework first.\
+  \ Freshness reflects the draft specs + the corpus CONTENT too: editing a draft spec\
+  \ OR a corpus spec after the check invalidates\n    the accept gate (what admits\
+  \ again: SPEC-1061 §2-§3). SCOPE = the PLAN-BORN path ONLY — a WORK-FIRST spec\n\
+  \    (`proposed_by==<task>`) is content-audited by its own task's audit-pre/post\
+  \ and is NOT\n    double-audited here.\n  - **A partial corpus read never renders\
+  \ as a full pass (X-0706).** The accept-gate corpus\n    block is byte-bounded (`_CORPUS_BLOCK_BUDGET`)\
+  \ so it can never overflow the auditor — that ceiling\n    STAYS. What must not\
+  \ stay silent is CROSSING it: a gate whose reach is shorter than its declared\n\
+  \    scope is worse than a gate that refuses. So whenever the gate's reach falls\
+  \ short of the corpus it\n    claims to judge — either MECHANICALLY (draft bodies\
+  \ / corpus rows dropped at the ceiling) or by the\n    auditor's OWN SELF-REPORT\
+  \ that it could not fully read or verify the corpus — `plan check` records\n   \
+  \ the shortfall STRUCTURALLY in the verdict (`corpus_coverage`, naming what was\
+  \ not reached) and\n    escalates a GREEN to YELLOW. Never RED: a partial read is\
+  \ a statement about CONFIDENCE, not a\n    proven defect (the posture SPEC-0082\
+  \ settled for baseline-not-live). The shortfall may NOT live\n    only in auditor\
+  \ prose, where it reads as a normal pass. STRICTLY CONDITIONAL — a gate that reached\n\
+  \    the whole corpus (the ordinary small-plan path) records no key, gains no finding\
+  \ and keeps its\n    verdict byte-for-byte, so the honest floor taxes only the runs\
+  \ that actually fell short.\n    **Separate reservations, refuse rather than audit\
+  \ a partial subject (X-1529).** Draft\n    bodies and the corpus index do not share\
+  \ one first-fit pool: the index keeps a reserved share,\n    the drafts fill the\
+  \ rest, and the drafts' RELATED comparands may use whatever remains. When the\n\
+  \    drafts exceed their pool, or a related comparand no longer fits, `plan check`\
+  \ REFUSES BEFORE the\n    auditor — naming the budget and each draft's size, spending\
+  \ no pass — instead of letting the\n    auditor judge a plan whose drafts it never\
+  \ saw. Every shortfall reason names the budget and the\n    measured sizes, and\
+  \ the block's fetch pointers carry the session's `-C <repo>` prefix so a\n    consumer's\
+  \ own spec ids resolve against the consumer corpus.\n  - **A YELLOW residual is\
+  \ absorbed ONTO the verdict, not by editing the plan.** LIFECYCLE\n  Stage 4's two\
+  \ ways to absorb a YELLOW finding govern this gate too: (a) EDIT the plan — which\n\
+  \  re-hashes the body, stales `content_hash` and forces a whole fresh FULL `plan\
+  \ check` — or (b)\n  RECORD the residual on the EXISTING accept-gate verdict without\
+  \ changing the plan. Mode (b)'s\n  governed route here is **`bin/yitc-v2 plan check\
+  \ --absorb \"<text>\" <slug>`**: it runs NO auditor,\n  appends `absorbed:`/`notes:`\
+  \ on `decisions/<slug>-audit.yaml`, emits `audit_finding_absorbed`, and\n  leaves\
+  \ `verdict:` / `content_hash:` / `accept_freshness_hash:` / `passes:` byte-identical\
+  \ — so\n  `plan stage accepted` still accepts that record and NO ceiling pass is\
+  \ burned (<workshop-spec>\n  §Audit-loop ceiling; mode (a) is the only mode that\
+  \ generates a pass, unchanged). It is the SAME\n  writer, on the SAME record, as\
+  \ `audit pre --plan <slug> --gate trial-accepted --absorb`\n  — a plan-check-shaped\
+  \ spelling of an existing route, not a second one. TWO REFUSALS, neither\n  loosened:\
+  \ a NON-YELLOW record (RED/ABORT = STOP: re-plan or escalate; GREEN carries no accepted\n\
+  \  finding), and a plan body that no longer matches the recorded `content_hash`\
+  \ — absorption after\n  body drift is REFUSED, because the cheap path is cheap only\
+  \ while the recorded verdict still\n  judges the CURRENT body. **A body edit therefore\
+  \ leaves this route** — the edited plan\n  is admitted again as SPEC-1061 §3 says;\
+  \ what this removes is the extra FULL check paid when nothing about the plan changed.\n\
+  - **Plan check role (narrowed — SPEC-0035 rule 7).** For a trial-ELIGIBLE plan,\
+  \ `plan check` is NOT\n    the design-convergence gate: convergence evidence is\
+  \ produced in `trial` against the baked criteria,\n    and `plan check` at this\
   \ accept-gate is the audit of the ASSEMBLED package (the plan + its composed\n \
   \   draft specs — incl. the corpus content-audit above), NOT the source of design-convergence.\n\
   \    Post-accept spec-rework driven by reality-vs-paper divergence is no longer\
@@ -248,8 +249,8 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ verification, as before.)\n\n- **decomposition** *(plan-stage-entry:decomposition\
   \ — task analog: the pre-build CUT + its fidelity gate; SPEC-0070)*\n  - Entry gate\
   \ (`accepted → decomposition`) = the plan is verified — `_require_plan_decomposition_ready`:\
-  \ `plan check`\n    GREEN/YELLOW **+** the `implementation_plan` composed **+**\
-  \ the specs `proposed`. A corpus spec in a\n    DELIBERATE never-active terminal\
+  \ a FRESH\n    `plan check` (SPEC-1061 §4) **+** the `implementation_plan` composed\
+  \ **+** the specs `proposed`. A corpus spec in a\n    DELIBERATE never-active terminal\
   \ (`withdrawn`/`rejected`) is EXEMPT from this `proposed`/`active`\n    demand (\
   \ — a plan-born spec deliberately abandoned as a scope-cut must not block the plan;\n\
   \    symmetric with the postcheck `_plan_postcheck_exempt_specs`); a `draft`/`superseded`/`retired`\n\
@@ -653,6 +654,6 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/plan.py#cmd_plan_check: be1dace2208f1558777a8f8bf1aae5c52cdac9e97e1e39e55db2a8d19029936e
+  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
   bin/lib/plan.py#cmd_plan_file: 1edaaf81e9141657f44179262be47aa3eebd07c73db0b4082cecbbef8321ed86
-  bin/lib/plan.py#cmd_plan_stage: 60f37718bb790aeb0ad7469298f0c2057c635c5999b0d805cd6bdc67bb6877cc
+  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2

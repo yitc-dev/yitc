@@ -258,7 +258,7 @@ step is mandatory, not optional.
   4. **`/work` observability.** The owner could not SEE that activation happened (it was bundled into a
      `cd && session start` bash line + the handbook reads as 3 assembled view-files). Fix: `/work` now runs
      `session start` visibly + prints a plain «methodology activated» confirmation.
-  5. **Project secrets access (<project> cross-check).** A sibling project's ticket scripts hardcode the
+  5. **Project secrets access (trend-finder cross-check).** A sibling project's ticket scripts hardcode the
      dev-only `<host-home>/secrets/<proj>.env`; the scoped owner (filev) can't read it (worked only via docker
      trust-auth). Per-project fix pending (user-aware secret resolution). Motivated the mandatory
      verify-as-user checklist above.

@@ -21,7 +21,7 @@ they must not be conflated:
                  followup waits for. It is the SOLE fire key.
 Before T-10335 the fire check read `relates_to`, so a followup fired the instant the task it was merely
 ABOUT closed — which is precisely NOT what it was waiting for. On 2026-07-10 all 9 live `fired` rows were
-false: each awaited a FUTURE event (the next revizia run, the next `-C` consumer init, <project>'s next
+false: each awaited a FUTURE event (the next revizia run, the next `-C` consumer init, trend-finder's next
 land, the next owner-invoked T7 run, a plan's revival) that had not occurred. Worse, `arm` could not undo
 it: firing derived from the irreversible fact that the provenance task was closed, so a re-armed followup
 stayed fired forever. Fingerprints: `followup-fire-on-relates-to-not-awaited-condition`,

@@ -84,18 +84,18 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ a consumer is expected to wire\n  up, across five surface kinds — **endpoints,\
   \ UI, ops checks, automation, per-release upgrade-steps**.\n  The manifest is authored\
   \ on the LIBRARY side (its release names what integrating it entails); the\n  library-side\
-  \ asks already made of <project> (X-0537/X-0542) SHIP that manifest. R6 does NOT\n\
-  \  duplicate that authoring (CHARTER §P5) — it defines only the manifest's CONTRACT\
-  \ (the five surface\n  kinds, each surface a stable id) and the CONSUMER obligation\
-  \ below. **The same manifest also\n  declares the library's NEUTRAL-MODULE surface**\
-  \ (`neutral_modules:` — the package-qualified module\n  paths a consumer must resolve\
-  \ FROM the pin rather than keep a copy of): one more declared field on\n  the one\
-  \ library-shipped manifest, read by the identity leg's `no_local_diff` (see §TIMING\
-  \ + the\n  HEALTH invariant). One manifest carries BOTH legs' declared surfaces\
-  \ — coverage and identity — so\n  a consumer has one thing to point at and the kernel\
-  \ has no second carrier to parse (CHARTER §P5).\n- **(b) The consumer conformance\
-  \ check (report-only).** The consumer's verify/nightly runs a\n  CONFORMANCE check\
-  \ against the manifest: for each declared surface, is it INTEGRATED (or explicitly\n\
+  \ asks already made of ticket-review (X-0537/X-0542) SHIP that manifest. R6 does\
+  \ NOT\n  duplicate that authoring (CHARTER §P5) — it defines only the manifest's\
+  \ CONTRACT (the five surface\n  kinds, each surface a stable id) and the CONSUMER\
+  \ obligation below. **The same manifest also\n  declares the library's NEUTRAL-MODULE\
+  \ surface** (`neutral_modules:` — the package-qualified module\n  paths a consumer\
+  \ must resolve FROM the pin rather than keep a copy of): one more declared field\
+  \ on\n  the one library-shipped manifest, read by the identity leg's `no_local_diff`\
+  \ (see §TIMING + the\n  HEALTH invariant). One manifest carries BOTH legs' declared\
+  \ surfaces — coverage and identity — so\n  a consumer has one thing to point at\
+  \ and the kernel has no second carrier to parse (CHARTER §P5).\n- **(b) The consumer\
+  \ conformance check (report-only).** The consumer's verify/nightly runs a\n  CONFORMANCE\
+  \ check against the manifest: for each declared surface, is it INTEGRATED (or explicitly\n\
   \  waived) here? A surface the manifest declares that the consumer neither integrated\
   \ nor waived is a\n  LOUD gap, named surface-by-surface — the exact X-0543 signal\
   \ that was invisible. The check is\n  REPORT-ONLY (it rides the existing conformance\
@@ -119,14 +119,14 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ git repo (its own `.git`, HEAD 976f2b6),\n  the `apify_parsing` package installed\
   \ via `pip install -e <host-home>/lib/apify-client/`,\n  bind-mounted read-only\
   \ into consumer containers. Its README self-describes as \"Cross-project\n  Apify\
-  \ integration.\"\n- **Consumers.** THREE projects bind-mount it: `<project>`, `<project>`,\
-  \ `<project>`\n  (proof: `grep -rl apify <host-home>/projects/*/docker-compose*.yml`).\n\
+  \ integration.\"\n- **Consumers.** THREE projects bind-mount it: `boomrocket`, `<project>`,\
+  \ `social-parser`\n  (proof: `grep -rl apify <host-home>/projects/*/docker-compose*.yml`).\n\
   - **Walk the tree.** DEFAULT (R2) would be pin-and-upstream. BUT trigger R3(a) fires\
   \ — the lib is\n  co-developed by >= 2 consumers (three). → **ESCALATE to register-as-own-project.**\
   \ apify-client\n  becomes a registered yitc project with its own territory/graph/lifecycle;\
-  \ the <project> fix\n  (the 2026-07-01 incident that raised X-0146) routes as a\
-  \ **cross request** into that project, is\n  executed there through the 9 stages,\
-  \ released, and <project> / <project> / <project>\n  each move their pin. Until\
+  \ the social-parser fix\n  (the 2026-07-01 incident that raised X-0146) routes as\
+  \ a **cross request** into that project, is\n  executed there through the 9 stages,\
+  \ released, and boomrocket / <project> / social-parser\n  each move their pin. Until\
   \ registration lands, the fix stays a tracked cross/task, NEVER a silent\n  in-place\
   \ edit of `<host-home>/lib/apify-client`.\nThis is the escalation branch, not the\
   \ bare default — the case is exactly why R3 exists.\n\n## Reuse across projects\
@@ -238,8 +238,8 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ (<workshop-spec>) rather than a\nbare in-place edit — the EXECUTOR decides the\
   \ carrier at Analysis (an in-place amendment when the\nchange deepens the same judgement;\
   \ a PLAN when it opens a new standing-rule surface).\n\n## Rationale\n\nReal incident:\
-  \ **X-0146** (<project> → yitc-v2, 2026-07-01) — a consumer needed to GOVERN a fix\n\
-  to load-bearing code in a shared external library (`<host-home>/lib/apify-client`)\
+  \ **X-0146** (social-parser → yitc-v2, 2026-07-01) — a consumer needed to GOVERN\
+  \ a fix\nto load-bearing code in a shared external library (`<host-home>/lib/apify-client`)\
   \ that has its own\ngit, is bind-mounted read-only, and is not a registered yitc\
   \ project. Editing it in place is a\ncross-territory write (SPEC-0084) AND is invisible\
   \ to the consumer graph/coherence (drift risk).\nOwner-approved direction 2026-07-02\
@@ -250,7 +250,7 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ routing on escalation), and\nCHARTER §Principle 1 (lightest-mechanism / name-the-retirement).\n\
   \n### History moved from the rule body\n\nEach entry is a passage moved word for\
   \ word out of the rule text of the section it names;\nthe rule it explains stays\
-  \ there.\n\n- From «R6»: Incident **X-0543** (<project>, 2026-07-19): <project>'s\
+  \ there.\n\n- From «R6»: Incident **X-0543** (boomrocket, 2026-07-19): ticket-review's\
   \ adoption ran 6/15\n  endpoints, ZERO UI, ZERO ops checks for weeks; the owner\
   \ discovered the partial adoption by eye,\n  after ~10 remediation tasks, 2 breaking\
   \ pin bumps, alembic chain breaks and an enum mismatch.\n  The green pin read as\

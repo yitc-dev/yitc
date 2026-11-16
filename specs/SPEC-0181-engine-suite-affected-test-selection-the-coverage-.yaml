@@ -335,7 +335,10 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ Before anything is dropped, an\n  INDEPENDENT oracle (`_selection_omission_tripwire`)\
   \ asks a FINER question than the selector did:\n  the selector maps a changed path\
   \ to its FIRST SEGMENT and thence to tests, while the oracle asks\n  whether an\
-  \ OMITTED test's source literally NAMES this diff's changed path. Different granularity\n\
+  \ OMITTED test's source literally NAMES this diff's changed path. A changed spec\
+  \ file\n  (`specs/SPEC-NNNN-<slug>.yaml`, a continuation part included) is named\
+  \ by its full path, its\n  unique basename, or its id `SPEC-NNNN`, so a test that\
+  \ names the spec by id is recovered on that\n  spec's change. Different granularity\n\
   \  by a different method, so it can disagree — which is the only reason to have\
   \ it. What it finds is\n  ADDED BACK to the executed set, so a defect reachable\
   \ only through an omitted test is REACHED and\n  fails the land through the ordinary\
@@ -951,37 +954,41 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ output, which two\nunprimed runs share. The consumer then measured that none of\
   \ the 8 matched on a digest: all\n8 matched on a file-granular `FAILED <file>::(file)`\
   \ id, and in at least 5 of them the candidate's\nfailing assertion named a path\
-  \ only the branch adds.\n\n## Implementation notes\n\nRule 8 of §Known-broken-on-main.\
-  \ The refusal takes the tree the land's merge would produce from\nthe land's one\
-  \ merge oracle (`_land_merge_probe`, called as the pre-queue merge refusal calls\
-  \ it;\nno ref is moved) and classifies that tree's delta to `main`, listed with\
-  \ renames off — the\nevaluation point SPEC-0064 §3 gives the classifier. A merge\
-  \ the oracle calls neither clean nor\nresolvable by the land admits nothing. The\
-  \ admission row carries `branch`, `route`\n(`inert-diff`), `pairs` (each `pair`,\
-  \ `file`, `since`, `established_by`, ordered by `since` then\n`pair`), `main`, `merge_base`\
-  \ and `paths` (the count of changed paths). The land hands the\nrefusal the classifier,\
-  \ the path lister, the merge oracle and the journal writer; with any of\nthem absent\
-  \ the route is off.\n\n## Verification\n\n- VP1 (self-guard, differential): a diff\
-  \ touching `bin/**` yields an EMPTY would-omit set.\n  Failing input — remove rung\
-  \ R1 and the tripwire goes RED.\n- VP2 (governs nothing, differential): the executed\
-  \ test set equals the unfiltered enumeration\n  regardless of the recorded decision.\
-  \ Failing input — feed the would-run set into the executed\n  list and the tripwire\
-  \ goes RED.\n- VP3 (unknown mapping, differential): a changed path outside the coverage\
-  \ map yields an EMPTY\n  would-omit set. Failing input — have R3 return the mapped\
-  \ subset and the tripwire goes RED.\n- VP4 (the record exists): a land's `land_completed.verify_metrics`\
-  \ carries the selection fields,\n  with would-run plus would-omit equal to the full\
-  \ test-file count.\n- VP5 (layer green clears, differential): a record opened by\
-  \ a layer red is no longer listed after\n  a later green land whose row for that\
-  \ layer reads passed. Failing input — the same land with that\n  layer's row removed,\
-  \ with one unit of its per-unit report failed, or with the layer skipped: the\n\
-  \  record is listed again. So is a test file's record after a green land in which\
-  \ a layer of the\n  file's name passed.\n- VP6 (inert diff admitted, differential):\
-  \ while a record stands, a branch whose diff is one new\n  task card and journal\
-  \ rows proceeds, and one `land_known_broken_admitted` row names the route\n  and\
-  \ the standing pair. Failing input — the same branch with the classifier not handed\
-  \ to the\n  guard, with a spec file added to its diff, with its card moved under\
-  \ `bin/` on `main` since the\n  branch was cut, or with a journal writer that raises:\
-  \ it is refused and no such row is written.\n"
+  \ only the branch adds.\n\nThe spec-id needle of the omission oracle (owner decision\n\
+  events.jsonl#ts=, option A): tests pinning a spec's text name the spec by id,\n\
+  and an id-only pin was omitted on its spec's own edit — test_t13694 on SPEC-1018\
+  \ ( with), test_t13711 on <workshop-spec>. In place, as an additive\nextension (SPEC-1037\
+  \ §7): the oracle only adds tests back.\n\n## Implementation notes\n\nRule 8 of\
+  \ §Known-broken-on-main. The refusal takes the tree the land's merge would produce\
+  \ from\nthe land's one merge oracle (`_land_merge_probe`, called as the pre-queue\
+  \ merge refusal calls it;\nno ref is moved) and classifies that tree's delta to\
+  \ `main`, listed with renames off — the\nevaluation point SPEC-0064 §3 gives the\
+  \ classifier. A merge the oracle calls neither clean nor\nresolvable by the land\
+  \ admits nothing. The admission row carries `branch`, `route`\n(`inert-diff`), `pairs`\
+  \ (each `pair`, `file`, `since`, `established_by`, ordered by `since` then\n`pair`),\
+  \ `main`, `merge_base` and `paths` (the count of changed paths). The land hands\
+  \ the\nrefusal the classifier, the path lister, the merge oracle and the journal\
+  \ writer; with any of\nthem absent the route is off.\n\n## Verification\n\n- VP1\
+  \ (self-guard, differential): a diff touching `bin/**` yields an EMPTY would-omit\
+  \ set.\n  Failing input — remove rung R1 and the tripwire goes RED.\n- VP2 (governs\
+  \ nothing, differential): the executed test set equals the unfiltered enumeration\n\
+  \  regardless of the recorded decision. Failing input — feed the would-run set into\
+  \ the executed\n  list and the tripwire goes RED.\n- VP3 (unknown mapping, differential):\
+  \ a changed path outside the coverage map yields an EMPTY\n  would-omit set. Failing\
+  \ input — have R3 return the mapped subset and the tripwire goes RED.\n- VP4 (the\
+  \ record exists): a land's `land_completed.verify_metrics` carries the selection\
+  \ fields,\n  with would-run plus would-omit equal to the full test-file count.\n\
+  - VP5 (layer green clears, differential): a record opened by a layer red is no longer\
+  \ listed after\n  a later green land whose row for that layer reads passed. Failing\
+  \ input — the same land with that\n  layer's row removed, with one unit of its per-unit\
+  \ report failed, or with the layer skipped: the\n  record is listed again. So is\
+  \ a test file's record after a green land in which a layer of the\n  file's name\
+  \ passed.\n- VP6 (inert diff admitted, differential): while a record stands, a branch\
+  \ whose diff is one new\n  task card and journal rows proceeds, and one `land_known_broken_admitted`\
+  \ row names the route\n  and the standing pair. Failing input — the same branch\
+  \ with the classifier not handed to the\n  guard, with a spec file added to its\
+  \ diff, with its card moved under `bin/` on `main` since the\n  branch was cut,\
+  \ or with a journal writer that raises: it is refused and no such row is written.\n"
 cites:
 - SPEC-0077
 - SPEC-0132
@@ -996,12 +1003,12 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: 7dd22f85b24807ddd6d2971843cfde667abb94387a80dac963253076dbe89127
-  bin/lib/debt_adoption.py#open_known_broken: 78b9b00b36b21c12081c37ab5ff3534cfeeead2829cbab354bd226697c50c3dc
+  bin/lib/debt_adoption.py#open_known_broken: e490852f3539bd4f1e288eab904c4262ca89ad8ebd5e29b7938925242931f6d0
   bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
-  bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
+  bin/lib/verify_runner.py#_selection_omission_tripwire: 8e63877be5ef495e5079ba0ec8abd99ab9cd52e4640ccd1567a0e1d02359b86b
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0
-  bin/lib/verify_runner.py#_shadow_select: 628730f15c2f65f73f7fa4ab55d2a13d7228774519faa44ec33422b4edf256f9
+  bin/lib/verify_runner.py#_shadow_select: f7b52a060007abef5e5d9964362dbee0d4c5cb7308c744b86ec94da9e5ea4963
   bin/lib/verify_runner.py#governed_selection: cea15af5b8c5d8ddd19594b1062d030f0dc38e85ac329616aaf960e7c8c1d20c
   bin/lib/worktree.py#_known_broken_recheck_run: cb822136c971d17b35ece230d41acfcd89def5ee469304eace8b4ac88bb67555
-  bin/lib/worktree.py#land_recheck_known_broken: 610bf6f5ac029edf425ce36611c0d83f4e8f811cdf0d216b4cddd6f86cd83992
+  bin/lib/worktree.py#land_recheck_known_broken: 781cdffa4e9551c32e4ed53d5d237d5068c91a35b057c220f37a47000891b2f3

@@ -88,11 +88,11 @@ hands, eyes or accounts:
 **The day-two return path — how you come back, every time.** Word for word:
 
 ```text
-1. ssh <user>@<server> log in as your working user
-2. tmux attach -t yitc back into your kept terminal (after a reboot: tmux new -s yitc)
-3. <your AI tool> open it in any folder, or clear the session already open
-4. /yitc-projects type the start command, then pick the project
-5. the start line "Working in YITC mode — project <name>." must appear
+1. ssh <user>@<server>        log in as your working user
+2. tmux attach -t yitc        back into your kept terminal (after a reboot: tmux new -s yitc)
+3. <your AI tool>             open it in any folder, or clear the session already open
+4. /yitc-projects             type the start command, then pick the project
+5. the start line             "Working in YITC mode — project <name>." must appear
 ```
 
 There is no second order: no restart inside the project folder, no "open the tool in the project
@@ -416,8 +416,8 @@ When the person agrees to bind one, the AI PROPOSES this step and carries it out
    ```bash
    <engine-dir>/bin/yitc-v2 config set auditor.routine.provider <adapter>
    <engine-dir>/bin/yitc-v2 config set auditor.routine.binary <absolute-path-to-binary>
-   <engine-dir>/bin/yitc-v2 config set auditor.routine.home <provider-auth-dir> # optional
-   <engine-dir>/bin/yitc-v2 config set auditor.routine.model <model-id> # optional
+   <engine-dir>/bin/yitc-v2 config set auditor.routine.home <provider-auth-dir>      # optional
+   <engine-dir>/bin/yitc-v2 config set auditor.routine.model <model-id>              # optional
    ```
 
    (`<adapter>` is a name the engine's adapter registry knows — `bin/audit-config.yaml` lists them;

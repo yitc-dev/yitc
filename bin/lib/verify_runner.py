@@ -3906,6 +3906,22 @@ _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     ("patterns/inspection-criteria-roster.md", "test_t14297_inspection_distinct_second.py"),
 })
 
+_SELECTION_SPEC_FILE_RE = re.compile(r"^specs/(SPEC-\d{4})(?:[-.][^/]*)?\.yaml$")
+
+
+def _selection_spec_id(path) -> "str | None":
+    """T-14606 (SPEC-0181, SPEC-1051 rule 2) — the spec id `SPEC-NNNN` a changed path is the file of
+    (`specs/SPEC-NNNN-<slug>.yaml`, a `.partN.yaml` continuation included, a leading `./` allowed),
+    else None. A spec is named in a test by its id far more often than by its slugged file name, so
+    both reader derivations — the land oracle below and the pre-deploy readers
+    (`land_verify_legs._pre_deploy_changed_readers`) — also look for this id. PURE."""
+    p = str(path or "").strip()
+    if p.startswith("./"):
+        p = p[2:]
+    m = _SELECTION_SPEC_FILE_RE.match(p)
+    return m.group(1) if m else None
+
+
 def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=None, *,
                                  inert_paths=None, matches_out=None, keep_out_pairs=None):
     """SPEC-0181 / T-11462 AC2 — THE TRIPWIRE. An INDEPENDENT oracle over the omitted set.
@@ -3928,6 +3944,11 @@ def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=Non
     is unique among the changed paths (a bare `README.md` matches too much to be evidence of
     anything). A false positive costs one extra test file; a false negative costs nothing governing
     did not already cost.
+
+    T-14606 — a changed SPEC file (`_selection_spec_id`) is also matched by its id `SPEC-NNNN`, owned
+    by that path: a test pinning a spec's text names the spec by id, rarely by its slugged file name,
+    and an id-only pin was omitted on the spec's own edit (test_t13694, test_t13711). An inert
+    spec path contributes no id either.
 
     `inert_paths` — THE NEEDLE SET EXCLUDES PROVEN-INERT CHANGED PATHS (T-11476). A path the SPEC-0064
     inert authority classifies INERT is one a change confined to it CANNOT alter the outcome of land's
@@ -4003,6 +4024,12 @@ def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=Non
         needles.add(p)
         owner_of.setdefault(p, set()).add(p)      # a full-path needle owns itself
         bases.setdefault(os.path.basename(p), set()).add(p)
+        _sid = _selection_spec_id(p)
+        if _sid:
+            # T-14606 — a changed spec file is also named by its id; the id owns every changed file of
+            # that spec (a `.partN` continuation included), so a pin test naming `SPEC-NNNN` is recovered.
+            needles.add(_sid)
+            owner_of.setdefault(_sid, set()).add(p)
     for base, owners in bases.items():
         # A basename shared by two changed paths identifies neither, so it is not admitted as evidence.
         if len(owners) == 1 and len(base) > 4:
@@ -4393,7 +4420,13 @@ def _shadow_select(diff_paths, test_files, verify_globs, coverage_map=None,
         p = str(raw).strip()
         if p.startswith("./"):
             p = p[2:]
-        matched = [tg for src, tg in coverage_map if fnmatch.fnmatch(p, src)]
+        # T-14632 — a journal day file (`archive/events-YYYY-MM-DD.jsonl`, written since T-14585) is
+        # the SAME logical journal as its root (SPEC-0190 rule 1), so it is looked up under that root's
+        # map row, decided by the one journal-family predicate rather than a second glob. A root with
+        # no map row (the `.yitc/events.jsonl` sidecar) still falls to R3, naming the original path.
+        key = next((root for root in events.JOURNAL_FAMILY_ROOTS
+                    if events.is_archive_segment(p, root)), p)
+        matched = [tg for src, tg in coverage_map if fnmatch.fnmatch(key, src)]
         if not matched:
             return (names, [], f"unresolved-path:{p}")                         # R3
         for tglobs in matched:

@@ -111,12 +111,13 @@ P8_EVIDENCE_REF_GRAMMAR = (
     "EQUAL to the number of `tests/test_*.py` files discoverable at that revision, so every "
     "discoverable file ran and the named one was among them. A SELECTED run, a count mismatch, a "
     "missing `verify_mode`/`test_file_count`, or an unresolvable sha does NOT resolve it. "
-    "(11) `<project>:<form>` — ENGINE cards only: one of forms (2)-(6) read from the journal of a "
+    "(11) `<project>:<form>` — ENGINE cards only: one of forms (2), (4) and (6) read from the journal of a "
     "REGISTERED consumer instead of this one, for an engine mechanism whose only production run is on "
     "that consumer, e.g. `<project>:land_completed@2026-09-03T05:58:57Z#metric=cache_hit_rate`. "
     "`<project>` is that project's KEY in the host registry (a `yitc_v2` entry) — never a path — and "
     "the form keeps every condition it has without the prefix, applied to THAT journal's rows. Forms "
-    "(1), (7)-(10) and (12) take no prefix, and the read is read-only. "
+    "(1), (3), (5), (7)-(10) and (12) take no prefix — (3) and (5) tie on this card's own branch, which "
+    "no consumer row carries — and the read is read-only. "
     "(12) `land_completed@<iso-ts>#adapter=<layer>` — a verify layer's SPEC-1035 ADAPTER, declared on a "
     "layer that already ran, proven by a land row (any branch, not earlier than the citing task's own "
     "FIRST successful land) whose `<layer>` row PASSED and carries an adapter record with `usable: true`, where some "
@@ -135,3 +136,11 @@ P8_EVIDENCE_REF_GRAMMAR = (
     "(commit_landed/task_closed/land_completed WITHOUT one of the selectors (3)-(6), (10) or (12)) prove the task "
     "closed, never that its mechanism ran — they do not resolve."
 )
+
+# --- mid-turn owner entry (T-14601, X-2365) — read by the `event --source-ref` help, the cmd_event
+# owner_directive refusals and audit_ceiling.DIRECTIVE_COVERAGE_HELP; the route itself is SPEC-1039 rule 2.
+MID_TURN_ENTRY_HINT = (
+    "<owner entry uuid> is the \"uuid\" of the owner's message in this session's transcript: a `user` "
+    "entry, or — for a message sent while the agent was working — an entry of type `attachment` whose "
+    "attachment.type is `queued_command` and whose attachment.prompt is the message; find it with "
+    "`grep -n '<words of the message>' <transcript>` and read that line's \"uuid\"")

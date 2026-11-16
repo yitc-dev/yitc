@@ -33,10 +33,13 @@ anchors here.
 from __future__ import annotations
 import hashlib
 import inspect
+import json
 import os
 import re
 import sys
 from pathlib import Path
+
+from lib import vocab  # T-14601: the mid-turn owner-entry hint (help-text vocabulary leaf)
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +107,8 @@ DIRECTIVE_COVERAGE_HELP = (
     "it EQUALS the entry) and stamps `owner_text_verified`:\n"
     "  bin/yitc-v2 event owner_directive --source-ref <transcript>#uuid:<owner entry uuid> \\\n"
     "    --data '{\"captured_via\": \"controller-delegated\", \"mid_turn\": true, "
-    "\"cards\": [\"T-XXXX\"]}'"
+    "\"cards\": [\"T-XXXX\"]}'\n"
+    "  " + vocab.MID_TURN_ENTRY_HINT
 )
 
 _RED_CAUSE_PATH_RE = re.compile(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+")
@@ -1655,10 +1659,54 @@ MI_UNDECODABLE_RC = 125
 _MI_CROSS_MAX = 64
 
 
+_MI_OBJ_SHA = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+
+
+def mi_tested_is_head(tree, subject, *, git, inert, flipped=None) -> bool:
+    """T-14544 / T-14559 — the run's `stage6_run.tree` is the subject apart from inert paths AND apart
+    from the spec files the run's own close-time activation flipped. `flipped` is the run's recorded
+    `activation_flipped` list; a differing path is discounted by it only when the entry names that path
+    under `specs/` and the tested tree holds exactly its `to` blob while the subject holds exactly its
+    `from` blob — the engine's own flip of the bytes the subject carries, nothing else. Any other
+    difference, a malformed entry, or a git question left unanswered refuses (fail-closed)."""
+    def _g(args):
+        try:
+            rc, out = git(list(args))
+        except Exception:      # noqa: BLE001 — an unanswered git question is a refusal
+            return None
+        return out if rc == 0 else None
+
+    names = _g(["diff", "--name-only", "--no-renames", "-z", tree, subject])
+    if names is None:
+        return False
+    flips = {}
+    for e in flipped if isinstance(flipped, list) else ():
+        if not isinstance(e, dict):
+            continue
+        p, f, t = e.get("path"), e.get("from"), e.get("to")
+        if (isinstance(p, str) and p.startswith("specs/") and ".." not in p.split("/")
+                and all(isinstance(v, str) and _MI_OBJ_SHA.fullmatch(v) for v in (f, t))):
+            flips[p] = (f, t)
+    for p in (q for q in names.split("\0") if q):
+        try:
+            if inert(p) is True:
+                continue
+        except Exception:      # noqa: BLE001 — an unanswered classification is not inert
+            pass
+        if p not in flips:
+            return False
+        f, t = flips[p]
+        at_tree, at_subject = _g(["rev-parse", "--verify", "-q", f"{tree}:{p}"]), \
+            _g(["rev-parse", "--verify", "-q", f"{subject}:{p}"])
+        if (at_tree or "").strip() != t or (at_subject or "").strip() != f:
+            return False
+    return True
+
+
 def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, rows, stage_rows,
                                 git, resolve, diff_cap=None, spec_parts=None, sign_at=None,
                                 transparent=None, red_fix_ok=False, hand_merge_ok=False,
-                                tested_is_head=None, inert=None) -> tuple:
+                                tested_is_head=None, inert=None, lifecycle=None) -> tuple:
     """T-13260 / T-14544 (SPEC-1018 «Exits from a spent GREEN», «Post-GREEN merge integration») — may
     ONE audit-post judge HEAD because everything since the card's GREEN commit A is a chain of its own
     governed sync merges with main?
@@ -1678,11 +1726,15 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
       PRIOR  the latest real post verdict (journal order) is GREEN at A — or, under `red_fix_ok`
              (T-14375), RED answered by the card's `--fix-red` commit A recorded after it; the saved
              record agrees. When custody is not A, custody must be the chain's ONE re-sign commit
-             (T-14180), else `prior_green_not_at_custody`.
+             (T-14180), else `prior_green_not_at_custody` — carrying the re-sign cause (with its path)
+             or the walk step that failed (T-14644). With `lifecycle(path, tid)` injected, the re-sign
+             commit's own lifecycle-record paths (its card, the journal, its own decisions records)
+             are left out and every OTHER path must be a verified re-sign (T-14644).
       CHAIN  ONE first-parent walk from HEAD to A, bounded by `_MI_CROSS_MAX` steps. Each step is
              (a) a two-parent merge, (b) a NON-merge commit the injected `transparent(sha, tid)` proves
              record-only (T-12436 — sync bookkeeping, dedup, pause records), or (c) custody itself as
-             a re-sign-only commit on a merge (T-14180). Anything else refuses —
+             a re-sign-only commit on a merge (T-14180) — reached from it along first parents across
+             record-only commits only (T-14644). Anything else refuses —
              `head_not_a_merge` above every merge, `first_parent_not_prior_green` below one (A merged
              in as a second parent never reaches A along first parents, and refuses the same way).
       MERGE  every merge M_i of the chain is accounted for by ONE row of THIS card, read from an index
@@ -1702,22 +1754,30 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
              byte-complete patch — never a «Binary files differ» summary; no external diff driver and no
              textconv, so a configured driver cannot hide content), attributed to its parents
              and row; the re-sign commit's and the `--fix-red` commit's own diffs; and the final task
-             delta from the last imported main tip to the subject, marked as CONTEXT. Ordered and
+             delta from the last imported main tip to the subject, marked as CONTEXT — there (only) a
+             path git reports as binary is one line: its path, change kind, byte size and blob id of
+             each side, never its patch (T-14574); every other section stays byte-complete. Ordered and
              attributed — no union, no subtraction. When the sections together exceed `diff_cap` the
              pass is REFUSED `merge_integration_packet_incomplete` — never truncated. The cap counts
-             UTF-8 bytes.
+             UTF-8 bytes. T-14617: with the judged base of the GREEN (its own record's `audited_base`;
+             never on the RED-fix route) the final task delta carries only the paths in U — every path
+             a merge's resolution or its p1 -> M_i change, the re-sign commit, A -> subject or the
+             judged base -> the last imported main tip touched; a path outside U is listed as
+             `final_delta_referenced` (its patch is the one that GREEN judged), never rendered.
       TESTS  the newest governed Tests row of the card recorded after the newest merge's row (journal
              ORDER — `rows` positions, never `ts`) is
              `tests_passed` (`stage6_evidence_predates_merge` otherwise); with `tested_is_head(tree,
              subject)` injected, that row's runner-marked `stage6_run.tree` is the subject apart from
-             inert paths (`stage6_evidence_not_at_head` otherwise).
+             inert paths and the spec files its own close-time activation flipped, when the row
+             records them (`activation_flipped`, forwarded as `flipped=` — T-14559; see
+             `mi_tested_is_head`) (`stage6_evidence_not_at_head` otherwise).
 
     The evidence is the marker the pass records — `merge_commit` (the newest merge), `prior_commit`,
     `main_sha` (the last imported main tip), `conflict_paths`, `sync_evidence`, `merges` (per merge:
     its parents, kind, row locator, conflict paths, hand edits, re-signs), `subject`, and `crossed` /
-    `trailing` / `hand_edited` / `resigned` / `resign_commit` / `red_fix` / `after_test_found_fix`
-    when they apply; `resolution_diff`, `final_delta` and `fix_diff` ride beside it for the PACKET only
-    and are never recorded."""
+    `trailing` / `hand_edited` / `resigned` / `resign_commit` / `red_fix` / `after_test_found_fix` /
+    `green_judged_base` / `final_delta_referenced` when they apply; `resolution_diff`, `final_delta`,
+    `fix_diff` and `touched_paths` ride beside it for the PACKET only and are never recorded."""
     def _g(args):
         try:
             rc, out = git(list(args))
@@ -1739,6 +1799,27 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     def _parents(c):
         pl = _g(["rev-list", "--parents", "-n", "1", c])
         return pl[1].split()[1:] if pl is not None and pl[0] == 0 and pl[1].split() else None
+
+    def _down_to_merge(x):
+        """T-14644 — does the first-parent path from `x` reach a two-parent merge crossing ONLY commits
+        the injected `transparent` proves record-only? `(True, None)`, else `(False, cause)` naming the
+        commit that stopped it. Bounded by `_MI_CROSS_MAX`; uninjected `transparent` crosses nothing."""
+        for _ in range(_MI_CROSS_MAX):
+            ps = _parents(x)
+            if ps is None:
+                return False, f"head_parents_unreadable: git could not list the parents of {x[:12]}"
+            if len(ps) == 2:
+                return True, None
+            try:
+                ok = len(ps) == 1 and callable(transparent) and transparent(x, tid) is True
+            except Exception:  # noqa: BLE001 — an unverifiable crossing is not granted
+                ok = False
+            if not ok:
+                return False, (f"resign_not_over_a_merge: {x[:12]} below the re-sign commit is neither a "
+                               f"governed sync merge nor a record-only commit")
+            x = ps[0]
+        return False, (f"resign_not_over_a_merge: no merge within {_MI_CROSS_MAX} record-only commits "
+                       f"below the re-sign commit")
 
     def _resign_only(path, old_rev, new_rev, head, green):
         """T-14180 — None when `path` from `old_rev` to `new_rev` is a verified re-sign, else the cause."""
@@ -1821,7 +1902,7 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         steps.append((cur, ps))
         cur = ps[0]
     seen_merge = False
-    crossed, trailing, resign_c, top, walk_err = [], [], None, None, None
+    crossed, trailing, resign_c, top, walk_err, resign_walk = [], [], None, None, None, None
     for c, ps in steps:
         if len(ps) == 2:
             seen_merge = True
@@ -1835,10 +1916,13 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
             if ok:
                 (crossed if top else trailing).append(c)
                 continue
-            if (c == a_sha and top is None and green and green != a_sha
-                    and len(_parents(ps[0]) or ()) == 2):
-                resign_c = top = c   # T-14180 — custody as the one re-sign commit on a merge (verified below)
-                continue
+            if c == a_sha and top is None and green and green != a_sha:
+                # T-14180 — custody as the one re-sign commit on a merge (verified below); T-14644 —
+                # reached from it across the card's own record-only commits only
+                down, resign_walk = _down_to_merge(ps[0])
+                if down:
+                    resign_c = top = c
+                    continue
         walk_err = ((f"head_not_a_merge: {c[:12]} above the merges has {len(ps)} parent(s) and is "
                      f"neither a record-only commit nor the recorded re-sign commit — only governed "
                      f"sync merges of {tid} are admitted after the GREEN commit") if not seen_merge else
@@ -1870,8 +1954,9 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
                       f"ran for {tid} ({spent.get('ts')}, {_d(spent).get('verdict')}) — it is admitted once")
     if green and green != a_sha and resign_c is None and not (real and red_fix_ok
             and str(_d(real[-1]).get("verdict") or "").strip().upper() == "RED"):
+        cause = resign_walk or walk_err     # T-14644 — name the step that failed, never a bare refusal
         return None, (f"prior_green_not_at_custody: the latest GREEN pins {_d(real[-1]).get('commit')}, "
-                      f"not the recorded commit {a_sha[:12]}")
+                      f"not the recorded commit {a_sha[:12]}" + (f" ({cause})" if cause else ""))
     if walk_err:
         return None, walk_err
 
@@ -1902,13 +1987,28 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         if resign_c:
             nd = _g(["diff", "--name-only", "--no-renames", "-z", f"{resign_c}^", resign_c])
             r_paths = sorted({p for p in nd[1].split("\0") if p}) if nd is not None and nd[0] == 0 else []
-            why = (next((w for w in (_resign_only(p, f"{resign_c}^", resign_c, resign_c, green)
-                                     for p in r_paths) if w), None) if r_paths else "resign_changes_nothing")
+            if nd is None or nd[0] != 0:
+                why = "resign_paths_unreadable: git could not list the re-sign commit's paths"
+            else:
+                # T-14644 — the re-sign commit's own lifecycle records (card, journal, own decisions)
+                # are not judged as re-signs; every OTHER path still must be one (fail-closed: a
+                # classifier that raises keeps the path in the judged set)
+                def _rec(p):
+                    try:
+                        return callable(lifecycle) and lifecycle(p, tid) is True
+                    except Exception:  # noqa: BLE001
+                        return False
+                r_paths = [p for p in r_paths if not _rec(p)]
+                for p in r_paths:
+                    w = _resign_only(p, f"{resign_c}^", resign_c, resign_c, green)
+                    if w:
+                        why = w if ": " in w else f"{w}: {p}"
+                        break
+                if not r_paths:
+                    why = "resign_changes_nothing"
         if not resign_c or why is not None:
             return None, (f"prior_green_not_at_custody: the latest GREEN pins {_d(latest).get('commit')}, "
-                          f"not the recorded commit {a_sha[:12]}"
-                          + (f" ({why})" if why and why not in ("resign_unverifiable", "not_a_spec_record")
-                             else ""))
+                          f"not the recorded commit {a_sha[:12]}" + (f" ({why})" if why else ""))
         a_sha = green
     if isinstance(prior_record, dict):
         pv = str(prior_record.get("verdict") or "").strip().upper()
@@ -1919,6 +2019,17 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
                                                         or _r(prior_record.get("commit")) != a_sha):
             return None, (f"saved_record_disagrees: the saved audit-post record reads {pv} at "
                           f"{prior_record.get('commit')}, not GREEN at {a_sha[:12]}")
+
+    # T-14617 (X-2384) — what the GREEN judged: the base its diff was taken from (the saved record's
+    # `audited_base`, T-11580), read only from that GREEN's own record (GREEN, commit A). None on the
+    # RED-fix route (nothing was GREEN-judged) and whenever it does not resolve: the packet then renders
+    # the whole final task delta, as before.
+    judged = None
+    if (not red_fix and isinstance(prior_record, dict)
+            and str(prior_record.get("verdict") or "").strip().upper() == "GREEN"
+            and _r(prior_record.get("commit")) == a_sha):
+        judged = _r(prior_record.get("audited_base"))
+    touched = set(r_paths)     # every path any step of the chain changed (the merges add theirs below)
 
     # ── MERGE — every merge accounted for by one row of THIS card (rows indexed ONCE by merge sha) ──
     hand_by, clean_by, row_at = {}, {}, {}
@@ -1955,8 +2066,16 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
             kind = "clean-edit"    # T-14545 — a held clean merge finished with an integration edit
         if row is None:
             crow = clean_by.get(c)
-            if crow is not None and _reaches(_r(_d(crow).get("head_before")), p1) and _r(_d(crow).get("main_sha")) == p2:
-                row, kind = crow, "clean"
+            if crow is not None and _reaches(_r(_d(crow).get("head_before")), p1):
+                ms = _r(_d(crow).get("main_sha"))
+                # T-14580 — a row written before its writer read the merge's own parent may record the
+                # main read BEFORE the merge: main moved forward in between, so the recorded tip is an
+                # earlier commit on the second parent's first-parent line. Anything else still refuses.
+                if ms and ms != p2:
+                    fl = _g(["rev-list", "--first-parent", p2])
+                    ms = p2 if fl is not None and fl[0] == 0 and ms in fl[1].split() else None
+                if ms == p2:
+                    row, kind = crow, "clean"
         if row is None:
             return None, (f"sync_provenance_missing: no `merge_resolved_by_hand` or clean `worktree_synced` "
                           f"row of {tid} accounts for the merge {c[:12]} (resolve through "
@@ -2011,6 +2130,15 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         if df is None or df[0] != 0:
             return None, "resolution_diff_unreadable: git could not diff the merge against the mechanical merge"
         outside = [p for p in sorted({p for p in df[1].split("\0") if p}) if p not in recorded]
+        if judged:
+            # T-14617 — the paths this merge changed on the branch: its resolution (T_i -> M_i, a hand
+            # restore of the task side included) and everything it brought (p1 -> M_i, a main change a
+            # later merge undoes included). An unanswered list refuses (fail-closed).
+            pm = _g(["diff", "--name-only", "--no-renames", "-z", p1, c])
+            if pm is None or pm[0] != 0:
+                return None, ("resolution_patch_unreadable: git could not list the paths the merge "
+                              f"{c[:12]} changed")
+            touched |= {p for p in df[1].split("\0") if p} | {p for p in pm[1].split("\0") if p}
         causes = {p: _resign_only(p, mech_tree, c, subject, a_sha) for p in outside}
         bad = [p for p in outside if causes[p]]
         if bad and not hand_merge_ok:
@@ -2062,16 +2190,78 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         except Exception:      # noqa: BLE001 — an unanswered classification excludes nothing
             excluded = []
         fd_paths = [q for q in names if q not in excluded]
+    # T-14617 (X-2384) — the packet judges the INTEGRATION and REFERENCES what the GREEN judged. U is
+    # every path any step of the chain changed (above) plus both endpoint spans: A -> subject and the
+    # judged base -> the last imported main tip. A final-delta path outside U has the GREEN commit's
+    # content AND the judged base's, so its patch is byte-identical to the range that GREEN judged: it
+    # is named, not rendered again. Every other path renders whole. Unanswered git refuses.
+    referenced = []
+    if judged:
+        for lo, hi in ((a_sha, subject), (judged, last_main)):
+            nd = _g(["diff", "--name-only", "--no-renames", "-z", lo, hi])
+            if nd is None or nd[0] != 0:
+                return None, "resolution_patch_unreadable: git could not list the paths the integration touched"
+            touched |= {q for q in nd[1].split("\0") if q}
+        if fd_paths is None:
+            nm = _g(["diff", "--name-only", "--no-renames", "-z", last_main, subject])
+            if nm is None or nm[0] != 0:
+                return None, "resolution_patch_unreadable: git could not list the final task delta's paths"
+            fd_paths = sorted({q for q in nm[1].split("\0") if q})
+        referenced = [q for q in fd_paths if q not in touched]
+        fd_paths = [q for q in fd_paths if q in touched]
+    narrowed = bool(excluded or referenced)
+    # T-14574 (X-2328) — a binary path of the final task delta (context) is shown as one line: path
+    # (JSON-quoted, so a newline in a name stays one line), change kind, byte size and blob id of each
+    # side — never its base85 patch. Every git call naming a path is literal (`*.png` is a filename).
+    # The merge resolution, re-sign and `--fix-red` diffs above stay byte-complete.
+    binary_lines = []
+    if fd_paths != []:
+        ns = _g(["--literal-pathspecs", "diff", "--numstat", "-z", "--no-renames", "--no-ext-diff",
+                 "--no-textconv", last_main, subject, *(["--", *fd_paths] if narrowed else [])])
+        if ns is None or ns[0] != 0:
+            return None, "resolution_patch_unreadable: git could not list the final task delta's binary paths"
+        binaries = sorted({rec.split("\t", 2)[2] for rec in ns[1].split("\0")
+                           if rec.startswith("-\t-\t") and rec.count("\t") >= 2})
+        if binaries:
+            raw = _g(["--literal-pathspecs", "diff", "--raw", "-z", "--no-renames", "--abbrev=40",
+                      last_main, subject, "--", *binaries])
+            if raw is None or raw[0] != 0:
+                return None, "resolution_patch_unreadable: git could not read the final task delta's binary blobs"
+            parts, by_path = raw[1].split("\0"), {}
+            for head, path in zip(parts[0::2], parts[1::2]):
+                f = head.lstrip(":").split()
+                if len(f) == 5:
+                    by_path[path] = (f[4][:1], f[2], f[3])
+            for path in binaries:
+                kind, old, new = by_path.get(path, ("?", "", ""))
+                sides = []
+                for label, blob in (("old", old), ("new", new)):
+                    if not blob or set(blob) == {"0"}:
+                        continue
+                    sz = _g(["cat-file", "-s", blob])
+                    if sz is None or sz[0] != 0 or not sz[1].strip().isdigit():
+                        return None, (f"resolution_patch_unreadable: git could not size the blob {blob[:12]} "
+                                      f"of a binary path in the final task delta")
+                    sides.append(f"{label} {sz[1].strip()} B blob {blob}")
+                if kind == "?" or not sides:
+                    return None, "resolution_patch_unreadable: git could not read the final task delta's binary blobs"
+                binary_lines.append(f"# binary {kind} {json.dumps(path)}: {' -> '.join(sides)}\n")
+            listed = fd_paths if fd_paths is not None else sorted(
+                {rec.split("\t", 2)[2] for rec in ns[1].split("\0") if rec.count("\t") >= 2})
+            fd_paths = [q for q in listed if q not in binaries]
     if fd_paths == []:
         fdl = (0, "")
     else:
         # with paths left out, NO rename pairing: an authored path renamed onto an excluded one stays a
         # visible deletion, never folded into a rename whose other side is hidden
         fdl = _g(["--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--binary",
-                  *(["--no-renames"] if excluded else ["-M"]), last_main, subject,
-                  *(["--", *fd_paths] if excluded else [])])
+                  *(["--no-renames"] if narrowed or binary_lines else ["-M"]), last_main, subject,
+                  *(["--", *fd_paths] if narrowed or binary_lines else [])])
     if fdl is None or fdl[0] != 0:
         return None, "resolution_patch_unreadable: git could not produce the final task delta"
+    if binary_lines:
+        fdl = (fdl[0], "# binary path(s) shown as path, change kind, byte size and blob id - not their patch:\n"
+               + "".join(binary_lines) + fdl[1])
     res_diff = "".join(f"\n#### {label}\n```diff\n{body}```\n" for label, body in sections)
     # the cap is a BYTE bound: measure the UTF-8 encoding, never the character count
     total = sum(len(str(x).encode("utf-8", "replace")) for x in (res_diff, fdl[1], fix_diff or ""))
@@ -2094,8 +2284,11 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     if tested_is_head is not None:
         s6 = _d(newest).get("stage6_run")
         tree = str((s6 or {}).get("tree") or "") if isinstance(s6, dict) else ""
+        # T-14559 — the run's own close-time activation flips, forwarded only when the run recorded some
+        flipped = (s6 or {}).get("activation_flipped") if isinstance(s6, dict) else None
         try:
-            at_head = bool(tree) and tested_is_head(tree, subject) is True
+            at_head = bool(tree) and (tested_is_head(tree, subject, flipped=flipped) if flipped
+                                      else tested_is_head(tree, subject)) is True
         except Exception:      # noqa: BLE001 — an unanswered tree question is a refusal
             at_head = False
         if not at_head:
@@ -2108,8 +2301,16 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     ev = {"merge_commit": newest_m, "prior_commit": a_sha, "main_sha": last_main,
           "conflict_paths": conflict_all, "sync_evidence": newest_d["row"], "subject": subject,
           "merges": detail, "resolution_diff": res_diff, "final_delta": fdl[1]}
+    if isinstance(latest, dict) and latest.get("ts"):
+        ev["prior_verdict_at"] = f"events.jsonl#ts={latest.get('ts')}"   # T-14554 — packet only
     if excluded:
         ev["final_delta_excluded"] = excluded
+    if judged:
+        # T-14617 — the judged base (recorded) and U (packet only: the carry render reads it)
+        ev["green_judged_base"] = judged
+        ev["touched_paths"] = sorted(touched)
+    if referenced:
+        ev["final_delta_referenced"] = referenced
     if red_fix:
         ev["red_fix"] = True
         ev["fix_diff"] = fix_diff
@@ -2129,7 +2330,8 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
 
 
 #: T-14544 — the evidence keys that ride the PACKET only and are never recorded in the marker.
-MERGE_INTEGRATION_PACKET_ONLY = ("resolution_diff", "final_delta", "fix_diff")
+MERGE_INTEGRATION_PACKET_ONLY = ("resolution_diff", "final_delta", "fix_diff", "prior_verdict_at",
+                                 "touched_paths")   # T-14617 — may hold every path main changed
 
 
 def merge_integration_subject(evidence) -> "str | None":
@@ -2137,6 +2339,78 @@ def merge_integration_subject(evidence) -> "str | None":
     commit, else its newest merge. Pure; never raises."""
     ev = evidence if isinstance(evidence, dict) else {}
     return ev.get("subject") or ev.get("resign_commit") or ev.get("merge_commit")
+
+
+#: T-14554 — the heading of the semantic-integration review request inside the block.
+MERGE_INTEGRATION_SEMANTIC_HEADING = "Semantic integration review (T-14554)"
+
+
+def merge_integration_semantic_review(evidence) -> str:
+    """T-14554 (X-2298) — the explicit SEMANTIC integration review request of the block, with the
+    read-only retrieval pointers to the pinned subject and every imported main parent. A clean
+    textual merge can leave every resolution diff empty and still break the card: two migrations
+    naming one predecessor, a callee whose contract main changed. Pointers enable inspection; they
+    establish nothing. Pure; never raises."""
+    ev = evidence if isinstance(evidence, dict) else {}
+    subject = merge_integration_subject(ev)
+    mains = []
+    for m in [x for x in (ev.get("merges") or []) if isinstance(x, dict)] + [ev]:
+        sha = m.get("main_sha")
+        if sha and sha not in mains:
+            mains.append(sha)
+    return (
+        f"{MERGE_INTEGRATION_SEMANTIC_HEADING}: judge the INTEGRATION, not only the text. A clean "
+        "textual merge can be semantically incompatible — two independently added migrations naming the "
+        "same predecessor, a caller this card adds against a callee whose contract main changed — and "
+        "then every resolution diff below may be EMPTY. Inspect the dependencies of the card's changed "
+        "code that lie OUTSIDE the displayed hunks, read-only, at these pinned objects (the main-only "
+        "changes are deliberately NOT inlined):\n"
+        f"- the merged subject: `git show {subject}:<path>`, `git diff {ev.get('main_sha')} {subject} -- <path>`\n"
+        + "".join(f"- imported main parent: `git show {sha}:<path>`, `git log --oneline {ev.get('prior_commit')}..{sha} -- <path>`\n"
+                  for sha in mains)
+        + "- each merge's parents: `git show --format=%P -s <merge>` (listed above)\n"
+        "If context you need to judge a dependency is missing or unreadable, return ABORT naming it — "
+        "never assume the integration safe.\n\n")
+
+
+def merge_integration_diff_summary(evidence, diff, prior_record=None) -> str:
+    """T-14554 (X-2298) — the labelled SUMMARY that replaces the RENDERED ordinary `### Shipped diff`
+    on the admitted post-GREEN merge-integration route: the same content is carried whole once, as the
+    block's final task delta. Range, per-path stats parsed from `diff` (the text the caller already
+    holds — no git call), immutable retrieval commands, and what the prior GREEN judged. The real diff
+    keeps feeding every machine check; this string is display only. Pure; never raises."""
+    ev = evidence if isinstance(evidence, dict) else {}
+    rec = prior_record if isinstance(prior_record, dict) else {}
+    stats, cur = [], None
+    for ln in str(diff or "").splitlines():
+        if ln.startswith("diff --git "):
+            parts = ln.split(" b/", 1)
+            cur = [parts[1] if len(parts) == 2 else ln[11:], 0, 0, False]
+            stats.append(cur)
+        elif cur is None:
+            continue
+        elif ln.startswith("Binary files ") or ln.startswith("GIT binary patch"):
+            cur[3] = True
+        elif ln.startswith("+") and not ln.startswith("+++ "):
+            cur[1] += 1
+        elif ln.startswith("-") and not ln.startswith("--- "):
+            cur[2] += 1
+    subject = merge_integration_subject(ev)
+    nr = lambda k: rec.get(k) if rec.get(k) not in (None, "") else "not recorded"
+    lines = "".join(f"- {p}: " + ("bin" if b else f"+{a} -{d}") + "\n" for p, a, d, b in stats) or "(no paths)\n"
+    return (
+        "SUMMARY — NOT the diff. On this admitted post-GREEN merge-integration route the ordinary "
+        "shipped diff duplicates the final task delta carried WHOLE in the merge-integration block; it is "
+        "summarised here so the block is never cut (T-14554, SPEC-1018). The full text is retrievable "
+        "read-only at immutable objects:\n"
+        f"- range: {ev.get('main_sha')}..{subject} — `git diff --binary {ev.get('main_sha')} {subject}`\n"
+        f"- prior verdict: {nr('verdict')} at commit A {ev.get('prior_commit')} "
+        f"(journal {ev.get('prior_verdict_at') or 'not recorded'}); saved record commit {nr('commit')}, "
+        f"date {nr('date')}, passes {nr('passes')}, audited base {nr('audited_base')}, "
+        f"audited files {nr('audited_files')}\n"
+        "- what that verdict judged is its whole recorded span, not commit A's own patch "
+        f"(`git diff {nr('audited_base')} {ev.get('prior_commit')}`)\n"
+        f"Paths of the shipped range ({len(stats)}):\n" + lines)
 
 
 #: T-14545 — how the packet names each merge kind of the chain.
@@ -2179,7 +2453,8 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
         "result still meets the card's acceptance, with particular attention to each merge's resolution "
         "below — every path not shown in a merge's diff is byte-identical to git's mechanical merge. A "
         f"mechanically clean merge can still be semantically incompatible. {bound}\n\n"
-        "Hand-resolved conflict paths:\n"
+        + merge_integration_semantic_review(ev)
+        + "Hand-resolved conflict paths:\n"
         + "".join(f"- {p}\n" for p in (ev.get("conflict_paths") or []))
         + ("".join(["\nEngine-verified anchor re-sign (T-14180) — each value equals the engine's own "
                     "signature at the subject, for an anchor the merge changed"
@@ -2198,11 +2473,38 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
         + "\nCONTEXT — the final task delta against the last imported main tip "
         f"({ev.get('main_sha')}); it includes the previously reviewed task work, not only new hand "
         "edits"
+        + (" — only the paths the merge chain or main touched since the GREEN (T-14617); the rest is "
+           "listed by reference below" if ev.get("final_delta_referenced") else "")
         + (f" (record-only bookkeeping paths left out of this context, T-14545: "
            f"{', '.join(ev.get('final_delta_excluded')[:20])}"
            + (f" and {len(ev.get('final_delta_excluded')) - 20} more" if len(ev.get('final_delta_excluded')) > 20 else "")
            + ")" if ev.get("final_delta_excluded") else "")
-        + ":\n```diff\n" + str(ev.get("final_delta") or "(empty)") + "\n```\n")
+        + ":\n```diff\n" + str(ev.get("final_delta") or "(empty)") + "\n```\n"
+        + merge_integration_referenced_delta(ev))
+
+
+def merge_integration_referenced_delta(evidence) -> str:
+    """T-14617 (X-2384, SPEC-1018 «The merge-integration packet») — the final-delta paths NOT rendered
+    again: no step of the merge chain changed them, their content at the subject is the GREEN commit's
+    and their base is the base that GREEN's diff was taken from, so each patch is byte-identical to the
+    one that GREEN judged. Named with the verdict's locator and a read-only retrieval command. "" when
+    nothing is referenced. Pure; never raises."""
+    ev = evidence if isinstance(evidence, dict) else {}
+    ref = [p for p in (ev.get("final_delta_referenced") or []) if isinstance(p, str)]
+    if not ref:
+        return ""
+    base, green = ev.get("green_judged_base"), ev.get("prior_commit")
+    return (
+        f"\nGREEN-JUDGED task delta — BY REFERENCE (T-14617): {len(ref)} path(s) of the final task delta "
+        "are not rendered again. No merge of the chain, no re-sign commit and no main change since the "
+        f"judged base touched them: each one's content at the subject is the GREEN commit {green}'s and "
+        f"its base is the base {base} that GREEN's diff was taken from, so its patch is byte-identical to "
+        f"what the GREEN verdict (journal {ev.get('prior_verdict_at') or 'not recorded'}) judged. Read "
+        f"any of them read-only, the path taken literally: `git --literal-pathspecs diff --binary {base} "
+        f"{green} -- <path>` (the same bytes as `git --literal-pathspecs diff --binary "
+        f"{ev.get('main_sha')} {merge_integration_subject(ev)} -- <path>`):\n"
+        # a name holding a line break is JSON-quoted so it stays one line (as T-14574's binary lines)
+        + "".join("- " + (json.dumps(p) if ("\n" in p or "\r" in p) else p) + "\n" for p in ref))
 
 
 #: T-14090 (SPEC-1041 «Rule 4 — custody», «A test-found fix after a spent GREEN») — the `basis` the ONE
@@ -4009,7 +4311,9 @@ def _red_cause_is_card_record(prior, tid: str, *, card=None, _zero_ship_diff_boo
 
         # ── part (2) — at least one reference that IS this card's own record ──────────────────────
         # (i) the card / its own audit records, by path.
-        if any(pth != "events.jsonl" and _zero_ship_diff_bookkeeping(pth, tid) for pth in paths):
+        from lib import events as _events_mod   # lazy, the leaf predicate (T-14587)
+        if any(not _events_mod.is_journal_family_path(pth) and _zero_ship_diff_bookkeeping(pth, tid)
+               for pth in paths):   # T-14587: no journal segment is the card's own record
             return True
         # (ii) a task-tied event type the CARD's own acceptance names (the T-10708 conjunction).
         if callable(_card_named_task_tied_event_types):

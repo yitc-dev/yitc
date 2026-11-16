@@ -131,6 +131,47 @@ def locator_claims(value) -> list:
     return [(tok, ts) for tok, ts, _peer in locator_claims_with_peer(value)]
 
 
+def _ts_row_needles(ts) -> tuple:
+    """The row line-prefixes of a row with this `ts`, in BOTH separator forms the journal holds: the
+    compact form the writer emits since T-14566 and the spaced form of every older row (SPEC-0025)."""
+    return (('{"ts":"%s"' % ts).encode("utf-8"), ('{"ts": "%s"' % ts).encode("utf-8"))
+
+
+def rows_at_ts(journal_path, ts) -> list | None:
+    """Every row of the LOGICAL journal whose `ts` is exactly `ts`, parsed, in segment order; None on an
+    I/O failure only. The same bounded read as `locator_row_present` (the SPEC-0190 rule-4 day-labelled
+    resolver + one `mmap.find` per row start), so a reference by ts costs a one-day lookup, never a
+    whole-history scan (T-14566: the admission configuration reference resolves through it)."""
+    import mmap  # noqa: PLC0415 — used on this path only
+    out: list = []
+    try:
+        for seg in events.segment_paths_since(Path(journal_path), since=ts, until=ts):
+            if not seg.exists():
+                continue
+            with open(seg, "rb") as fh:
+                if os.fstat(fh.fileno()).st_size == 0:
+                    continue
+                with mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                    for needle in _ts_row_needles(ts):
+                        starts = [0] if mm.find(needle, 0, len(needle)) == 0 else []
+                        at = mm.find(b"\n" + needle)
+                        while at != -1:
+                            starts.append(at + 1)
+                            at = mm.find(b"\n" + needle, at + 1)
+                        for st in starts:
+                            end = mm.find(b"\n", st)
+                            line = mm[st:end if end != -1 else len(mm)]
+                            try:
+                                row = json.loads(line)
+                            except ValueError:
+                                continue
+                            if isinstance(row, dict):
+                                out.append(row)
+    except (OSError, ValueError):
+        return None
+    return out
+
+
 def locator_row_present(journal_path, ts) -> bool | None:
     """Does a journal row with exactly this `ts` exist?  True / False / **None = I/O FAILURE ONLY**.
 
@@ -150,7 +191,7 @@ def locator_row_present(journal_path, ts) -> bool | None:
     which is also what keeps it from matching the very row being written.
     """
     import mmap  # noqa: PLC0415 — used on this path only
-    needle = ('{"ts": "%s"' % ts).encode("utf-8")
+    needles = _ts_row_needles(ts)
     read_any = False
     try:
         for seg in events.segment_paths_since(Path(journal_path), since=ts, until=ts):
@@ -162,8 +203,9 @@ def locator_row_present(journal_path, ts) -> bool | None:
                 if size == 0:
                     continue
                 with mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                    if mm.find(b"\n" + needle) != -1 or mm.find(needle, 0, len(needle)) == 0:
-                        return True
+                    for needle in needles:
+                        if mm.find(b"\n" + needle) != -1 or mm.find(needle, 0, len(needle)) == 0:
+                            return True
     except (OSError, ValueError):
         return None                      # I/O failure — and NOTHING else — is undecided
     # A decisive False requires that we ACTUALLY READ the journal. When no candidate segment could be
@@ -3023,6 +3065,15 @@ def _rows_from_lines(lines) -> list:
     return out
 
 
+def _file_state(path):
+    """T-14570 — `(st_dev, st_ino, st_size, st_mtime_ns)` of `path`, or None when it cannot be read."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+
+
 class JournalRowsMemo:
     """ONE fold of each DECLARED journal path, shared by every reader inside one request scope.
 
@@ -3040,6 +3091,7 @@ class JournalRowsMemo:
         self._rows = {}
         self._packed = {}       # T-13391 — key -> `_LineStore`: a streamed fold's lines, COMPRESSED
         self._lossy = set()     # T-13108 — keys whose fold dropped an undecodable line
+        self._stat = {}         # T-14570 — key -> the file state taken BEFORE this memo folded it
         self.folds = 0
         self.served = 0
         # T-13303 — set by a seam that DECLARES nothing inside it appends to the live segment and
@@ -3125,6 +3177,7 @@ class JournalRowsMemo:
         if key in self._packed:     # T-13391 — a list reader inflates the packed lane on first use
             self.served += 1
             self._lines[key] = [line for _seq, _seg, line in self._packed.pop(key)]
+            note_rows_served(path, len(self._lines[key]))     # T-14634 — read, not folded (T-14424)
             return self._lines[key]
         if key not in self._lines:
             if self.walk_once:      # T-13391 — a ONE-SHOT WALK, not a list (see `walk_once`)
@@ -3133,6 +3186,7 @@ class JournalRowsMemo:
             global _FOLD_DROPPED
             prev, dropped = _FOLD_DROPPED, []
             _FOLD_DROPPED = dropped
+            self._stat[key] = _file_state(path)
             try:
                 self._lines[key] = _fold_lines_uncached(path)
             finally:
@@ -3141,6 +3195,12 @@ class JournalRowsMemo:
                 self._lossy.add(key)
         else:
             self.served += 1
+            # T-14634 — a held segment served to this reader is a read WITHOUT a fold (the T-14424
+            # class): a memo adopted from the auto-sync (T-12495) was folded before the invocation's
+            # read mark, so without this its rows were parsed in the span and counted in no
+            # denominator (`session start` read 372x on the kernel). Largest-per-path, never summed
+            # with a fold of the same path, so an in-span fold then serve counts once.
+            note_rows_served(path, len(self._lines[key]))
         return self._lines[key]
 
     def iter_lines(self, path):
@@ -3149,7 +3209,9 @@ class JournalRowsMemo:
         key = self._key(path)
         if key in self._packed:
             self.served += 1
-            return (line for _seq, _seg, line in self._packed[key])
+            store = self._packed[key]
+            note_rows_served(path, sum(len(b[0]) for b in store._blocks) + len(store._seqs))   # T-14634
+            return (line for _seq, _seg, line in store)
         return iter(self.lines(path))
 
     def _stream_packed(self, path, key):
@@ -3163,14 +3225,23 @@ class JournalRowsMemo:
         holds it as before. A walk abandoned before its end records nothing, so a partial fold is
         never served."""
         store, dropped = _LineStore(), []
+        state = _file_state(path)
         for line in _stream_fold_lines(path, dropped):
             store.append(0, 0, line)
             yield line
         store._flush()
         self.folds += 1
         self._packed[key] = store
+        self._stat[key] = state
         if dropped:
             self._lossy.add(key)
+
+    def unchanged(self, path) -> bool:
+        """T-14570 — True iff this memo folded `path` itself and the file is still in the state taken
+        BEFORE that fold (device, inode, size, mtime): a row appended since — today's partition, or a
+        late row in an old one of a cut journal — changes the state, so the reader goes to disk."""
+        st = self._stat.get(self._key(path))
+        return st is not None and st == _file_state(path)
 
     def is_lossy(self, path) -> bool:
         """True iff the fold of `path` this memo holds dropped an undecodable line — never folds."""
@@ -3215,6 +3286,7 @@ class JournalRowsMemo:
         self._lines.pop(key, None)
         self._rows.pop(key, None)
         self._packed.pop(key, None)
+        self._stat.pop(key, None)
 
 
 def offer_adoption(memo, *, forget=()) -> None:
@@ -3309,6 +3381,10 @@ def memo_suffix_rows(path, settled):
     # A keep_all scan scope serves `segment_rows` for this journal (index-backed, no fold): the
     # caller's full read already goes there, and walking the memo instead would fold the archive.
     if memo is None or _keep_all_scope_for(path) is not None:
+        return None
+    # T-14567 (SPEC-0190 rule 1c) — a suffix grown from the root back is a credit only when every
+    # archive row is older than every root row; under the split shape the caller reads in full.
+    if events.split_shape(events.logical_journal(path)):
         return None
     segs = list(events.segment_paths(path))
     if not segs or not all(memo.holds(s) for s in segs):
@@ -3654,14 +3730,19 @@ def segment_text(path, *, encoding="utf-8", errors=None, needles=None) -> str:
     strict_utf8 = errors is None and str(encoding).lower().replace("-", "").replace("_", "") == "utf8"
     parts = []
     for seg in events.segment_paths(path):
+        live_of = events.logical_journal(seg)
+        # T-14570 — an archive of a CUT journal is appendable (a late row may reach it), so it is
+        # served from what a holder read only while that holder can show it is still that file.
+        part = Path(seg) != Path(live_of) and events.is_cut_journal(live_of)
         if strict_utf8 and scope is not None and scope.holds(seg) \
-                and events.logical_journal(seg) != seg:
+                and (not events.is_appendable_segment(seg, live_of) or (part and scope.current(seg))):
             served = scope.needle_text(seg, needles)
             if served is not None:
                 parts.append(served)
                 continue
         if strict_utf8 and memo is not None and memo.holds(seg) \
-                and (events.logical_journal(seg) != seg or memo.live_settled):
+                and (not events.is_appendable_segment(seg, live_of)
+                     or memo.live_settled or (part and memo.unchanged(seg))):
             served = memo.lossless_lines(seg)
             if served is not None:
                 parts.append("\n".join(served))
@@ -4013,7 +4094,12 @@ def _stream_fold_lines(seg, dropped=None, pos_out=None, observe=None):
                 n += 1
                 yield line
             if pos_out is not None:
-                pos_out["end"] = fh.tell()
+                pos_out["end"] = end = fh.tell()
+                # T-14641 — the resume identity of the file READ (device, inode, the bytes just
+                # before `end`), off this handle: never a re-open of a path that may be replaced.
+                st = os.fstat(fh.fileno())
+                fh.seek(max(0, end - JournalScan._TAIL))
+                pos_out["ident"] = (st.st_dev, st.st_ino, fh.read(min(end, JournalScan._TAIL)))
             if observe is not None and src.blob_id() is not None:
                 observe["id"], observe["size"] = src.blob_id(), src.size
     finally:
@@ -4056,6 +4142,7 @@ class _FoldLineSource:
         self.lossy: set = set()
         self.streamed: dict = {}         # seg index -> physical streams by THIS source (AC2)
         self.ends: dict = {}             # T-13332 — seg index -> byte offset its stream stopped at
+        self.idents: dict = {}           # T-14641 — seg index -> resume identity of the file streamed
         self.served = served or {}       # T-13356 — seg index -> _ServedSegment
         self.observe = observe or {}     # T-13356 — seg index -> hash algo of its publish key
         self.observed: dict = {}         # T-13356 — seg index -> (blob id, size) of the bytes read
@@ -4146,6 +4233,8 @@ class _FoldLineSource:
                 self.lossy.add(idx)
             if "end" in pos:
                 self.ends[idx] = pos["end"]
+            if "ident" in pos:
+                self.idents[idx] = pos["ident"]
             if obs is not None and "id" in obs:
                 self.observed[idx] = (obs["id"], obs["size"])
                 self.hexruns[idx] = "\n".join(sorted(runs))
@@ -5240,8 +5329,15 @@ def _land_proof_stat(seg) -> "tuple | None":
 
 
 def _land_proof_stats(journal_path) -> dict:
-    """{archive file NAME: `_land_proof_stat`} for every archive segment, taken at a pass's entry."""
-    return {Path(s).name: _land_proof_stat(s) for s in events.segment_paths(journal_path)[:-1]}
+    """{archive file NAME: `_land_proof_stat`} for every SEALED archive segment, taken at a pass's entry.
+    An appendable dated file (SPEC-0190 rule 1c) is excluded exactly as the root is: it can change
+    outside a land, so no proof is keyed on it (T-14567)."""
+    if events.is_cut_journal(journal_path):
+        # T-14570 — every partition of a cut journal is appendable; a proof stays sound on it, since
+        # git's vouch and the stat equality taken before it already reject a file that changed.
+        return {Path(s).name: _land_proof_stat(s) for s in events.segment_paths(journal_path)[:-1]}
+    return {Path(s).name: _land_proof_stat(s) for s in events.segment_paths(journal_path)[:-1]
+            if not events.is_appendable_segment(s, journal_path)}
 
 
 def _land_proof_load(path) -> "dict | None":
@@ -5633,6 +5729,16 @@ def _resume_refusal(fh, start, ident):
     return None, size
 
 
+def _stat_identity(seg):
+    """T-14641 — `JournalScan._segment_ids`' entry for ONE archive: device, inode, size and mtime, or
+    None for one that cannot be read."""
+    try:
+        st = os.stat(seg)
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+
+
 def _byte_lines(data):
     """`(lines, lossy)` — the stripped non-empty lines of the bytes `data` in the fold family's own
     reading (`_stream_fold_lines`: `bytes.splitlines`, `bytes.strip`, a strict utf-8 decode that
@@ -5813,6 +5919,7 @@ class JournalScan:
         self._next_seq = 0
         self._stale = False                     # T-13332 — a failed catch-up: serve nothing more
         self._live_id = None                    # T-13332 — (st_dev, st_ino, tail bytes) at the resume point
+        self._parts: dict = {}                  # T-14570 — appendable archive idx -> (resume offset, identity)
         self._nondict_seen = False              # T-13332 — a parsed non-dict value in the walked range
         self._cur_sep = False
         self._ran = False
@@ -5849,6 +5956,9 @@ class JournalScan:
         self.borrowed: list = []     # T-14286 — basenames of the segments served from the peer's walk
         self._closed_live = None     # T-14437 — the live resume point a `close` left, for `carry`
         self.carried_from = None     # T-14437 — the journal this scope was carried from, if any
+        self._feeds: list = []       # T-14641 — seg indices in the order their lines were fed (`_tail_ordered`)
+        self.retaken: list = []      # T-14641 — (first segment, segments re-read, lines taken back, lines
+                                     #            read) per changed tail taken back (`_retake_from`)
 
     def holds(self, path) -> bool:
         """True iff `path` is this scope's logical journal or one of its segments (`JournalRowsMemo.holds`,
@@ -5933,13 +6043,28 @@ class JournalScan:
         if self._follow:
             self._follow_idx = len(self._segs) - 1
             self._live_lines = _LineStore()
+        # T-14641 — the archives' stats are taken BEFORE the walk reads them: a file replaced while or
+        # after it is read then differs from what is recorded and is taken back later, never trusted.
+        pre_ids = {i: _stat_identity(self._segs[i]) for i in walk if i < len(self._segs) - 1}
         self._walk(walk, **(self._index_prepare(walk) if self._index_on else {}))
+        self._feeds = [i for i in sorted(self._walked) if self._src.line_counts.get(i)]
         live = len(self._segs) - 1
         if self._catchup_on and live in self._walked and live in self._src.ends:
             self._live = (live, self._src.ends[live])
-            self._live_id = self._identity(self._segs[live], self._src.ends[live])
-            if self._follow:
-                self._seg_ids = self._segment_ids()
+            self._live_id = (self._src.idents.get(live)
+                             or self._identity(self._segs[live], self._src.ends[live]))
+            if self._follow or any(events.is_appendable_segment(s, self._segs[-1])
+                                   for s in self._segs[:-1]):
+                self._seg_ids = [pre_ids.get(i) for i in range(live) if i in self._walked]
+            # T-14570 (SPEC-0190 rule 1c (b), rule 10) — each walked APPENDABLE archive (in a cut
+            # journal: every partition) keeps a resume point of its own, so a row appended to it later
+            # (today's partition, or a late row in an old one) is caught up like the root's, never by
+            # a re-walk.
+            for i in sorted(self._walked):
+                if i != live and i in self._src.ends \
+                        and events.is_appendable_segment(self._segs[i], self._segs[-1]):
+                    self._parts[i] = (self._src.ends[i], self._src.idents.get(i)
+                                      or self._identity(self._segs[i], self._src.ends[i]))
         if not self._catchup_on:
             for r, _allowed in self._reducer_list:
                 getattr(r, "finish", lambda: None)()
@@ -6495,14 +6620,26 @@ class JournalScan:
                 with Path(seg).open("rb") as fh:
                     why, size = _resume_refusal(fh, start, self._live_id)
                     if why is not None:
-                        if not self._follow_rewrite(fh, size, idx, seg):
+                        # T-14641 — the root's own follow first; where an archive changed too (a
+                        # merge, fold or ff rewrote a day partition), the changed tail is retaken.
+                        if not self._follow_rewrite(fh, size, idx, seg) and not self._follow_archives():
                             self._go_stale(why, seg)
+                        return
+                    # T-14567 (SPEC-0190 rule 1c) — the resume point just proved covers the ROOT
+                    # only. A walked dated file that may still be appended to, or a new appendable
+                    # dated file, is not covered by it: the scope goes stale and readers rewalk —
+                    # T-14641: unless the changed tail can be taken back and read again.
+                    why_part = self._catch_up_parts()
+                    if why_part is not None:
+                        if not self._follow_archives():
+                            self._go_stale(why_part[0], why_part[1])
                         return
                     if size == start:
                         self._live_frag = b""
                         return
                     fh.seek(start)
                     data = fh.read(size - start)
+                    st = os.fstat(fh.fileno())
             except OSError:
                 self._go_stale("unreadable", seg)
                 return
@@ -6511,7 +6648,9 @@ class JournalScan:
         if cut < 0:
             return
         self._live = (idx, start + cut + 1)
-        self._live_id = self._identity(seg, start + cut + 1)
+        # T-14641 — the new resume identity is the file just READ (this handle's device + inode, the
+        # proved bytes before `start` and the bytes read), never a re-open of a path that may be replaced.
+        self._live_id = (st.st_dev, st.st_ino, (self._live_id[2] + data[:cut + 1])[-self._TAIL:])
         lines, lossy = _byte_lines(data[:cut + 1])
         if lossy:
             self._src.lossy.add(idx)
@@ -6526,6 +6665,7 @@ class JournalScan:
         self._line_reducers = [(r, a) for r, a in self._reducer_list if hasattr(r, "line")]
         base = self._next_seq
         scope = self
+        before = self._src.line_counts.get(idx, 0)
 
         class _Shift:
             def add(self, seq, row, line):
@@ -6541,21 +6681,75 @@ class JournalScan:
                 if isinstance(store, _LineStore):
                     store._flush()
             self._reducer_list = self._nondict_reducers = self._line_reducers = ()
+            if self._src.line_counts.get(idx, 0) > before and (not self._feeds or self._feeds[-1] != idx):
+                self._feeds.append(idx)       # T-14641 — the order log `_tail_ordered` reads
+
+    def _catch_up_parts(self):
+        """T-14570 (SPEC-0190 rule 1c (b), rule 10) — catch up every walked APPENDABLE archive this
+        scope holds a resume point for: a file still the one read and no longer than its resume
+        offset is skipped on one `stat`; a longer one is PROVED with the root's own resume proof
+        (`_resume_refusal`) and only its appended complete lines are fed. Returns None, or
+        `(why, segment)` when the scope must go stale: a walked appendable archive with no resume
+        point that changed, an unprovable one, or an appendable dated file this scope never saw.
+        Inert on the rotation shape: no archive is appendable there, so only the names are listed."""
+        live = self._segs[-1]
+        known = {str(s) for s in self._segs}
+        for s in events.segment_paths(live)[:-1]:
+            if str(s) not in known and events.is_appendable_segment(s, live):
+                return ("dated-live-segment-moved", s)
+        for i in sorted(self._walked):
+            if i == len(self._segs) - 1:
+                continue
+            seg = self._segs[i]
+            if not events.is_appendable_segment(seg, live):
+                continue
+            part = self._parts.get(i)
+            try:
+                st = os.stat(seg)
+            except OSError:
+                return ("unreadable", seg)
+            if part is not None and part[1] is not None and part[1][:2] == (st.st_dev, st.st_ino) \
+                    and st.st_size == part[0]:
+                continue                      # the file this scope read, nothing appended
+            if part is None:
+                if self._seg_ids is not None and self._segment_ids() == self._seg_ids:
+                    continue                  # served (no resume point) but unchanged since the walk
+                return ("dated-live-segment-moved", seg)
+            start, ident = part
+            try:
+                with Path(seg).open("rb") as fh:
+                    why, size = _resume_refusal(fh, start, ident)
+                    if why is not None:
+                        return (why, seg)
+                    fh.seek(start)
+                    data = fh.read(size - start)
+                    st = os.fstat(fh.fileno())
+            except OSError:
+                return ("unreadable", seg)
+            cut = data.rfind(b"\n")
+            if cut < 0:
+                continue
+            end = start + cut + 1
+            # T-14641 — identity and stat of the file READ, off this handle (see `_catch_up`).
+            self._parts[i] = (end, (st.st_dev, st.st_ino, (ident[2] + data[:cut + 1])[-self._TAIL:]))
+            if self._seg_ids is not None:
+                walked = [j for j in range(len(self._segs) - 1) if j in self._walked]
+                if len(walked) == len(self._seg_ids):
+                    self._seg_ids[walked.index(i)] = (st.st_dev, st.st_ino, start + len(data),
+                                                      st.st_mtime_ns)
+            lines, lossy = _byte_lines(data[:cut + 1])
+            if lossy:
+                self._src.lossy.add(i)
+            if lines:
+                self._feed(i, lines)
+        return None
 
     # ── T-13846 — a REWRITTEN live segment (see the class docstring) ───────────────────────────────
     def _segment_ids(self) -> list:
         """What `os.stat` says of each ARCHIVED segment this scope walked — device, inode, size and
         mtime, None for one that cannot be read. Rotation writes an archive by replace, so a walked
         archive that gained a row is another file."""
-        out = []
-        for i, seg in enumerate(self._segs[:-1]):
-            if i in self._walked:
-                try:
-                    st = os.stat(seg)
-                    out.append((st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns))
-                except OSError:
-                    out.append(None)
-        return out
+        return [_stat_identity(seg) for i, seg in enumerate(self._segs[:-1]) if i in self._walked]
 
     def _follow_rewrite(self, fh, size, idx, seg) -> bool:
         """`fh` is the live segment's path opened NOW, `size` bytes long, and the catch-up could not
@@ -6772,6 +6966,166 @@ class JournalScan:
         self._ensure()
         return not self._stale
 
+    # ── T-14641 — a CHANGED TAIL of archives: taken back and read again, from its first change ─────
+    # In a CUT journal (SPEC-0190 rule 1, T-14570) every merge, fold and ff rewrites a day partition —
+    # an ARCHIVE segment — so a scope that proved only its live root could not follow those states:
+    # `carry` refused and `fresh()` went stale, and each land role walked the whole journal again
+    # (measured on the kernel: 13.8-14.2 s per walk, three per task land). A day partition holds one
+    # day, so it is read again WHOLE: every entry of the segments from the first one that changed is
+    # taken back from the ends of the stores, and those segments are read as they are now through the
+    # walk's own reading and admission. Exact by construction — the entries kept were read from files
+    # proven unchanged; the rest is a fresh read of the files as they are — and only where (1) every
+    # segment taken back or read again may change outside a land (`events.is_appendable_segment`, rule
+    # 1c Q2: in a cut journal all of them; in the rotation shape an old-labelled archive is never one,
+    # so a rotation still walks, the T-14437 residual) and (2) the stores hold those segments' entries
+    # as their TAIL (`_tail_ordered`).
+    def _tail_ordered(self, p) -> bool:
+        """True iff no line of a segment before `p` was fed after a line of segment `p` or later — then
+        every store holds the entries of segments >= `p` as its tail (a T-14570 catch-up of an older
+        partition after a newer one had lines breaks it)."""
+        late = False
+        for i in self._feeds:
+            if i >= p:
+                late = True
+            elif late:
+                return False
+        return True
+
+    def _first_changed(self, segs, shared):
+        """`(changed, p, ids)` for the journal whose segments are `segs` against what this scope read,
+        or None when no copy of it can be exact. `changed` says whether any ARCHIVE differs — a name
+        (the list grew, shrank or moved) or a file no longer the one read — said explicitly, never read
+        off `p` (an archive removed at the end leaves `p` at the live index, audit-pre
+        fp1:da904a71317f57fa). `p` is the first such position. `ids` are the target's archive stats,
+        taken BEFORE `shared()` is asked, so a replacement after them is seen as a change later.
+        `shared` — for another checkout's journal — returns its archives verified identical to this
+        scope's (T-12494)."""
+        old = [Path(str(x)).name for x in self._segs]
+        new = [Path(str(x)).name for x in segs]
+        if old[-1] != new[-1] or self._seg_ids is None or len(self._seg_ids) != len(old) - 1:
+            return None
+        n_old, n_new = len(old) - 1, len(new) - 1
+        p = 0
+        while p < n_old and p < n_new and old[p] == new[p]:
+            p += 1
+        changed = old[:-1] != new[:-1]
+        mine = self._segment_ids()
+        ids = mine if shared is None else [_stat_identity(x) for x in segs[:-1]]
+        for i in range(p):
+            if mine[i] is None or mine[i] != self._seg_ids[i]:
+                p, changed = i, True
+                break
+        if shared is not None:
+            names = {Path(str(x)).name for x in shared()}
+            # The identity check compares the target with this scope's files AS THEY ARE during the
+            # check, so those files are stat'd again AFTER it (audit-post fp1:bb79ab34df45ade4): one
+            # replaced while it ran is no longer the file this scope read, and is taken back.
+            after = self._segment_ids()
+            for i in range(p):
+                if new[i] not in names or ids[i] is None or after[i] != self._seg_ids[i]:
+                    p, changed = i, True
+                    break
+        if changed:
+            if not all(events.is_appendable_segment(s, self._segs[-1]) for s in self._segs[p:-1]) \
+                    or not all(events.is_appendable_segment(s, segs[-1]) for s in segs[p:-1]) \
+                    or not self._tail_ordered(p):
+                return None
+        return changed, p, ids
+
+    def _read_whole(self, seg):
+        """ONE read of `seg` through ONE open handle: `(lines, lossy, end, resume identity, stat
+        identity)`, every part from THAT handle and THOSE bytes — never a re-open of the path, so a
+        file replaced after the read keeps the read file's identity (audit-pre fp1:82955c6d34d951cf).
+        None for a segment that cannot be opened (the walk reads it as empty and records no end)."""
+        t0 = time.monotonic()
+        try:
+            fh = Path(seg).open("rb")
+        except OSError:
+            return None
+        with fh:
+            st = os.fstat(fh.fileno())
+            data = fh.read()
+        lines, lossy = _byte_lines(data)
+        note_fold(seg, len(lines), time.monotonic() - t0)
+        end = len(data)
+        return (lines, lossy, end, (st.st_dev, st.st_ino, data[-self._TAIL:] if end else b""),
+                (st.st_dev, st.st_ino, end, st.st_mtime_ns))
+
+    def _retake_from(self, p, segs, ids) -> None:
+        """Take back every entry of segments >= `p` and read `segs[p:]` again (see the block above).
+        `ids` are the stats proven for the archives before `p`. Half done is neither state: on any
+        exception the scope serves nothing more (as `_follow_rewrite`)."""
+        try:
+            for store in (*self._rows.values(), self._window, self._live_lines):
+                if not isinstance(store, _LineStore):
+                    continue
+                while True:
+                    last = store.last()
+                    if last is None or last[1] < p:
+                        break
+                    store.pop()
+            src = self._src
+            taken = sum(n for i, n in src.line_counts.items() if i >= p)
+            for held in (src.line_counts, src.needle_lines, src.ends):
+                for i in [k for k in held if k >= p]:
+                    del held[i]
+            src.lossy = {i for i in src.lossy if i < p}
+            self._parts = {i: v for i, v in self._parts.items() if i < p}
+            self._feeds = [i for i in self._feeds if i < p]
+            live = len(segs) - 1
+            self._segs = list(segs)
+            self._seg_index = {JournalRowsMemo._key(x): i for i, x in enumerate(self._segs)}
+            src.segments, src.indices = list(self._segs), list(range(len(self._segs)))
+            self._walked = set(range(len(self._segs)))
+            self._follow_idx = live
+            self._live, self._live_id, self._live_frag = None, None, b""
+            seg_ids = list(ids[:p])
+            read = 0
+            for i in range(p, len(self._segs)):
+                got = self._read_whole(self._segs[i])
+                self.folds += 1
+                if got is None:
+                    src.line_counts[i] = 0
+                    if i < live:
+                        seg_ids.append(None)
+                    continue
+                lines, lossy, end, ident, stat_id = got
+                self._feed(i, lines)
+                read += len(lines)
+                src.line_counts.setdefault(i, 0)
+                if lossy:
+                    src.lossy.add(i)
+                src.ends[i] = end
+                if i == live:
+                    self._live, self._live_id = (i, end), ident
+                else:
+                    seg_ids.append(stat_id)
+                    if events.is_appendable_segment(self._segs[i], self._segs[-1]):
+                        self._parts[i] = (end, ident)
+            self._seg_ids = seg_ids
+        except BaseException:
+            self._live, self._stale = None, True
+            raise
+        self.retaken.append((Path(str(self._segs[p])).name, len(self._segs) - p, taken, read))
+
+    def _follow_archives(self) -> bool:
+        """A held scope's own catch-up found an archive that changed (or the segment set changed): retake
+        the changed tail of THIS journal and say True, or say False having touched nothing (the caller
+        goes stale, as before). Admitted for the scopes `carry` copies — follow_live, no reducer,
+        unfloored, not keep_all / task, one walk over every segment."""
+        if (not self._follow or self._reducers or self._since or self._keep_all or self._task is not None
+                or len(self._sources) != 1 or self._walked != set(range(len(self._segs)))):
+            return False
+        try:
+            segs = list(events.segment_paths(self._path))
+            got = self._first_changed(segs, None)
+        except Exception:                         # noqa: BLE001 — an optimisation, never a fault
+            return False
+        if got is None or not got[0]:
+            return False
+        self._retake_from(got[1], segs, got[2])
+        return True
+
     # ── T-14437 — CARRY: one scope lineage across a request's journal states ──────────────────────
     def carry(self, path, *, keep=(), needles=(), shared=None):
         """A scope over the journal at `path` holding what THIS scope read, brought current by the
@@ -6786,11 +7140,14 @@ class JournalScan:
 
         Admitted only where the copy is exactly what a walk of `path` would hold: this scope walked
         every segment (unfloored, not stale, not keep_all, no task) and kept every live line
-        (`follow_live`); `keep` / `needles` (the new reader's declaration) are covered by this one's;
-        `path` has the same segment NAMES; and every archived segment is the file this scope read —
-        unchanged on disk (`_segment_ids`) for this journal, or, for another checkout's journal, also
-        in `shared()` (the T-12494 git-verified identity, fail-open to None). Reducers and the index
-        hooks are not carried: a reducer cannot be split at a line, so a declaration needing one walks."""
+        (`follow_live`); `keep` / `needles` (the new reader's declaration) are covered by this one's.
+        Every archived segment the copy keeps is the file this scope read — unchanged on disk
+        (`_segment_ids`) for this journal, or, for another checkout's journal, also in `shared()` (the
+        T-12494 git-verified identity, fail-open to None). T-14641 — where an archive is not (a day
+        partition the merge, fold or ff rewrote, a new or a removed one), the copy takes back and reads
+        again the tail from the first such segment (`_first_changed`, `_retake_from`), or the caller
+        walks. Reducers and the index hooks are not carried: a reducer cannot be split at a line, so a
+        declaration needing one walks."""
         live = self._live if self._live is not None else self._closed_live
         if (not self._ran or self._stale or not self._follow or live is None or self._since
                 or self._keep_all or self._task is not None or len(self._sources) != 1
@@ -6800,16 +7157,13 @@ class JournalScan:
         path = Path(path)
         try:
             segs = list(events.segment_paths(path))
-            if [Path(str(x)).name for x in segs] != [Path(str(x)).name for x in self._segs]:
+            other = not self.holds(path)
+            if other and shared is None:
                 return None
-            if self._segment_ids() != self._seg_ids:
+            got = self._first_changed(segs, shared if other else None)
+            if got is None:
                 return None
-            if not self.holds(path):
-                if shared is None:
-                    return None
-                names = {Path(str(x)).name for x in shared()}
-                if any(Path(str(x)).name not in names for x in segs[:-1]):
-                    return None
+            changed, p, ids = got
         except Exception:                         # noqa: BLE001 — an optimisation, never a fault
             return None
         new = object.__new__(JournalScan)
@@ -6820,12 +7174,13 @@ class JournalScan:
         new._rows = {t: st.copy() for t, st in self._rows.items()}
         new._window = self._window.copy()
         new._live_lines = self._live_lines.copy()
-        src = _FoldLineSource([segs[i] for i in self._src.indices], indices=self._src.indices,
+        src = _FoldLineSource(list(segs), indices=list(range(len(segs))),
                               needles=self._needles, on_line=new._on_line)
         src.needle_lines = {i: list(v) for i, v in self._src.needle_lines.items()}
         src.line_counts = dict(self._src.line_counts)
         src.lossy = set(self._src.lossy)
         src.ends = dict(self._src.ends)
+        src.idents = dict(self._src.idents)
         src.seg_idx = self._src.seg_idx
         new._src, new._sources = src, [src]
         new._walked = set(self._walked)
@@ -6842,9 +7197,22 @@ class JournalScan:
         new.task_floors = dict(self.task_floors)
         new._live, new._closed_live = live, None
         new._live_id = None                  # the first request re-proves the live segment (follow)
-        new._seg_ids = new._segment_ids()
+        # T-14641 — the copy's own resume points (a catch-up of the copy moves them). Another checkout's
+        # archive before `p` is verified the same bytes as this scope's file, so its resume point is the
+        # same offset and the same proved bytes — on THAT file: its device and inode, stat'd before the
+        # identity was asked (a replacement after that stat differs from `_seg_ids` and is retaken).
+        new._parts = dict(self._parts) if not other else {
+            i: (end, (ids[i][0], ids[i][1], ident[2])) for i, (end, ident) in self._parts.items()
+            if i < min(p, len(ids)) and ids[i] is not None and ident is not None}
+        new._feeds, new.retaken = list(self._feeds), []
+        new._seg_ids = list(ids)             # T-14641 — taken before `shared()` was asked
         new._stale = False
         new.carried_from = str(self._path)
+        if changed:
+            try:
+                new._retake_from(p, segs, ids)
+            except Exception:                     # noqa: BLE001 — an optimisation, never a fault
+                return None
         return new
 
     # ── T-13332 — read-only accessors for the audit seam's served readers ──────────────────────────
@@ -7022,6 +7390,22 @@ class JournalScan:
             self.fallbacks.append(("reducer", name, since))
             return None
         return got
+
+    def current(self, seg_path) -> bool:
+        """T-14570 — True iff this scope holds a resume point for archive `seg_path` (caught up first)
+        and the file is still that one, no longer than that point: what it holds of the file is the
+        whole file. False for anything it cannot show so."""
+        if not self._usable():
+            return False
+        idx = self.seg_of(seg_path)
+        part = self._parts.get(idx) if idx is not None else None
+        if part is None or part[1] is None:
+            return False
+        try:
+            st = os.stat(seg_path)
+        except OSError:
+            return False
+        return part[1][:2] == (st.st_dev, st.st_ino) and st.st_size == part[0]
 
     def needle_text(self, seg_path, needles):
         """`segment_text`'s served text for ONE archive segment, or None to read it from disk: only when
@@ -7456,7 +7840,11 @@ def scope_live_lines(path):
 
 
 def scope_live_rows_since(path, cutoff):
-    """T-13330 — `JournalScan.live_rows_since` on a keep_all scope holding `path`, else None."""
+    """T-13330 — `JournalScan.live_rows_since` on a keep_all scope holding `path`, else None.
+    T-14567 (SPEC-0190 rule 1c) — None when a dated file reaches into the window (`events.dated_since`):
+    the root alone is then no time suffix."""
+    if events.dated_since(events.logical_journal(path), cutoff):
+        return None
     scope = _keep_all_scope_for(path)
     return scope.live_rows_since(cutoff) if scope is not None else None
 
@@ -7727,7 +8115,7 @@ def segment_stat_key(path) -> tuple:
 
 
 def revision_segment_paths(rev: str, cwd, journal_rel: str = "events.jsonl", *, run=None,
-                           since=None) -> list:
+                           since=None, only=None) -> list:
     """SPEC-0190 rule 4b — the repo-relative journal segments present AT a git revision, in fold order.
 
     Rule 4 governs readers that go through the shared fold; this exists because a whole CLASS of
@@ -7754,7 +8142,17 @@ def revision_segment_paths(rev: str, cwd, journal_rel: str = "events.jsonl", *, 
     `since` (T-13408) is the revision twin of `events.segment_paths_since`, with the SAME three
     inclusion rules: the live segment is always kept and last, an undatable archive label is kept,
     and a datable one is dropped only when its day is earlier than `since[:10]`. A PRE-FILTER, never a
-    predicate — the caller still decides membership. `since=None` returns the whole set above."""
+    predicate — the caller still decides membership. `since=None` returns the whole set above.
+
+    `only` (T-14640) — a collection of repo-relative rels: the answer keeps only those of its members,
+    the live journal included, applied after `since` and after the git-failure fallback. For a caller
+    that already knows which segments can hold its answer (the rels a `git diff` names between two
+    revisions), so it reads those and no other. `only=None` is the answer above, unchanged."""
+    def _only(rels):
+        if only is None:
+            return rels
+        keep = {str(r) for r in only}
+        return [r for r in rels if r in keep]
     live = Path(journal_rel)
     adir = f"{events.ARCHIVE_DIRNAME}/"
     pattern = adir + events.archive_glob(live)
@@ -7767,20 +8165,20 @@ def revision_segment_paths(rev: str, cwd, journal_rel: str = "events.jsonl", *, 
     try:
         r = run(["ls-tree", "-r", "--name-only", rev, "--", adir])
     except OSError:
-        return [journal_rel]
+        return _only([journal_rel])
     if getattr(r, "returncode", 1) != 0:
-        return [journal_rel]
+        return _only([journal_rel])
     archives = sorted(n for n in ((raw or "").strip() for raw in (r.stdout or "").splitlines())
                       if n and Path(n).match(pattern))
     if since:
         floor = str(since)[:10]
         archives = [n for n in archives
                     if (label := events.segment_label(n, journal_rel)) is None or label >= floor]
-    return [*archives, journal_rel]
+    return _only([*archives, journal_rel])
 
 
 def revision_segment_show_argvs(rev: str, cwd, journal_rel: str = "events.jsonl", *,
-                                run=None, since=None) -> list:
+                                run=None, since=None, only=None) -> list:
     """SPEC-0190 rule 4b — the READ-SHAPE sibling of `revision_segment_paths`: the `git show` argv
     LIST that reads the whole fold at `rev`, in fold order, in ONE git process where that is safe.
 
@@ -7809,9 +8207,10 @@ def revision_segment_show_argvs(rev: str, cwd, journal_rel: str = "events.jsonl"
     caller can never end up reading less than the loop it replaced.
 
     `run` is the same injection seam `revision_segment_paths` takes and is passed through to it, and
-    so is `since` (T-13408) — the argvs then read only the segments that horizon keeps."""
+    so is `since` (T-13408) — the argvs then read only the segments that horizon keeps — and `only`
+    (T-14640): only the named rels are read, and none left means no argv at all."""
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
-    rels = revision_segment_paths(rev, cwd, journal_rel, run=run, since=since)
+    rels = revision_segment_paths(rev, cwd, journal_rel, run=run, since=since, only=only)
     per_segment = [["show", f"{rev}:{rel}"] for rel in rels]
     if len(rels) < 2:
         return per_segment                      # nothing to batch — the pre-rotation case, unchanged
@@ -7960,8 +8359,28 @@ def tail_scan_events(path, token, *, max_bytes, _opener=None):
     `_iter_events_tail` falls back to `_iter_events`.
     """
     out = []
-    for bline in _bounded_superset_lines(path, [token], max_bytes=max_bytes,
-                                         drop_fragment=True, _opener=_opener):
+    # T-14567 (SPEC-0190 rule 1c) — under the split shape the root's tail is not the journal's
+    # newest rows: the dated lane gets the SAME byte budget, newest label first, and the union is
+    # returned (a superset under either recency relationship; the callers' parsed checks decide).
+    # A root absent beside dated files (after the cut) contributes nothing rather than raising.
+    split = _opener is None and Path(path) == events.logical_journal(path) and events.split_shape(path)
+    if split and not Path(path).exists():
+        blines = []
+    else:
+        blines = list(_bounded_superset_lines(path, [token], max_bytes=max_bytes,
+                                              drop_fragment=True, _opener=_opener))
+    if split:
+        budget = int(max_bytes)
+        for seg in events.recency_lanes(path)[1]:
+            if budget <= 0:
+                break
+            try:
+                size = Path(seg).stat().st_size
+            except OSError:
+                continue
+            blines.extend(_bounded_superset_lines(seg, [token], max_bytes=budget, drop_fragment=True))
+            budget -= size
+    for bline in blines:
         try:
             ev = json.loads(bline.decode("utf-8", "replace"))
         except ValueError:
@@ -7969,6 +8388,12 @@ def tail_scan_events(path, token, *, max_bytes, _opener=None):
         if isinstance(ev, dict):
             out.append(ev)
     return out
+
+
+def _dated_lane_done(label, best_ts) -> bool:
+    """T-14567 — True iff no file labelled `label` or older can hold a row newer than `best_ts`:
+    a file labelled D holds rows dated at most the end of D (`D + "T24"` sorts after every ts of D)."""
+    return best_ts is not None and label is not None and str(best_ts) > label + "T24"
 
 
 def locate_event(path, token, pred, *, hint=None):
@@ -8012,6 +8437,8 @@ def locate_event(path, token, pred, *, hint=None):
         except (OSError, ValueError, TypeError):
             pass                           # a void hint: the walk below decides
     tok = token.encode("utf-8") if isinstance(token, str) else bytes(token)
+    if events.split_shape(live):
+        return _locate_event_split(live, tok, pred)
     for seg in reversed(events.segment_paths(live)):
         try:
             with open(seg, "rb") as fh:
@@ -8038,6 +8465,84 @@ def locate_event(path, token, pred, *, hint=None):
         except FileNotFoundError:
             continue
     return None
+
+def _segment_token_lines(seg, tokens) -> list:
+    """`(offset, line)` of every line of ONE segment holding a token (the `_superset_matcher` prescan),
+    in file order — the whole file is read, once, and counted as a fold. An absent segment is empty."""
+    wanted = tuple(t.encode("utf-8") if isinstance(t, str) else bytes(t) for t in tokens)
+    match = _superset_matcher(wanted)
+    out: list = []
+    if match is None:
+        return out
+    t0 = time.monotonic()
+    n = off = 0
+    try:
+        with open(seg, "rb") as fh:
+            for raw in fh:
+                n += 1
+                if match(raw):
+                    out.append((off, raw.rstrip(b"\r\n").decode("utf-8", "replace")))
+                off += len(raw)
+    except FileNotFoundError:
+        return out
+    note_fold(seg, n, time.monotonic() - t0)
+    return out
+
+
+def _lane_entries(path, tokens):
+    """T-14567 (SPEC-0190 rule 1c) — `(ts, line, segment, offset)` of the token lines of the logical
+    journal at `path`, NEWEST `ts` FIRST, exact whatever the row order inside a file: the root and
+    every undatable archive are read whole, then dated files newest label first, a file opened only
+    while it could still hold a row newer than the best one left (`_dated_lane_done`: a file labelled
+    D holds no row dated after D). Equal `ts`: the later-read line first. A row with no readable
+    `ts` sorts as oldest."""
+    root, dated = events.recency_lanes(path)
+    pending = [s for s in dated if events.segment_label(s, path) is not None]
+    loaded: list = []                       # ascending by (ts, seq); the newest is popped off the end
+    seq = 0
+
+    def _load(seg):
+        nonlocal seq
+        for off, line in _segment_token_lines(seg, tokens):
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                ev = None
+            ts = str(ev.get("ts") or "") if isinstance(ev, dict) else ""
+            loaded.append((ts, seq, line, Path(seg), off))
+            seq += 1
+        loaded.sort(key=lambda e: (e[0], e[1]))
+
+    for seg in (root[0], *[s for s in dated if events.segment_label(s, path) is None]):
+        _load(seg)
+    while True:
+        while pending and (not loaded or not _dated_lane_done(
+                events.segment_label(pending[0], path), loaded[-1][0])):
+            _load(pending.pop(0))
+        if not loaded:
+            return
+        ts, _seq, line, seg, off = loaded.pop()
+        yield ts, line, seg, off
+
+
+def lanes_newest_first(path, tokens):
+    """T-14567 — the token lines of `_lane_entries`, newest `ts` first (the duration reader's walk)."""
+    for _ts, line, _seg, _off in _lane_entries(path, tokens):
+        yield line
+
+
+def _locate_event_split(live, tok, pred):
+    """T-14567 (SPEC-0190 rule 1c) — `locate_event`'s walk under the split shape: the newest-by-`ts`
+    row matching `tok` + `pred` across the recency lanes, as `(row, segment, offset)`."""
+    for _ts, line, seg, off in _lane_entries(live, [tok]):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and pred(row):
+            return row, seg, off
+    return None
+
 
 def _row_epoch(ts) -> "float | None":
     """The epoch seconds of a journal row's `ts`, or None when it cannot be read.
@@ -8272,6 +8777,11 @@ def tail_scan_events_covering(path, token, *, horizon_s, now=None, base_bytes,
     older_q = _has_older_segment if _has_older is None else _has_older
     covered = (boundary is not None and boundary <= cutoff) or (
         reached_start and not older_q(path))
+    # T-14567 (SPEC-0190 rule 1c) — under the split shape the root alone never certifies coverage:
+    # a dated file may hold newer rows than any the root's boundary dates.
+    if covered and _has_older is None and Path(path) == events.logical_journal(path) \
+            and events.split_shape(path):
+        covered = False
     out = []
     for lines in reversed(slices):
         for bline in lines:
@@ -8367,6 +8877,41 @@ def archive_scan_events_covering(path, token, *, horizon_s, now=None, base_bytes
     rows: list = []
     covered = False
     total = 0
+    # T-14567 (SPEC-0190 rule 1c) — under the split shape the newest-first walk cannot stop at the
+    # first covering member (a later-labelled file may hold rows the root lacks); every archive the
+    # horizon admits is read, and coverage is any member reaching the cutoff.
+    split = False
+    try:
+        split = bool(archives) and events.split_shape(path)
+    except Exception:                      # noqa: BLE001 — unanswerable: keep the rotation walk
+        split = False
+    if split:
+        cut = (now if now is not None else time.time()) - float(horizon_s)
+        floor = _dt.datetime.fromtimestamp(cut - 86400, _dt.timezone.utc).strftime("%Y-%m-%d")
+        admitted = set(events.segment_paths_since(path, floor)[:-1])
+        # Coverage is the CONJUNCTION: every admitted file read to its start or to the cutoff (each is
+        # asked with no older sibling, so reaching its own offset 0 is its whole content); a file that
+        # failed or stopped on `max_bytes` leaves the answer uncovered. Files the floor did not admit
+        # are labelled before it, so they hold no row inside the horizon.
+        covered = True
+        for seg in archives:
+            if seg not in admitted:
+                continue
+            spend = []
+            try:
+                got, seg_covered = scan(
+                    seg, token, horizon_s=horizon_s, now=now, base_bytes=base_bytes,
+                    max_bytes=max_bytes, spend_out=spend, _opener=_opener,
+                    _has_older=(lambda _p: False))
+            except Exception:              # noqa: BLE001 — fail-open on rows, never on coverage
+                covered = False
+                continue
+            total += int(spend[0]) if spend else 0
+            rows.extend(got or ())
+            covered = covered and bool(seg_covered)
+        if isinstance(spend_out, list):
+            spend_out.append(int(total))
+        return rows, covered
     for i in range(len(archives) - 1, -1, -1):
         seg = archives[i]
         spend: list = []
@@ -9117,7 +9662,20 @@ def _dispatch_lifecycle_integrity(allev, *, _DISPATCH_AUDIT_TYPES, _DISPATCH_COM
     `--since 2026-09-13`. A marker the probe finds moves from `missing` to `unobserved` — but ONLY
     when its ts PRECEDES the judged completion (T-9365 unchanged: a claim after the land cannot
     retro-justify it). A row whose every absence is thereby explained reads 'instrument-gap'.
+    T-14645 — the judged terminal is the first post-launch completion that actually COMPLETED. A
+    `land_completed` whose data says `status: abort` (or, on a legacy row, carries `abort_reason`)
+    integrated nothing and is skipped; with no completion left the task is still in flight and stays
+    a SKIP. Measured 2026-11-16 on a consumer journal: a task whose first land aborted, then claimed,
+    audited GREEN and landed, read BYPASS; another with two aborted lands and nothing landed read
+    BYPASS too. THE BOUND: skipping an aborted terminal only moves the terminal LATER (so `before`
+    can only gain markers) or removes the row (no terminal left) — it can never produce a more
+    accusing reading than judging the abort would have.
     PURE read; no emit, no gate."""
+    def _aborted_land(e):
+        if e.get("type") != "land_completed":
+            return False
+        d = e.get("data")
+        return isinstance(d, dict) and (d.get("status") == "abort" or "abort_reason" in d)
     by_task = {}
     for e in allev:
         tid = _event_task_of(e)
@@ -9149,8 +9707,11 @@ def _dispatch_lifecycle_integrity(allev, *, _DISPATCH_AUDIT_TYPES, _DISPATCH_COM
         # slice the T-11026 instrument-gap tier exists to describe (T-10866 / T-10977) — anchoring on
         # the last launch would silently dismantle that tier instead of leaving it to do its job.
         launch = next(i for i, e in enumerate(evs) if e.get("type") == "bg_dispatch_launched")
+        # T-14645 — an ABORTED land is not a completion: it integrated nothing, so it is never the
+        # judged terminal; the judgement moves to the next completion (or, with none, to in-flight).
         first_completion = next((i for i, e in enumerate(evs)
-                                 if i > launch and e.get("type") in _DISPATCH_COMPLETION_TYPES), None)
+                                 if i > launch and e.get("type") in _DISPATCH_COMPLETION_TYPES
+                                 and not _aborted_land(e)), None)
         if first_completion is None:
             # No completion AFTER the launch — still in flight, and that stays a SKIP. A pre-launch
             # completion is not this dispatch's terminal, so it can never be reclassified into one:
@@ -9943,8 +10504,16 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
             # the cutoff day or wholly newer than the until day holds no row the `ts < since` /
             # `ts > until` tests below would admit: it is left unopened, counted by the skip counter.
             if cutoff is not None or until:
-                keep = set(events.segment_paths_since(p, cutoff, until=until))
+                keep_order = events.segment_paths_since(p, cutoff, until=until)   # in segment order
+                keep = set(keep_order)
                 skip = frozenset(skip) | {s for s in events.segment_paths(p) if s not in keep}
+            # T-14635 (SPEC-0190 rule 10) — a WORKTREE leg whose bounded window spans dated segments
+            # is served by the leg cursors one segment at a time (`_leg_segment_rows`), under the same
+            # gates as the live-segment cursor above: a store installed, a narrowable worktree leg,
+            # main's rows from the request's scope in this call. None => the fold below, unchanged.
+            if leg_eligible and narrowable and main_served and cutoff is not None and not until:
+                leg_rows = _leg_segment_rows(legs, p, [s for s in keep_order if s not in skip],
+                                             main_ref, cutoff, since, DISPATCH_EXCLUDED_TYPES)
             # T-13846 (SPEC-0190 rule 10) — INSIDE A WATCH the UNBOUNDED read takes this journal's
             # LIVE segment from the watch's scope. A watched id with no launch row in the wave window
             # has its status re-decided on the whole history (T-11896) in every tick, and the scope
@@ -9955,18 +10524,21 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
             # fold reads it as before. The archives are still read here; the live segment is the last
             # of the set, so its lines follow them exactly as they did.
             scope_live = scope_live_lines(p) if cutoff is None and not until else None
-            if live_empty or live_rows is not None or scope_live is not None:
-                skip = frozenset(skip) | {events.segment_paths(p)[-1]}   # T-13311 — see the seek above
-            lines_iter = segment_lines(p, skip=skip) if skip else segment_lines(p)
-            if scope_live is not None:
-                _READ_COUNTERS["segments_skipped"] -= 1     # read, by the scope: not a skip
-                lines_iter = itertools.chain(lines_iter, scope_live)
-            if live_rows is not None:
-                # T-13311 — the live segment was READ (by the seek), not skipped: un-count it, then
-                # follow the archive lines with its rows, in the whole-set fold's segment order.
-                _READ_COUNTERS["segments_skipped"] -= 1
-                events_iter = itertools.chain(_parsed_lines(lines_iter), live_rows)
-            whole_folded.add(p.resolve())
+            if leg_rows is not None:
+                events_iter = leg_rows      # T-14635 — the leg cursors, segment by segment
+            else:
+                if live_empty or live_rows is not None or scope_live is not None:
+                    skip = frozenset(skip) | {events.segment_paths(p)[-1]}   # T-13311 — see the seek above
+                lines_iter = segment_lines(p, skip=skip) if skip else segment_lines(p)
+                if scope_live is not None:
+                    _READ_COUNTERS["segments_skipped"] -= 1     # read, by the scope: not a skip
+                    lines_iter = itertools.chain(lines_iter, scope_live)
+                if live_rows is not None:
+                    # T-13311 — the live segment was READ (by the seek), not skipped: un-count it, then
+                    # follow the archive lines with its rows, in the whole-set fold's segment order.
+                    _READ_COUNTERS["segments_skipped"] -= 1
+                    events_iter = itertools.chain(_parsed_lines(lines_iter), live_rows)
+                whole_folded.add(p.resolve())
         if events_iter is None:
             events_iter = _parsed_lines(lines_iter)
         for e in events_iter:
@@ -10217,6 +10789,63 @@ _NO_SHARED_PREFIX = object()    # `_WatchLegs.prefix_rows`: this leg shares no p
 def _watch_legs():
     """The installed watch's leg cursors, or None outside a watch (`WatchReads`)."""
     return getattr(_WATCH_LEGS_TLS, "legs", None)
+
+
+@contextlib.contextmanager
+def leg_cursors():
+    """T-14635 (SPEC-0190 rule 10) — install a leg-cursor store for one request that reads the dispatch
+    union several times (a multi-task `dispatch` launch, `cli._dispatch_launch_reads`): its later union
+    reads catch each worktree leg up by the bytes appended since, as a watch's do. Re-entrant — an
+    installed store (a watch's) is kept, never replaced; the prior value is restored on exit. Owned by
+    the request's scope and dropped with it: not a cache."""
+    prior = _watch_legs()
+    if prior is not None:
+        yield prior
+        return
+    legs = _WatchLegs()
+    _WATCH_LEGS_TLS.legs = legs
+    try:
+        yield legs
+    finally:
+        _WATCH_LEGS_TLS.legs = prior
+
+
+def _leg_segment_rows(legs, p, segs, main_ref, cutoff, since, excluded):
+    """T-14635 (SPEC-0190 rule 10) — a worktree leg's rows over `segs`, the segments of leg `p` the
+    whole-set fold of `_dispatch_status_events` would read (the caller resolves them from the leg's
+    segment set, less its skip set), from the leg cursors — or None, and the caller folds the leg as
+    before.
+
+    WHY. Since the journal day cut (T-14585) a journal's root file is empty and its rows sit in
+    `archive/events-<day>.jsonl`, today's still appended. A bounded window then covers more than one
+    segment, the reader takes its whole-set fold (T-13311), and the leg cursors — which address the
+    LIVE segment only — were never asked: every worktree leg was folded again in every watch tick
+    (kernel, 2026-11-11..16: up to 900 folds over 29 files in one watch) and in every per-spawn read
+    of a launch.
+
+    PER SEGMENT, the two cursors the live-segment branches already use, keyed by the segment's own
+    path: the prefix cursor against MAIN's same-named segment (below the verified prefix the bytes are
+    main's, and the caller asks only when main's rows came from the request's scope in this same call
+    — the T-12129/T-13462 argument, one file at a time), else the window cursor's WHOLE-segment answer
+    (it read the whole file once; a line it cannot answer for declines). An absent or empty segment
+    holds no row and is not opened. ANY decline => None: the leg is read exactly as before."""
+    main_ref = Path(main_ref)
+    rows = []
+    for seg in segs:
+        try:
+            if not seg.exists() or seg.stat().st_size == 0:
+                continue
+        except OSError:
+            return None
+        twin = main_ref if seg == Path(p) else events.archive_dir(main_ref) / seg.name
+        got = legs.prefix_rows(seg, twin, excluded, main_served=True, cutoff=cutoff, since=since,
+                               whole_segment=True)
+        if got is _NO_SHARED_PREFIX:
+            got = legs.window_rows(seg, cutoff, since, excluded, whole=True)
+        if got is None:
+            return None
+        rows.extend(got)
+    return rows
 
 
 class _NoCutoff:
@@ -10486,13 +11115,15 @@ class _WatchLegs:
                 prev = off
         return prev is None or cur.end - prev < block
 
-    def prefix_rows(self, p, main_ref, excluded, *, main_served, cutoff, since):
+    def prefix_rows(self, p, main_ref, excluded, *, main_served, cutoff, since, whole_segment=False):
         """The rows of worktree leg `p` above the prefix it shares with `main_ref` — what the reader's
         shared-prefix branch reads, minus `excluded` types (and, from a cursor, rows older than its
         first `since`). `_NO_SHARED_PREFIX` when the leg shares none (the reader then takes its window
         branch, and `window_rows`); None when the cursor declines and the reader reads for itself.
         `main_served`: the reader took main's rows from the watch's scope in this call (see the block
-        above)."""
+        above). `whole_segment` (T-14635): `p` is one dated segment the reader would fold WHOLE, never
+        cut by a tail-window scan, so the `_own_rows_inside_any_window` test — that equivalence only —
+        is not asked (see `_leg_segment_rows`)."""
         key = self._key("dispatch", p)
         sizes = self._scan_sizes()
         if key is None or key in self._declined or sizes is None:
@@ -10516,7 +11147,7 @@ class _WatchLegs:
             if state == "decline":
                 return None
             if state == "ok":
-                if not self._own_rows_inside_any_window(cur, cutoff, sizes[0]):
+                if not whole_segment and not self._own_rows_inside_any_window(cur, cutoff, sizes[0]):
                     self._give_up(key, cur, "own-rows-gap", decline=True)
                     return None
                 return cur.items
@@ -10558,7 +11189,8 @@ class _WatchLegs:
                 holdable = self._feed_prefix(new, off, value) and holdable
             off += len(raw) + 1
         note_rows_parsed(n)
-        if not holdable or not self._own_rows_inside_any_window(new, cutoff, sizes[0]):
+        if not holdable or (not whole_segment
+                            and not self._own_rows_inside_any_window(new, cutoff, sizes[0])):
             self._declined.add(key)
             return rows
         new.ident = self._settled(p, before, new.end)
@@ -10635,7 +11267,7 @@ class _WatchLegs:
         self._cur[key] = cur
         return cur
 
-    def _window(self, kind, p, cutoff, item, *, floor=None, excluded=frozenset()):
+    def _window(self, kind, p, cutoff, item, *, floor=None, excluded=frozenset(), whole=False):
         """`(offset, item)` of each kept row the reader's tail-window read of `p` at `cutoff` returns
         — every row from the window's start (`_tail_window_start`'s own answer) to EOF — or None when
         the cursor declines. A poll whose window holds a line the cursor cannot answer for is declined
@@ -10661,6 +11293,13 @@ class _WatchLegs:
             if state == "decline":
                 self.declined_polls += 1         # an unterminated final row: retried next poll
                 return None
+            if state == "ok" and whole:
+                # T-14635 — the WHOLE segment, as a whole-set fold reads it: every kept row, or none
+                # when any line is one the cursor cannot answer for (the fold reads it as text).
+                if cur.unlike or cur.unwalkable:
+                    self.declined_polls += 1
+                    return None
+                return list(cur.items)
             if state == "ok":
                 start, reach = _emulated_window(cur.end, cutoff, cur.offs, cur.tss,
                                                 block=block, confirm_bytes=confirm)
@@ -10673,16 +11312,18 @@ class _WatchLegs:
             cur = None
         return None
 
-    def window_rows(self, p, cutoff, since, excluded):
+    def window_rows(self, p, cutoff, since, excluded, *, whole=False):
         """A leg's tail-window rows for `_dispatch_status_events` (the leg shares no prefix with main,
         or carries the shared region itself): the rows its bounded read returns, minus `excluded`
-        types and rows older than the cursor's first `since`. None = the reader reads for itself."""
+        types and rows older than the cursor's first `since`. None = the reader reads for itself.
+        `whole` (T-14635): every such row of the WHOLE file `p` — one dated segment the reader would
+        fold whole — instead of its tail window."""
         excluded = frozenset(excluded or ())
         floor = since or ""
 
         def item(row, _excluded=excluded, _floor=floor):
             return row if row.get("type") not in _excluded and (row.get("ts") or "") >= _floor else None
-        got = self._window("dispatch", p, cutoff, item, floor=floor, excluded=excluded)
+        got = self._window("dispatch", p, cutoff, item, floor=floor, excluded=excluded, whole=whole)
         return None if got is None else [row for _off, row in got]
 
     def consumer_pairs(self, p, cutoff):
@@ -12256,7 +12897,7 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYP
         # TERMINAL(done) off the land EVENT alone (line ~536), so a task that LANDED but never ran
         # audit-post/closure still reads terminal → a proc-gone worker is DROPPED by the in-flight
         # filter below and the batch reads FINISHED, hiding a task stranded mid-lifecycle (the
-        # <project> incident — invisible until someone grepped). Cross-check the authoritative CARD
+        # boomrocket incident — invisible until someone grepped). Cross-check the authoritative CARD
         # state on main (`_main_task_strand_state`, fail-open): a landed task whose card is still
         # `in-progress` and NOT paused is STRANDED — report-only, never folded into batch-finished. No
         # new FSM/store — a per-id read of fields already on main after `land`, the peer of the
@@ -12493,7 +13134,7 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYP
             # from a dropped worker. Before `task refuse` existed, a worker that came up, analyzed a
             # ready task and correctly refused it had no way to say so: it exited, and the task chain
             # (launch only, no claim, past grace) read `launch-stall` — «never came up, re-dispatch».
-            # Re-dispatching a refusal reproduces it, so the controller looped (the <project>
+            # Re-dispatching a refusal reproduces it, so the controller looped (the trend-finder
             # incident, 2026-07-09). The refusal now arrives as bg_dispatch_halted(kind=refused) →
             # detail `refused(pre-claim)`, so say plainly that the worker WORKED and the remedy is the
             # blocker, not a respawn. Same class/verdict (no new token — SPEC-0133 rule 2a vocabulary
@@ -12857,7 +13498,8 @@ def worker_fit_line(fit) -> str:
     cost = (f"a verify here uses ~{vc:.1f} CPUs" if vc is not None
             else "verify cost not measured yet")
     return (f"workers: this host ({fit['nproc']} CPUs) fits {fit['recommended']} parallel worker(s) "
-            f"for this project ({cost}) — report-only, not a limit")
+            f"for this project ({cost}) — report-only, not a limit; verify runs and lands still pass one at "
+            f"a time per repo, because a land re-uses its run's green result (SPEC-1045 rule 6)")
 
 
 def cmd_journal_dispatch_readiness(args: argparse.Namespace, *, DISPATCH_WAVE_WINDOW_SEC, _cpu_count, _load_avg, _dispatch_status_events, _live_land_frontier, _live_claimed_task_ids, _land_proc_alive, _session_proc_alive, _parse_iso_ts, _work_land_proc_alive=_work_land_proc_alive, _events_path=None) -> None:
@@ -13038,6 +13680,301 @@ def _admission_report(*, main_wt, events_path, stage6_limits, _stage6_waiters, _
     return {"pools": pools}
 
 
+# ── T-14596 — `journal query --land-cycle`: one Stage-6 card cycle on one exclusive timeline ──────────
+# READ-ONLY. Every number below is read off rows the engine already writes — the land's own
+# `land_completed` (phase_ms, and since T-14596 phase_timeline / phase_split_ms /
+# post_attempt_split_ms / ended_at), the card's admission rows, its `tests_passed` green, the
+# session's `cli_invoked` verb rows (end ts + duration_ms) and the hold release's `after_land`.
+# No new store, no cache: one segment-aware windowed read (`segment_rows_since`).
+_LAND_CYCLE_PRE_SUITE = frozenset({"sync", "quick-first", "land-preview", "engine-reexec", "land-set"})
+# The admission kinds that are NOT the Stage-6 run itself — an own-tests check, a land's own pass.
+_LAND_CYCLE_NOT_RUN = frozenset({"own-tests", "credit", "bookkeeping", "land", "land-mark", "light"})
+
+
+def _lc_t(ts):
+    """Seconds since the epoch of a journal `ts` (second or sub-second ISO, `Z`), None when unreadable."""
+    if not isinstance(ts, str) or not ts:
+        return None
+    try:
+        return _dt.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _lc_pieces(lo, hi, intervals):
+    """Partition [lo, hi] into EXCLUSIVE consecutive pieces: each elementary piece takes the label of the
+    covering interval of the HIGHEST precedence — the lowest `(rank, start, end, label)` — else None
+    (a gap). The precedence is a total order over the interval's own values, so the answer never
+    depends on the order the rows were read in. Consecutive pieces with the same label merge.
+    `intervals` is [(rank, label, start, end)]; returns [(label, start, end)]."""
+    ivs = sorted(intervals, key=lambda x: (x[0], x[2], x[3], x[1]))
+    pts = {lo, hi}
+    for _r, _lbl, s, e in ivs:
+        for x in (s, e):
+            if lo < x < hi:
+                pts.add(x)
+    pts = sorted(pts)
+    out = []
+    for a, b in zip(pts, pts[1:]):
+        if b <= a:
+            continue
+        lbl = next((l for _r, l, s, e in ivs if s <= a and e >= b), None)
+        if out and out[-1][0] == lbl:
+            out[-1] = (lbl, out[-1][1], b)
+        else:
+            out.append((lbl, a, b))
+    return out
+
+
+def land_cycle_timeline(rows, land):
+    """The ordered, exclusive spans of the credited land `land` (a `land_completed` row), read off `rows`.
+
+    Returns {task, branch, landed_at, spans: [{span, secs, kind}], e2e_secs, residual_secs, notes} or
+    None when the land is not a credited ok land. Spans, in order:
+      run_admission_wait, pre_suite_steps, suite — the credited RUN's own admission: the newest
+        admission pass of the card before the green that is a run (a run ticket, or a kind that is not
+        an own-tests / credit / land pass), its wait matched by the same ticket, its pre-suite steps by
+        the run's pid;
+      green -> land_started — each piece labelled, by fixed precedence, `step:<kind>` (the card's own
+        admission steps; a `hold` row's secs is a setting, never a span), `verb:<verb>` (a same-session
+        `cli_invoked` row is the card's only when a row tied to the card — by `task_id` or by the land's
+        branch — was written by that session inside its window, ±1 s for second-resolution ts),
+        `unattributed:<verb>` (a same-session verb with no such tie: shown, never the card's), else
+        `gap-><next>`;
+      land_started -> land_completed in clock order — `land:startup` (land_started to the land's clock
+        start), each `phase_timeline` stretch at its offset (`land:<phase>[/<sub>]`), `land:paused` for
+        each stretch the clock did not run between two of them, then the post-attempt split
+        (`land:post_attempt/<part>`) and `land:unclocked` (what remains of `duration_ms`);
+      `land_end:*` to the hold release.
+    `residual_secs` = end-to-end wall minus the sum of spans — the explicit remainder (second-resolution
+    row ts, clock rounding)."""
+    d = land.get("data") if isinstance(land.get("data"), dict) else {}
+    cred = d.get("stage6_credit") if isinstance(d.get("stage6_credit"), dict) else None
+    if d.get("status") != "ok" or not cred or not cred.get("task"):
+        return None
+    card, branch, sess = cred["task"], d.get("branch"), land.get("session_ref")
+    land_end_t = _lc_t(land.get("ts"))
+    green_t = _lc_t(cred.get("ts"))
+    mine = sorted((r for r in rows if r.get("task_id") == card), key=lambda r: (r.get("ts") or "", r.get("type") or ""))
+    notes = []
+
+    def last(typ, until, since=None, pred=None):
+        hit = None
+        for r in mine:
+            t = _lc_t(r.get("ts"))
+            if r.get("type") != typ or t is None or t > until or (since is not None and t < since):
+                continue
+            if pred is None or pred(r.get("data") or {}):
+                hit = (r, t)
+        return hit
+
+    spans = []
+
+    def add(span, secs, kind):
+        spans.append({"span": span, "secs": round(max(0.0, secs), 3) if kind != "residual" else round(secs, 3),
+                      "kind": kind})
+
+    ls = last("land_started", land_end_t) if land_end_t is not None else None
+    ls_t = ls[1] if ls else None
+    if green_t is None or ls_t is None or land_end_t is None:
+        notes.append("missing: " + ", ".join(n for n, v in (("green", green_t), ("land_started", ls_t),
+                                                             ("land_completed ts", land_end_t)) if v is None))
+        return {"task": card, "branch": branch, "landed_at": land.get("ts"), "spans": spans,
+                "e2e_secs": None, "residual_secs": None, "notes": notes}
+    # ── the credited run: admission -> suite -> green ──
+    def _is_run(dd):
+        tk = dd.get("ticket")
+        if isinstance(tk, str) and tk:
+            return "-run-" in tk
+        return dd.get("kind") not in _LAND_CYCLE_NOT_RUN
+    ps = last("admission_pass", green_t, pred=_is_run)
+    start_t = None
+    if ps is None:
+        notes.append("missing: the run's admission_pass")
+    else:
+        pd = ps[0].get("data") or {}
+        tk = pd.get("ticket")
+        wt = last("admission_wait", ps[1], pred=lambda dd: bool(tk) and dd.get("ticket") == tk)
+        if wt is not None:
+            add("run_admission_wait", ps[1] - wt[1], "engine")
+            start_t = wt[1]
+        else:
+            start_t = ps[1]
+        pid = pd.get("pid")
+        pre = sum(float((r.get("data") or {}).get("secs") or 0) for r in mine
+                  if r.get("type") == "admission_step" and ps[1] <= (_lc_t(r.get("ts")) or -1) <= green_t
+                  and (r.get("data") or {}).get("kind") in _LAND_CYCLE_PRE_SUITE
+                  and (pid is None or (r.get("data") or {}).get("pid") in (None, pid)))
+        pre = min(pre, green_t - ps[1])
+        add("pre_suite_steps", pre, "engine")
+        add("suite", green_t - ps[1] - pre, "engine")
+    # ── green -> land_started: the card's steps, its verbs, other verbs, gaps ──
+    def _tied(r):
+        if r.get("type") == "cli_invoked":
+            return False
+        rd = r.get("data") if isinstance(r.get("data"), dict) else {}
+        return r.get("task_id") == card or (branch and rd.get("branch") == branch)
+    tie_ts = [t for t in (_lc_t(r.get("ts")) for r in rows if r.get("session_ref") == sess and _tied(r))
+              if t is not None]
+    ivs = []
+    for r in mine:
+        t = _lc_t(r.get("ts"))
+        dd = r.get("data") or {}
+        if (r.get("type") == "admission_step" and t is not None and green_t < t <= ls_t
+                and dd.get("kind") != "hold"):
+            ivs.append((0, f"step:{dd.get('kind')}", t - float(dd.get("secs") or 0), t))
+    for r in rows:
+        if r.get("type") != "cli_invoked" or r.get("session_ref") != sess:
+            continue
+        dd = r.get("data") or {}
+        e, dur = _lc_t(r.get("ts")), dd.get("duration_ms")
+        if e is None or not isinstance(dur, (int, float)) or isinstance(dur, bool) or dur <= 0:
+            continue
+        s = e - dur / 1000.0
+        if e <= green_t or s >= ls_t:
+            continue
+        tied = any(s - 1 <= t <= e + 1 for t in tie_ts)
+        ivs.append((1 if tied else 2, ("verb:" if tied else "unattributed:") + str(dd.get("verb") or "?"),
+                    max(s, green_t), min(e, ls_t)))
+    pieces = _lc_pieces(green_t, ls_t, ivs)
+    for i, (lbl, a, b) in enumerate(pieces):
+        if lbl is None:
+            nxt = next((p[0] for p in pieces[i + 1:] if p[0] and not p[0].startswith("unattributed:")), "land_started")
+            add(f"gap->{nxt}", b - a, "gap")
+        else:
+            add(lbl, b - a, "unattributed" if lbl.startswith("unattributed:") else "engine")
+    # ── the land itself, in clock order: land_started -> land_completed ──
+    dur_ms = d.get("duration_ms")
+    if isinstance(dur_ms, (int, float)) and not isinstance(dur_ms, bool):
+        dur = dur_ms / 1000.0
+        add("land:startup", (land_end_t - ls_t) - dur, "engine")
+        tl = d.get("phase_timeline")
+        pos = 0.0
+        if isinstance(tl, list) and tl:
+            for ph, sb, off, ms in sorted(tl, key=lambda x: (x[2], x[0], str(x[1]))):
+                off_s, ms_s = (off or 0) / 1000.0, (ms or 0) / 1000.0
+                if off_s > pos + 0.0005:
+                    add("land:paused", off_s - pos, "engine")
+                add(f"land:{ph}" + (f"/{sb}" if sb else ""), ms_s, "engine")
+                pos = max(pos, off_s + ms_s)
+        elif isinstance(d.get("phase_ms"), dict):
+            notes.append("land row carries no phase_timeline (shipped before T-14596): phases in declared "
+                         "order, their clock positions unknown")
+            for ph, ms in d["phase_ms"].items():
+                if ms:
+                    add(f"land:{ph}", ms / 1000.0, "engine")
+                    pos += ms / 1000.0
+        if isinstance(d.get("post_attempt_split_ms"), dict):
+            for k, ms in d["post_attempt_split_ms"].items():
+                add(f"land:post_attempt/{k}", ms / 1000.0, "engine")
+                pos += ms / 1000.0
+        elif isinstance(d.get("unattributed_ms"), (int, float)):
+            add("land:post_attempt", d["unattributed_ms"] / 1000.0, "engine")
+            pos += d["unattributed_ms"] / 1000.0
+        add("land:unclocked", dur - pos, "engine")
+    else:
+        add("land:unmeasured", land_end_t - ls_t, "engine")
+    # ── land end -> hold release ──
+    end_t = land_end_t
+    hold = None
+    for r in mine:
+        t = _lc_t(r.get("ts"))
+        dd = r.get("data") or {}
+        if (r.get("type") == "admission_step" and dd.get("kind") == "hold" and dd.get("outcome") == "cleared"
+                and t is not None and t >= land_end_t - 1):
+            hold = (dd, t)
+            break
+    if hold is not None:
+        al = hold[0].get("after_land") if isinstance(hold[0].get("after_land"), dict) else None
+        if al:
+            for k in ("land_tail_ms", "release_ms", "rest_ms"):
+                add(f"land_end:{k[:-3]}", (al.get(k) or 0) / 1000.0, "engine")
+        else:
+            add("land_end:to_hold_release", hold[1] - land_end_t, "engine")
+        end_t = max(hold[1], land_end_t)
+    else:
+        notes.append("no hold release row for this land")
+    e2e = (end_t - start_t) if start_t is not None else None
+    resid = round(e2e - sum(x["secs"] for x in spans), 3) if e2e is not None else None
+    return {"task": card, "branch": branch, "landed_at": land.get("ts"), "spans": spans,
+            "e2e_secs": round(e2e, 3) if e2e is not None else None, "residual_secs": resid, "notes": notes}
+
+
+def _lc_q(vals, q):
+    """The q-quantile (nearest rank) of a non-empty list."""
+    v = sorted(vals)
+    return v[min(len(v) - 1, max(0, int(math.ceil(q * len(v))) - 1))]
+
+
+def land_cycle_report(rows, n=20, task=None):
+    """{lands, timelines (newest first), aggregate: {span: {n, median, p90}}, e2e: {n, median, p90}} over
+    the last `n` credited ok lands in `rows` (only `task`'s when given). Per-span figures are taken over
+    the lands that carry the span; sums of medians are NOT an accounting identity (each timeline is)."""
+    lands = [r for r in rows if r.get("type") == "land_completed"]
+    lands.sort(key=lambda r: r.get("ts") or "")
+    tls = []
+    for land in reversed(lands):
+        tl = land_cycle_timeline(rows, land)
+        if tl is None or (task and tl["task"] != task):
+            continue
+        tls.append(tl)
+        if len(tls) >= max(1, int(n)):
+            break
+    agg: dict = {}
+    for tl in tls:
+        per: dict = {}
+        for sp in tl["spans"]:
+            key = sp["span"].split("->")[0] if sp["kind"] == "gap" else sp["span"]
+            per[key] = per.get(key, 0.0) + sp["secs"]
+        pg = [sp for sp in tl["spans"] if sp["kind"] in ("gap", "unattributed")
+              or sp["span"].startswith(("step:", "verb:"))]
+        per["post_green:engine"] = sum(sp["secs"] for sp in pg if sp["kind"] == "engine")
+        per["post_green:gaps"] = sum(sp["secs"] for sp in pg if sp["kind"] == "gap")
+        per["post_green:unattributed"] = sum(sp["secs"] for sp in pg if sp["kind"] == "unattributed")
+        for key, v in per.items():
+            agg.setdefault(key, []).append(v)
+    aggregate = {k: {"n": len(v), "median": round(_lc_q(v, 0.5), 3), "p90": round(_lc_q(v, 0.9), 3)}
+                 for k, v in sorted(agg.items())}
+    e2 = [tl["e2e_secs"] for tl in tls if tl["e2e_secs"] is not None]
+    e2e = ({"n": len(e2), "median": round(_lc_q(e2, 0.5), 3), "p90": round(_lc_q(e2, 0.9), 3)}
+           if e2 else {"n": 0, "median": None, "p90": None})
+    return {"lands": len(tls), "timelines": tls, "aggregate": aggregate, "e2e": e2e}
+
+
+def cmd_journal_land_cycle(args: argparse.Namespace, *, EVENTS_PATH) -> None:
+    """`journal query --land-cycle` (T-14596) — READ-ONLY: the Stage-6 card cycle of the last N credited
+    lands (`--limit`, its default 50) on one exclusive timeline, per-span median / p90, end-to-end.
+    `--task` shows that card's lands; `--since` bounds the read (default 14 days back); `--json` prints
+    the report object."""
+    since = getattr(args, "since", None) or _dt.datetime.fromtimestamp(
+        time.time() - 14 * 86400, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # every row of the window: a verb's card-tie witness may be any task- or branch-tied row
+    # (audit-post fp1:b10aad5f), so the read is not narrowed by type.
+    rows = [r for r in segment_rows_since(EVENTS_PATH, since)
+            if isinstance(r, dict) and (r.get("ts") or "") >= since]
+    lim = getattr(args, "limit", None)
+    tasks = list(getattr(args, "task", None) or []) if isinstance(getattr(args, "task", None), list) else (
+        [args.task] if getattr(args, "task", None) else [])
+    rep = land_cycle_report(rows, n=lim if isinstance(lim, int) and lim > 0 else 20,
+                            task=tasks[0] if tasks else None)
+    if getattr(args, "json", False):
+        print(json.dumps(rep, ensure_ascii=False, sort_keys=True))
+        return
+    print(f"land cycle (read-only) — {rep['lands']} credited land(s) since {since}")
+    e = rep["e2e"]
+    print(f"  end-to-end (run admission -> hold release): n={e['n']} median={e['median']}s p90={e['p90']}s")
+    print("  per span (seconds; medians do not add up — each timeline below does):")
+    for k, v in rep["aggregate"].items():
+        print(f"    {k:<48} n={v['n']:<3} median={v['median']:>9.3f}  p90={v['p90']:>9.3f}")
+    for tl in rep["timelines"][: (len(rep["timelines"]) if tasks else 1)]:
+        print(f"  timeline {tl['task']} ({tl['branch']}, land {tl['landed_at']}): e2e={tl['e2e_secs']}s "
+              f"residual={tl['residual_secs']}s")
+        for sp in tl["spans"]:
+            print(f"    {sp['span']:<52} {sp['secs']:>9.3f}s  [{sp['kind']}]")
+        for nt in tl["notes"]:
+            print(f"    note: {nt}")
+
+
 def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
     """`journal query --admission` (T-14007) — print `_admission_report`, text or `--json` (one object)."""
     report = _admission_report(**collaborators)
@@ -13121,6 +14058,10 @@ def _print_admission_soak(sk) -> None:
               f"signals {w.get('signals')}, unknown {len(w.get('unknown') or [])}, "
               f"restarts {len(sk.get('restarts') or [])}")
         _print_soak_unknown(w)
+        if "config" in w:
+            c = w["config"]
+            print(f"      configuration {str(w.get('config_hash'))[:12]}: "
+                  + (f"{len(c)} settings (values and sources: --json)" if isinstance(c, list) else str(c)))
     b = sk.get("baseline")
     if b:
         print(f"    soak baseline {b.get('from')}..{b.get('to')}: credit share {_pct(b.get('credit_share'))}, "
@@ -13809,6 +14750,19 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
     # caller asked for, so a missing id has to be printed to be skipped.
     row_of = {r[0]: r for r in rows}
     order = requested if requested else [r[0] for r in rows]
+    # T-14592 — why a worker in the admission queue waits: every task's open wait folded in ONE pass per
+    # distinct event stream (the rows' own streams, no new read), then a lookup per row.
+    _waits_by_stream: dict = {}
+
+    def _open_wait(tid, evs):
+        key = id(evs)
+        if key not in _waits_by_stream:
+            try:
+                from lib import admission as _adm
+                _waits_by_stream[key] = _adm.open_waits(evs)
+            except Exception:   # noqa: BLE001 — report-only, never breaks the status read
+                _waits_by_stream[key] = {}
+        return _waits_by_stream[key].get(tid)
     if getattr(args, "json", False):
         for tid in order:
             _row = row_of.get(tid)
@@ -13823,7 +14777,7 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
                 continue
             tid, cls, detail, last_ts, sref, identity = _row
             all_events = allev_of.get(tid) or []
-            print(json.dumps({"task_id": tid, "class": cls, "detail": detail,
+            _jrow = {"task_id": tid, "class": cls, "detail": detail,
                               "last_ts": last_ts, "session_ref": sref, "identity": identity,
                               # T-11344 — the two clocks, INDEPENDENTLY sourced: the type of the event
                               # `last_ts` came from, and the halt marker's OWN ts (null on a row whose
@@ -13852,8 +14806,15 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
                               # the only programmatic consumer of this record (`_watch_wake_decision`,
                               # bin/lib/dispatch.py) reads `class`/`detail` by `.get()`, and no reader
                               # in bin/ or tests/ pins an exact key set.
-                              "batch_disposition": _dispatch_batch_disposition(all_events, tid)},
-                             ensure_ascii=False))
+                              "batch_disposition": _dispatch_batch_disposition(all_events, tid)}
+            # T-14592 — ADDITIVE: the open admission wait (mode, reason, blocker, says); the watcher
+            # tick prints it from this row. T-14602 — the key is present ONLY while a wait is open, so
+            # a row with no wait stays byte-identical to the pre-T-14592 output (the T-13311 AC3
+            # golden pins it). Readers read it by `.get()` (dispatch.py watch tick), so absent == no wait.
+            _aw = _open_wait(tid, all_events)
+            if _aw:
+                _jrow["admission_wait"] = _aw
+            print(json.dumps(_jrow, ensure_ascii=False))
         return
     # T-10010: the cross-session land-frontier summary (human mode only — JSON per-row shape above is
     # unchanged), printed ABOVE the rows so a controller sizes the land-admission wave against ALL
@@ -13930,6 +14891,9 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
             # T-9240 (AC2): name the last land abort cause + failing test(s) + verify mode on the
             # existing recovery line, so a controller does not theorize/--ack a real pinned verify-fail.
             print(f"         recovery: {rec}{_land_abort_suffix(_last_land_abort(all_events, tid))}")
+        _aw = _open_wait(tid, all_events)
+        if _aw:
+            print(f"         admission: waits since {_aw.get('since')} — {_aw.get('says')}")
 
 def cmd_journal_lifecycle_integrity(args: argparse.Namespace, *, LIFECYCLE_INTEGRITY_WINDOW_SEC, _consumer_journals, _dispatch_lifecycle_integrity, _dispatch_status_events, _DISPATCH_AUDIT_TYPES=("audit_pre_completed", "audit_post_completed", "external_audit_completed"), _consumer_target=None) -> None:
     """`journal query --lifecycle-integrity` — PURE READ-ONLY (no emit, no gate). Flags any DISPATCHED
@@ -13945,7 +14909,7 @@ def cmd_journal_lifecycle_integrity(args: argparse.Namespace, *, LIFECYCLE_INTEG
     CONSUMER FOLD (T-11022). The sweep judges the KERNEL locus and then EACH registry consumer locus,
     reusing the `_consumer_journals` enumerator T-10473 built for `--fleet-verdict`. Without it a run
     from the kernel was BLIND to every `-C` dispatch — a consumer dispatch appends `bg_dispatch_launched`
-    to the CONSUMER journal (0 such rows in the kernel's vs 203/370/190 in <project>/<project>/<project>),
+    to the CONSUMER journal (0 such rows in the kernel's vs 203/370/190 in <project>/boomrocket/<project>),
     so the weekly sweep reported clean over the population that never had the problem and said nothing
     about the one that did: the single real X-0044 occurrence in the system's history was a consumer
     dispatch. The loci are judged SEPARATELY, never merged, because task ids are allocated PER PROJECT —
@@ -14283,6 +15247,8 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
         return cmd_journal_admission(args)
     if getattr(args, "lifecycle_integrity", False):   # T-9365: post-hoc lifecycle-integrity report
         return cmd_journal_lifecycle_integrity(args)
+    if getattr(args, "land_cycle", False):   # T-14596: the Stage-6 card cycle on one timeline (read-only)
+        return cmd_journal_land_cycle(args, EVENTS_PATH=EVENTS_PATH)
     # SPEC-0084 r4 one-parser/one-query parity: --coordination swaps the SOURCE to the shared
     # coordination log read via the SAME loop below — proving no second coordination-log parser path.
     # T-11444 — THE SEGMENT-AWARE READ, BRANCHED BY STORE (SPEC-0190 rule 4 / SPEC-0084 rule 4).
@@ -15219,6 +16185,151 @@ def _journal_redact_write(seg, lineno: int, content: str, redacted: str, events_
         write_text_atomic(Path(seg), "".join(lines))
         if prior is not None:
             _index_forget(events_path, prior)
+
+
+#: T-14570 — the receipt `journal cut` writes after converting a repository's journal.
+JOURNAL_CUT_EVENT = "journal_cut"
+
+
+def journal_multiset(journal_path, *, key=None) -> dict:
+    """`{rows, digest}` of the LOGICAL journal at `journal_path`: every non-blank line of every segment,
+    and a sha256 over the SORTED per-row digests — independent of which file holds a row and in what
+    order (SPEC-0190 rule 5). Held as 16-byte digests, never the rows. With `key` (land's
+    `_event_dedup_key`, injected — never a second identity) rows are counted DISTINCT under that
+    identity: canonically identical rows are one event (SPEC-0002 land dedup, SPEC-0190 rule 3), which
+    is the set the cut and the land drain preserve (T-14570, decision on fp1:453d82aa1812c5ab)."""
+    import hashlib
+    digs = []
+    for seg in events.segment_paths(journal_path):
+        try:
+            fh = Path(seg).open("rb")
+        except OSError:
+            continue
+        with fh:
+            for raw in fh:
+                line = raw.strip()
+                if line:
+                    if key is not None:
+                        line = key(line.decode("utf-8", "replace")).encode("utf-8")
+                    digs.append(hashlib.blake2b(line, digest_size=16).digest())
+    if key is not None:
+        digs = list(set(digs))
+    digs.sort()
+    h = hashlib.sha256()
+    for d in digs:
+        h.update(d)
+    return {"rows": len(digs), "digest": h.hexdigest()}
+
+
+def largest_segment(journal_path) -> dict:
+    """`{path, bytes}` of the largest physical segment of the journal at `journal_path`."""
+    best = {"path": None, "bytes": -1}
+    for seg in events.segment_paths(journal_path):
+        try:
+            size = Path(seg).stat().st_size
+        except OSError:
+            continue
+        if size > best["bytes"]:
+            best = {"path": str(seg), "bytes": size}
+    return best
+
+
+def _pinned_engine_refusal(repo_root):
+    """T-14650 (SPEC-0190 rule 3) — why the cut is refused when the repository at `repo_root` declares a
+    pinned engine release (`kernel.engine`, SPEC-0195 rule 3) and the engine EXECUTING this cut is not
+    that release, or the declared pin does not resolve; None when the cut may run.
+
+    Reuses the two readers `session start` already reports from — `init.resolve_engine_pin` (the
+    declared pin) and `release.running_engine_root` (the code executing now; under `-C` the rebind moves
+    ENGINE_ROOT to the pinned tree but never re-execs, so the running code is still the invoking
+    engine). No pin declared, and an unreadable carrier (its own readers refuse it), cut as before."""
+    from lib import init as _init        # leaf imports, lazy — the module's existing idiom
+    from lib import release as _release
+    pin = _init.resolve_engine_pin(repo_root)
+    status = pin.get("status")
+    if status in ("not-declared", "unreadable"):
+        return None
+    running = Path(os.path.realpath(str(_release.running_engine_root())))
+    if status == "resolved" and running == Path(os.path.realpath(str(pin["root"]))):
+        return None
+    why = (f"it pins release {pin.get('ref')!r}, which resolves to {pin.get('root')}, but this cut is run "
+           f"by the engine at {running}" if status == "resolved"
+           else f"its declared pin does not resolve ({status}): {pin.get('detail') or ''}")
+    return why
+
+
+def cmd_journal_cut(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _append_event, _die,
+                    _require_writing_worktree, _run_git_cap, write_text_atomic, _dedup_events,
+                    _event_dedup_key) -> None:
+    """T-14570 (SPEC-0190 rules 1+3) — CUT this repository's journal into one partition per UTC ts day.
+
+    THE ONLY WAY A JOURNAL IS CUT (owner decision events.jsonl#ts=2026-11-10T16:49:39Z): an explicit
+    run, by the repository's own session, in a writing worktree of that repository; the cut reaches
+    `main` through that worktree's ordinary `land`. No other path writes the cut, and no path writes
+    another repository's journal. Every row of the root goes to the partition of its OWN ts day,
+    undatable rows to the undated partition (the cut fact, written last), and the root is left EMPTY
+    and tracked. Under the logical journal's lock, so a concurrent append waits and then routes to its
+    partition. Idempotent: a re-run on a cut journal with an empty root prints the no-op and writes
+    nothing — unless the journal holds no `journal_cut` row (a run that died between the conversion
+    and its record), which the re-run then writes (`recovered: true`). On a conversion it journals ONE
+    `journal_cut` row (the multiset before and after, the
+    partitions written, the largest file) and commits the journal files with that row."""
+    _require_writing_worktree()
+    jp = Path(EVENTS_PATH)
+    root = Path(REPO_ROOT)
+    # T-14650 — the engine and the journal shape move together (owner decision
+    # events.jsonl#ts=2026-11-16T17:04:53Z): refuse BEFORE the lock and before any read-modify-write.
+    why = _pinned_engine_refusal(root)
+    if why:
+        _die(f"journal cut: refused — {root} declares a pinned engine release, and a repository's "
+             f"journal is cut only by the engine that repository runs (SPEC-0190 rule 3): {why}. An "
+             f"older pinned engine cannot land on a cut journal. Nothing was written.\n"
+             f"  fix: update this repository to a release that carries `journal cut` "
+             f"(`yitc-v2 -C {root} release update <release dir> --into <install> --anchor <key>`), "
+             f"then run `<pinned engine>/bin/yitc-v2 -C {root} journal cut` with that pinned engine.")
+        return
+    # ONE critical section: the conversion, the receipt check and the receipt emit all run under the
+    # logical journal's lock (re-entrant per thread, so `_append_event` nests), so two concurrent cut
+    # commands serialize — the second sees the first's receipt and is the no-op, never a second receipt.
+    with events.journal_lock(jp):
+        before = journal_multiset(jp, key=_event_dedup_key)
+        res = events.rotate_journal(jp, dedup=_dedup_events, write_text_atomic=write_text_atomic,
+                                    drain=True)
+        after = journal_multiset(jp, key=_event_dedup_key) if res is not None else before
+        largest = largest_segment(jp)
+        largest_rel = {"path": os.path.relpath(largest["path"], root) if largest["path"] else None,
+                       "bytes": largest["bytes"]}
+        if res is None:
+            # A cut whose run died after the conversion but before its record: the re-run FINISHES it —
+            # the record is written now (the before-state is gone; the drain's own read-back proved it),
+            # so a conversion is never left unrecorded (T-14570 audit-pre fp1:59229ce1e8a8d202).
+            if any(True for _ in iter_rows(jp, types=(JOURNAL_CUT_EVENT,))):
+                print(f"journal cut: {jp} is already cut and its root is empty — nothing to do (no-op)")
+                return
+            data = {"recovered": True, "rows_after": after["rows"], "digest_after": after["digest"],
+                    "largest_file": largest_rel}
+            res = {}
+        else:
+            data = {"rows_before": before["rows"], "digest_before": before["digest"],
+                    "rows_after": after["rows"], "digest_after": after["digest"],
+                    "identical": before == after, "moved": res.get("moved"),
+                    "duplicates_collapsed": res.get("duplicates_collapsed"), "first_cut": bool(res.get("cut")),
+                    "partitions_written": len(res.get("segments") or ()), "largest_file": largest_rel}
+        witness = _append_event(JOURNAL_CUT_EVENT, None, data)
+    ts = (witness or {}).get("ts") if isinstance(witness, dict) else None
+    rel = events.journal_pathspecs(jp, root)
+    _run_git_cap(["add", "--", *rel], root)
+    msg = ("chore(journal): cut the live journal into one partition per UTC ts day\n\n"
+           f"rows {before['rows']} -> {after['rows']}, multiset identical: {before == after}\n"
+           + (f"from: events.jsonl#ts={ts}\n" if ts else ""))
+    r = _run_git_cap(["commit", "-q", "-m", msg], root)
+    if r.returncode != 0:
+        _die(f"journal cut: the journal was cut but the commit failed — the worktree holds the cut "
+             f"uncommitted; commit it (`git add -A && git commit`) and land it "
+             f"(`yitc-v2 land --branch <this worktree's branch>`): {r.stderr or r.stdout}")
+    print(f"journal cut: {before['rows']} row(s) -> {after['rows']} across the partitions "
+          f"(multiset identical: {before == after}{'; record recovered' if data.get('recovered') else ''}); "
+          f"largest file {largest_rel['path']} {largest['bytes']} bytes; committed — next: land this worktree")
 
 
 def cmd_journal_sync(args: argparse.Namespace, *, _journal_sync) -> None:

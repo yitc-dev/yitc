@@ -52,6 +52,7 @@ from pathlib import Path, PurePosixPath
 import yaml
 
 from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader (T-9740)
+from lib import unit_table  # T-14568: journal-read adapter records are expanded from their compact table (SPEC-1046)
 from lib import journal  # T-11453: the ONE parsed journal fold + its request-scoped memo (CHARTER §P5)
 from lib import debt_landing  # T-12698: the extracted LANDING debt-view family (C9a)
 from lib import debt_spec0161  # T-12703: the extracted SPEC-0161 payload-key family (C9b)
@@ -638,7 +639,7 @@ def restoration_proposals(*, project, concerns, growth=None, root=None, _resolve
 #
 # ITS ADOPTION IS SILENCE, NOT A FIRING (SPEC-0189 rule 6 limb 2). Measured over three real corpora at
 # 2026-08-22 — policy-off lands / pinned-leg aborts / chains: <project> 34 / 152 / 0, <project> 3 / 2 / 0,
-# <project> 0 / 14 / 0. <project> is the naive-positive corpus: a volume-only detector fires there loudly
+# boomrocket 0 / 14 / 0. <project> is the naive-positive corpus: a volume-only detector fires there loudly
 # and continuously, and this one returns nothing. `tests/test_surface1_detector.py` replays that SHAPE.
 _PINNED_ATTRIBUTION_MARK = "[pinned/last-green] "   # the marker the pinned leg itself writes into a
                                                     # failing entry (`batch_landing._LAND_PINNED_ENTRY_PREFIX`)
@@ -1595,7 +1596,7 @@ def born_default_activation_refusal(section: str, *, charter_text, entries=None)
 #
 # The offline trial instrument (`dev-utilities/replay-subject-scoping-skips.py`) attributes an abort
 # to a layer by REGEXING `abort_reason`. That is acceptable as TRIAL EVIDENCE over history and is NOT
-# acceptable in a shipped detector, and the reason is measured rather than aesthetic (<project> +
+# acceptable in a shipped detector, and the reason is measured rather than aesthetic (boomrocket +
 # <project> + <project>, every journal segment, 2026-09-02):
 #
 #   * `failing_tests` — the field an oracle would want — appears on 5 of 2934 abort-bearing rows.
@@ -1983,7 +1984,9 @@ def surface4_repo_corpus(repo) -> dict:
             if files is None:
                 return None               # a path list that cannot be READ is not an empty one
             touched = [f for f in (x.strip() for x in files.splitlines()) if f]
-            if not touched or all(any(f == b or f.startswith(b) for b in _SURFACE4_BOOKKEEPING)
+            from lib import events as _ev   # T-14587: every journal segment is bookkeeping
+            if not touched or all(_ev.is_journal_family_path(f)
+                                  or any(f == b or f.startswith(b) for b in _SURFACE4_BOOKKEEPING)
                                   for f in touched):
                 continue                  # nothing authored, or bookkeeping only — not a repair
             fixes.append(f"{csha[:7]} {subject[:60]}")
@@ -2100,7 +2103,7 @@ register_born_permissive_detector(_SURFACE4_DETECTOR, declared_test_regime_false
 # The gap this closes: a security-audit report (`.yitc/findings/<date>-security.yaml`, SPEC-0145 §5)
 # routes only its CRITICAL findings to a mandatory reading moment — the deploy gate. A `warning` or
 # `info` finding sits open in a GITIGNORED file nobody is ever obliged to read, and stays open for
-# months (the <project> warnings open since April — X-0306). This fold gives exactly those findings
+# months (the trend-finder warnings open since April — X-0306). This fold gives exactly those findings
 # ONE mandatory reading moment by riding the debt echo's existing seams. Report-only, never a gate:
 # the deploy gate's critical-only policy is UNCHANGED (this view does not add a second gate).
 
@@ -4585,7 +4588,7 @@ def _unexecuted_subject_result(*a, **kw):
 # spelled `skipped-disjoint-subject`. A layer whose skip rate over the window is 0% RAN ON EVERY LAND —
 # which is exactly the signal that its subject is absent or declared too wide. Measured motivation
 # (`trial_run_recorded` 2026-08-13T19:17:02Z): <project> 0% skip on all four layers across 453 lands at an
-# 84.6s median, against <project>'s 0.9s median with subject_globs on all 8.
+# 84.6s median, against boomrocket's 0.9s median with subject_globs on all 8.
 #
 # NO new event type and NO new store (the card's AC4): this is a second READING of rows land already
 # writes. Report-only, suppressed-when-clean, never a gate — like every sibling in this echo.
@@ -4871,7 +4874,7 @@ def _zero_skip_result(layers: list, window_lands: int, observed_lands: int,
 #
 # The gap this closes: P3/P8 adoption evidence is framed on the DIFF — each card proves ITS OWN change
 # adopted. A long-lived SUBSYSTEM that no card owns therefore has NO outcome probe at all, and cannot be
-# observed broken. X-0419 is that gap cashing in: on <project>, FIVE remediation tasks closed green over
+# observed broken. X-0419 is that gap cashing in: on boomrocket, FIVE remediation tasks closed green over
 # three days while the product stayed broken, and the OWNER remained the only monitor. 34 cards on one
 # surface, not one of them owning "does it still work?".
 #
@@ -6642,9 +6645,9 @@ def unapplied_own_evidence_patterns(patterns_dir, repo_root, project_names) -> d
       repo_root: the READING project, whose own corpus decides cited-vs-uncited.
       project_names: EVERY name this project answers to — its canonical registry key AND its checkout
         aliases. A collection, not one string, because the two genuinely differ for at least one live
-        project (`<project>` at `.../<project>`, X-0259): a pattern's `sourced_from` is authored
+        project (`trend-finder` at `.../social-parser`, X-0259): a pattern's `sourced_from` is authored
         by a human and may name EITHER, so matching one alone would silently miss that project's own
-        evidence. Each is matched as a WHOLE token, so `<project>` can never match inside a longer
+        evidence. Each is matched as a WHOLE token, so `social-parser` can never match inside a longer
         sibling name.
 
     Returns `{"lens", "total_sourced", "count", "names"}` — `count` is the headline (uncited), `names`
@@ -9930,6 +9933,7 @@ def load_sensitive_unit_lane(root=None, *, rows=None) -> dict:
         for lrow in layers if isinstance(layers, list) else []:
             if not isinstance(lrow, dict) or lrow.get("layer") not in lane:
                 continue
+            lrow = unit_table.expand_layer(lrow)
             rec = lrow.get("adapter")
             if not isinstance(rec, dict) or rec.get("usable") is not True \
                     or not isinstance(rec.get("units"), list) or _legs._layer_row_is_partial_run(lrow):
@@ -10182,7 +10186,7 @@ def _scheduled_run_class(run, data) -> None:
     for row in data.get("consumer_verify_layers") or []:
         if not isinstance(row, dict) or not isinstance(row.get("layer"), str):
             continue
-        adapter = row.get("adapter") if isinstance(row.get("adapter"), dict) else {}
+        adapter = unit_table.expand(row["adapter"]) if isinstance(row.get("adapter"), dict) else {}
         units = {u.get("file") for u in adapter.get("units") or []
                  if isinstance(u, dict) and isinstance(u.get("file"), str)}
         layers[row["layer"]] = (row.get("outcome"), units)
@@ -10273,6 +10277,13 @@ def debt_echo_scan(*, window_sec, followup_mod, views, profile_mod, journal_mod,
     # indexed scope, which this walk's summaries then cover — so a cold start folds each archived
     # segment once, not once here and again there.
     whole |= set(journal.CAPTURE_EVENT_TYPES)
+    # T-14573 — the session-start machine-overrides line names the last `config_changed` of the machine
+    # settings file over the WHOLE history, handed down from this pass (`cli._START_HANDDOWN_EXTRA`).
+    whole.add("config_changed")
+    # T-14634 — the session-start external-auditor hint counts `audit_self_provider_used`, and a
+    # consumer's first-start onboarding reads its station rows, over the WHOLE history; handed down from
+    # this pass too (`cli._START_HANDDOWN_EXTRA`), neither walks the corpus a second time.
+    whole |= {"audit_self_provider_used", "onboarding_station_consumed", "onboarding_seeded"}
     keep = {t: None for t in sorted(whole)}
     keep["cli_invoked"] = ("row", SEAM_READ_WINDOW_DAYS)      # seam_read_amplification's own window
     return {
@@ -10879,7 +10890,7 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # BEFORE any `-C` rebind, so a consumer session reads the ENGINE's patterns, never its own
                 # (which it has none of); and the identity is _cross_self() PLUS its aliases, never
                 # REPO_ROOT.name — inside a task/work worktree that leaf is the TASK id (`T-11211`), and for
-                # `<project>` at `.../<project>` the registry key and the basename genuinely differ
+                # `trend-finder` at `.../social-parser` the registry key and the basename genuinely differ
                 # (X-0259). A repo whose patterns name it nowhere folds to 0 → suppressed.
                 _own_evidence_patterns=lambda: debt_mod.unapplied_own_evidence_patterns(
                     ENGINE_ROOT / "patterns", REPO_ROOT, _self_project_aliases()),

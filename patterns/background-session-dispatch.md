@@ -68,7 +68,7 @@ fresh per-worker id** in the same launch — e.g.
 ```sh
 # scrub EVERY member of the carrier set (env -u per var), THEN set the fresh id
 env -u <provider-session-env> -u CODEX_THREAD_ID -u YITC_SESSION_REF \
-  the AI provider --session-id <fresh-uuid> -p < <brief-file> … # one worker, brief on stdin
+  the AI provider --session-id <fresh-uuid> -p < <brief-file> …   # one worker, brief on stdin
 ```
 
 where `<provider-session-env>`, `CODEX_THREAD_ID`, `YITC_SESSION_REF` are the concrete members of
@@ -95,9 +95,9 @@ cannot recur per-launch:
 
 ```
 bin/yitc-v2 dispatch --task T-XXXX (--brief "<prompt>" | -f <brief-file> | <stdin)
-# LIST form — repeat --task to launch SEVERAL sequentially in ONE invocation:
-bin/yitc-v2 dispatch --task T-A --task T-B --brief "<prompt A>" --brief "<prompt B>"
-bin/yitc-v2 dispatch --task T-A --task T-B -f <brief-A> -f <brief-B>
+# LIST form  — repeat --task to launch SEVERAL sequentially in ONE invocation:
+bin/yitc-v2 dispatch --task T-A --task T-B  --brief "<prompt A>" --brief "<prompt B>"
+bin/yitc-v2 dispatch --task T-A --task T-B  -f <brief-A> -f <brief-B>
 ```
 
 **The brief is PREAMBLE + DELTA — the launcher composes the preamble itself.** What
@@ -281,7 +281,7 @@ second mechanism:
 
 ```
 DISPATCH: <VERDICT> <id>=<outcome>[; <id>=<outcome> …]
-# e.g. DISPATCH: MIXED =launched(expected=6f3a…); =skipped(reason=in-flight)
+# e.g.  DISPATCH: MIXED =launched(expected=6f3a…); =skipped(reason=in-flight)
 ```
 
 `<VERDICT>` is one of **four** values: `LAUNCHED`, `SKIPPED`, `REFUSED` — the single per-task
@@ -467,7 +467,7 @@ reservation channel was the external crontab env, not the controller — deviati
 > than the tool's **hard foreground cap** (a ~16-min prod apply against a ~10-min bash cap) satisfies
 > **neither**: foreground = killed mid-run by the cap; background+yield = process exit. The rules left
 > that case with **no stated resolution**, and the reader's only visible exit looked like the forbidden
-> one — **3 <project> workers died partly here; one backgrounded the apply and yielded → process
+> one — **3 boomrocket workers died partly here; one backgrounded the apply and yielded → process
 > exit → "died at Execution entry, zero prod actions"**. Same class kernel-side on minutes-long lands
 > (fp `harness-kills-backgrounded-land-mid-verify-interactive-session`). This section states the
 > resolution.
@@ -494,21 +494,21 @@ reservation channel was the external crontab env, not the controller — deviati
 LOG=$YITC_SCRATCH_DIR/T-XXXX-<job>.log
 PIDF=$YITC_SCRATCH_DIR/T-XXXX-<job>.pid
 echo "$LOG $PIDF"
-# Below, <log> and <pidfile> stand for the two paths that `echo` printed, WRITTEN OUT IN FULL: every
-# `bash -c` script here is a single-quoted, self-contained LITERAL — no `$VAR` of your own shell
-# inside it and no positional parameters. The harness refuses a `-c` script it cannot read as a
-# literal, with a message that blames `rm` even when the call runs none (X-1857).
+#    Below, <log> and <pidfile> stand for the two paths that `echo` printed, WRITTEN OUT IN FULL: every
+#    `bash -c` script here is a single-quoted, self-contained LITERAL — no `$VAR` of your own shell
+#    inside it and no positional parameters. The harness refuses a `-c` script it cannot read as a
+#    literal, with a message that blames `rm` even when the call runs none (X-1857).
 # 1. detached launch — survives the tool cap AND the tool-call boundary.
-# `>` (truncate), not `>>`: the log is THIS attempt's, so a retry's poll cannot see the last one's token.
-# `: >` empties a stale pidfile the same way, without an `rm`. The detached shell writes its OWN
-# pid and `exec`s the command, so the pidfile names the command's own process.
+#    `>` (truncate), not `>>`: the log is THIS attempt's, so a retry's poll cannot see the last one's token.
+#    `: >` empties a stale pidfile the same way, without an `rm`. The detached shell writes its OWN
+#    pid and `exec`s the command, so the pidfile names the command's own process.
 : > <pidfile>; setsid bash -c 'echo $$ > <pidfile>; exec <long-self-verifying-command> > <log> 2>&1' </dev/null &
-# resolve the handle from the pidfile — never `$!` (X-1011: valid with job control OFF, dead within
-# a second with it ON); the wait for a NON-EMPTY file means a previous attempt's pid is never read back
+#    resolve the handle from the pidfile — never `$!` (X-1011: valid with job control OFF, dead within
+#    a second with it ON); the wait for a NON-EMPTY file means a previous attempt's pid is never read back
 LAND_PID=$(timeout 30 bash -c 'until [ -s <pidfile> ]; do sleep 1; done; cat <pidfile>')
 # 2+3. bounded foreground poll window, re-invoked INLINE until token-or-exit. It reads the pid from the
-# pidfile ITSELF (a shell variable does not survive into the next tool call), and an EMPTY pidfile
-# keeps it polling rather than reading as an exited process.
+#    pidfile ITSELF (a shell variable does not survive into the next tool call), and an EMPTY pidfile
+#    keeps it polling rather than reading as an exited process.
 timeout 300 bash -c 'until grep -qE "^<TERMINAL-TOKEN>" <log> || { [ -s <pidfile> ] && ! kill -0 "$(cat <pidfile>)" 2>&-; }; do sleep 10; done'
 ```
 

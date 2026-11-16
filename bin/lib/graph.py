@@ -785,7 +785,8 @@ def _lineage_mentions(root, ids, *, rev=None, paths=None, heads=None, _run_git_c
 
 def _mention_frozen_class(path: str, spec_status: dict, card_status: dict) -> "str | None":
     """The SPEC-1037 §7 frozen-history class of one file, or None (live)."""
-    if path == "events.jsonl" or (path.startswith("archive/") and path.endswith(".jsonl")):
+    from lib import events as _events   # lazy leaf import (T-14587: the one journal-family predicate)
+    if _events.is_journal_family_path(path) or (path.startswith("archive/") and path.endswith(".jsonl")):
         return "journal row"
     if path.startswith("decisions/"):
         return "frozen decision"
@@ -1131,11 +1132,38 @@ def _release_view_tidy(s: str) -> str:
     # touches valid text. Does NOT touch `+` separators (the over-strip the T-9349 audit-post flagged);
     # those are handled debris-specifically at removal time (pass (d) connector-consume).
     s = re.sub(r",\s*([;.)])", r"\1", s)                    # orphaned comma before ; . ) -> drop the comma
-    # collapse intra-line multi-spaces created by removal (NOT leading indent — guarded by (?<=\S)).
-    s = re.sub(r"(?<=\S)[ \t]{2,}", " ", s)
-    s = re.sub(r" +([,.;)])", r"\1", s)                     # space before punctuation
+    # collapse intra-line multi-spaces created by removal (NOT leading indent — guarded by (?<=\S)) and
+    # space before punctuation — on PROSE lines only. T-14556: a fenced code block keeps its spacing
+    # byte for byte (the published README's come-back block lost its columns to this collapse).
+    s = _outside_fences(s, lambda line: re.sub(r" +([,.;)])", r"\1",
+                                               re.sub(r"(?<=\S)[ \t]{2,}", " ", line)))
     s = re.sub(r"[ \t]+\n", "\n", s)                        # trailing whitespace at EOL
     return s
+
+
+_RV_FENCE_OPEN = re.compile(r"[ \t]*(`{3,}|~{3,})")
+
+
+def _outside_fences(s: str, fn) -> str:
+    """Apply `fn` to every line of `s` that is not inside a fenced code block (``` or ~~~); fence lines
+    and fenced content pass unchanged. A fence closes only on a line of the SAME character, at least as
+    long, followed by nothing but spaces/tabs (CommonMark), so a content line such as "```x" does not
+    close it; an unclosed fence runs to the end of the text."""
+    out, fence = [], None
+    for line in s.splitlines(keepends=True):
+        m = _RV_FENCE_OPEN.match(line)
+        if fence is None:
+            if m:
+                fence = m.group(1)
+                out.append(line)
+            else:
+                out.append(fn(line))
+        else:
+            if (m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence)
+                    and not line[m.end():].strip(" \t\r\n")):
+                fence = None
+            out.append(line)
+    return "".join(out)
 
 
 def _release_view_strip(text: str) -> str:
@@ -1236,7 +1264,7 @@ def _release_view_strip(text: str) -> str:
 # graph/floor-trigger-map.md is the ALWAYS-LOADED seed a `-C` CONSUMER session reads (session start:
 # "always-loaded seed also: graph/floor-trigger-map.md (same engine release-view root)"), and in a
 # consumer session a bare id resolves consumer-own-FIRST (SPEC-0092 / T-0860 — correct and deliberate,
-# NOT changed here). Five registered consumers own their OWN SPEC-0005 and <project> also owns
+# NOT changed here). Five registered consumers own their OWN SPEC-0005 and boomrocket also owns
 # SPEC-0073 — both ids named by always-loaded floor rows — so a consumer obeying the row got a
 # PLAUSIBLE WRONG document, silently, at every rule-authoring moment. Emitting SPEC-0092's EXISTING
 # kernel-explicit escape (no second mechanism) makes the row's meaning true by construction of the
@@ -2195,7 +2223,7 @@ def graph_build_index(*, SPECS_DIR, TASKS_DIR, DECISIONS_DIR,
     # T-10106 (X-0209): on a -C consumer build `specs` is the CONSUMER corpus only, so a LEGIT
     # consumer→kernel spec cite (a consumer pins the released kernel; the methodology specs travel as
     # kernel — SPEC-0073 §1 / SPEC-0074 §4, e.g. SPEC-0044 cites SPEC-0094/0097/0098) resolved as
-    # dangling — diluting the real signal (the 6 <project> false positives). Resolve the cite against
+    # dangling — diluting the real signal (the 6 boomrocket false positives). Resolve the cite against
     # the KERNEL corpus too before flagging: `_kernel_spec_ids` (injected callable, ENGINE_ROOT-scanned,
     # mirroring _kernel_content_file's own-else-ENGINE fallback) yields the kernel SPEC ids; empty on an
     # engine self-build (no realm split) so this is a pure no-op there. A cite in NEITHER corpus still
@@ -2700,7 +2728,7 @@ def _phantom_activation_owner_matches(specs, task_ids) -> list:
     Flags a `proposed` spec whose `activation_owner_task` names a task with no local card. Such a spec is
     STRANDED: it governs nothing (SPEC-0005 §4 — `proposed` is non-authoritative) and has no sanctioned
     activation path, because `proposed → active` is written ONLY by the activation owner's `task close`
-    (GRAPH §Spec lifecycle) and that task does not exist. Real incident: X-0437 — a <project> v1→v2 F2a
+    (GRAPH §Spec lifecycle) and that task does not exist. Real incident: X-0437 — a boomrocket v1→v2 F2a
     import left 36 specs owned by nonexistent kernel-range T-9660/T-9661.
 
     BOUNDARY (SPEC-0005 §5 Grandfathering): an ABSENT owner is VALID — "a pre-doctrine spec is VALID
@@ -5169,13 +5197,13 @@ _NCE_HISTORY_LINE = re.compile(
     re.IGNORECASE)
 # The SAME differential at SPAN granularity, which is where it actually bites. The dominant real shape
 # is not a prior-art LINE but a RECORD CITATION inside the very parenthetical the probe reads —
-# «(T-11411, <project> X-1068)», «(<project>, measured 2026-08-13)», «(<project>, 2026-07-15)». Those
+# «(T-11411, <project> X-1068)», «(<project>, measured 2026-08-13)», «(boomrocket, 2026-07-15)». Those
 # name the project that REPORTED or SUFFERED a thing, which is a fact about the past and cannot go
 # stale the way «e.g. <project> waives it» did. Measured on this corpus: without this bound the sweep
 # reported 22 mentions of which ~14 were citations, and a report that is mostly noise is one nobody
 # reads. A span is a citation iff it carries an artifact id (T-/X-/E-/D-/SPEC-/fu_), an ISO-ish date,
 # or a reporting verb.
-# A `/` is NOT treated as a word character in the name match, because «(<project>/<project>)» is a
+# A `/` is NOT treated as a word character in the name match, because «(trend-finder/boomrocket)» is a
 # slash-joined PAIR OF PROJECT NAMES held up as the illustrative declares-case — exactly the shape this
 # probe exists to see — and a `/`-in-boundary rule silently swallowed it (SPEC-0109 §5, the card's own
 # subject). What the `/` bound was really for is a PATH or a COMMAND, and that is excluded directly and
@@ -6130,7 +6158,7 @@ def _glob_normalize(pattern: str) -> str:
     """T-10497 (X-0357) — normalize a trailing bare `**` to the file-matching `**/*`. In pathlib a
     pattern ending in `**` matches DIRECTORIES only, so `backend/app/**` + the `is_file()` filter below
     resolves to ZERO files: the declaration reads as a coverage/covers claim but silently claims nothing
-    (fails OPEN — <project> shipped 3 such layers). Any other pattern is returned unchanged."""
+    (fails OPEN — boomrocket shipped 3 such layers). Any other pattern is returned unchanged."""
     p = pattern.strip()
     return p + "/*" if p == "**" or p.endswith("/**") else p
 
@@ -6655,7 +6683,7 @@ def cmd_graph_build(args: argparse.Namespace, *, CANONICAL_DOCS, ENGINE_ROOT, RE
     # T-10497 (X-0357): ZERO-RESOLVING GLOBS — a declared `coverage.load_bearing` / `verify.layers[].covers`
     # glob that matches NO file. It reads as a declaration but claims nothing, and both consumers above fail
     # OPEN on it (empty universe → no orphans; empty covers-set → no claimed surface), so without this WARN
-    # the mistake is invisible (<project> shipped 3 such layers). REPORT-ONLY (same exit-0 stderr channel;
+    # the mistake is invisible (boomrocket shipped 3 such layers). REPORT-ONLY (same exit-0 stderr channel;
     # GRAPH «NOT a validation layer»). OPT-IN — a repo declaring no globs has nothing to resolve.
     zero_globs = _coverage_zero_glob_warnings(REPO_ROOT)
     if zero_globs:

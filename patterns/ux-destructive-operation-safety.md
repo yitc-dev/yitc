@@ -72,7 +72,7 @@ const handleRemoveTag = async (tagId: string) => {
   await softDelete(tagId);
   toast({
     message: "Tag removed.",
-    action: { label: "Undo", onClick: => restore(tagId) },
+    action: { label: "Undo", onClick:  => restore(tagId) },
     duration: 5000,
   });
 };

@@ -99,7 +99,7 @@ The pinned discipline (the runbook STEP 2 chains it; this is its living home):
   a **runtime-probe theme with no primary transcripts** (T10-shaped — its raw data IS the observed
   worker×auditor transcript). An operator meeting it for the first time burnt **two ABORT passes**
   learning that blind-with-no-evidence is unrunnable, each burning a full auditor wall-clock and
-  routing a verdict artifact to the escalation archive as durable noise (X-0577, <project>
+  routing a verdict artifact to the escalation archive as durable noise (X-0577, boomrocket
   2026-08-06). A trial ABORT is not a cheap probe. NOTE the division of labour: <workshop-spec> rule 1
   already fixed how an empty result READS (`no_data` is rendered, so an ABORT cannot pass as
   externally-audited-and-clean) — this precondition is about what an unrunnable track COSTS to
@@ -218,7 +218,7 @@ The pinned discipline (the runbook STEP 2 chains it; this is its living home):
   it was scoped to consumer runs while the kernel run had no such step, and the kernel run is where
   it was then measurably needed. It is the run-wide face of **M2** (validate the PROBE before
   reporting); M2 is the same discipline stated per-probe, this one binds per-FINDING.
-  - **Two measured groundings, both real runs.** On a CONSUMER (<project> 2026-08-06, X-0666 — own
+  - **Two measured groundings, both real runs.** On a CONSUMER (boomrocket 2026-08-06, X-0666 — own
     colliding id namespaces, non-kernel test layout, own YAML shapes) the T1 mechanical candidate pass
     ran at a **5-of-5 FALSE-POSITIVE rate**; all five died under the validate pass. On the **KERNEL's
     own run** (2026-08-13) a validation pass over the 26 cards that run filed found **10 needing

@@ -164,7 +164,7 @@ are provable without interpreting prose:
   `bin/yitc-v2 cross outbox` (the author-side fold) / `bin/yitc-v2 cross inbox` on the kernel side —
   the filed item is the durable, queryable delivery.
 
-**`-C` migration-complete blind-spot note (grounding: <project> B5, run_ref
+**`-C` migration-complete blind-spot note (grounding: trend-finder B5, run_ref
 migration-b5-baseline-2026-06-28).** On a `-C` consumer MIGRATION-complete (§B5) revizia the blind
 external track has repeatedly caught residue the primary's own pass rationalized away — so the blind
 track specifically probes: **per-land verify-status** (a backbone land with `consumer_verify: waiver`),

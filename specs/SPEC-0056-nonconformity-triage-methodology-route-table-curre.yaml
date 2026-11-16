@@ -198,7 +198,7 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   unknown types) and need no events-catalog rule change (SPEC-0025 is append-only).\n\
   \n### 4a. Incident-narrative home — the multi-error arc (one arc = one E-case)\n\
   A single incident sometimes spans a whole ARC — many `deviation_captured` captures\
-  \ across days,\nseveral fix-tasks, lessons, and specs (<project>'s 4-day arc: 48\
+  \ across days,\nseveral fix-tasks, lessons, and specs (boomrocket's 4-day arc: 48\
   \ deviations / 27 followups / 9\nlessons vs 1 lifetime E-file). The NARRATIVE of\
   \ that arc — what happened, in what order, why — has a\nsanctioned home: the **promoted\
   \ `errors/E-XXXX.yaml` case file's BODY** (its `title` / `rca` /\n`resolution` /\

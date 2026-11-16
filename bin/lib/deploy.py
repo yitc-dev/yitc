@@ -51,6 +51,7 @@ import yaml
 
 from lib import lockfile  # T-12621: the ONE flock-target open (never truncating, cross-user safe)
 from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader (T-9740)
+from lib import unit_table  # T-14568: the compact per-unit table written on test_class_executed (SPEC-1046)
 from lib import events as events_mod   # T-11444: the SPEC-0190 segment-set resolver
 from lib import journal as journal_mod  # T-11444: the SPEC-0190 segment-aware journal folds
 
@@ -75,7 +76,7 @@ DEPLOY_RUN_MARKER_ENV = "YITC_DEPLOY_VERB"
 # consumer legitimately embeds this guard in its `rollback:` command script too — and the guard's refusal
 # is a RECOVERY INSTRUCTION. A forward-flavour refusal met on the ROLLBACK path hands the operator the
 # WRONG verb form on the emergency path, where a wrong instruction costs the most and the operator has
-# the least slack to notice it (<project>, X-0597). So the invocation form + the "what a raw run skips"
+# the least slack to notice it (boomrocket, X-0597). So the invocation form + the "what a raw run skips"
 # line are parameterized by `kind` — one builder, so the marker name and the run-via-verb guidance still
 # cannot drift between flavours. The forward text is UNCHANGED (byte-identical, pinned by T-9785).
 def _guard_snippet(kind: str) -> str:
@@ -435,7 +436,7 @@ def _journal_fold_plan(kind, branch, ev_dirty, valid_append, merge_in_progress) 
     an image rollback reverses nothing there), so the project's `rollback:` command runs `git checkout
     <rev>`. git REFUSES that checkout while `events.jsonl` is dirty — and D-0049 SANCTIONS exactly that
     dirt (no-worktree journal appends on the main checkout: deviation captures, session receipts). So the
-    system's own discipline hands the reversal a tree it cannot switch. X-0479 (<project>, 2026-07-16
+    system's own discipline hands the reversal a tree it cannot switch. X-0479 (boomrocket, 2026-07-16
     drill): 2 stash pushes, `stash pop` then refused on the dirty file, forcing a HAND union-merge of
     journal lines mid-drill. Folding first makes the tree clean, so the reversal simply runs.
 
@@ -480,6 +481,30 @@ def _journal_fold_plan(kind, branch, ev_dirty, valid_append, merge_in_progress) 
                                    "inspect it with `git diff HEAD -- events.jsonl`")
     return _JournalFold(True, "folding the sanctioned append-only journal dirt (D-0049) so the reversal's "
                               "checkout is not blocked by it (X-0479)")
+
+
+def _dated_journal_snapshot(ev_path) -> dict:
+    """T-14567 (SPEC-0190 rule 1c) — `{dated segment: its lines}` for every dated file of the live view
+    on the SPLIT shape, else `{}`: a rollback tree switch can drop rows from those files as it does
+    from the root, so each is snapshotted ON ITS OWN, to be restored into ITSELF."""
+    if not events_mod.split_shape(ev_path):
+        return {}
+    return {seg: (list(journal_mod.fold_lines(seg)) if seg.exists() else [])
+            for seg in events_mod.live_view_segments(ev_path)[:-1]}
+
+
+def _restore_dated_journal(snapshot: dict, *, _dedup_events) -> None:
+    """Union each dated file's snapshot back into THAT file (never into the root), deduped — the
+    per-segment twin of the root's leg-2 restore. A failure is announced and never stops a rollback."""
+    for seg, snap in snapshot.items():
+        try:
+            cur = list(journal_mod.fold_lines(seg)) if seg.exists() else []
+            res = _journal_union_restore(snap, cur, _dedup_events=_dedup_events) if snap else None
+            if res is not None:
+                seg.parent.mkdir(parents=True, exist_ok=True)
+                seg.write_text("\n".join(res) + "\n")
+        except OSError as e:  # noqa: BLE001 — journal hygiene must never break a reversal
+            print(f"deploy: could not union-restore {seg.name} after the rollback ({e}).", file=sys.stderr)
 
 
 def _journal_union_restore(snapshot, current, *, _dedup_events) -> "list[str] | None":
@@ -546,7 +571,7 @@ def _normalize_pg_dump(evidence: dict):
 
     Two shapes exist because the kernel minted its contract (`pg_dump: <string>` +
     `pg_dump_budget_seconds`) from the ONE consumer that matched it, long after two others had already
-    shipped the nested `{command, dump_budget_s}` mapping (<project> 448d066f, <project> 510a370 —
+    shipped the nested `{command, dump_budget_s}` mapping (boomrocket 448d066f, social-parser 510a370 —
     there was no shape contract when they were authored). The kernel minted it, so the kernel absorbs it
     HERE — at ONE boundary, never as two behavioral paths downstream (T-10286 / X-0267). A THIRD shape
     cannot appear silently: init's `deploy_policy_shape` hook refuses it where the carrier is BORN, and
@@ -1274,7 +1299,7 @@ def _security_probe_precondition(evidence) -> _SecurityProbePlan:
 #
 # The circularity it closes: the Class-S pre-probe asserts the security property against the LIVE surface,
 # so during an outage-RESTORE (backend crash-looping, every endpoint 502/conn-refused) it can NEVER pass —
-# 502 != 401 — and the deploy it refuses is the only thing that would bring the surface back up. <project>
+# 502 != 401 — and the deploy it refuses is the only thing that would bring the surface back up. boomrocket
 # hit this twice on 2026-07-16.
 #
 # Why the carve-out is sound rather than a weakening: the pre-probe's whole justification is EXPOSURE (see
@@ -3132,7 +3157,7 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
                 and u["status"] not in ("skipped", "missing") and not _ok(layer, u)]
     for row in rows:
         layer = row.get("layer")
-        adapter = row.get("adapter") if isinstance(row.get("adapter"), dict) else {}
+        adapter = unit_table.expand(row["adapter"]) if isinstance(row.get("adapter"), dict) else {}
         units = [u for u in adapter.get("units") or () if isinstance(u, dict) and u.get("file")] \
             if isinstance(adapter.get("units"), list) else []
         passed = row.get("outcome") in ("passed", "passed-partial")
@@ -3687,10 +3712,13 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
         for i, (c, got) in enumerate(reading["classes"].items()):
             _append_event("test_class_executed", None, {
                 "class": c, "outcome": got["outcome"], "evidence": log_rel, "run_ref": run_ref,
+                # T-14560 (X-2321): the row's own citable locator — a `ts=` pin is second-granular
+                # and another row may share the second; this one is unique per run, class and attempt
+                "source_ref": f"{run_ref}/{c}/attempt-{attempt}",
                 "candidate": candidate, **kind_mark, "run_outcome": run_outcome,
                 "failing": reading["failing"], "rescued": reading["rescued"], "attempt": attempt,
                 **({"seq": history["next_seq"]} if history["next_seq"] else {}),
-                "consumer_verify_layers": got["consumer_verify_layers"],
+                "consumer_verify_layers": unit_table.encode_layers(got["consumer_verify_layers"]),
                 **({"unattributed": got["unattributed"]} if got.get("unattributed") else {}),
                 **({"declaration_fingerprint": fingerprint} if fingerprint else {}),
                 **({"pre_deploy_reuse_bound": reuse_bound} if reuse_bound else {}),
@@ -3777,7 +3805,7 @@ def _pre_deploy_layer_timeouts(result) -> list:
 
     out = []
     for r in rows:
-        rec = r.get("adapter") if isinstance(r.get("adapter"), dict) else None
+        rec = unit_table.expand(r["adapter"]) if isinstance(r.get("adapter"), dict) else None
         if rec is not None and _other_failure(rec):
             continue
         if r.get("outcome") == "timed-out" or (
@@ -3875,7 +3903,7 @@ def _pre_deploy_timeout_only(result, reading) -> "tuple[bool, str]":
             continue
         if outcome != "failed":
             return False, f"layer {layer!r} ended `{outcome}`, not on its units or its own bound"
-        rec = row.get("adapter")
+        rec = unit_table.expand(row.get("adapter"))
         how = land_verify_legs._adapter_first_attempt(rec) if isinstance(rec, dict) else "no adapter record"
         if how != "units-failed":
             return False, f"layer {layer!r} failed as `{how}`, not on its units"
@@ -4229,7 +4257,8 @@ def _pre_deploy_beside_said(beside) -> str:
 
 def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_land_reservation,
                                  _land_reservation_path, _flock_holder, _flock_holder_record_path,
-                                 _proc_starttime, every=30.0, label=None) -> "tuple[bool, str]":
+                                 _proc_starttime, every=30.0, label=None,
+                                 purpose=None) -> "tuple[bool, str]":
     """SPEC-1051 rule 3 (T-14325) — before the pre-deploy run starts, TAKE the project's land reservation
     (SPEC-0132 rule 1a / SPEC-0184: the flock every land takes at its first attempt and holds through its
     verify and its move of `main`), so no land moves the checkout while the run checks the candidate and
@@ -4250,8 +4279,10 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
     the wait — `_flock_holder` reads a record only for the process holding the flock, so while another
     holds it the record names nobody, and a land parking the instant the deploy takes it already reads
     the deploy's name — and removed again when the reservation is not taken. A record that cannot be
-    written leaves the label to the process's argv and changes nothing else."""
+    written leaves the label to the process's argv and changes nothing else.
+    `purpose` (T-14557) names what the hold is for in its two prints; None keeps the rule-3 wording."""
     path = _land_reservation_path(main_wt)
+    waits_for, held_for = purpose or ("the pre-deploy run starts", "the pre-deploy run and the `deploy:` command")
     said, spent = [None], []
     record = Path(_flock_holder_record_path(path))
     try:
@@ -4268,8 +4299,9 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
         h = _flock_holder(path)
         who = (f"held by pid {h['pid']}" + (f" `{h['label']}`" if h.get("label") else "")) if h \
             else "holder unknown (not resolvable from /proc/locks)"
-        print(f"deploy: WAITING for the land reservation — {waited:.0f}s so far; {who}. The pre-deploy "
-              f"run starts once the reservation is free (SPEC-1051 rule 3).", file=sys.stderr, flush=True)
+        print(f"deploy: WAITING for the land reservation — {waited:.0f}s so far; {who}. "
+              f"{waits_for[0].upper()}{waits_for[1:]} once the reservation is free "
+              f"({'SPEC-1051 rule 3' if purpose is None else 'SPEC-0155 rule 1'}).", file=sys.stderr, flush=True)
 
     fd = _acquire_land_reservation(main_wt, on_wait=on_wait, on_degrade=spent.append,
                                    self_branch=f"deploy:{target}")
@@ -4281,9 +4313,56 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
                            f"({spent[0]:.0f}s waited, SPEC-0132 rule 1a)")
         return False, "the land reservation is held by this very process, so it cannot be taken for the command"
     hold.append(("reservation", fd))
-    print(f"deploy: holding the land reservation for the pre-deploy run and the `deploy:` command — a land "
-          f"of this project started now parks until this deploy ends (SPEC-1051 rule 3).")
+    if purpose is None:
+        print(f"deploy: holding the land reservation for {held_for} — a land "
+              f"of this project started now parks until this deploy ends (SPEC-1051 rule 3).")
+    else:
+        print(f"deploy: holding the land reservation for {held_for} — a land of this project started now "
+              f"parks until it is released (SPEC-0155 rule 1).")
     return True, ""
+
+
+def _seam_pin_candidate(main_wt, *, revision, target, hold, queue_on, _acquire_land_reservation,
+                        _land_reservation_path, _flock_holder, _flock_holder_record_path, _proc_starttime,
+                        _try_flock, _land_holding, _queue_paths, _git_resolve_sha) -> None:
+    """SPEC-0155 rule 1 (T-14557, X-2324) — hold the candidate still across the pre-deploy dump and the
+    security seam. Before the first of them runs, a forward deploy takes the project's land reservation
+    with the SPEC-1051 rule-3 machinery as it stands — the in-flight look first (a land already holding
+    it would move `main` off the candidate: REFUSED exit 3 at once, nothing dumped), then the take,
+    waiting as a parked land waits (park limit spent: REFUSED exit 3) — and then asks whether HEAD is
+    still the `revision` the deploy resolved: the seam binds that revision as the commit the report
+    must cover, and the producer stamps the HEAD it runs on, so a moved HEAD REFUSES exit 4 here,
+    before the dump, instead of a late identity-mismatch after it. Its fd and holder record go into
+    `hold`; the caller releases them once the gate has judged. Every refusal exits from inside."""
+    why = _pre_deploy_land_in_flight(main_wt, queue_on=queue_on, _land_reservation_path=_land_reservation_path,
+                                     _flock_holder=_flock_holder, _try_flock=_try_flock,
+                                     _land_holding=_land_holding, _queue_paths=_queue_paths)
+    if why:
+        print(f"deploy: REFUSED — a land is in flight: {why} (SPEC-0155 rule 1). It will move `main` off "
+              f"{revision} while the pre-deploy dump or the security producer runs, so this deploy does "
+              f"not start them: nothing was dumped or produced and the project `deploy:` command was NOT "
+              f"launched; no deploy_completed emitted. Retry once that land completes.", file=sys.stderr)
+        sys.exit(3)
+    held, why = _pre_deploy_take_reservation(
+        main_wt, target=target, candidate=revision, hold=hold,
+        _acquire_land_reservation=_acquire_land_reservation, _land_reservation_path=_land_reservation_path,
+        _flock_holder=_flock_holder, _flock_holder_record_path=_flock_holder_record_path,
+        _proc_starttime=_proc_starttime,
+        purpose=("the pre-deploy dump and the security producer start",
+                 "the pre-deploy dump and the security seam"))
+    if not held:
+        print(f"deploy: REFUSED — {why}. The pre-deploy dump and the security producer were NOT started: "
+              f"they run only while this deploy holds the project's land reservation (SPEC-0155 rule 1). "
+              f"The project `deploy:` command was NOT launched; no deploy_completed emitted.", file=sys.stderr)
+        sys.exit(3)
+    head = _git_resolve_sha("HEAD")
+    if head != revision:
+        print(f"deploy: REFUSED — HEAD moved off the revision this deploy resolved before the pre-deploy "
+              f"dump and the security producer could start (SPEC-0155 rule 1): HEAD is "
+              f"{head or 'UNREADABLE'}, not {revision}. Nothing was dumped or produced and the project "
+              f"`deploy:` command was NOT launched; no deploy_completed emitted. Test the commit that is "
+              f"now at HEAD and re-run naming it.", file=sys.stderr)
+        sys.exit(4)
 
 
 def _pre_deploy_land_in_flight(main_wt, *, queue_on, _land_reservation_path, _flock_holder, _try_flock,
@@ -4317,6 +4396,17 @@ def _pre_deploy_land_in_flight(main_wt, *, queue_on, _land_reservation_path, _fl
     return None
 
 
+def _revision_recheck_locked(_with_repo_lock, main_wt, recheck):
+    """T-14595 (SPEC-1051 rule 3, SPEC-0094 §6) — run the deploy's revision `recheck` under repo.lock,
+    the lock a scoped self-commit window holds from its deploy look to its commit: a window open now
+    finishes (or closes) first, so the check sees what it did. Held only for the check. No
+    `_with_repo_lock` seam: the check runs unlocked, as before."""
+    if _with_repo_lock is None:
+        return recheck()
+    with _with_repo_lock(Path(main_wt)):
+        return recheck()
+
+
 def _pre_deploy_release(hold) -> None:
     """Release what `_pre_deploy_take_reservation` took, when the verb ends, in the reverse order: the
     reservation flock first (closing its fd releases it; the OS does the same on process death), then
@@ -4324,11 +4414,13 @@ def _pre_deploy_release(hold) -> None:
     empties `hold`."""
     for kind, what in reversed(list(hold or ())):
         try:
-            if kind == "record":
+            if kind == "close":          # T-14595: the deploy's queue entry, kept to the verb's end
+                what()
+            elif kind == "record":
                 Path(what).unlink(missing_ok=True)
             elif kind == "reservation":
                 os.close(what)
-        except OSError:
+        except Exception:  # noqa: BLE001 — never raises
             pass
     if hold:
         hold.clear()
@@ -5202,7 +5294,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                _acquire_land_reservation=None, _land_reservation_path=None, _flock_holder=None,
                _flock_holder_record_path=None, _proc_starttime=None, _scan_procs=None,
                _land_hold=None, _stage6_land_verifies_beside=None, _pre_deploy_main_journal=None,
-               _live_task_worktrees=None, _session_contract=None, _release_order=None) -> None:
+               _live_task_worktrees=None, _session_contract=None, _release_order=None,
+               _with_repo_lock=None) -> None:
     """Run the project-declared deploy/rollback command (the executable gate) + emit deploy_completed
     on exit-0 (SPEC-0094 §1). `--rollback` selects the `rollback:` section + records `kind: rollback`.
 
@@ -5535,6 +5628,34 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
               f"unnoticed. The deploy did NOT run; no deploy_completed emitted.", file=sys.stderr)
         sys.exit(3)
 
+    # T-14557 / SPEC-0155 rule 1 — the candidate holds still across the dump and the seam: `_pin()` takes
+    # the land reservation right before the first of them (`_seam_pin_candidate`), and the evidence block
+    # below ends by releasing it, before the load window and the SPEC-1051 rule-3 take. A no-op without
+    # the reservation seam, on a rollback, and inside a release order (which already holds it).
+    _seam_hold: list = []
+
+    def _pin():
+        if _seam_hold or kind != "deploy" or _release_order is not None or _land_hold is None or None in (
+                _acquire_land_reservation, _land_reservation_path, _flock_holder, _flock_holder_record_path,
+                _proc_starttime):
+            return
+        from lib import admission as _aq
+        _mw = Path(_main_worktree(REPO_ROOT) or REPO_ROOT)
+        try:
+            _q_on = bool(_aq.switch(_mw).get("on"))
+        except Exception:  # noqa: BLE001 — a switch that cannot be read is no switched-on queue
+            _q_on = False
+        try:
+            _seam_pin_candidate(_mw, revision=revision, target=pre_deploy_target, hold=_seam_hold,
+                                queue_on=_q_on, _acquire_land_reservation=_acquire_land_reservation,
+                                _land_reservation_path=_land_reservation_path, _flock_holder=_flock_holder,
+                                _flock_holder_record_path=_flock_holder_record_path,
+                                _proc_starttime=_proc_starttime, _try_flock=_aq.try_flock,
+                                _land_holding=_aq.land_holding, _queue_paths=_aq.paths,
+                                _git_resolve_sha=_git_resolve_sha)
+        finally:
+            _land_hold.extend(_seam_hold)   # the caller's release frees them on any exit from here on
+
     # DEPLOY-AUTONOMY GATE (SPEC-0097 §8 — a GATE on this explicitly-invoked verb, never an auto-trigger).
     # Applies to a forward DEPLOY only: a rollback is the always-available reversal (SPEC-0097 §2 —
     # "rollback = redeploy the prior image"), so it is NEVER gated (you must always be able to roll back).
@@ -5691,7 +5812,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # definition a backward-compatible (expand/contract) MIGRATION deploy; the kernel deliberately
             # delegates the deploy COMMAND to the project (it does not run migrations itself), so a project's
             # deploy command can silently omit the migrate step and ship schema-dependent code ahead of the
-            # prod schema (the <project> near-miss: prod ~10 migrations behind code). This WARN reminds the
+            # prod schema (the boomrocket near-miss: prod ~10 migrations behind code). This WARN reminds the
             # operator to confirm the command APPLIES the migrations. It is ADVISORY ONLY — it does NOT
             # sys.exit, does NOT alter gate.proceed, and does NOT change the exit code (owner-approved SOFT
             # warn, NO hard gate). Rollback is never classified (never reaches this deploy-only block).
@@ -5729,6 +5850,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                               f"route this change as Class C2 and escalate. No deploy_completed emitted.",
                               file=sys.stderr)
                         sys.exit(3)
+                    _pin()
                     _run_c1_backup(backup, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
                                    deploy_env=deploy_env, _append_event=_append_event,
                                    owner_approved_c2=gate.mode == "owner-approved")
@@ -5763,6 +5885,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                           file=sys.stderr)
                     sys.exit(3)
                 else:
+                    _pin()
                     _run_c1_backup(backup, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
                                    deploy_env=deploy_env, _append_event=_append_event,
                                    owner_approved_c2=True)
@@ -5822,10 +5945,19 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             print(f"deploy: {audit_plan.skip_reason} — skipping the deploy-seam security producer/gate "
                   f"(SPEC-0155 rule 1).")
         else:
+            _pin()
             _run_security_audit_seam(audit_plan, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
                                      deploy_env=deploy_env, _append_event=_append_event,
                                      override=security_override,
                                      deploy_class=(gate.deploy_class if gate is not None else None))
+
+    # T-14557 / SPEC-0155 rule 1 — the gate has judged: release the dump-and-seam hold here, so the
+    # rule-3 hold (SPEC-1051), the queue entry and an ungated command meet the reservation as before.
+    if _seam_hold:
+        for _item in _seam_hold:
+            if _item in _land_hold:
+                _land_hold.remove(_item)
+        _pre_deploy_release(_seam_hold)
 
     # For a rollback, pass the resolved target sha to the rollback command as a positional arg, so the
     # project script (e.g. `scripts/rollback.sh "$REV"`) knows WHAT to roll back to (AC1). The value is
@@ -5841,6 +5973,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # even a FAILED commit — prints a reason and proceeds, because a rollback must ALWAYS be available
     # (SPEC-0097 §2) and this helper exists to remove an obstacle, never to add one.
     journal_snapshot: "list[str]" = []
+    dated_snapshot: dict = {}             # T-14567 — {dated segment: lines}, split shape only
     ev_path = REPO_ROOT / "events.jsonl"
     if kind == "rollback":
         ev_rel = "events.jsonl"
@@ -5884,6 +6017,10 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # protects; restoring archive segments across a tree switch is the rotation writer's
             # (A5/T-11448), and it owns the per-segment write this guard must not invent.
             journal_snapshot = list(journal_mod.fold_lines(events_mod.live_segment(ev_path)))
+        # T-14567 (SPEC-0190 rule 1c) — on the split shape a tree switch can drop rows from the
+        # dated files of the live view too: each is snapshotted ON ITS OWN and restored into ITSELF
+        # (per segment, never moving an archived row into the root).
+        dated_snapshot = _dated_journal_snapshot(ev_path)
 
     # T-13962 / SPEC-0094 §9 — the LOAD WINDOW. Placed above moment (b) so the revision recheck below
     # also covers the time spent waiting. A rollback never waits (SPEC-0097 §2: a reversal is always
@@ -5967,10 +6104,13 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                       f"The project `deploy:` command was NOT launched, so nothing was deployed; no "
                       f"deploy_completed emitted.", file=sys.stderr)
                 sys.exit(3)
-            moved = _revision_recheck(
+            # T-14595: asked under repo.lock, the lock every scoped self-commit window holds from its
+            # deploy look to its commit — a window open now commits first and this check sees it; one
+            # opened after sees this deploy standing (its deploy-marked RUNNING entry) and waits
+            moved = _revision_recheck_locked(_with_repo_lock, _main_wt, lambda: _revision_recheck(
                 expected_revision, main_line_required=main_line_required, REPO_ROOT=REPO_ROOT,
                 _run_git_cap=_run_git_cap, _is_ignorable_dirt=_is_ignorable_dirt,
-                _git_resolve_sha=_git_resolve_sha) if expected_revision is not None else None
+                _git_resolve_sha=_git_resolve_sha)) if expected_revision is not None else None
             if moved:
                 print(f"deploy: REFUSED — the checkout stopped being the expected revision before the "
                       f"pre-deploy run started (SPEC-0094 §6, SPEC-1051 rule 3): {moved}. The run was NOT "
@@ -6015,9 +6155,19 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         if _switch.get("on"):
             print(f"deploy: the pre-deploy run of {expected_revision} enters the project's admission queue "
                   f"first in its order (SPEC-1045 rule 2 (r))")
-            with admission_queue.deploy_run_entry(main=_main_wt, append_event=_append_event) as _record:
-                _run = _hold_and_run(admission_queue.stamping(_append_event, _record,
-                                                              types=("test_class_executed",)))
+            # T-14595 (SPEC-1051 rule 3): the deploy stands to the end of its ship — its deploy-marked
+            # RUNNING entry is closed by the verb's release (`_pre_deploy_release`), not when the run ends
+            _entry = contextlib.ExitStack()
+            try:
+                _record = _entry.enter_context(admission_queue.deploy_run_entry(main=_main_wt,
+                                                                                append_event=_append_event))
+                _land_hold.append(("close", _entry.close))
+            except BaseException:
+                _entry.close()
+                raise
+            _run = _hold_and_run(admission_queue.stamping(_append_event, _record,
+                                                          types=("test_class_executed",)))
+            admission_queue.uninherit()  # the queue's descriptors stay with this process, never the ship's
         elif _release_order is not None and _release_order.get("record") is not None:
             _run = _hold_and_run(admission_queue.stamping(_append_event, _release_order["record"],
                                                           types=("test_class_executed",)))
@@ -6090,6 +6240,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # Runs on EVERY exit path, BEFORE the returncode branch below: a FAILED rollback can have switched
     # the file just as a successful one can, and a lost journal line is not made acceptable by the
     # command having failed. Never touches the exit code.
+    if kind == "rollback" and dated_snapshot:
+        _restore_dated_journal(dated_snapshot, _dedup_events=_dedup_events)
     if kind == "rollback" and journal_snapshot:
         try:
             current = list(journal_mod.fold_lines(events_mod.live_segment(ev_path)))   # live-only: see the snapshot above

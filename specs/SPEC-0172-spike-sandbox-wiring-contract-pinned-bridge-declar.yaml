@@ -386,7 +386,7 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   \ still serves 200 and only `/api/` 502s, so the symptom points at the application\n\
   and the cause is one hop away. This is a property of the RECIPE, not of any one\
   \ project: every\nproject building the same sandbox copy inherits it. (Source of\
-  \ record: X-0628, <project> → yitc-v2,\na real incident on 2026-08-08, fingerprint\n\
+  \ record: X-0628, boomrocket → yitc-v2,\na real incident on 2026-08-08, fingerprint\n\
   `spike-router-caches-stale-backend-ip-no-narrow-entrance-repair-instrument`.)\n\n\
   **Check layer: LIBRARY MECHANICS — the kernel REQUIRES and STATES; it does not BUILD.**\
   \ Both\ncapabilities below are instruments over a RUNNING stack, so putting them\

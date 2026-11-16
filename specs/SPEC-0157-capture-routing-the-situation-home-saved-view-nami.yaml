@@ -57,7 +57,7 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ surface is re-fetchable any time, never stale.\n\n## Rationale\n\nX-0402 G3 +\
   \ X-0403 (owner-confirmed package): the situation→home routing lived only scattered\
   \ across\nnine specs, unreadable at the moment of writing — the real incident that\
-  \ drove <project>'s\ncontroller to invent `docs/incidents/` (X-0402) and an ad-hoc\
+  \ drove boomrocket's\ncontroller to invent `docs/incidents/` (X-0402) and an ad-hoc\
   \ baseline file (X-0403). A saved view is\nthe answer to \"what governs X?\" answered\
   \ on demand (prior-art: consumer-dimension-bundle,\nextensions-catalog, journal-hygiene).\
   \ CHARTER §P1: a view over existing homes, no new store/node/edge;\nthe escalation-doc\
@@ -67,7 +67,7 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ of the section it names;\nthe rule it explains stays there.\n\n- From «Scenario»:\
   \ This closes X-0402 G3 (the routing map lived ONLY scattered across\n  SPEC-0056/0090/0005/0076/0095/\
   \ 0140/0084-86/0039 — nobody could read it at the moment of\n  writing, which is\
-  \ how <project> invented an unsanctioned `docs/incidents/` class and an ad-hoc\n\
+  \ how boomrocket invented an unsanctioned `docs/incidents/` class and an ad-hoc\n\
   \  baseline file, X-0403 sub-class 1).\n- From «2. The E-case incident-narrative\
   \ row»: This is the row the sibling card blessed;\n  the view sources it from the\
   \ amended spec.\n- From «3. Worker escalation-doc convention (R3)»: This convention\

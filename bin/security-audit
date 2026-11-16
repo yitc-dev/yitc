@@ -9,7 +9,7 @@
 # recomputable content-hash. Retiring any AI role can never orphan the gate, because the producer is this
 # script on a system trigger, not a role (incident).
 #
-# DESIGN lifted + GENERALIZED from the <project> prior-art `bin/security-audit.sh` (READ-ONLY
+# DESIGN lifted + GENERALIZED from the social-parser prior-art `bin/security-audit.sh` (READ-ONLY
 # provenance): a set of deterministic read-only probes, each recording its own exit code + scope, whose
 # findings carry a STABLE fingerprint + fresh evidence, ending in a report content-hash over the body.
 # This kernel scaffold keeps the DESIGN but drops the project-specific probes — a freshly-`init`ed
@@ -255,7 +255,7 @@ ARCHIVED_CORPORA_RE='^v1-archive/'
 # STATEMENT-POSITION anchored (X-0310): the secret keyword must be the LHS of a real
 # `key = "literal"` / `key: "literal"` assignment at the START of the line — NOT prose deeper inside a
 # string. Before the `^` anchor, `password: "` occurring MID-line inside instructional/prompt string
-# CONTENT false-matched and fail-closed a consumer deploy (X-0310, live on <project>:
+# CONTENT false-matched and fail-closed a consumer deploy (X-0310, live on trend-finder:
 # `password = input("Admin password: ").strip` matched the `password:` inside the `"Admin password:
 # "` literal, its closing `"` + trailing `).strip` completing the pattern). The anchor permits before
 # the keyword ONLY: leading whitespace, a bounded ALLOWLIST of declaration keywords (const/let/var/

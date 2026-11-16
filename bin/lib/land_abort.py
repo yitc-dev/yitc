@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 
 from lib import debt_landing  # T-13022: `_CORPUS_GUARD_MARKS` — the ONE home of the corpus-guard gate names (a leaf, not the host)
+from lib import unit_table  # T-14568: the compact per-unit table written on the land_aborted layer rows (SPEC-1046)
 
 
 def _module_repo_root() -> str:
@@ -390,7 +391,7 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
             # persistence did not, and nothing surfaced the gap because the OK path carries the key
             # from its own payload site.
             #
-            # MEASURED (<project> + <project> + <project>, all journal segments, 2026-09-02): 3322
+            # MEASURED (boomrocket + <project> + <project>, all journal segments, 2026-09-02): 3322
             # `land_completed` rows, 813 of them aborts. `consumer_verify_layers` present on 2051 rows
             # and on ZERO aborts. So the one row that records a verify FAILURE could not say WHICH
             # DECLARED LAYER failed in machine-readable form — the only carrier was the
@@ -410,7 +411,7 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
             # before any declared layer ran carries none, and its row stays byte-for-byte what it is
             # today.
             if abort_detail.get("consumer_verify_layers"):
-                data["consumer_verify_layers"] = abort_detail["consumer_verify_layers"]
+                data["consumer_verify_layers"] = unit_table.encode_layers(abort_detail["consumer_verify_layers"])
             # T-13909 (SPEC-1030 rule 3): the candidate leg's own test-sweep failure count, written
             # by `_land_integrate` beside that trail (SPEC-0025). Additive, guarded on presence.
             if abort_detail.get("candidate_sweep_failures"):

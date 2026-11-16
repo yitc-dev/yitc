@@ -155,7 +155,7 @@ CONSULT_PARTIAL_SWITCH_REFUSAL = (
 # describes and every residue stays a 5-line forwarder. A mover with no entry takes no inject.
 # ---------------------------------------------------------------------------
 INJECTS = {
-    "consult_packet_max_bytes": ("CONSULT_PACKET_MAX_BYTES",),
+    "consult_packet_max_bytes": ("audit_packet_ceiling",),
     "_parse_findings_structured": ("AUDITOR_SUPPLIED_FINDING_FIELDS", "BULLET_START_RE", "CONT_FIELD_RE",
                                    "ENGINE_SUPPLIED_FINDING_FIELDS", "ON_DECISIONS_FINDING_FIELDS"),
     "_bounded_raw_source": ("RAW_FINDINGS_SOURCE_MAX_CHARS",),
@@ -245,22 +245,17 @@ INJECTS = {
 }
 
 
-def consult_packet_max_bytes(*, CONSULT_PACKET_MAX_BYTES) -> int:
-    """The byte bound on an assembled consult packet — a SPEC-0193 PERFORMANCE read site (T-12233).
-
-    Same per-call resolution shape and the same rule-6 read-site validation as
-    `_inspection_timeout_seconds` above (a 0 or negative bound would put EVERY packet over bound).
+def consult_packet_max_bytes(*, audit_packet_ceiling) -> int:
+    """The byte bound on an assembled consult packet (T-12233) — since T-14616 the SAME key as the
+    whole-packet ceiling (`lib.audit.AUDIT_MAX_PACKET_BYTES`, a project THRESHOLD, SPEC-1031 rule 3(c)):
+    the former second name `lib.audit.CONSULT_PACKET_MAX_BYTES` only ever aliased that value, so it is
+    folded in and `config get/list` show the one value applied. Read per call through the host's
+    `audit_packet_ceiling`, which never raises and falls back to the built-in default.
 
     The bound is SOFT and RECORDED: it chooses between two scopes that admit the SAME judgement and
     otherwise sends the packet whole — see `consult_packet_scope_for` for the contract it feeds.
     """
-    try:
-        from lib import machine_settings      # deferred: keeps the hot import graph unchanged
-        val = int(machine_settings.resolve("lib.audit.CONSULT_PACKET_MAX_BYTES",
-                                           CONSULT_PACKET_MAX_BYTES))
-    except Exception:            # noqa: BLE001 — SPEC-0193 rule 6: never a prerequisite
-        return CONSULT_PACKET_MAX_BYTES
-    return val if val > 0 else CONSULT_PACKET_MAX_BYTES
+    return int(audit_packet_ceiling()["value"])
 
 
 def _parse_findings_structured(text: str, *, AUDITOR_SUPPLIED_FINDING_FIELDS, BULLET_START_RE, CONT_FIELD_RE, ENGINE_SUPPLIED_FINDING_FIELDS, ON_DECISIONS_FINDING_FIELDS) -> list[dict]:
@@ -709,13 +704,12 @@ def _consult_record_only_delta(basis_fp: str | None, current_fp: str | None,
     if not paths or consult_rel not in paths:
         return False   # an EMPTY delta, or one that never touches the consult record, is not this case
     for p in paths:
-        if p == consult_rel or p in _CONSULT_BASIS_DERIVED_BOOKKEEPING_FILES:
+        if p == consult_rel:
             continue
-        # An ARCHIVE SEGMENT IS THE SAME LOGICAL JOURNAL (T-11536 / SPEC-0190 rule 1) — derived
-        # bookkeeping for exactly the reason the live `events.jsonl` above is. Asked through the
-        # definer, never a re-spelled glob. FAIL-CLOSED IS UNTOUCHED: the loop below still returns
+        # EVERY JOURNAL SEGMENT IS THE SAME LOGICAL JOURNAL (T-11536 / SPEC-0190 rule 1; T-14587 the one
+        # predicate) — derived bookkeeping. FAIL-CLOSED IS UNTOUCHED: the loop below still returns
         # False on the first path that is not derived bookkeeping.
-        if events_mod.is_archive_segment(Path(p), Path("events.jsonl")):
+        if events_mod.is_journal_family_path(p):
             continue
         if any(p.startswith(prefix) for prefix in _CONSULT_BASIS_DERIVED_BOOKKEEPING_DIRS):
             continue

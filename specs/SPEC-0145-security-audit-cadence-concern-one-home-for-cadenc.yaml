@@ -24,7 +24,7 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ owner/AI reads the project's `security.audit` carrier subsection\nto see the cadence,\
   \ the SLA, and the evidence home.\n\n## Internal\n\nTHE SECURITY-AUDIT CADENCE CONCERN\
   \ — ONE normative home for four parts that MUST NOT be separable\n(their separability\
-  \ was the <project> orphaning). **Home split (single SoT — no mechanic\nre-homed):**\
+  \ was the trend-finder orphaning). **Home split (single SoT — no mechanic\nre-homed):**\
   \ this spec owns the CADENCE + FRESHNESS-SLA + EVIDENCE(report) SCHEMA + WAIVER\
   \ SEMANTICS.\n**SPEC-0093** owns the `security.audit` carrier SECTION SHAPE (the\
   \ key set). **SPEC-0128** owns the\none-declaration→all-surfaces invariant (this\
@@ -218,7 +218,7 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ (<workshop-spec> rule 6, X-0306; ADDITIVE —\nnothing above is changed).** A dependency\
   \ scanner's output (npm audit / pip-audit / equivalent)\nenters the report as FIRST-CLASS\
   \ FINDINGS in the ONE canonical `findings:` list — NEVER as a probe\nSCALAR. A bare\
-  \ scalar (`npm_audit: \"5 vulnerabilities (1 moderate, 4 high)\"`, the <project>\n\
+  \ scalar (`npm_audit: \"5 vulnerabilities (1 moderate, 4 high)\"`, the trend-finder\n\
   incident) carries no fingerprint to waive, no severity to block on and no status\
   \ to age, so it can\nenter NO waiver (§7), NO gate (§8) and NO debt machinery (SPEC-0119)\
   \ — it is evidence that reads as\ncoverage while being unactionable. Each such finding\
@@ -330,9 +330,9 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ LATEST-by-date findings report's `produced_by` (the `<date>-security.yaml`\n \
   \  naming convention) plus the declared `runner:` — NOT by any historical report:\
   \ an older foreign report\n   beneath a newer core-owned latest is history, not\
-  \ ownership, and no longer blocks delivery FOREVER\n   (X-0321 — the <project> propagation\
-  \ stall). This mirrors the ACCEPT seam (c), which already selects\n   the newest\
-  \ report; fail-closed keeps its bite where the LATEST report is foreign/absent,\
+  \ ownership, and no longer blocks delivery FOREVER\n   (X-0321 — the social-parser\
+  \ propagation stall). This mirrors the ACCEPT seam (c), which already selects\n\
+  \   the newest report; fail-closed keeps its bite where the LATEST report is foreign/absent,\
   \ or where the\n   declared `runner:` is foreign (the X-0239/X-0097 protection is\
   \ undiminished).\n   **The INSTALL seam is also STANCE-GATED :** `init` delivers\
   \ — and `--refresh-scaffolds`\n   refreshes — the runner and its trigger template\
@@ -383,8 +383,8 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ scalars. The SLA DEFAULT\nis a documented contract value read by the gate from\
   \ the concern/carrier, not a spec-embedded scalar.\n\n## Rationale\n\nIncident :\
   \ v1 auto-team retirement stopped the nightly security role → no fresh report →\
-  \ the\ndeploy gate blocked permanently (<project>). Root cause: cadence + SLA +\
-  \ schema + waiver were\nSEPARABLE and role-dependent. Prior-art REUSED: the SPEC-0094\
+  \ the\ndeploy gate blocked permanently (trend-finder). Root cause: cadence + SLA\
+  \ + schema + waiver were\nSEPARABLE and role-dependent. Prior-art REUSED: the SPEC-0094\
   \ deploy concern family (seed-and-grow,\ncode-enforced, fail-closed), the SPEC-0098\
   \ security live-probe (the per-deploy security sibling), the\nSPEC-0128 concern\
   \ registry (one declaration → all surfaces). Design basis: the external-auditor\

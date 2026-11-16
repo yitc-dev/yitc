@@ -33,11 +33,11 @@ class AuditRecord(Base, UUIDPrimaryKey, TenantMixin, TimestampMixin):
     __tablename__ = "audit_records"
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
-)
+    )
     entity_type: Mapped[str] = mapped_column(String(50))
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     field_name: Mapped[str] = mapped_column(String(100))
-    action: Mapped[str] = mapped_column(String(10)) # "update", "delete"
+    action: Mapped[str] = mapped_column(String(10))   # "update", "delete"
     old_value: Mapped[str | None] = mapped_column(Text)
     new_value: Mapped[str | None] = mapped_column(Text)
 ```
@@ -85,7 +85,7 @@ changed = await audit_update(
     session, account, updates,
     tenant_id=current_user.tenant_id,
     user_id=current_user.id)
-# changed == ["email", "phone"] — only fields that actually changed
+# changed == ["email", "phone"]  — only fields that actually changed
 ```
 
 ## Separation from FSM audit

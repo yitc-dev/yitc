@@ -677,7 +677,7 @@ def consumed_stations(events: Iterable[dict], user: str) -> frozenset[str]:
     (payload `{station, user}`). This exists because consuming a station DELETES its pointer (SPEC-0147
     §2), so buffer-ABSENCE alone cannot tell "never seeded" from "already consumed" — and a re-seed of
     a drained buffer would RESURRECT retired stations (the live incident
-    `onboarding-seed-resurrects-consumed-stations`, <project> 2026-07-10). The retirement fact is
+    `onboarding-seed-resurrects-consumed-stations`, boomrocket 2026-07-10). The retirement fact is
     recovered by reading the events that ALREADY exist — NO new state, store, learned flag, or FSM
     (CHARTER §P1; this is the RETIREMENT record, NOT the forbidden per-person learning state SPEC-0147
     §1 rules out).

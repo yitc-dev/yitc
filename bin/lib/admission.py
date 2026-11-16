@@ -340,7 +340,8 @@ def paths(main) -> dict:
     d = state_dir(main)
     return {"dir": d, "lock": d / "lock", "stamp": d / "last-start", "queue": d / "queue",
             "busy": d / "busy.lock", "running": d / "running", "landhold": d / "land.lock",
-            "lightcore": d / "light-core.lock", "hold": d / "green-hold", "main": Path(main)}
+            "lightcore": d / "light-core.lock", "hold": d / "green-hold", "configs": d / "configs",
+            "main": Path(main)}
 
 
 def _group_writable(target, mode) -> None:
@@ -1042,6 +1043,100 @@ def hold_says(h, s) -> str:
             "it ends at that card's land, or once the card shows no progress)")
 
 
+# ═══ WHY A WAIT WAITS (T-14592) ═══════════════════════════════════════════════════════════════
+# Every wait says, in one plain line, the mode in force and what it waits for, so a serial wait is not
+# read as idle capacity (<project> X-2348). The mode is SPEC-1045 rule 6's reading; the blocker is the
+# other card's standing green hold, else the ticket at the head of what stands ahead.
+WAIT_MODE = "one at a time per repo"
+WAIT_REASON = ("verify runs and lands pass one at a time per repo, because a land then re-uses its card's "
+               "green run instead of running the verify again (SPEC-1045 rule 6, SPEC-0065 §Bound)")
+
+
+def blocker_of(p, ahead, green, task, land_held=False) -> "dict | None":
+    """What a waiter waits for: another card's green hold (`green`, the hold standing now), else the
+    first ticket of `ahead` (card + class), else a land in flight (`land_held`, its ticket already
+    passed), else None (nothing ahead: it waits for room)."""
+    if green is not None and green.get("card") != task:
+        card = green.get("card")
+        return {"kind": "green-hold", "ticket": None, "card": card, "class": "green-hold",
+                "says": f"the green hold of {card or 'no card (an unreadable hold file)'} (class green-hold): its Stage-6 run is "
+                        f"green and the queue keeps the repo for that card's land"}
+    for t in list(ahead or [])[:1]:
+        cls, card, side = ticket_class(t), ticket_task(p, t), kind_mark(t)[0]
+        kind = ("deploy" if cls == "deploy" else "queue-jump" if cls in ("run-mark", "land-mark")
+                else "land" if side == "land" else "run")
+        noun = {"deploy": "a gated deploy's pre-deploy run", "queue-jump": f"a marked queue-jump {side}",
+                "land": "a land", "run": "a Stage-6 run"}[kind]
+        return {"kind": kind, "ticket": t, "card": card, "class": cls,
+                "says": f"{noun} of {card or 'no card'} (class {cls})"}
+    if land_held:
+        return {"kind": "land-held", "ticket": None, "card": None, "class": "land",
+                "says": "a land in flight (class land; its ticket has passed and lands pass one at a time)"}
+    return None
+
+
+def wait_facts(p, ahead, green, task, land_held=False) -> dict:
+    """The facts a wait row and a wait line carry: the mode, why, and the blocker."""
+    return {"mode": WAIT_MODE, "reason": WAIT_REASON, "blocker": blocker_of(p, ahead, green, task, land_held)}
+
+
+def wait_says(facts) -> str:
+    """One plain line from wait facts (a row's data or wait_facts())."""
+    facts = facts if isinstance(facts, dict) else {}
+    b = facts.get("blocker")
+    what = b.get("says") if isinstance(b, dict) and b.get("says") else "nothing ahead of it: it waits for room"
+    return f"{facts.get('mode') or WAIT_MODE} ({facts.get('reason') or WAIT_REASON}); it waits for {what}"
+
+
+def _blocker_key(b) -> tuple:
+    return (b.get("kind"), b.get("card"), b.get("ticket")) if isinstance(b, dict) else (None, None, None)
+
+
+def open_waits(rows) -> dict:
+    """task -> its open wait, folded in ONE pass over `rows` (journal order): the newest admission_wait
+    of the task whose ticket has no later admission_pass / admission_left and whose waiter is alive,
+    with the newest `blocker` step of that ticket superseding the wait row's blocker. Each value:
+    {ticket, since, mode, reason, blocker, says}. A wait row written before T-14592 (no mode) names
+    the first ticket it recorded behind it."""
+    waits, latest = {}, {}
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        typ, d = r.get("type"), r.get("data")
+        if typ not in (WAIT, PASS, LEFT, STEP) or not isinstance(d, dict) or not isinstance(d.get("ticket"), str):
+            continue
+        t = d["ticket"]
+        if typ == WAIT and isinstance(r.get("task_id"), str):
+            facts = dict(d)
+            if "mode" not in d:
+                behind = d.get("behind") if isinstance(d.get("behind"), list) else []
+                b0 = behind[0] if behind and isinstance(behind[0], dict) else None
+                facts["blocker"] = ({"kind": None, "ticket": b0.get("ticket"), "card": b0.get("task"),
+                                     "class": b0.get("class"),
+                                     "says": f"{b0.get('class')} of {b0.get('task') or 'no card'}"} if b0 else None)
+            waits[t] = {"task": r["task_id"], "since": r.get("ts"), "pid": d.get("pid"), "facts": facts}
+            latest[r["task_id"]] = t
+        elif typ in (PASS, LEFT):
+            waits.pop(t, None)
+        elif typ == STEP and d.get("kind") == "blocker" and t in waits:
+            waits[t]["facts"] = {**waits[t]["facts"], **{k: d.get(k) for k in ("mode", "reason", "blocker")}}
+    out = {}
+    for task, t in latest.items():
+        w = waits.get(t)
+        if w is None:
+            continue
+        pid = w["pid"]
+        try:
+            if type(pid) is not int or not alive(pid):
+                continue
+        except Exception:              # noqa: BLE001 — a liveness that cannot be read: not shown as waiting
+            continue
+        f = w["facts"]
+        out[task] = {"ticket": t, "since": w["since"], "mode": f.get("mode") or WAIT_MODE,
+                     "reason": f.get("reason") or WAIT_REASON, "blocker": f.get("blocker"), "says": wait_says(f)}
+    return out
+
+
 # T-14483 (owner rule events.jsonl#ts=2026-11-02T20:33:37Z): GREEN_HOLD is the point where the hold's
 # card is checked for life, not a deadline. The card's own lifecycle rows are its progress; the queue's
 # own admission_* rows never are, and a process merely existing is not progress either.
@@ -1137,13 +1232,56 @@ def hold_now(p, s):
     return None
 
 
+def deploy_standing(p, me=None):
+    """SPEC-1045 rule 2 (r), T-14591 (owner, events.jsonl#ts=2026-11-11T12:33:02Z): what makes every
+    other admission wait — a live `deploy` ticket other than `me` in the queue, else a live RUNNING
+    entry marked `deploy` (a gated deploy's pre-deploy run the queue let pass) other than this process;
+    else None. Read-only: no ticket or entry is removed, so it is callable with or without LOCK. A
+    queue or running directory that is absent, an entry that cannot be read and a dead owner read as
+    no deploy."""
+    try:
+        names = os.listdir(p["queue"])
+    except (FileNotFoundError, NotADirectoryError, KeyError):
+        names = []
+    for name in sorted(names):
+        if name == me or not is_deploy(name):
+            continue
+        try:
+            pid = int(name.split("-")[1])
+        except (IndexError, ValueError):
+            continue
+        if alive(pid):
+            return f"a gated deploy's ticket is queued ({name})"
+    try:
+        entries = os.listdir(p["running"])
+    except (FileNotFoundError, NotADirectoryError, KeyError):
+        entries = []
+    for name in sorted(entries):
+        if not name.isdigit() or int(name) == os.getpid() or not alive(int(name)):
+            continue
+        if (read_json(Path(p["running"]) / name) or {}).get("deploy") is True:
+            return f"a gated deploy's pre-deploy run runs (pid {name})"
+    return None
+
+
 def held_q(p, q, h, s=None) -> list:
     """The tickets that may pass while the hold `h` stands: those of its card; all of them with none.
     Under `admission.planning_lands: immediately` (SPEC-1045 rule 2 (l), T-14196) a planning land's
-    ticket also may (`planning_free`)."""
+    ticket also may (`planning_free`). While a deploy ticket is queued only the deploy tickets may: a
+    green hold does not let its card's land pass before a deploy (SPEC-1045 rule 2 (r), T-14591)."""
     s = s if s is not None else CUR
+    deploys = [t for t in q if is_deploy(t)]
+    if deploys:
+        return deploys
     return q if h is None else [t for t in q if (h["card"] and ticket_task(p, t) == h["card"])
                                 or planning_free(t, s)]
+
+
+def hold_waits(green, task, name, free) -> bool:
+    """Whether the green hold `green` makes the waiter `name` (of card `task`) wait: a hold of another
+    card does, unless the waiter is a free planning land — and never a gated deploy's ticket, which
+    passes whatever hold stands (SPEC-1045 rule 2 (r), T-14591)."""
+    return green is not None and green["card"] != task and not free and not is_deploy(name)
 
 
 def planning_free(name, s) -> bool:
@@ -1197,9 +1335,39 @@ def set_hold(p, card, wt, s=None) -> str:
     return outcome
 
 
-def landed(p, card, code, s=None):
+def after_land(main, branch, body_end, now):
+    """T-14596 (SPEC-0025 §admission_step) — the span from this land's `land_completed` row to the hold
+    release, split: `land_tail_ms` (the row's `ended_at` -> the land body returning here: the land
+    process's work after its row, and its exit), `release_ms` (that return -> this release), `rest_ms`
+    (total minus both — the explicit residual) and `total_ms`. The row is the NEWEST `land_completed`
+    of `branch` with status ok, read through the bounded journal tail read (`tail_scan_events`). None —
+    the key is then left off the release row — when the branch, the row or its `ended_at` is absent,
+    or the read fails: a release is never refused or delayed on this reading."""
+    if not branch or body_end is None:
+        return None
+    try:
+        from lib import journal as journal_mod, batch_landing
+        rows = journal_mod.tail_scan_events(Path(main) / "events.jsonl", str(branch),
+                                            max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES)
+    except Exception:                    # noqa: BLE001 — a reading, never a gate
+        return None
+    for ev in reversed(rows or []):
+        d = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+        if ev.get("type") == "land_completed" and d.get("branch") == branch and d.get("status") == "ok":
+            end = d.get("ended_at")
+            if not isinstance(end, (int, float)) or isinstance(end, bool):
+                return None
+            tail = int(round((body_end - end) * 1000))
+            rel = int(round((now - body_end) * 1000))
+            total = int(round((now - end) * 1000))
+            return {"land_tail_ms": tail, "release_ms": rel, "rest_ms": total - tail - rel, "total_ms": total}
+    return None
+
+
+def landed(p, card, code, s=None, *, branch=None, body_end=None):
     """A land of `card` ended with `code` (T-14196 calls it): 0 ends that card's green hold (step row
-    `cleared` land); any other end leaves it standing. Returns `code`."""
+    `cleared` land, carrying `after_land` when its land row is readable — T-14596); any other end
+    leaves it standing. Returns `code`."""
     s = s if s is not None else cur(p["main"])
     if code == 0 and card and s["GREEN_HOLD"]:
         with Locked(p["lock"]):
@@ -1210,7 +1378,10 @@ def landed(p, card, code, s=None):
                 except FileNotFoundError:
                     h = None
                 if h is not None:
-                    log_step(p, card, "hold", "cleared", time.time() - h["set_at"], f"{card}:land")
+                    _now = time.time()
+                    _al = after_land(p["main"], branch, body_end, _now)
+                    log_step(p, card, "hold", "cleared", _now - h["set_at"], f"{card}:land",
+                             extra={"after_land": _al} if _al else None)
                     say(f"the green hold of {card} cleared: its land ended with 0")
     return code
 
@@ -1475,18 +1646,140 @@ RESULT_TYPES = ("tests_passed", "tests_failed", "tests_cancelled")   # the Stage
 _EMIT: list = [None]
 
 
+# ═══ THE CONFIGURATION SNAPSHOT (rule 2 (e), T-14566) ══════════════════════════════════════
+# The full applied configuration is written ONCE per distinct hash, as one `admission_config` row
+# {admission, config_hash, config}; every queue row carries the hash and `config_ref` — the snapshot
+# row's {ts, sha} name (the row-reference shape log_step already uses) — or "unavailable" when no
+# snapshot could be written. A registry file <state>/configs/<hash>.json, written under a flock, maps a
+# hash to its row across processes and restarts; it is PUBLISHED BEFORE the row is appended, and every
+# reuse verifies the row through the bounded ts lookup (journal.rows_at_ts), so a crash between the two
+# leaves a file the next process finds unverified and replaces — one snapshot per hash in every order.
+SNAPSHOT = "admission_config"
+UNAVAILABLE = "unavailable"
+CONFIG_SNAPSHOT = True                 # off: every row carries the inline list (the replay's differential)
+_REFS: dict = {}                       # (journal, hash) -> the reference this process wrote or verified (re-verified on use)
+
+
+def _valid_ref(ref) -> bool:
+    return isinstance(ref, dict) and isinstance(ref.get("ts"), str) and isinstance(ref.get("sha"), str)
+
+
+def resolve(journal, ref, config_hash_) -> "list | None":
+    """The configuration a reference names: the `admission_config` row at ref.ts whose name is ref.sha and
+    whose hash is `config_hash_`, read through the bounded one-day lookup; None when it is not there."""
+    if not _valid_ref(ref):
+        return None
+    from lib import journal as journal_mod
+    for row in journal_mod.rows_at_ts(Path(journal), ref["ts"]) or []:
+        d = row.get("data") if isinstance(row.get("data"), dict) else {}
+        if (row.get("type") == SNAPSHOT and d.get("config_hash") == config_hash_
+                and isinstance(d.get("config"), list) and row_sha(row) == ref["sha"]):
+            return d["config"]
+    return None
+
+
+def config_of(data, journal) -> "list | str":
+    """The full applied configuration of a queue row's data: its inline list (a row written before the
+    snapshot), else the configuration its reference resolves to, else "unavailable" — never a guess."""
+    data = data if isinstance(data, dict) else {}
+    if isinstance(data.get("config"), list):
+        return data["config"]
+    got = resolve(journal, data.get("config_ref"), data.get("config_hash"))
+    return got if got is not None else UNAVAILABLE
+
+
+def _write_snapshot(writer, journal, h, config, publish=None, ts=None):
+    """Append the snapshot row of `h`; `publish(ref)` runs BEFORE the append (the registry entry first).
+    The reference, or "unavailable" when the row could not be written (the published entry withdrawn)."""
+    ts = ts or iso(time.time())
+    data = {"admission": "engine", "config_hash": h, "config": config}
+    ref = {"ts": ts, "sha": row_sha({"type": SNAPSHOT, "task_id": None, "ts": ts, "data": data})}
+    if publish is not None:
+        publish(ref)
+    try:
+        writer(SNAPSHOT, None, data, events_path=journal, ts=ts)
+    except Exception as e:             # noqa: BLE001 — a lost snapshot never blocks the queue
+        say_once(("snapshot", type(e).__name__), f"the queue's {SNAPSHOT} row was not written "
+                 f"({type(e).__name__}: {e}); its rows say the configuration is unavailable")
+        if publish is not None:
+            publish(None)
+        return UNAVAILABLE
+    return ref
+
+
+def config_ref(s, writer=None, ts=None) -> "dict | str":
+    """The reference to the snapshot of `s`'s configuration, writing the snapshot (at `ts`, the row's own
+    time when given) when none is verified. `s["_ref"]`, when present, is a reference already known (a
+    replayed row that carries one) and is returned as it is."""
+    if "_ref" in s:
+        return s["_ref"]
+    h, config = s.get("_hash"), s.get("_config")
+    writer = writer or _EMIT[0]
+    p = _P[0] or {}
+    if not h or not isinstance(config, list) or writer is None or not p.get("main"):
+        return UNAVAILABLE
+    journal = Path(p["main"]) / "events.jsonl"
+    key = (str(journal), h)
+    if key in _REFS:                   # the memo saves the registry lock, never the row check: a journal reset
+        if resolve(journal, _REFS[key], h) is not None:   # or replaced under this process drops its snapshot
+            return _REFS[key]
+        del _REFS[key]
+    d = p.get("configs")
+    if d is None:                      # no shared state (the replay's paths): this process's memo only
+        ref = _write_snapshot(writer, journal, h, config, ts=ts)
+    else:
+        try:
+            _mkdirs(d)
+            lock = Locked(Path(d) / ".lock")
+            lock.__enter__()
+        except OSError:
+            ref = _write_snapshot(writer, journal, h, config, ts=ts)
+        else:
+            try:
+                entry = Path(d) / f"{h}.json"
+                known = read_json(entry)
+                if _valid_ref(known) and resolve(journal, known, h) is not None:
+                    ref = {"ts": known["ts"], "sha": known["sha"]}
+                else:
+                    def publish(r, entry=entry):
+                        if r is None:
+                            with contextlib.suppress(OSError):
+                                entry.unlink()
+                        else:
+                            write_json(entry, r)
+                            _SNAPSHOT_HOOK[0] and _SNAPSHOT_HOOK[0]()
+                    try:
+                        ref = _write_snapshot(writer, journal, h, config, publish=publish, ts=ts)
+                    except OSError:    # the registry cannot be written: the row alone, this process's memo
+                        ref = _write_snapshot(writer, journal, h, config, ts=ts)
+            finally:
+                lock.__exit__()
+    if ref != UNAVAILABLE:
+        _REFS[key] = ref
+    return ref
+
+
+_SNAPSHOT_HOOK: list = [None]          # tests only: runs between the publish and the append (the kill probe)
+
+
 def emit(etype, task, data, *, s=None, ticket=None, ts=None) -> "dict | None":
     """Append one queue row to the MAIN journal through the engine's journal writer; returns the row's
     {ts, sha} name. EVERY queue row carries the common context (rule 2 (e)): admission: engine, the
-    queue revision, the full applied configuration and its hash, the owner's pid and the ticket. A
+    queue revision, the hash of the full applied configuration and the reference to its one snapshot row
+    (`config_ref`, T-14566), the owner's pid and the ticket. A
     failure is said once and stops nothing."""
     writer = _EMIT[0]
     if writer is None:
         return None
     s = s if s is not None else CUR
-    data = {"admission": "engine", "revision": revision(), "config": s.get("_config"),
-            "config_hash": s.get("_hash"), "pid": os.getpid(), "ticket": ticket, **data}
     ts = ts or iso(time.time())
+    if CONFIG_SNAPSHOT:                # rule 2 (e): the configuration once per distinct hash, then its reference
+        common = {"admission": "engine", "revision": revision(), "config_hash": s.get("_hash"),
+                  "config_ref": config_ref(s, ts=ts)}
+    else:                              # the inline list in every row (the differential's off arm)
+        common = {"admission": "engine", "revision": revision(), "config": s.get("_config"),
+                  "config_hash": s.get("_hash")}
+    data = {**common, "pid": os.getpid(), "ticket": ticket, **data}
     try:
         writer(etype, task, data, events_path=Path(_P[0]["main"]) / "events.jsonl", ts=ts)
     except Exception as e:             # noqa: BLE001 — a lost row never blocks the queue
@@ -1526,12 +1819,18 @@ def log_pass(p, task, kind, *, s, limit=None, window=None, rule=None, place=None
     return emit(PASS, task, data, s=s, ticket=ticket, ts=ts)
 
 
-def log_step(p, task, kind, outcome, secs, detail=None, row=None, ticket=None, s=None):
+def log_step(p, task, kind, outcome, secs, detail=None, row=None, ticket=None, s=None, extra=None):
     """A step row of a pass (T-14196 / T-14197 call it): sync, quick-first, hold, land-set or
-    land-preview, its outcome, seconds and detail; `row` names a journal row it read (ts, sha)."""
-    data = {"kind": kind, "outcome": outcome, "secs": round(max(0.0, secs), 3), "detail": detail}
+    land-preview, its outcome, seconds and detail; `row` names a journal row it read (ts, sha);
+    `extra` adds named keys of the row (T-14596: the hold release's `after_land`)."""
+    # T-14569: a credit answer's request names its skip set by identity (the land row's own form)
+    from lib import unit_table          # a stdlib leaf, imported where it is used, as this module does
+    data = {"kind": kind, "outcome": outcome, "secs": round(max(0.0, secs), 3),
+            "detail": unit_table.encode_skip_detail(detail)}
     if row:
         data["row"] = row
+    if extra:
+        data.update(extra)
     return emit(STEP, task, data, s=s, ticket=ticket)
 
 
@@ -1540,7 +1839,7 @@ class PinFailed(Exception):
 
 
 def commit_pass(p, fd, *, entry_kind, side, s, task, log_kind, state, ticket=None, stage6=False,
-                journals=None, alone=False, **log_kw):
+                journals=None, alone=False, deploy=False, **log_kw):
     """The pass, in the one order that leaves a ticket ONE terminal row (audit-pre F3): BUSY is held
     (`fd`) -> the process takes its CPUs -> its RUNNING entry -> the pass row, last (its writer never
     raises). A pin or an entry that fails releases BUSY and raises, so the caller's terminal row is
@@ -1552,8 +1851,10 @@ def commit_pass(p, fd, *, entry_kind, side, s, task, log_kind, state, ticket=Non
         _release(fd)
         raise PinFailed(f"cannot pin to the {side} CPUs {fmt_cpus(pins(s)[side == 'light'])}: {e}") from e
     try:
+        # T-14591: a deploy's pass is marked in its RUNNING entry, written before its ticket is dropped
+        # in the same LOCK hold, so `deploy_standing` sees the deploy at every moment it stands
         register_running(p, entry_kind, alone=alone, side=side, task=task, stage6=stage6, journals=journals,
-                         since_ts=ts)
+                         since_ts=ts, extra={"deploy": True} if deploy else None)
     except OSError:
         _release(fd)
         raise
@@ -1636,9 +1937,13 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                     **({"light": list(light)} if light else {})})
         q_now = tickets(p["queue"])
         ahead = q_now[:q_now.index(me_name)] if me_name in q_now else q_before
+        # T-14592: the row names the mode and the real blocker — another card's standing green hold
+        # (read as the loop reads it at each check) is the blocker even with no ticket of its card queued
+        facts0 = wait_facts(p, ahead, None if planning_free(me_name, s0) else hold_now(p, s0), task,
+                            land_holding(p))
         wrow = emit(WAIT, task, {"class": ticket_class(me_name), "arrival": round(ns / 1e9, 3), "kind": log_kind,
                                  "behind": [{"ticket": t, "class": ticket_class(t), "task": ticket_task(p, t)}
-                                            for t in ahead]},
+                                            for t in ahead], **facts0},
                     s=s0, ticket=me_name)
         if wrow:
             data = read_json(Path(p["queue"]) / me_name) or {}
@@ -1714,6 +2019,20 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                         if not holds(p, skip):
                             return
 
+    recorded = {"blocker": _blocker_key(facts0["blocker"])}
+
+    def why_line(ahead, hold, s, land_held=False):
+        """T-14592: the mode and the blocker of this check, as one line; a blocker that differs from the
+        last one recorded for this ticket is written once as a `blocker` step row (one row per change).
+        Called once per check BEFORE the wait branches, so every continuing wait keeps it current."""
+        facts = wait_facts(p, ahead, hold, task, land_held)
+        key = _blocker_key(facts["blocker"])
+        if key != recorded["blocker"]:
+            recorded["blocker"] = key
+            emit(STEP, task, {"kind": "blocker", "outcome": "changed", "secs": round(time.time() - t0, 3),
+                              "detail": wait_says(facts), **facts}, s=s, ticket=me_name)
+        return key, wait_says(facts)
+
     def wait_line(key, text):
         if said["key"] != key or time.time() - said["at"] >= CUR["POLL"]:
             say(text)
@@ -1722,7 +2041,8 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
     t0 = time.time()
     while True:
         s = cur(p["main"])
-        if fast is not None and fast[0] in s["AT_ONCE"]:
+        # T-14591: while a gated deploy stands no fast re-ask passes either (SPEC-1045 rule 2 (r))
+        if fast is not None and fast[0] in s["AT_ONCE"] and (is_deploy(me_name) or not deploy_standing(p, me_name)):
             answer = fast[1]()
             if answer[0]:
                 if placed is not None:
@@ -1746,6 +2066,9 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             green = hold_now(p, s)
             qh = held_q(p, q, green, s)
             free = planning_free(me_name, s)
+            # T-14591 (SPEC-1045 rule 2 (r)): from the moment a gated deploy files its ticket until its
+            # run ends, nothing else of this queue passes — read before every other head check
+            dep = None if is_deploy(me_name) else deploy_standing(p, me_name)
             u_wait = land_unit_wait(p, s, task, me_name) if kind == "land" and not free else None
             u_move = unit_moving(p) if unit and s["RUN_LAND_UNIT"] else []
             u_run = unit_holds(p, s, task) if unit and s["RUN_LAND_UNIT"] else None
@@ -1769,9 +2092,18 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                     say(line)
                 continue
         since = time.time() - prev
-        if green is not None and green["card"] != task and not free:
+        if dep:
+            # the blocker is the deploy (T-14592 wait facts): its ticket while queued, else its running entry
+            bkey, why = why_line([t for t in q if is_deploy(t) and t != me_name], None, s, bool(lh))
+            wait_line(f"deploy-{dep}-{bkey}", f"wait: queue {pos} of {len(q)}, {dep}: nothing else passes while a "
+                      f"gated deploy stands (SPEC-1045 rule 2 (r)), so this {pass_kind()} of {task or 'no card'} "
+                      f"waits ({waited} s, load1 {load1}); {why}")
+            nap(s["POLL"]); continue
+        blocks = hold_waits(green, task, me_name, free)
+        bkey, why = why_line([] if blocks else (q[:pos - 1] if pos else q), green if blocks else None, s, bool(lh))
+        if blocks:
             wait_line(f"hold-{green['card']}-{green['set_at']}", f"wait: {hold_says(green, s)}; this {kind} of "
-                      f"{task or 'no card'} waits ({waited} s, load1 {load1})")
+                      f"{task or 'no card'} waits ({waited} s, load1 {load1}); {why}")
             nap(s["POLL"]); continue
         if u_wait:
             wait_line(f"unit-{u_wait}", f"wait: {u_wait} (admission.run_land_unit); this {pass_kind()} land of "
@@ -1800,7 +2132,8 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 v_now = venue()
                 h_now = hold_now(p, confirmed)
                 if (group(held_q(p, q, h_now, confirmed)) == g_free and v_now["published"]
-                        and (h_now is None or h_now["card"] == task)
+                        and not hold_waits(h_now, task, me_name, False)
+                        and (is_deploy(me_name) or not deploy_standing(p, me_name))
                         and all(confirmed[k] == s[k] for k in ("REMOTE_SLOTS", "LOCAL_RUNS", "LIGHT_PIN", "ORDER"))
                         and not crossing(p, "run", confirmed) and not busy_exclusive(p)
                         and sum(1 for k in held.values() if k == "remote") < box_slots(confirmed, v_now)
@@ -1811,7 +2144,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 if fd is not None:
                     count_run(p["queue"], q)
                     commit_pass(p, fd, entry_kind="remote", side="run", s=confirmed, task=task, log_kind="remote",
-                                state=state, ticket=me_name, stage6=bool(unit),
+                                state=state, ticket=me_name, stage6=bool(unit), deploy=is_deploy(me_name),
                                 journals=journals_of(u_main, unit[0]) if unit else None, place="remote",
                                 light=light_now())
                     drop()
@@ -1829,7 +2162,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
         cap = local_cap(s, pub)
         if kernel and pub and not exclusive and g_free[:1] == [me_name]:
             wait_line(f"box-{remote_n}-{slots}", f"wait: head of queue, the box's {slots} slot(s) are taken "
-                      f"({remote_n} remote run(s)); a kernel run is never forced to this host (SPEC-1032), so it "
+                      f"({remote_n} remote run(s)); a kernel run is never forced to this host (SPEC-1059), so it "
                       f"waits for a box slot ({waited} s, load1 {load1})")
             nap(s["POLL"], watch); continue
         if venue is not None and not exclusive and g[:1] == [me_name] and (local_n >= cap or (pub and lh)):
@@ -1843,12 +2176,12 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
         if g[:1] != [me_name]:
             held_land = (("; a land holds, and lands pass one at a time" if kind == "land" else
                           "; a land holds, and no run starts beside it") if lh else "")
-            wait_line(f"queue-{pos}-{len(q)}-{lh}", f"wait: queue {pos} of {len(q)}{held_land} ({waited} s, "
-                      f"load1 {load1})")
+            wait_line(f"queue-{pos}-{len(q)}-{lh}-{bkey}", f"wait: queue {pos} of {len(q)}{held_land} ({waited} s, "
+                      f"load1 {load1}); {why}")
             nap(s["POLL"], watch); continue
         if kind == "land" and lh:
-            wait_line("land-held", f"wait: head of queue, a land holds, and lands pass one at a time "
-                      f"({waited} s, load1 {load1})")
+            wait_line(f"land-held-{bkey}", f"wait: head of queue, a land holds, and lands pass one at a time "
+                      f"({waited} s, load1 {load1}); {why}")
             nap(s["POLL"], watch); continue
         held = running_kinds(p)
         if exclusive and (held or busy_held(p)):
@@ -1948,14 +2281,15 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 1 for k in held.values() if k in ("run", "exclusive")) < local_cap(confirmed, pub)))
             h_now = hold_now(p, confirmed)
             free = planning_free(me_name, confirmed)
-            hold_ok = h_now is None or h_now["card"] == task or free
+            hold_ok = not hold_waits(h_now, task, me_name, free)
+            dep_now = None if is_deploy(me_name) else deploy_standing(p, me_name)
             cross = crossing(p, side, confirmed)
             unit_ok = not ((kind == "land" and not free and land_unit_wait(p, confirmed, task, me_name))
                            or (unit and confirmed["RUN_LAND_UNIT"] and (unit_moving(p) or unit_holds(p, confirmed, task))))
             if (((at_once and class_in(me_name, confirmed["AT_ONCE"]) in confirmed["AT_ONCE"]
                   and not placed_moved and "RUN_LAND_UNIT" not in changed)
                  or (not at_once and not changed and not moved))
-                    and hold_ok and group(held_q(p, q, h_now, confirmed), lh, rule == "land-tail") == g
+                    and hold_ok and not dep_now and group(held_q(p, q, h_now, confirmed), lh, rule == "land-tail") == g
                     and (at_once or rule == "empty" or since >= s["SPACING"])
                     and (at_once or start is None or start >= prev)
                     and not (kind == "land" and credit_running(p)) and local_ok and not cross and unit_ok
@@ -1978,6 +2312,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 try:
                     commit_pass(p, fd, entry_kind="exclusive" if exclusive else kind, side=side, s=confirmed,
                                 task=task, log_kind=pass_kind(), state=state, ticket=me_name, stage6=bool(unit),
+                                deploy=is_deploy(me_name),
                                 journals=journals_of(u_main, unit[0]) if unit else None, alone=(kind == "land"),
                                 limit=limit, window=window, rule=None if at_once else rule, place=place_token,
                                 busy=busy, light=light_now())
@@ -2002,6 +2337,8 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 say(f"wait: the rule changed since the reading ({moved}); a new check")
             elif not local_ok:
                 say("wait: the local place was taken, or a land holds, under the lock; a new check")
+            elif dep_now:
+                say(f"wait: {dep_now} under the lock (SPEC-1045 rule 2 (r)); a new check")
             elif not hold_ok:
                 say("wait: a green hold of another card stands under the lock; a new check")
             else:
@@ -2072,7 +2409,9 @@ def fast_pass(p, kind, *, pin, task=None, ticket=None, recheck=None, state=None,
             waited = False
         fd, land, moving, stale, past = None, None, [], None, []
         with Locked(p["lock"]):
-            ahead = exclusive_ahead(p, owner=task if kind == "credit" else None, past=past)
+            # T-14591 (SPEC-1045 rule 2 (r)): a gated deploy queued or running holds every fast pass
+            ahead = deploy_standing(p, ticket) or exclusive_ahead(p, owner=task if kind == "credit" else None,
+                                                                  past=past)
             if not ahead and side:
                 cross = crossing(p, side, s)
                 if cross:
@@ -2497,8 +2836,12 @@ def _asked(name, fn):
         return {"check": name, "says": "unknown", "detail": f"{type(e).__name__}: {e}"[:300]}
     out = {"check": name, "says": "refuses" if refused else "admits",
            "detail": (str(detail)[:600] if detail else None)}
-    if isinstance(detail, dict) and isinstance(detail.get("request"), dict):
-        out["request"] = detail["request"]   # T-14272: the FORECAST's judged inputs, whole (the land compares)
+    if isinstance(detail, dict):
+        # T-14569 (rule 2 (m)): a mapping answer is recorded as its own fields, never as its repr — the
+        # request rides beside them, once
+        out["detail"] = {k: v for k, v in detail.items() if k != "request"} or None
+        if isinstance(detail.get("request"), dict):
+            out["request"] = detail["request"]   # T-14272: the FORECAST's judged inputs, whole (the land compares)
     return out
 
 
@@ -2665,10 +3008,29 @@ def stamp(record) -> dict:
 
 def stamping(writer, record, types=RESULT_TYPES):
     """`writer` with the rows of `types` stamped by `record`: the Stage-6 result rows (RESULT_TYPES) for
-    a run; `land_completed` for a land (T-14196) — rule 2 (e)."""
+    a run; `land_completed` for a land (T-14196) — rule 2 (e).
+
+    T-14558: a RE-APPEND of the same, unchanged dict is the same row, so it gets the same stamp. The
+    land abort writes its row and then the T-11241 main-side clearing copy from ONE dict, promising
+    byte-identity so the T-13839 dedup folds the pair; a fresh `stamp` on the copy took a new CPU
+    reading and made the backstop count one abort twice. One slot holds the last dict written, its
+    canonical JSON (the identity the dedup keys on, so a nested change is seen) and its stamped row;
+    any other dict, or the same one changed, is stamped fresh. A payload JSON cannot serialize is
+    never reused."""
+    last = {"obj": None, "canon": None, "row": None}
+
     def _write(etype, tid, data=None, *args, **kwargs):
         if etype in types and isinstance(data, dict):
-            data = {**data, **stamp(record)}
+            try:
+                canon = json.dumps(data, sort_keys=True, ensure_ascii=False)
+            except (TypeError, ValueError):
+                canon = None
+            if canon is not None and last["obj"] is data and last["canon"] == canon:
+                data = last["row"]
+            else:
+                row = {**data, **stamp(record)}
+                last.update(obj=data if canon is not None else None, canon=canon, row=row)
+                data = row
         return writer(etype, tid, data, *args, **kwargs)
     return _write
 
@@ -3532,8 +3894,9 @@ def land_entry(t, *, append_event):
         code = 0 if e.code in (None, 0) else (e.code if isinstance(e.code, int) else 1)
         raise
     finally:
+        _body_end = time.time()          # T-14596: the land body returned here (the `after_land` split point)
         with contextlib.suppress(Exception):
-            landed(p, card, code)
+            landed(p, card, code, branch=t.get("branch"), body_end=_body_end)
         uninherit()
         drop_running(p)
         for fd in fds:
@@ -3811,7 +4174,13 @@ def report(main) -> "dict | None":
     except (OSError, ValueError) as e:
         out.update(readable=False, error=f"{type(e).__name__}: {e}")
     try:                               # the comparison protocol over the main journal (T-14198)
-        out["soak"] = soak(soak_rows(Path(main) / "events.jsonl"))
+        rows = soak_rows(Path(main) / "events.jsonl")
+        out["soak"] = soak(rows)
+        w = out["soak"].get("window")
+        if w and w.get("config_hash"):  # the window's full configuration, resolved from its newest pass row
+            prow = next((r for r in reversed(rows) if r.get("type") == PASS
+                         and _soak_data(r).get("config_hash") == w["config_hash"]), None)
+            w["config"] = config_of(_soak_data(prow), Path(main) / "events.jsonl") if prow else UNAVAILABLE
     except Exception as e:             # noqa: BLE001 — an unreadable journal reads as such, never empty
         out["soak"] = {"error": f"{type(e).__name__}: {e}"}
     return out

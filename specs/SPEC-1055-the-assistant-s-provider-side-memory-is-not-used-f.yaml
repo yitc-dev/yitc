@@ -1,5 +1,6 @@
 id: SPEC-1055
-title: The assistant's provider-side memory is not used, for any provider
+title: No provider-specific store holds project knowledge — the assistant's own memory
+  is not used, and the repository is the only home, for any provider
 status: active
 created_at: 2026-10-27 15:47:03+00:00
 travels: null
@@ -14,26 +15,29 @@ body: "## Scenario\nThe primary AI runs in a tool that may keep a memory of its 
   \ provider's assistant, a dispatched worker and a review never see it. Every\nproject\
   \ — the kernel and each project it births — switches that memory off in its committed\
   \ provider\nconfig, and everything a session wants to keep goes to the project's\
-  \ corpus.\n\n## Internal\n### 1. Not used, for any provider\nThe assistant's own\
-  \ provider-side memory is not used — not read for project knowledge and not\nwritten.\
-  \ Nothing is saved there, whatever the provider.\n\n### 2. Switched off in the committed\
-  \ provider config\nEach project switches that memory off in its own committed provider\
-  \ config, so every session started\nin the repository and its worktrees, a dispatched\
-  \ worker included, runs with it off. `init` births the\nswitch in a new project;\
-  \ for an already-born project whose provider config lacks it, `init` reports it\n\
-  pending and `init --refresh-scaffolds` adds it, every other setting in that file\
-  \ kept.\nA session started outside any project folder (the home folder, then routed\
-  \ into a project) is not\ncovered by that switch: there the provider's user-level\
-  \ setting switches the memory off, which\n`init` offers on every run and writes\
-  \ only on the person's yes (`init --apply-user-memory-off`),\nevery other setting\
-  \ kept; a user settings file that is not readable as a settings object, or that\n\
-  sets the switch itself, is never touched and is reported, and a provider with no\
-  \ such setting is\nreported as having none.\n\n### 3. Where each kind of note goes\
-  \ instead\n- (a) something with no home in the corpus → its governed home, or a\
-  \ new one; a craft note takes the\n  lesson route (SPEC-0090);\n- (b) a pointer\
-  \ to a tool that is awaited (a workaround kept until an engine fix ships) → an armed\n\
-  \  followup;\n- (c) the person's preferences about how the assistant works with\
-  \ them → the project's\n  provider-neutral context home (SPEC-0125: `CHARTER.md`,\
+  \ corpus. The same holds for\nevery other store one provider keeps outside the repository\
+  \ — a document, artifact or\nproject-knowledge service: a plan or a write-up for\
+  \ the person is written in the repository, and\nthe person gets a repository path,\
+  \ never a link into such a store.\n\n## Internal\n### 1. Not used, for any provider\n\
+  The assistant's own provider-side memory is not used — not read for project knowledge\
+  \ and not\nwritten. Nothing is saved there, whatever the provider.\n\n### 2. Switched\
+  \ off in the committed provider config\nEach project switches that memory off in\
+  \ its own committed provider config, so every session started\nin the repository\
+  \ and its worktrees, a dispatched worker included, runs with it off. `init` births\
+  \ the\nswitch in a new project; for an already-born project whose provider config\
+  \ lacks it, `init` reports it\npending and `init --refresh-scaffolds` adds it, every\
+  \ other setting in that file kept.\nA session started outside any project folder\
+  \ (the home folder, then routed into a project) is not\ncovered by that switch:\
+  \ there the provider's user-level setting switches the memory off, which\n`init`\
+  \ offers on every run and writes only on the person's yes (`init --apply-user-memory-off`),\n\
+  every other setting kept; a user settings file that is not readable as a settings\
+  \ object, or that\nsets the switch itself, is never touched and is reported, and\
+  \ a provider with no such setting is\nreported as having none.\n\n### 3. Where each\
+  \ kind of note goes instead\n- (a) something with no home in the corpus → its governed\
+  \ home, or a new one; a craft note takes the\n  lesson route (SPEC-0090);\n- (b)\
+  \ a pointer to a tool that is awaited (a workaround kept until an engine fix ships)\
+  \ → an armed\n  followup;\n- (c) the person's preferences about how the assistant\
+  \ works with them → the project's\n  provider-neutral context home (SPEC-0125: `CHARTER.md`,\
   \ else `AGENTS.md`); a rule for how the\n  project's work is done is a rule, not\
   \ such a preference;\n- everything else → its governed home, as before: a rule or\
   \ a practice → a spec, a pattern or a\n  lesson (SPEC-1037, SPEC-0090); plan or\
@@ -43,25 +47,43 @@ body: "## Scenario\nThe primary AI runs in a tool that may keep a memory of its 
   \ moment of saving, the capture-routing view (SPEC-0157) carries the row for this\
   \ case.\n\n### 4. Recall comes from the corpus\nWhat such a memory recalled is found\
   \ in the corpus instead: the Stage-1 prior-art sweep searches\n`lessons/` by the\
-  \ card's surface (SPEC-0032 step 1).\n\n## Parameters\nNone consumed.\n\n## Rationale\n\
-  Split out of SPEC-0039 §6, which let that memory hold three classes and said it\
-  \ reaches no\ndispatched worker; in this repository workers read and wrote it —\
-  \ 398 notes, 224 written after that\nrule (deviation provider-memory-holds-worker-craft-against-spec-0039-s6),\
+  \ card's surface (SPEC-0032 step 1).\n\n### 5. No other provider-specific store\
+  \ holds project knowledge either\nA session never writes project knowledge into\
+  \ a provider-specific store; the project repository,\nor a surface the project itself\
+  \ declares as its own, is its only home.\n- **Project knowledge** — a plan, a spec,\
+  \ a note, a write-up, a decision, a report or a summary\n  for the person, and anything\
+  \ else the project needs again later.\n- **A provider-specific store** — a service\
+  \ of one AI provider or its tool that keeps content\n  outside the repository: a\
+  \ document, artifact, memory or project-knowledge service.\n- **The link rule.**\
+  \ A link given to the person for such content is a repository path, or the\n  project's\
+  \ own declared surface — never a link into a provider-specific store.\n- **Not covered.**\
+  \ Reading such a store (its content is untrusted external content, SPEC-1056);\n\
+  \  and a vendor surface the person names explicitly for a one-off view, written\
+  \ only after the\n  repository copy, which stays the home. A public post stays under\
+  \ SPEC-1057.\n\n## Parameters\nNone consumed.\n\n## Rationale\nSplit out of SPEC-0039\
+  \ §6, which let that memory hold three classes and said it reaches no\ndispatched\
+  \ worker; in this repository workers read and wrote it — 398 notes, 224 written\
+  \ after that\nrule (deviation provider-memory-holds-worker-craft-against-spec-0039-s6),\
   \ and a worker note was\nwritten again after the sweep (events.jsonl#ts=). A prose\
   \ rule did not\nhold, so the switch is set in config. Owner directive 2026-10-26\
   \ : the system is\nmulti-provider, so a provider's personal memory holds nothing.\
   \ Precedent: the owner-applied suppression\nof the global layer for this directory\
   \ (lessons/global-memory-v2-migration-sweep.md). The\nprovider binding of the switch\
-  \ lives in implementation config, never in this text (CHARTER §P4b).\n\n## Implementation\
-  \ notes\n- Kernel switch: `<provider-config>/settings.json` key `autoMemoryEnabled:\
-  \ false` (the provider's documented\n  project setting). Born switch: `bin/lib/init.py#_provider_memory_off_delivery`,\
-  \ called from\n  `_ensure_consumer_vendor_adapter`; pending causes `auto-memory-off`\
-  \ / `auto-memory-off-unparseable`.\n- User-level switch (rule 2, sessions started\
-  \ outside a project): the binding is per tool in\n  `bin/ai-tools.yaml` (`memory_settings_path`\
-  \ + `memory_off_key`); read by\n  `bin/lib/init.py#_user_memory_off_state`, written\
-  \ compare-then-rename by `_apply_user_memory_off`\n  (the key inserted after the\
-  \ opening brace, every other byte kept), offered by `_offer_user_memory_off`\n \
-  \ from the writing run, the dry-run seam and the no-write tail. The window between\
+  \ lives in implementation config, never in this text (CHARTER §P4b).\nRule 5 added\
+  \ by (cross item X-2330, owner order 2026-11-10): a consumer project's\ncontroller\
+  \ wrote an approval plan into an AI vendor's document service, beside the repository\n\
+  plan, to hand the owner a link; the owner ordered the ban into the kernel because\
+  \ a second,\nunversioned copy in one provider's store breaks the multi-provider\
+  \ premise. Rule 5 extends this\nspec rather than SPEC-0142, which covers the trigger\
+  \ of a governed cadence only.\n\n## Implementation notes\n- Kernel switch: `<provider-config>/settings.json`\
+  \ key `autoMemoryEnabled: false` (the provider's documented\n  project setting).\
+  \ Born switch: `bin/lib/init.py#_provider_memory_off_delivery`, called from\n  `_ensure_consumer_vendor_adapter`;\
+  \ pending causes `auto-memory-off` / `auto-memory-off-unparseable`.\n- User-level\
+  \ switch (rule 2, sessions started outside a project): the binding is per tool in\n\
+  \  `bin/ai-tools.yaml` (`memory_settings_path` + `memory_off_key`); read by\n  `bin/lib/init.py#_user_memory_off_state`,\
+  \ written compare-then-rename by `_apply_user_memory_off`\n  (the key inserted after\
+  \ the opening brace, every other byte kept), offered by `_offer_user_memory_off`\n\
+  \  from the writing run, the dry-run seam and the no-write tail. The window between\
   \ the last compare and\n  the rename is not closed (the provider takes no shared\
   \ lock) and is printed with every write.\n\n## Verification\n- VP1 (born): a fixture\
   \ `init` births `<provider-config>/settings.json` with the switch, committed and\
@@ -72,10 +94,17 @@ body: "## Scenario\nThe primary AI runs in a tool that may keep a memory of its 
   \ (rule): `graph query` of this spec shows rules 1-4; tests/test_t10539_capture_routing_seed.py\n\
   \  reads the rule from this body.\n- VP4 (user-level): on a fixture HOME the init\
   \ offer prints the recommendation, writes the\n  switch only on the yes with every\
-  \ other byte kept, and never touches an unparseable file —\n  tests/test_t14517_user_memory_off.py.\n"
+  \ other byte kept, and never touches an unparseable file —\n  tests/test_t14517_user_memory_off.py.\n\
+  - VP5 (rule 5 + its seed cue): `graph query` of this spec shows rule 5's ban, both\
+  \ scope\n  terms, the link rule and the not-covered cases; the spec is seed-bound\
+  \ with a cue, the generated\n  session-start seed line carries that cue with its\
+  \ `graph query SPEC-1055` pointer, and CHARTER\n  §P4 points here — tests/test_t14583_provider_store_ban.py.\n"
 cites:
 - CHARTER.md#principle-4
 - SPEC-0039
+- SPEC-0142
+- SPEC-1056
+- SPEC-1057
 - SPEC-0157
 - SPEC-0090
 - SPEC-0125
@@ -85,7 +114,11 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 binding:
-- query-only
+- seed
+seed_cue: Keep everything the project needs — plans, notes, write-ups, reports for
+  the person — only in the project repository, never in a provider-specific store
+  (an AI provider's memory, document, artifact or project-knowledge service), and
+  give the person a repository path as the link.
 init_concern: null
 implements_signature:
   bin/lib/init.py#_provider_memory_off_delivery: f7857bd18a9251859bac5293e8d4d6c0d1f4dbb927cd7d7e7c6454a5a4c1a4c4

@@ -429,8 +429,9 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "until `LAND: OK`. "
     "OVER-CAP EXIT (SPEC-1028) — when your `land` CANNOT FIT the per-call FOREGROUND cap (a `bin/**` / "
     "`tests/**` / `yitc-ops.yaml` diff doubles the verify), run it DETACHED while you HOLD YOUR TURN. "
-    "Present a held-turn CLAIM naming YOUR OWN dispatched-worker pid: `WPID=$(grep "
-    "bg_dispatch_launched events.jsonl | grep \"$YITC_EXPECTED_SESSION_REF\" | tail -1 | python3 -c "
+    "Present a held-turn CLAIM naming YOUR OWN dispatched-worker pid, read from main (SPEC-0190): `WPID=$("
+    "<engine CLI> journal query --type bg_dispatch_launched --grep \"$YITC_EXPECTED_SESSION_REF\" "
+    "--limit 1 --json | python3 -c "
     "'import sys,json;print(json.load(sys.stdin)[\"data\"][\"pid\"])')`, then launch "
     f"`: > {land_pid}; YITC_LAND_HELD_TURN_PID=$WPID setsid bash -c 'echo $$ > {land_pid}; exec "
     "<the SAME `land --task T-XXXX` invocation you would have run in the foreground — the engine-CLI "
@@ -538,7 +539,7 @@ _SYNC_REMINDER_STAGES = frozenset({"Tests", "Audit-pre", "Audit-post", "Commit",
 # T-10710 (X-0561) — the IN-WORKTREE `session start` cue the preamble hands the worker (point 3,
 # SEED-READ RECEIPTS). The ENGINE's own dispatch keeps the BARE form; a CONSUMER target has no local
 # `bin/yitc-v2` at all (AGENTS §Consumer (-C) note), so a bare cue is REFUSED and every dispatched
-# consumer worker burns one wasted verb call (<project>, X-0561 — an instance of the dominant
+# consumer worker burns one wasted verb call (boomrocket, X-0561 — an instance of the dominant
 # `-C` delivery-incompleteness class, lessons/kernel-consumer-boundary-evidence.md). The consumer form
 # MIRRORS the engine-resolved `-C` rendering `session start`'s own `--help` rescan line already emits
 # (bin/lib/session.py, T-9469) — same shape, one more surface; NOT a second detection mechanism.
@@ -921,7 +922,7 @@ def _touch_path_is_union_merged(path) -> bool:
     file is governance (exempt from the product gate) but is NOT union-merged — two cards editing one
     spec DO conflict at land, so the overlap advisory must keep reporting them. PURE f(str) -> bool."""
     p = _touch_unit_path(path)
-    return bool(p) and (p == "events.jsonl" or p.endswith("/events.jsonl"))
+    return bool(p) and (events.is_journal_family_path(p) or p.endswith("/events.jsonl"))   # T-14587: + day partitions
 
 
 def _touch_path_is_product(path) -> bool:
@@ -1851,7 +1852,7 @@ def _compose_worker_brief(brief: str, journal_tail: "str | None" = None,
 
 
 # T-10578 (X-0429) — the JOURNAL-derived re-dispatch state fold + render. A re-dispatch brief must be
-# JOURNAL-VERIFIED, never composed from controller memory: the <project> incident shipped a brief that
+# JOURNAL-VERIFIED, never composed from controller memory: the boomrocket incident shipped a brief that
 # asserted a clean post-land orphan needing a mechanical tail (audit-post + close + land), while the
 # journal carried audit-post RED (3 findings) + a rung-2 consult RED + a deliberate task_paused(owner-
 # wait) on an AUTHORITY-class SPEC-0191 §5 scope decision. Following the brief would have laundered the
@@ -1860,7 +1861,7 @@ def _compose_worker_brief(brief: str, journal_tail: "str | None" = None,
 # the SAME _dispatch_status_events fold cmd_dispatch already reads (Principle 1 — no new reader).
 _REDISPATCH_AUDIT_TYPES = ("audit_pre_completed", "audit_post_completed")
 # Progress events that, when they POST-DATE a live pause record, contradict a next_action that assumed
-# the worker stopped there (the <project> pause said "unlanded, worktree intact"; the worker then
+# the worker stopped there (the boomrocket pause said "unlanded, worktree intact"; the worker then
 # LANDED + died). Their presence after the pause ts is the stale-pause signal (scope b).
 _REDISPATCH_PROGRESS_TYPES = ("commit_landed", "land_completed", "task_closed",
                               "audit_pre_completed", "audit_post_completed",
@@ -2659,6 +2660,12 @@ def cmd_dispatch_watch(tasks: "list[str]", *, interval: int, timeout: int, confi
               + (f"; {suppressed} actionable OUT-OF-SCOPE (not woken — another watcher's business)"
                  if suppressed else "")
               + f"; action={action}", file=err, flush=True)
+        # T-14592 — a watched worker in the admission queue: why it waits (the mode and its blocker), read
+        # off the status row this tick already has, so a serial wait is not read as idle capacity
+        for _tid in tasks:
+            _aw = (statuses.get(_tid) or {}).get("admission_wait") or {}
+            if _aw.get("says"):
+                print(f"watch:   {_tid} admission: {_aw['says']}", file=err, flush=True)
         # T-11926 — RECORD any premature exit this tick observed, BEFORE the break, so a tick that
         # both observes the death AND satisfies a wake condition still writes the row it saw. Scoped
         # to `in_scope` rows (the trigger, not the view). Fail-open per finding: one bad append never
@@ -2915,7 +2922,7 @@ def _in_claim_footprint(path: str, task: str) -> bool:
     The ONE definition of that footprint (`_orphan_carries_work`'s docstring is its rule home), read
     by the uncommitted-path loop there AND by the landed-done commit proof below, so a committed and
     an uncommitted path can never be judged against two different footprints (CHARTER §P5)."""
-    return path == "events.jsonl" or bool(_claim_card_re(task).fullmatch(path))
+    return events.is_journal_family_path(path) or bool(_claim_card_re(task).fullmatch(path))   # T-14587
 
 
 def _git_z_paths(stdout) -> "list[str]":
@@ -3124,13 +3131,13 @@ The preamble's point-3 CLAIM step does NOT apply to this dispatch. Do NOT run `w
 {task}`: the task is ALREADY claimed and the branch already exists, so that command will refuse. Take
 the worktree over instead:
 
-  bin/yitc-v2 worktree adopt --task {task} --confirm-dead
+  {invoke} worktree adopt --task {task} --confirm-dead
   cd {wt}
-  bin/yitc-v2 session start --type build
+  {wt_invoke} session start --type build
 
 `--confirm-dead` is a provenance assertion only — the verb RE-VERIFIES liveness in code and refuses a
 live holder, so it cannot be talked into a takeover. Then re-derive state from the journal and the
-on-branch card, re-enter your `current_stage` (`bin/yitc-v2 stage <STAGE> --task {task}`), and carry
+on-branch card, re-enter your `current_stage` (`{wt_invoke} stage <STAGE> --task {task}`), and carry
 the task to `task close` → `land` as usual. Every other point of the preamble applies unchanged.
 === END ADOPT-FIRST OVERRIDE ===
 """
@@ -3169,11 +3176,13 @@ refuse. This is a RESUME, not a claim — take the worktree over, then re-enter 
 
   {invoke} worktree adopt --task {task} --confirm-dead
   cd {wt}
-  {invoke} session start --type build
-  {invoke} task resume {task}
-  {invoke} stage {stage} --task {task}
+  {wt_invoke} session start --type build
+  {wt_invoke} task resume {task}
+  {wt_invoke} stage {stage} --task {task}
 
-Run them in THAT ORDER and skip none. `--confirm-dead` is a provenance assertion only — the verb
+Run them in THAT ORDER and skip none, exactly as printed: every step after the adopt acts on the card
+in the ADOPTED worktree (T-14588) — run against the main checkout, `task resume` reads main's older
+pause and refuses it as a landed one. `--confirm-dead` is a provenance assertion only — the verb
 RE-VERIFIES liveness in code and refuses a live holder, so it cannot be talked into a takeover.
 `task resume` (T-0381) re-enters a paused in-progress card WITHOUT a second claim: it validates the
 worktree own-stamp the adopt just wrote (T-0362) and clears `paused_at`/`paused_reason`, keeping the
@@ -3189,6 +3198,29 @@ Re-derive the rest of your state from the journal and the on-branch card before 
 the task through the remaining stages as usual. Every other point of the preamble applies unchanged.
 === END RESUME-FIRST OVERRIDE ===
 """
+
+
+def _entry_override_brief(task, wt, resume, *, is_consumer: bool, engine_root, repo_root) -> str:
+    """T-14588 — render the entry override block (RESUME-FIRST when `resume` is the
+    `_resume_entry_card` dict, else ADOPT-FIRST) for a worker re-dispatched into the preserved
+    worktree `wt`. PURE.
+
+    Two invocation prefixes, both from `_worker_invocation_prefix`: `invoke` targets the main
+    checkout (`repo_root`) — the adopt and the claim the block forbids run there — and `wt_invoke`
+    targets the adopted worktree, so every step that acts on the card after the adopt reads the
+    worktree's card, never main's (X-2351/X-2352: main's older landed pause made `task resume`
+    refuse). For the kernel both are the bare `bin/yitc-v2`; the `cd {wt}` line does the targeting."""
+    invoke = _worker_invocation_prefix(is_consumer=is_consumer, engine_root=engine_root,
+                                       repo_root=repo_root)
+    wt_invoke = _worker_invocation_prefix(is_consumer=is_consumer, engine_root=engine_root,
+                                          repo_root=wt)
+    if resume:
+        return RESUME_ADOPT_BRIEF_OVERRIDE.format(
+            task=task, wt=wt, invoke=invoke, wt_invoke=wt_invoke,
+            paused_at=resume["paused_at"], paused_reason=resume["paused_reason"],
+            stage=resume["stage"], resume_from=resume["resume_from"],
+            next_action=resume["next_action"])
+    return ORPHAN_ADOPT_BRIEF_OVERRIDE.format(task=task, wt=wt, invoke=invoke, wt_invoke=wt_invoke)
 
 
 def _resume_entry_card(card, wt_card=None) -> "dict | None":
@@ -4627,11 +4659,10 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
             encoding="utf-8")
     # (6) restore — FAIL-CLOSED: only operator-named tracked+dirty paths; never the journal.
     restore_paths = [p.strip() for p in _as_list("--restore-path", restore_paths) if p.strip()]
-    _BOOKKEEPING = {"events.jsonl"}
     dirty_tracked = {ln[3:].strip() for ln in dirt_lines if not ln.startswith("??")}
     restored, skipped_restore = [], []
     for p in restore_paths:
-        if p in _BOOKKEEPING:
+        if events.is_journal_family_path(p):   # T-14587: every journal segment, not the root only
             _die(f"dispatch --stop: refusing to restore bookkeeping path {p!r} — the journal is "
                  f"append-only; reverting it would erase real history.")
         if p not in dirty_tracked:
@@ -4944,6 +4975,118 @@ def _watch_read_scope(main_wt, timeout_sec: int):
     return journal.WatchReads(Path(main_wt) / "events.jsonl", _declare)
 
 
+# ── T-14620 — the watch timeout default DERIVED from the project's recorded card durations ──────────
+# X-2378 ask C: a watcher whose bound does not fit the project's cards times out and is re-armed by
+# hand. When no --watch-timeout is given the arming derives the bound from the wall durations of the
+# project's recently landed cards (task_picked -> land_completed status ok):
+#     derived = ceil(p90 x 1.25), clamped to [WATCH_TIMEOUT_DERIVE_FLOOR_SEC, the default in force]
+# over the cards landed in the last WATCH_TIMEOUT_DERIVE_WINDOW_DAYS days; with fewer than
+# WATCH_TIMEOUT_DERIVE_MIN_SAMPLES durations the default in force stands. A card counts by its LAND
+# date; its pick is read from up to one further window back, so a card whose claim->land span exceeds
+# that is not counted. THE CAP IS THE DEFAULT IN
+# FORCE (`journal.watch_max_runtime_secs()`, the machine setting else the built-in) and never more:
+# patterns/background-session-monitoring.md §Watcher NESTING binds the default under the wrapper
+# ceiling, and a machine whose wrappers hold longer raises that default (T-14002) — the derivation
+# never crosses it. The explicit flag still wins over all of this, unclamped.
+WATCH_TIMEOUT_DERIVE_PERCENTILE = 90
+WATCH_TIMEOUT_DERIVE_MARGIN = 1.25
+WATCH_TIMEOUT_DERIVE_MIN_SAMPLES = 5
+WATCH_TIMEOUT_DERIVE_WINDOW_DAYS = 30
+WATCH_TIMEOUT_DERIVE_FLOOR_SEC = 300
+_WATCH_DURATION_TYPES = ("task_picked", "land_completed")
+
+
+def _parse_row_ts(ts):
+    try:
+        return datetime.datetime.strptime(str(ts), "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=datetime.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _card_wall_durations(rows, *, since=None) -> "list[int]":
+    """The wall seconds from a card's claim to its successful land, one per landed card (pure).
+
+    Rows are walked in `ts` order. A `task_picked` sets the card's pick time (a later pick replaces it:
+    a re-claim restarts the wall clock); a `land_completed` with `data.status == "ok"` for that card —
+    its `task_id`, else a `data.branch` of `task/<id>` — yields `land - pick` and consumes the pick, so
+    a second land without a new pick counts nothing. Abort lands, lands of no card, lands with no
+    recorded pick, unparseable stamps and non-positive spans are skipped. `since` drops lands before it."""
+    picks, out = {}, []
+    dated = []
+    for row in rows or ():
+        if not isinstance(row, dict) or row.get("type") not in _WATCH_DURATION_TYPES:
+            continue
+        ts = _parse_row_ts(row.get("ts"))
+        if ts is not None:
+            dated.append((ts, row))
+    dated.sort(key=lambda it: it[0])
+    for ts, row in dated:
+        data = row.get("data") if isinstance(row.get("data"), dict) else {}
+        if row.get("type") == "task_picked":
+            if row.get("task_id"):
+                picks[str(row["task_id"])] = ts
+            continue
+        if data.get("status") != "ok":
+            continue
+        tid = row.get("task_id")
+        if not tid:
+            branch = str(data.get("branch") or "")
+            tid = branch[len("task/"):] if branch.startswith("task/") else None
+        picked = picks.pop(str(tid), None) if tid else None
+        if picked is None or (since is not None and ts < since):
+            continue
+        span = int((ts - picked).total_seconds())
+        if span > 0:
+            out.append(span)
+    return out
+
+
+def _resolve_watch_timeout(raw, main_wt, *, _rows=None, _now=None) -> "tuple[int, dict]":
+    """(seconds, basis) for an arming. `raw` is the --watch-timeout value (None = absent). Never
+    raises: a journal that cannot be read leaves the default in force, with the error named."""
+    if raw is not None:
+        return max(0, int(raw)), {"source": "flag"}
+    cap = int(journal.watch_max_runtime_secs())
+    now = _now or datetime.datetime.now(datetime.timezone.utc)
+    since = now - datetime.timedelta(days=WATCH_TIMEOUT_DERIVE_WINDOW_DAYS)
+    try:
+        if _rows is None:
+            # Picks may precede the window's first land, so the read starts one window earlier.
+            floor = (since - datetime.timedelta(days=WATCH_TIMEOUT_DERIVE_WINDOW_DAYS)).strftime("%Y-%m-%d")
+            _rows = journal.segment_rows_since(Path(main_wt) / "events.jsonl", floor,
+                                               types=set(_WATCH_DURATION_TYPES))
+        durations = sorted(_card_wall_durations(_rows, since=since))
+    except Exception as exc:     # noqa: BLE001 — a default must never refuse an arming
+        return cap, {"source": "shipped-default", "samples": 0, "cap_sec": cap,
+                     "error": f"{type(exc).__name__}: {exc}"[:200]}
+    n = len(durations)
+    if n < WATCH_TIMEOUT_DERIVE_MIN_SAMPLES:
+        return cap, {"source": "shipped-default", "samples": n, "cap_sec": cap}
+    rank = -(-WATCH_TIMEOUT_DERIVE_PERCENTILE * n // 100)          # nearest-rank, 1-based
+    p = durations[max(1, rank) - 1]
+    unclamped = -(-p * int(WATCH_TIMEOUT_DERIVE_MARGIN * 100) // 100)    # ceil(p x margin), integer
+    value = min(max(unclamped, WATCH_TIMEOUT_DERIVE_FLOOR_SEC), cap)
+    return value, {"source": "derived", "samples": n, "percentile": WATCH_TIMEOUT_DERIVE_PERCENTILE,
+                   "percentile_sec": p, "margin": WATCH_TIMEOUT_DERIVE_MARGIN,
+                   "unclamped_sec": unclamped, "clamped": value != unclamped, "cap_sec": cap,
+                   "window_days": WATCH_TIMEOUT_DERIVE_WINDOW_DAYS}
+
+
+def _watch_timeout_basis_text(seconds, basis) -> str:
+    src = basis.get("source")
+    if src == "flag":
+        return f"watch timeout {seconds}s — from --watch-timeout"
+    if src == "derived":
+        clamp = f", clamped to [{WATCH_TIMEOUT_DERIVE_FLOOR_SEC}, {basis['cap_sec']}]" if basis.get("clamped") else ""
+        return (f"watch timeout {seconds}s — derived: p{basis['percentile']} of {basis['samples']} card "
+                f"wall durations ({basis['percentile_sec']}s) x{basis['margin']}{clamp} (T-14620)")
+    why = f"; read failed: {basis['error']}" if basis.get("error") else ""
+    return (f"watch timeout {seconds}s — the default in force: {basis.get('samples', 0)} card wall "
+            f"duration(s) in {WATCH_TIMEOUT_DERIVE_WINDOW_DAYS} days, fewer than "
+            f"{WATCH_TIMEOUT_DERIVE_MIN_SAMPLES} needed to derive{why} (T-14620)")
+
+
 def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append_event,
                _dispatch_status_events=None, _pid_alive=_default_pid_alive,
                _proc_start_token=_default_proc_start_token,
@@ -4960,7 +5103,8 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
     _timeout_raw = getattr(args, "watch_timeout", None)
     # T-14002: an absent value takes the default IN FORCE (the machine setting, else the built-in
     # journal.WATCH_MAX_RUNTIME_SECS); the argparse default is None so a real CLI call reaches here.
-    _timeout = journal.watch_max_runtime_secs() if _timeout_raw is None else max(0, int(_timeout_raw))
+    # T-14620: within that bound, an absent value is derived from the project's card durations.
+    _timeout, _timeout_basis = _resolve_watch_timeout(_timeout_raw, main_wt)
     # T-13396 — the WHOLE arming (the live-watcher dedup read and the loop) runs inside ONE
     # watch-lifetime ReadScope (block above `_watch_read_scope`).
     with _watch_read_scope(main_wt, _timeout) as _reads:
@@ -5025,6 +5169,8 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
         # arming that works is byte-for-byte unchanged (AC3). NO REFUSAL: refusing would destroy the
         # only observability an orphaned arming still has, and would newly break the `> log`-and-poll
         # operator on a verb whose contract never forbade it.
+        # T-14620 — the bound and its basis, on stderr (stdout carries the WATCH: token alone).
+        print(f"dispatch: {_watch_timeout_basis_text(_timeout, _timeout_basis)}", file=sys.stderr, flush=True)
         _arm_reach, _arm_detail, _arm_why = _watch_arming_reachability()
         _arm_banner_delivered = False
         if _arm_reach == "unreachable":
@@ -5085,6 +5231,7 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
                            "caller_channel_delivered": _arm_banner_delivered,
                            "pid": os.getpid(), "ppid": os.getppid(), "watched_tasks": tasks,
                            "watch_fleet": bool(getattr(args, "watch_fleet", False)),
+                           "timeout_sec": _timeout, "timeout_basis": _timeout_basis,   # T-14620
                            "reason": "records HOW this watcher was armed, so a fleet read can tell an "
                                      "ORPHANED watcher from one whose exit can re-invoke its caller "
                                      "(T-12641, X-1440). Only the NEGATIVE is proven; `unproven` is "
@@ -5753,16 +5900,9 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                           f"RESUME, not a claim. The brief's entry is `worktree adopt` -> "
                           f"`task resume` -> `stage {_resume['stage']}`; the launch row carries "
                           f"mode=resume (T-12332).", flush=True)
-                    brief = RESUME_ADOPT_BRIEF_OVERRIDE.format(
-                        task=task, wt=live[task],
-                        invoke=_worker_invocation_prefix(is_consumer=_is_consumer,
-                                                         engine_root=_engine_root,
-                                                         repo_root=REPO_ROOT),
-                        paused_at=_resume["paused_at"], paused_reason=_resume["paused_reason"],
-                        stage=_resume["stage"], resume_from=_resume["resume_from"],
-                        next_action=_resume["next_action"]) + "\n" + brief
-                else:
-                    brief = ORPHAN_ADOPT_BRIEF_OVERRIDE.format(task=task, wt=live[task]) + "\n" + brief
+                brief = _entry_override_brief(task, live[task], _resume, is_consumer=_is_consumer,
+                                              engine_root=_engine_root,
+                                              repo_root=REPO_ROOT) + "\n" + brief
                 # fall through to spawn (worktree + branch intact; the worker adopts, never re-claims)
         # PRE-FLIGHT in-flight-DISPATCH guard (T-9636, X-0124): the T-0621 live-worktree check above is
         # blind to the window where a SIBLING controller already launched a worker for THIS id but the
@@ -5809,7 +5949,7 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
         # type — a fresh `commit_landed`/`task_filed` (a just-filed id) OR a self-emitted
         # `bg_dispatch_skipped`. So the original bare `cls == "working"` SKIP false-fired on a freshly
         # filed task AND self-reinforced a phantom: each skip re-appends a recent `bg_dispatch_skipped`,
-        # so the id never ages to silent_stop and becomes PERMANENTLY un-dispatchable (<project>
+        # so the id never ages to silent_stop and becomes PERMANENTLY un-dispatchable (social-parser
         # T-0029). The in-flight-DISPATCH signal is SPECIFICALLY a recent `bg_dispatch_launched` with no
         # live worktree (the live check above already `continue`d on a live one). Re-classify on the
         # launched-ONLY sublist: it has no terminal, so a RECENT launch hits the same recency branch and
@@ -5839,7 +5979,7 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
         # T-10576, the SPEC-0103 §5 pause-shape fork) emits `task_paused`, LANDS its record, and the
         # worker EXITS — but `task_paused` is in no DISPATCH_TERMINAL_TYPES, so the launched axis kept
         # reading `working` and every re-dispatch after an owner unblock demanded the X-0131 `--force`
-        # (<project> burned two redundant attempts). The landed-ness signal already exists on main and
+        # (boomrocket burned two redundant attempts). The landed-ness signal already exists on main and
         # needs NO new store/event: the CARD carries `paused_at`, and a card on MAIN carries it only
         # once the pause bookkeeping LANDED — a WORK-CARRYING pause never lands, so its card on main has
         # no `paused_at` and its INTACT worktree trips (b) below. Peer of the T-10378 worker_parked

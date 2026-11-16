@@ -530,7 +530,7 @@ rather than a recovery (cross-ref §Abnormal situations in `background-session-m
 keys off the session-REFRESH handoff (one session hands the batch to its successor). But the owner may
 have TWO interactive controller windows open at once, each driving the same owner concern with NO handoff
 between them — and there the batch-id-set key does not exist. This is the X-0430 class: on 2026-07-16 two
-live <project> controllers built duplicates TWICE in one day ( refused as a byte-equivalent of
+live boomrocket controllers built duplicates TWICE in one day ( refused as a byte-equivalent of
 landed; collided with on 3 files — 2 full worker builds + a hand merge burned). The
 hazard is structural: a controller's filing/claim read screens against LANDED state (the graph index) plus
 the `task/T-XXXX` claim frontier, but a peer session's **filed-but-unclaimed card** and its **`work/<slug>`

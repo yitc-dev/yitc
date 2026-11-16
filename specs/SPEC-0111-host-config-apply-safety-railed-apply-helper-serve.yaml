@@ -236,9 +236,9 @@ binding:
 implements_signature:
   bin/lib/cli.py#cmd_host_apply: f8d17859a7d907a886c6706efb1c7eafed03627a6a8945a1fa4fec4150ae798d
   bin/lib/host_apply.py#_classify_health: 29a3fcfc390bc370fcb30e55822eb39cb2d9fdf5a93e47eab1ee9cc99eb024fe
-  bin/lib/host_apply.py#_collision_violation: 57aaf4a14975f8d4df1bc6d141a4d6bf096d361dff05ab0502a2415290da31af
+  bin/lib/host_apply.py#_collision_violation: 56073a8517c9ba34cc4dcff8cec323135368ae194a5470e4e8a4d0aef36ea391
   bin/lib/host_apply.py#_confirm_authority_violation: fa332b9d33cba4dce549710e0647370874ad2068b7a6c5ad6b94bd99d3f989f5
   bin/lib/host_apply.py#_directive_names_target: c412e7816afa4d1b07b530d26dd7111bb265dfdd38eea6cbba683ed5ba70f9bc
-  bin/lib/host_apply.py#_reconciliation_record: a5dd2a2c2b03ff807f0465243289383e49a9ff2de672ed6cd5a5eec48856628c
+  bin/lib/host_apply.py#_reconciliation_record: c0ffd6eb4ca109ff0cf81b368dc0d483ef68de86eee371eaa36c8b634454b532
   bin/lib/host_apply.py#_regressed_domains: 5952704476a89bc1ed3b203bc6f764e3b426a7417c7bfafdfe10d12d149780d3
-  bin/lib/host_apply.py#cmd_host_apply: e7c0220795d402e0fb43d0245ce50f0846ced22762f839153ed3ca608a55245b
+  bin/lib/host_apply.py#cmd_host_apply: 2d82f54a48ef85b3a761529d6d4016784f4d58d315912508f89be22aa364114a

@@ -483,15 +483,15 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ finding 2\n  on the corpus-guard-ordering consult, 2026-08-20)\n\n### History\
   \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
   \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
-  - From «1. Identity (broadened)»: — the <project>-migration incident (X-0195 / X-0197)\n\
-  - From «7. How to create / split / reshape»: Prior-art (in-place on the ACTIVE <workshop-spec>\n\
-  \  audit-loop ceiling): (commit 965af137) added a new ceiling-EXEMPT case — the\n\
-  \  plan-freshness re-audit ledger-skip — directly in <workshop-spec>'s body; (6c7e5021,\
-  \ a\n  consult-reopened owner-reset pass) and (66efb620, a uniform ceiling-continuation\
-  \ carrier)\n  likewise EXTENDED that ceiling in-place.\n- From «7. How to create\
-  \ / split / reshape»: watermark basis change (`now →\n  window_through`) kept the\
-  \ rule-text (\"closed boundary / routed exactly once\") intact YET changed\n  the\
-  \ reprocessing window a consumer observes → routed via supersede (consult-blessed).\n\
+  - From «1. Identity (broadened)»: — the boomrocket-migration incident (X-0195 /\
+  \ X-0197)\n- From «7. How to create / split / reshape»: Prior-art (in-place on the\
+  \ ACTIVE <workshop-spec>\n  audit-loop ceiling): (commit 965af137) added a new ceiling-EXEMPT\
+  \ case — the\n  plan-freshness re-audit ledger-skip — directly in <workshop-spec>'s\
+  \ body; (6c7e5021, a\n  consult-reopened owner-reset pass) and (66efb620, a uniform\
+  \ ceiling-continuation carrier)\n  likewise EXTENDED that ceiling in-place.\n- From\
+  \ «7. How to create / split / reshape»: watermark basis change (`now →\n  window_through`)\
+  \ kept the rule-text (\"closed boundary / routed exactly once\") intact YET changed\n\
+  \  the reprocessing window a consumer observes → routed via supersede (consult-blessed).\n\
   - From «7. How to create / split / reshape»: recorded that the `before-rule-change`\
   \ floor\n  trigger keyed to the `spec-new` ACTION ALONE was \"correct by design\"\
   , relying on a structural\n  backstop (a normative change smuggled in-place leaves\

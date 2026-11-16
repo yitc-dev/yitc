@@ -302,7 +302,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ EVERY remaining one carries X\")? Then ask which members\n   of that population\
   \ THIS change actually reaches. → worked example in the reference.\n   **External-territory\
   \ probe cue —** is the evidence a criterion names produced in a\n   repository this\
-  \ card may not write to (a consumer checkout — <project> / <project> / <project>)?\
+  \ card may not write to (a consumer checkout — <project> / boomrocket / <project>)?\
   \ Then\n   it cannot be a probe from here, and saying \"out-of-scope\" in the criterion\
   \ text does not rescue it →\n   worked example in the reference.\n   **File-count\
   \ criterion cue —** does a criterion COUNT FILES in the diff (\"the\n   diff touches\
@@ -626,6 +626,6 @@ proposed_by: lifecycle-path-and-verb-sequencing-coherence-who-a
 binding:
 - stage-entry:Filing
 implements_signature:
-  bin/lib/session.py#cmd_session_start: 209518a0b12ba06d7ca13514a927034ad0d08c8cc5416340463977967526f8ee
+  bin/lib/session.py#cmd_session_start: 63a89f0dbcf8f31c0748b952fe356249434ffe36971d4157899e3a88df625cb9
   bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a
   bin/lib/triage.py#cmd_triage_run: 3f828a65de6f3da73f441b3028037f7fe4b9791cd1a354ce9320c57ac66792f3

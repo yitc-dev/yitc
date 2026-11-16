@@ -455,7 +455,7 @@ _CUSTODY_MODE_LOST = "lost"             # (b) gone from disk entirely — a genu
 _CUSTODY_MODE_READER_SET = "reader_set"  # (c) from a structurally unlandable instance — READER defect
 
 
-def _journal_keys(path, *, _event_dedup_key, keep=None) -> dict:
+def _journal_keys(path, *, _event_dedup_key, keep=None, needle=None) -> dict:
     """`{dedupe key: raw line}` for one journal instance. Read-only + tolerant: an absent/unreadable
     instance is ORDINARY (rule 1) and yields `{}`; a key-function failure degrades to raw-line
     identity, exactly as the readers' `_folded_journal_events` does (never drop a row silently).
@@ -464,18 +464,43 @@ def _journal_keys(path, *, _event_dedup_key, keep=None) -> dict:
     STREAMED, so only the entries it keeps are ever held: exactly the unfiltered dict restricted to the
     keys `keep` admits (lines sharing a key are the same event, so `keep` answers alike for all of them
     and keep-first still picks the first). The custody readers want a handful of one task's rows out
-    of the whole live journal; without it each built a ~1M-entry dict to test a few hundred."""
+    of the whole live journal; without it each built a ~1M-entry dict to test a few hundred.
+
+    T-14640 — `needle` (a string) is a raw-line SUPERSET filter applied before a line is keyed or
+    offered to `keep`: a line is skipped unparsed only when it contains neither the needle nor a
+    `\\u` escape. The caller passes it only when every line `keep` can admit holds the needle as a
+    decoded JSON string value (the task id of a task-tied row). A JSON string spells a character other
+    than `"`, `\\`, `/` or a control character either literally or as a `\\u` escape, so for such a
+    needle a line that decodes to it contains it literally or carries an escape; a needle holding any
+    of those characters is not used as a filter at all. The answer is therefore the unfiltered one,
+    from the same lines over the same complete segment set. Measured: keying and parsing every row of
+    the cut kernel journal (~1.5M rows) cost ~33 s per checkout; streaming it with this test ~3 s (19
+    of 1.5M lines carry an escape)."""
+    if needle is not None and (not needle or any(c in needle for c in '"\\/') or
+                               any(ord(c) < 0x20 for c in needle)):
+        needle = None
+
+    def _may_hold(ln) -> bool:
+        return needle is None or needle in ln or "\\u" in ln
+    # T-14567 (SPEC-0190 rule 1c, SPEC-0168) — on the split shape a root journal's evidence is its
+    # COMPLETE logical segment set (sealed or not, never only the live view), read through the
+    # segment-aware `journal.segment_lines` (served by an installed scan scope, no second fold).
+    split = bool(path) and events.split_shape(path)
     if keep is not None:
         # STREAMED through the shared splitter (the same `str.splitlines()` lines); an OSError
         # anywhere yields `{}`, as the whole-file read did.
         out = {}
         try:
-            if not path or not Path(path).exists():
+            if split:
+                source = contextlib.nullcontext(journal_mod.segment_lines(path, encoding="utf-8"))
+            elif not path or not Path(path).exists():
                 return out
-            with Path(path).open("r", encoding="utf-8") as fh:
-                for raw in journal_mod.stream_lines(fh):
+            else:
+                source = Path(path).open("r", encoding="utf-8")
+            with source as fh:
+                for raw in (fh if split else journal_mod.stream_lines(fh)):
                     ln = raw.strip()
-                    if not ln:
+                    if not ln or not _may_hold(ln):
                         continue
                     try:
                         key = _event_dedup_key(ln)
@@ -488,12 +513,17 @@ def _journal_keys(path, *, _event_dedup_key, keep=None) -> dict:
         return out
     out = {}
     try:
-        if not path or not Path(path).exists():
+        if split:
+            lines = [ln for ln in (l.strip() for l in journal_mod.segment_lines(path, encoding="utf-8")) if ln]
+        elif not path or not Path(path).exists():
             return out
-        lines = [ln for ln in (l.strip() for l in Path(path).read_text(encoding="utf-8").splitlines()) if ln]
+        else:
+            lines = [ln for ln in (l.strip() for l in Path(path).read_text(encoding="utf-8").splitlines()) if ln]
     except OSError:
         return out
     for ln in lines:
+        if not _may_hold(ln):
+            continue
         try:
             key = _event_dedup_key(ln)
         except Exception:            # noqa: BLE001 — mirrors the reader's tolerant key contract
@@ -530,7 +560,11 @@ def _custody_counted_keys(tid: str, W: Path, main_wt: Path, *, _event_dedup_key,
             return isinstance(ev, dict) and task_mod._event_task_id(ev) == tid
 
         for jp in (W / "events.jsonl", main_wt / "events.jsonl"):
-            for key, line in _journal_keys(jp, _event_dedup_key=_event_dedup_key, keep=_is_tid_row).items():
+            # T-14640 — a row tied to `tid` names it in its raw line (`_event_task_id` reads it off
+            # the row), so `needle=tid` skips every other row unparsed; the complete segment set is
+            # still read, because the packet folds a task-tied row whatever its date.
+            for key, line in _journal_keys(jp, _event_dedup_key=_event_dedup_key, keep=_is_tid_row,
+                                           needle=tid).items():
                 if key in counted:
                     continue
                 if _is_tid_row(key, line):
@@ -726,10 +760,14 @@ def _custody_emit_report(tid, counted, W: Path, main_wt: Path, *, _run_git_cap, 
             committed_keys=_custody_committed_keys(W, main_wt, _run_git_cap=_run_git_cap,
                                                    _event_dedup_key=_event_dedup_key, only=_counted_keys,
                                                    **_horizon_kw),
+            # T-14640 — every counted row is tied to `tid`, and a line sharing a counted row's key is
+            # the same event, so it names `tid` too: `needle=tid` skips the rest unparsed.
             main_disk_keys=set(_journal_keys(main_wt / "events.jsonl",
-                                             _event_dedup_key=_event_dedup_key, keep=_in_counted)),
+                                             _event_dedup_key=_event_dedup_key, keep=_in_counted,
+                                             needle=tid)),
             hook_tail_keys=set(_journal_keys(main_wt / ".yitc" / "events.jsonl",
-                                             _event_dedup_key=_event_dedup_key, keep=_in_counted)))
+                                             _event_dedup_key=_event_dedup_key, keep=_in_counted,
+                                             needle=tid)))
         lines = _custody_report_lines(tid, modes, counted_total=len(counted))
         for line in lines:
             print(line, file=stream if stream is not None else sys.stderr)

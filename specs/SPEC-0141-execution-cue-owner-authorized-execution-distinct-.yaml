@@ -186,8 +186,8 @@ body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES
   \ Boundary line licensed self-execution of a clear chain and\nthe context-offload\
   \ reason lived only in a pattern; §3a now names it at the rule home and the seed\n\
   carries a cue + pointer.\n\nReal incident X-0212 (deviation `design-agreement-read-as-execution-go`,\
-  \ mirrored from\n<project> 2026-07-06): the handbook did not distinguish \"owner\
-  \ agreed a DESIGN option\" from\n\"owner authorized EXECUTION\", so a design-agreement\
+  \ mirrored from\nsocial-parser 2026-07-06): the handbook did not distinguish \"\
+  owner agreed a DESIGN option\" from\n\"owner authorized EXECUTION\", so a design-agreement\
   \ was read as a go-to-execute. SPEC-0039 §4\nalready encodes exactly this discipline\
   \ for the MEMORY-buffer surface (a stored mandate != a live\ncue); this spec lifts\
   \ that from one surface to the general design->execution seam (CHARTER §P1\nfilter\
@@ -197,7 +197,7 @@ body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES
   \ instead of dispatching, reading the work\nauthorization as a mode authorization.\
   \ §2's MODE-vs-THAT distinction + the §3a NOT-grounds +\nthe §3b stop-and-name reflex\
   \ close that gap: the default mode is dispatch, and only a live\nexplicit owner\
-  \ say-so grounds self-execution.\n\nReal incident X-0404 (<project> 2026-07-15):\
+  \ say-so grounds self-execution.\n\nReal incident X-0404 (boomrocket 2026-07-15):\
   \ the owner voiced a discussion-marker cue («разберись»\n/ «как ты думаешь»-class),\
   \ and a Controller fresh off an autonomous drive read it as an\nexecution-cue —\
   \ immediately filing cross requests and dispatching; the owner corrected explicitly.\n\

@@ -40,59 +40,62 @@ body: "## Scenario\n\nA session emits a task's acceptance-probe evidence with `b
   \ exactly one LIVE segment (`events.jsonl`) plus zero or more\nARCHIVE segments.\
   \ The instance a packet reads is therefore that whole set, folded in segment order\n\
   and resolved by `bin/lib/events.py#segment_paths` — never a literal filename.\n\
-  *Three properties keep this from GROWING, and each is what stops the widening becoming\
-  \ the\nenumeration the rule forbids:*\n  - It is still **ONE instance per checkout**,\
-  \ not two. An archive segment is a physical unit of the\n    SAME logical journal\
-  \ — same line format, same parser, same append+union-merge discipline\n    (CHARTER\
-  \ §P5; the reading SPEC-0084 already ratified, that \"one journal\" means one MECHANISM\
-  \ and\n    explicitly not one physical FILE). So rule 3's dedupe identity and rule\
-  \ 4's set-membership mark\n    are UNCHANGED: a row is cross-instance iff it is\
-  \ absent from the audit side's SET, and the fold\n    of that side now simply spans\
-  \ more physical files.\n  - The **`.yitc/` hook-tail is still excluded**, for its\
-  \ own unchanged reason (gitignored, never\n    tracked, structurally unlandable\
-  \ — rule 5 mode (c)) and additionally because SPEC-0190 rule 1b\n    puts the tail\
-  \ outside the segment contract entirely. Segmentation reaches the ROOT journal only.\n\
-  \  - The **provenance mark names the LOGICAL journal**, never a segment filename.\
-  \ Which physical\n    segment a row happens to sit in is a storage fact, not a custody\
-  \ fact, and rule 4's mark exists\n    to answer \"landed or not yet landed\" — a\
-  \ question segmentation does not touch.\n*The lock is unchanged and is taken ONCE,\
-  \ on the logical journal* — never one per segment (SPEC-0190\nrule 1: \"ONE LOCK\
-  \ IDENTITY, keyed to the logical journal and never to a physical segment\"). Rule\
-  \ 6's\ndiscipline below therefore reads exactly as before.\n**Why the root journal\
-  \ and not the write side's whole fold set.** `land`'s fold\n(`_is_foldable_journal`)\
-  \ unions a PAIR — the root `events.jsonl` AND the `.yitc/events.jsonl`\nhook-tail.\
-  \ That pair is the reader's PROVENANCE story: it is why no third enumeration is\
-  \ invented\nand why the reader never maintains a list that could drift from the\
-  \ write side (CHARTER §P5). It\nis NOT the evidence set. `.yitc/` is gitignored\
-  \ and has never been tracked, so a row living only\nin the hook-tail can NEVER reach\
-  \ a committed journal — counting it as evidence would trip Rule 5's\ncustody check\
-  \ forever, on a row that is unlandable by construction. What the packet may COUNT\
-  \ is\ntherefore scoped to instances that can actually land; what it may CITE as\
-  \ its provenance model is\nthe fold.\n\n### Rule 2 — Task-id exactness (the fold\
-  \ is never a bulk merge)\nA row is folded ONLY when its `task_id` equals the AUDITED\
-  \ task id. **The carrier is PLURAL and the\nreader MUST check EVERY carrier, IN\
-  \ PRECEDENCE ORDER:** `task_id` at the row's TOP LEVEL, then `data.task_id`, then\
-  \ `data.task`. All three\nare present in the live corpus. A reader checking only\
-  \ one carrier silently drops evidence — which\nis precisely the X-0558 failure this\
-  \ rule exists to end. An event carrying a different\ntask id, or no task id at all,\
-  \ is NEVER folded — including one an unrelated concurrent session\nappended to main's\
-  \ tail while this audit ran. The packet aggregates evidence FOR ONE TASK; it\nnever\
-  \ becomes a view of main's uncommitted state.\n\n**The third carrier `data.task`\
-  \ is CLOSED, LAST-PRECEDENCE and FROZEN — and the rule states all\nthree properties\
-  \ because each is what keeps the carrier list from growing again.**\n  - CLOSED:\
-  \ no code path emits the shape. `task` is\n    now a RESERVED `--data` key on that\
-  \ verb, redirecting to `--task`, so no NEW row can take this\n    form. The reader\
-  \ clause is thus a bounded read of a FROZEN population, not an open third ingress.\n\
-  \  - LAST-PRECEDENCE, and this is load-bearing: rows exist whose `data.task` DISAGREES\n\
-  \    with their own canonical carrier, naming a RELATED task rather than the row's\
-  \ subject. They all\n    carry a canonical carrier, so they never reach the fallback;\
-  \ a clause placed first would have\n    mis-tied every one of them.\nA FOURTH carrier\
-  \ is not admissible under this rule: close the shape at the emitter instead.\n\n\
-  ### Rule 3 — Dedupe identity is the write side's identity\nAn event present in BOTH\
-  \ instances renders EXACTLY ONCE, deduped by the SAME identity `land`'s\nunion+dedup\
-  \ uses (`_dedup_events`) — canonical-JSON full-object identity, keep-first,\norder-preserving.\
-  \ A second identity function would let the same event count twice on one path and\n\
-  once on another — the drift Rule 1 exists to prevent. **Reuse it through the EXISTING\
+  When appends land in dated files (SPEC-0190 rule 1c), that set holds every dated\
+  \ file, sealed or\nnot, and is never narrowed to the live-window view; rule 5's\
+  \ on-disk presence test reads the same\nwhole set.\n*Three properties keep this\
+  \ from GROWING, and each is what stops the widening becoming the\nenumeration the\
+  \ rule forbids:*\n  - It is still **ONE instance per checkout**, not two. An archive\
+  \ segment is a physical unit of the\n    SAME logical journal — same line format,\
+  \ same parser, same append+union-merge discipline\n    (CHARTER §P5; the reading\
+  \ SPEC-0084 already ratified, that \"one journal\" means one MECHANISM and\n   \
+  \ explicitly not one physical FILE). So rule 3's dedupe identity and rule 4's set-membership\
+  \ mark\n    are UNCHANGED: a row is cross-instance iff it is absent from the audit\
+  \ side's SET, and the fold\n    of that side now simply spans more physical files.\n\
+  \  - The **`.yitc/` hook-tail is still excluded**, for its own unchanged reason\
+  \ (gitignored, never\n    tracked, structurally unlandable — rule 5 mode (c)) and\
+  \ additionally because SPEC-0190 rule 1b\n    puts the tail outside the segment\
+  \ contract entirely. Segmentation reaches the ROOT journal only.\n  - The **provenance\
+  \ mark names the LOGICAL journal**, never a segment filename. Which physical\n \
+  \   segment a row happens to sit in is a storage fact, not a custody fact, and rule\
+  \ 4's mark exists\n    to answer \"landed or not yet landed\" — a question segmentation\
+  \ does not touch.\n*The lock is unchanged and is taken ONCE, on the logical journal*\
+  \ — never one per segment (SPEC-0190\nrule 1: \"ONE LOCK IDENTITY, keyed to the\
+  \ logical journal and never to a physical segment\"). Rule 6's\ndiscipline below\
+  \ therefore reads exactly as before.\n**Why the root journal and not the write side's\
+  \ whole fold set.** `land`'s fold\n(`_is_foldable_journal`) unions a PAIR — the\
+  \ root `events.jsonl` AND the `.yitc/events.jsonl`\nhook-tail. That pair is the\
+  \ reader's PROVENANCE story: it is why no third enumeration is invented\nand why\
+  \ the reader never maintains a list that could drift from the write side (CHARTER\
+  \ §P5). It\nis NOT the evidence set. `.yitc/` is gitignored and has never been tracked,\
+  \ so a row living only\nin the hook-tail can NEVER reach a committed journal — counting\
+  \ it as evidence would trip Rule 5's\ncustody check forever, on a row that is unlandable\
+  \ by construction. What the packet may COUNT is\ntherefore scoped to instances that\
+  \ can actually land; what it may CITE as its provenance model is\nthe fold.\n\n\
+  ### Rule 2 — Task-id exactness (the fold is never a bulk merge)\nA row is folded\
+  \ ONLY when its `task_id` equals the AUDITED task id. **The carrier is PLURAL and\
+  \ the\nreader MUST check EVERY carrier, IN PRECEDENCE ORDER:** `task_id` at the\
+  \ row's TOP LEVEL, then `data.task_id`, then `data.task`. All three\nare present\
+  \ in the live corpus. A reader checking only one carrier silently drops evidence\
+  \ — which\nis precisely the X-0558 failure this rule exists to end. An event carrying\
+  \ a different\ntask id, or no task id at all, is NEVER folded — including one an\
+  \ unrelated concurrent session\nappended to main's tail while this audit ran. The\
+  \ packet aggregates evidence FOR ONE TASK; it\nnever becomes a view of main's uncommitted\
+  \ state.\n\n**The third carrier `data.task` is CLOSED, LAST-PRECEDENCE and FROZEN\
+  \ — and the rule states all\nthree properties because each is what keeps the carrier\
+  \ list from growing again.**\n  - CLOSED: no code path emits the shape. `task` is\n\
+  \    now a RESERVED `--data` key on that verb, redirecting to `--task`, so no NEW\
+  \ row can take this\n    form. The reader clause is thus a bounded read of a FROZEN\
+  \ population, not an open third ingress.\n  - LAST-PRECEDENCE, and this is load-bearing:\
+  \ rows exist whose `data.task` DISAGREES\n    with their own canonical carrier,\
+  \ naming a RELATED task rather than the row's subject. They all\n    carry a canonical\
+  \ carrier, so they never reach the fallback; a clause placed first would have\n\
+  \    mis-tied every one of them.\nA FOURTH carrier is not admissible under this\
+  \ rule: close the shape at the emitter instead.\n\n### Rule 3 — Dedupe identity\
+  \ is the write side's identity\nAn event present in BOTH instances renders EXACTLY\
+  \ ONCE, deduped by the SAME identity `land`'s\nunion+dedup uses (`_dedup_events`)\
+  \ — canonical-JSON full-object identity, keep-first,\norder-preserving. A second\
+  \ identity function would let the same event count twice on one path and\nonce on\
+  \ another — the drift Rule 1 exists to prevent. **Reuse it through the EXISTING\
   \ INJECTION\nSEAM, not an import:** the identity `_event_dedup_key` lives in\n`bin/yitc-v2`,\
   \ the top-level CLI SCRIPT (no `.py` extension, not importable), while the readers\
   \ this\nrule governs live in `bin/lib/task.py` and take host deps by injection —\
@@ -237,7 +240,7 @@ body: "## Scenario\n\nA session emits a task's acceptance-probe evidence with `b
   \ and\nis still legal from the main checkout. This rule makes that promise KEEPABLE\
   \ at audit time; it\ndoes not replace it with an author obligation to emit inside\
   \ the worktree.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nReal incident:\
-  \ <project> X-0558 — acceptance evidence present only in main's uncommitted tail\
+  \ boomrocket X-0558 — acceptance evidence present only in main's uncommitted tail\
   \ was\ninvisible to a `task/T-XXXX` worktree's audit packet, so a criterion with\
   \ existing proof read\nunproven (the fourth structural false-RED class in the family\
   \ of the LIFECYCLE §Stage 8\ndeferred-adoption variants (a)-(d)). The rule EXTENDS\
@@ -301,7 +304,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/audit_packet.py#build_audit_prompt: 9a0ba133785757410d265707119816ad4b6fb47a6dc4148ed980e3dd0d117b65
+  bin/lib/audit_packet.py#build_audit_prompt: e4e0f69efa90364dbf78ba13314ee4fae492971955befce3c8ed2868dfa32e38
   bin/lib/cli.py#_ac_probe_evidence_events_for: 49f39e49fad32eb7a786226bb39940e18653e96dfafe90bc6cec7ee2f427a90b
   bin/lib/cli.py#_p8_evidence_events_for: bc0670a73cdfe69c153e2af0090d2d74318de157d427dc6d1b81465e870ca672
   bin/lib/cross.py#_cross_evidence_section_for: 738062bd5dfd7928337af3c81ca81ed1d42bd8ed9aa67653ee2affb44296b754

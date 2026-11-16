@@ -133,7 +133,7 @@ body: "### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-
   \ not a slow test** — the class was never hermetic in time.\nThe unmocked external\
   \ is easy to miss precisely because the OBVIOUS externals (email, a bot API) are\n\
   already mocked: it takes only ONE prod code path firing ONE unmocked infra call\
-  \ to silently set a whole\nsuite's per-test floor (X-0431: <project>'s declared-hermetic\
+  \ to silently set a whole\nsuite's per-test floor (X-0431: boomrocket's declared-hermetic\
   \ backend suite carried a hidden\n~19.5s-per-test celery result-backend connect-retry\
   \ stall — 7 tests ≈ 136s of a 145s file — that\nsurvived 990-test growth and pinned\
   \ the whole suite's parallel floor, found only by a faulthandler stack\ndump; PuzzleBot\
@@ -147,10 +147,10 @@ body: "### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-
   \ RAN green) and the rule-16 hermeticity contract (a\nclass hermetic in DATA). The\
   \ DIAGNOSTIC SIGNATURE + triage recipe (uniform per-test durations clustering\n\
   near a configured timeout ⇒ hidden external wait; `--durations=N` → confirm with\
-  \ a `faulthandler_timeout`\nstack dump; <project> worked example) travel as `patterns/hermetic-in-time-suite-latency-triage.md`\n\
+  \ a `faulthandler_timeout`\nstack dump; boomrocket worked example) travel as `patterns/hermetic-in-time-suite-latency-triage.md`\n\
   — the hermetic-in-TIME half assumed by `patterns/consumer-suite-parallelization.md`'s\
   \ \"hermetic first,\nparallel second\" precondition. Consumer-side fix worked example:\
-  \ <project> (celery\n`task_always_eager` + a short test-env broker timeout).\n\n\
+  \ boomrocket (celery\n`task_always_eager` + a short test-env broker timeout).\n\n\
   ### 27. The `product_source:` section — what this repo SHIPS, declared SEPARATELY\
   \ from what it VERIFIES (rule-4 section-add; / external audit ad-hoc 2026-09-01,\
   \ MEDIUM)\nThe `product_source:` top-level section is the AUTHORITATIVE per-repo\
@@ -206,12 +206,12 @@ body: "### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-
   \ would have preserved the coupling permanently for every repo that never declares,\
   \ which\non the evidence is every repo, since nothing would ever pull them. The\
   \ accepted cost, swept across all\n10 registered v2 consumers at 2026-09-01 (`git\
-  \ ls-files` through the live recogniser, with covers vs\nwithout): <project> 692→138,\
-  \ <project> 234→51, <project> 238→63, <project> 164→7, <project>\n36→5 recognised\
-  \ paths; <project>, <project>, <project> and <project> are UNCHANGED (they\ndeclare\
-  \ no covers, or only `tests/**`, which the tests-segment subtraction already removed);\
-  \ <project>\nwas not git-readable and is REPORTED as unswept rather than counted\
-  \ as zero. So ~1100 application-tree\nfiles in 5 consumers stop being recognised\
+  \ ls-files` through the live recogniser, with covers vs\nwithout): boomrocket 692→138,\
+  \ <project> 234→51, <project> 238→63, <project> 164→7, ticket-review\n36→5 recognised\
+  \ paths; social-parser, <project>, <project> and <project> are UNCHANGED (they\n\
+  declare no covers, or only `tests/**`, which the tests-segment subtraction already\
+  \ removed); <project>\nwas not git-readable and is REPORTED as unswept rather than\
+  \ counted as zero. So ~1100 application-tree\nfiles in 5 consumers stop being recognised\
   \ until each declares. That loss is BOUNDED: this gate fires\nonly on a `work/<slug>`\
   \ batch carrying NO card and NO emergency marker, so no task deliverable, no\ncarried\
   \ batch, no verify layer and no audit changes.\n\n**THE NARROWING MUST NEVER BE\

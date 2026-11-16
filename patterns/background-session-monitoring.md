@@ -176,7 +176,7 @@ incidents on 2026-07-09 came straight out of that: a **false ALL_TERMINAL** read
 **premature `blocked`** acted on from ONE transient snapshot. The blessed surface is now a verb:
 
 ```
-bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY...] # run under Monitor, key off the token
+bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY ...]     # run under Monitor, key off the token
     [--watch-interval 60] [--watch-timeout 1500] [--watch-confirm-ticks 2]
 ```
 

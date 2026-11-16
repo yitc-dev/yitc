@@ -86,7 +86,9 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \  row in mode `clean-edit` — `resolved: []` from `merge-tree-clean`, over parents\
   \ `git merge-tree`\n  merges with NO conflict, every path the merge changes beyond\
   \ that clean tree shown as a hand edit —\n  or a clean non-noop `worktree_synced`\
-  \ row) naming that merge and both its parents, a record-only commit, or the one\n\
+  \ row) naming that merge and both its parents — a clean row may name instead of\
+  \ the second parent an earlier commit on that parent's first-parent line, main having\
+  \ moved between the sync's read and its merge — a record-only commit, or the one\n\
   \  verified re-sign commit; the merges may be clean or hand-resolved. Every guard\
   \ is\n  fail-closed and NAMES itself on the ceiling refusal: an authored commit\
   \ in the chain, a merge no\n  row of the card accounts for, the GREEN commit as\
@@ -96,23 +98,29 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \  verdict, a packet that cannot carry every merge's whole resolution\n  (`merge_integration_packet_incomplete`\
   \ — nothing is truncated, no pass is spent), and no green\n  governed Tests run\
   \ newest after the last merge's row whose tested tree is the subject apart from\n\
-  \  inert paths all leave the ceiling standing. The auditor judges the WHOLE merged\
-  \ HEAD, with the prior\n  GREEN, each merge's complete diff from git's mechanical\
-  \ merge in order, and the final task delta as\n  context. The pass is FINAL: a RED\
-  \ is TERMINAL for audit-post by the <workshop-spec> rule-4 reading\n  (`terminal_ceiling_row`,\
-  \ reason `merge_integration_pass_returned_red`); after ANY verdict no\n  `--on-decisions`\
-  \ pass and no `audit decide` follow it (`merge_integration_pass_is_final`), so a\n\
-  \  YELLOW takes only the ordinary Stage-8 followup route. While this\n  route is\
-  \ open (admitted, or waiting only on the Stage-6 proof after the merge), an `--on-decisions`\n\
-  \  audit-post pass is refused (`merge_integration_route_open`): it would judge the\
-  \ pre-merge commit;\n  run the ordinary `audit post` instead.\n\n#### On-demand\
-  \ technical-fork consult — mechanics\n\n- **SCOPED TO TECHNICAL FORKS.** The prompt\
-  \ asks the auditor FIRST to classify the fork: a\n  TECHNICAL-MERIT fork (the better\
-  \ variant is decidable on engineering merit — correctness, simplicity,\n  coherence,\
-  \ anti-complexity, reuse) → name survivors + one recommendation; a VALUE / DRAFT-AUTHORITY\n\
-  \  fork (the choice turns on product value, owner preference, or scope authority)\
-  \ → return `verdict:\n  ABORT` with `survivors: []` and ESCALATE to the owner. The\
-  \ auditor judges technical merit ONLY — the\n  owner decides value/draft.\n- **DECOUPLED\
+  \  inert paths and apart from the spec files that run's own close-time activation\
+  \ flipped (each discounted only as the run records it: that path under `specs/`,\
+  \ the subject holding exactly the blob before the flip and the tested tree exactly\
+  \ the blob after it) all leave the ceiling standing. The auditor judges the WHOLE\
+  \ merged HEAD, with the prior\n  GREEN, each merge's complete diff from git's mechanical\
+  \ merge in order, and as context the final\n  task delta of every path the chain\
+  \ or main touched since that GREEN; the rest of the delta, which\n  that GREEN judged,\
+  \ is referenced instead of shown again («The merge-integration packet», below).\n\
+  \  The pass is FINAL: a RED is TERMINAL for audit-post by the <workshop-spec> rule-4\
+  \ reading\n  (`terminal_ceiling_row`, reason `merge_integration_pass_returned_red`);\
+  \ after ANY verdict no\n  `--on-decisions` pass and no `audit decide` follow it\
+  \ (`merge_integration_pass_is_final`), so a\n  YELLOW takes only the ordinary Stage-8\
+  \ followup route. While this\n  route is open (admitted, or waiting only on the\
+  \ Stage-6 proof after the merge), an `--on-decisions`\n  audit-post pass is refused\
+  \ (`merge_integration_route_open`): it would judge the pre-merge commit;\n  run\
+  \ the ordinary `audit post` instead.\n\n#### On-demand technical-fork consult —\
+  \ mechanics\n\n- **SCOPED TO TECHNICAL FORKS.** The prompt asks the auditor FIRST\
+  \ to classify the fork: a\n  TECHNICAL-MERIT fork (the better variant is decidable\
+  \ on engineering merit — correctness, simplicity,\n  coherence, anti-complexity,\
+  \ reuse) → name survivors + one recommendation; a VALUE / DRAFT-AUTHORITY\n  fork\
+  \ (the choice turns on product value, owner preference, or scope authority) → return\
+  \ `verdict:\n  ABORT` with `survivors: []` and ESCALATE to the owner. The auditor\
+  \ judges technical merit ONLY — the\n  owner decides value/draft.\n- **DECOUPLED\
   \ from the `--owner-reset` basis.** The on-demand consult saves to a DISTINCT key,\n\
   \  `decisions/<tid>-audit-consult-on-demand.yaml`, records `passes: 0`, and persists\
   \ NO\n  `basis_fingerprint` — so `_consult_basis` (which reads `<tid>-audit-consult-{pre,post}.yaml`)\
@@ -173,37 +181,69 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ «no commit before or after it»\nto the chain the merge-integration block under\
   \ «Rare ceiling cases» names; at or past the ceiling it\nalso shows hand edits outside\
   \ a merge's conflict paths instead of refusing them, and narrows\nSPEC-1041's finality\
-  \ of the test-found-fix pass for a GREEN one, to that one shown pass.\n\n| Exit\
-  \ | Admitted when | Verbs | What it spends | Guard |\n|---|---|---|---|---|\n| **Post-GREEN\
-  \ merge integration** | everything since the GREEN is a chain of the card's own\
-  \ governed sync merges, any number of them, clean or hand-resolved, each accounted\
-  \ for by its row, with a green governed Tests run at the merged HEAD after the last\
-  \ of them; at or past the ceiling also when a resolution changed paths git reported\
-  \ no conflict in (a renumbered migration, a moved reference, an unverified re-sign),\
-  \ or the spent GREEN is a GREEN test-found-fix pass — the clauses are SPEC-1034's\
-  \ axes row and its block under «Rare ceiling cases» | `worktree sync --resolved`\
-  \ for each merge (a clean merge that needs an integration edit: `worktree sync --hold`,\
-  \ edit, `git add`, then `--resolved`) → `task test --run` → `audit post --task <T>`,\
-  \ before `task close` | ONE counted pass at HEAD for the whole chain, its packet\
-  \ carrying each merge's complete resolution diff in order, each hand edit outside\
-  \ the conflict paths named for the auditor; a packet that cannot carry it all is\
-  \ refused by name, no pass spent. Below the ceiling an ordinary counted pass — when\
-  \ a clause fails while a merge is in HEAD but not in the recorded commit, `audit\
-  \ post` refuses naming the clause, no pass spent, never re-auditing the pre-merge\
-  \ commit; at or past it ONE-SHOT and final — when a clause fails there on a GREEN\
-  \ ceiling row with no residual, the refusal and a dispatched worker's halt row name\
-  \ the clause and this route (no `audit decide`), and the empty-set `--on-decisions`\
-  \ pass is refused while that merge is in HEAD but not in the recorded commit; a\
-  \ merge recorded after the verdict that moves the subject is refused by name, with\
-  \ no further pass | `audit_ceiling.merge_integration_admission` |\n| **Verified\
-  \ re-sign at the merge** | the post-GREEN merge integration above, where the merge\
-  \ brought main's change to code a spec anchors and the re-sign rides INSIDE the\
-  \ merge or as ONE commit directly on it carrying only `specs/SPEC-*.yaml` `implements_signature`\
-  \ values, each EQUAL to the engine's own signature at the subject for an anchor\
-  \ whose code differs between the GREEN commit and the merge | `worktree sync --resolved`\
-  \ → `spec reverify --anchor` + `task commit` (or the re-sign in the merge) → `task\
-  \ test --run` → `audit post --task <T>`, before `task close` | as the merge-integration\
-  \ row; the subject is the re-sign commit when there is one | `audit_ceiling.merge_integration_admission`\
+  \ of the test-found-fix pass for a GREEN one, to that one shown pass.\n\n**The merge-integration\
+  \ packet.** The block that carries the prior GREEN, each merge's resolution and\
+  \ the final task delta is a required packet input, never generic extra context:\
+  \ it, every attachment,\nthe acceptance criteria, the instructions and the test\
+  \ and prototype evidence are kept whole first,\nand only the shipped-diff, spec-coverage\
+  \ and adoption-evidence sections share what remains. Off a\nRED-fix route the ordinary\
+  \ shipped diff, which repeats the final task delta, is shown as a labelled\nsummary\
+  \ — range, per-path counts, read-only retrieval commands and what the prior GREEN\
+  \ judged —\nwhile every machine check still reads the complete diff. The block asks\
+  \ for a semantic integration\nreview and names read-only pointers to the merged\
+  \ subject and each imported main parent, because a\nclean textual merge can leave\
+  \ every resolution diff empty and still break the card.\n\n**What the GREEN already\
+  \ judged is referenced, not shown again.** The block shows the integration:\neach\
+  \ merge's complete resolution, the re-sign and `--fix-red` diffs, and the final\
+  \ task delta of\nevery path in the touched set — each path that a merge's resolution,\
+  \ a merge's change to its first\nparent, the re-sign commit, the GREEN commit to\
+  \ the subject, or main from the base the GREEN's diff\nwas taken from (the GREEN\
+  \ record's `audited_base`) to the last imported main tip changed. Every other\n\
+  path of the final task delta holds the GREEN commit's content over that base's,\
+  \ so its patch is the\none the GREEN judged: it is listed by path with the GREEN\
+  \ verdict's journal locator and the\nread-only `git --literal-pathspecs diff --binary\
+  \ <audited_base> <GREEN commit> -- <path>`. On a card carrying prototype\nitems\
+  \ (SPEC-1058 §3) the carry block follows the same rule while the GREEN record's\
+  \ carry fingerprint\nequals the current block's: an item, carried or not-carried,\
+  \ renders with its hunks only when one of\nits locator paths is in the touched set,\
+  \ and every other item is named by id with that locator and\nthe prototype's read-only\
+  \ retrieval command. Everything renders whole when the saved record is not\nthat\
+  \ GREEN at its commit or names no `audited_base`, on the RED-fix route, and — for\
+  \ the carry\nblock — when the carry fingerprint differs. What is rendered is kept\
+  \ whole first, and a packet it\nstill does not fit is refused `merge_integration_packet_incomplete`,\
+  \ as above.\n\n| Exit | Admitted when | Verbs | What it spends | Guard |\n|---|---|---|---|---|\n\
+  | **Post-GREEN merge integration** | everything since the GREEN is a chain of the\
+  \ card's own governed sync merges, any number of them, clean or hand-resolved, each\
+  \ accounted for by its row, with a green governed Tests run at the merged HEAD after\
+  \ the last of them; at or past the ceiling also when a resolution changed paths\
+  \ git reported no conflict in (a renumbered migration, a moved reference, an unverified\
+  \ re-sign), or the spent GREEN is a GREEN test-found-fix pass — the clauses are\
+  \ SPEC-1034's axes row and its block under «Rare ceiling cases» | `worktree sync\
+  \ --resolved` for each merge (a clean merge that needs an integration edit: `worktree\
+  \ sync --hold`, edit, `git add`, then `--resolved`) → `task test --run` → `audit\
+  \ post --task <T>`, before `task close` | ONE counted pass at HEAD for the whole\
+  \ chain, its packet carrying each merge's complete resolution diff in order, each\
+  \ hand edit outside the conflict paths named for the auditor; a packet that cannot\
+  \ carry it all is refused by name, no pass spent. Below the ceiling an ordinary\
+  \ counted pass — when a clause fails while a merge is in HEAD but not in the recorded\
+  \ commit, `audit post` refuses naming the clause, no pass spent, never re-auditing\
+  \ the pre-merge commit; at or past it ONE-SHOT and final — when a clause fails there\
+  \ on a GREEN ceiling row with no residual, the refusal and a dispatched worker's\
+  \ halt row name the clause and this route (no `audit decide`), and the empty-set\
+  \ `--on-decisions` pass is refused while that merge is in HEAD but not in the recorded\
+  \ commit; a merge recorded after the verdict that moves the subject is refused by\
+  \ name, with no further pass | `audit_ceiling.merge_integration_admission` |\n|\
+  \ **Verified re-sign at the merge** | the post-GREEN merge integration above, where\
+  \ the merge brought main's change to code a spec anchors and the re-sign rides INSIDE\
+  \ the merge or as ONE commit on it — reached from it across the card's own record-only\
+  \ commits only (sync bookkeeping, pause records) — whose paths beyond the card's\
+  \ own lifecycle records (its card, the journal, its own decisions records) are only\
+  \ `specs/SPEC-*.yaml` `implements_signature` values, each EQUAL to the engine's\
+  \ own signature at the subject for an anchor whose code differs between the GREEN\
+  \ commit and the merge | `worktree sync --resolved` → `spec reverify --anchor` +\
+  \ `task commit` (or the re-sign in the merge) → `task test --run` → `audit post\
+  \ --task <T>`, before `task close` | as the merge-integration row; the subject is\
+  \ the re-sign commit when there is one | `audit_ceiling.merge_integration_admission`\
   \ |\n| **RED fix, then merge integration** | below the ceiling only: the latest\
   \ audit-post is RED, the recorded commit is this card's `task commit --fix-red`\
   \ commit recorded after it, and the only delta since that commit is a chain of governed\
@@ -241,17 +281,36 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   sync merged main again whenever it moved during the queue wait, so the exit refused\n\
   `first_parent_not_prior_green`; at a GREEN ceiling row the halt asked for a decision\
   \ per residual\nwith nothing to decide, and the empty-set pass audited the pre-merge\
-  \ commit.\n\nThe RED-fix row is (yitc#227): after a RED, a `--fix-red` commit and\
-  \ a hand-resolved\nTests-run admission sync, every `audit post` subject was refused,\
-  \ and only a rewind of the task\nbranch got out.\n\nEach case above arises on a\
-  \ small minority of audit passes. Rendered inside <workshop-spec> this detail\n\
-  reached every session entering Audit-pre or Audit-post; as a reference behind one\
-  \ index paragraph\nand the head of the acting verb's help it is met by the session\
-  \ that has the case at hand\n(<workshop-spec> §6, the rare-case option).\n\n## Verification\n\
-  \n- VP1 (one home): every block of §Rare ceiling cases is present in this spec and\
-  \ absent from\n  <workshop-spec>, and <workshop-spec> carries exactly one index\
-  \ paragraph naming this spec and the heading to\n  search.\n- VP2 (reachable from\
-  \ the verb): the first lines of the `audit pre`, `audit post`,\n  `audit consult`\
+  \ commit.\n\nThe clean row naming an earlier main is : the Stage-6 admission sync\
+  \ of read main,\na sibling land advanced it before the merge, and the row recorded\
+  \ the earlier main, so `audit post`\nrefused `sync_provenance_missing` for the card's\
+  \ own governed merge. The sync now records the\nmerge's own second parent; the reader\
+  \ keeps admitting rows written before that.\n\nThe RED-fix row is (yitc#227): after\
+  \ a RED, a `--fix-red` commit and a hand-resolved\nTests-run admission sync, every\
+  \ `audit post` subject was refused, and only a rewind of the task\nbranch got out.\n\
+  \nThe reference rule of «The merge-integration packet» is (<project> X-2384), in\
+  \ place as a\ncomposition of an engine-built block that changes nothing a session\
+  \ does on the route: <project>\n, GREEN and then two hand-resolved syncs, was refused\
+  \ `merge_integration_packet_incomplete`\nbecause the block re-rendered the whole\
+  \ final task delta (about 172 kB of its 232 kB; the\nresolutions were 55 kB) and\
+  \ the carry block all 63 items with their hunks (202 kB), while the chain\nand main\
+  \ had touched 7 of the delta's paths and 2 of the items. It was the fifth fix of\
+  \ this packet\nin a row; the owner chose one invariant over a further patch\n(events.jsonl#ts=),\
+  \ narrowing whole-carry promise.\n\nThe re-sign across record-only commits is (a\
+  \ consumer card, X-2396): after a GREEN at the ceiling, a\nhand-resolved admission\
+  \ sync, a dedup record commit, a pause self-commit and a `task commit` re-sign\n\
+  carrying the journal, the card and the card's audit-pre record were refused\n`prior_green_not_at_custody`\
+  \ with no cause named — the re-sign had to sit directly on the merge and\nevery\
+  \ path of it had to be a spec. In place, as an additive extension (SPEC-1037 §7):\
+  \ a re-sign\ndirectly on the merge carrying only spec paths is admitted as before.\n\
+  \nEach case above arises on a small minority of audit passes. Rendered inside <workshop-spec>\
+  \ this detail\nreached every session entering Audit-pre or Audit-post; as a reference\
+  \ behind one index paragraph\nand the head of the acting verb's help it is met by\
+  \ the session that has the case at hand\n(<workshop-spec> §6, the rare-case option).\n\
+  \n## Verification\n\n- VP1 (one home): every block of §Rare ceiling cases is present\
+  \ in this spec and absent from\n  <workshop-spec>, and <workshop-spec> carries exactly\
+  \ one index paragraph naming this spec and the heading to\n  search.\n- VP2 (reachable\
+  \ from the verb): the first lines of the `audit pre`, `audit post`,\n  `audit consult`\
   \ and `task commit` help name this spec.\n- VP3 (no stage render): no stage entry\
   \ delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
 cites:

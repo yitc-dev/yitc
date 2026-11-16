@@ -113,6 +113,11 @@ A matching pattern found **must** be referenced and built upon — not reinvente
 
 **Slip example:** A spec author wrote a custom plan-completeness checklist not knowing that `knowledge/patterns/pre-commit-regression-gates.md` covers an analogous pre-ship gate pattern. Work duplicated and diverged from the existing one without rationale.
 
+- **Draft documents prepared and verified against the live system?** For a plan that changes a system in
+  production: the documents it needs (rights or threat matrix, seam map, guards by change kind,
+  pre-mortem, readiness checklist, decision records) written before the first check round, every row
+  about a mechanism checked on the live system first — `patterns/plan-draft-documents.md`.
+
 ### Probe 6 — Quantitative-claims discipline
 
 **Applies when** the plan contains a quantitative impact claim (cost reduction, throughput delta, multiplier, LOC estimate, savings per period).
@@ -189,9 +194,9 @@ carries only a pointer there.
 ```yaml
 deliverables_mapping:
   - deliverable: "Part A — meta-spec doctrine"
-    artifact: <workshop-spec> # tracked id (task / spec / parked-task) — NOT prose
+    artifact: <workshop-spec>           # tracked id (task / spec / parked-task) — NOT prose
     adoption_probe: "<workshop-spec> status: active (state-check)"
-prose_only_deferrals: none # any "deferred to Part N" with no id = a hole (now also auto-checked)
+prose_only_deferrals: none        # any "deferred to Part N" with no id = a hole (now also auto-checked)
 ```
 
 **Slip example (real V2 incident — deviation fingerprint
@@ -207,13 +212,13 @@ After passing all 7 probes, add to the plan's opening section:
 
 ```yaml
 checklist_pass:
-  P1: documented # parked traverse: N entries checked, inline annotations
-  P2: documented # per-layer breakdown for D-XXXX refs
-  P3: documented # done_definition block with owner_confirmed: true
-  P4: documented # external_review block (or skipped with owner_approved)
-  P5: documented # cross_checked_patterns list
-  P6: documented # quantitative_claims block (or «none»)
-  P7: documented # deliverables_mapping block + prose_only_deferrals: none + per-part adoption_probe
+  P1: documented  # parked traverse: N entries checked, inline annotations
+  P2: documented  # per-layer breakdown for D-XXXX refs
+  P3: documented  # done_definition block with owner_confirmed: true
+  P4: documented  # external_review block (or skipped with owner_approved)
+  P5: documented  # cross_checked_patterns list
+  P6: documented  # quantitative_claims block (or «none»)
+  P7: documented  # deliverables_mapping block + prose_only_deferrals: none + per-part adoption_probe
 ```
 
 Missing any probe = the plan is not final.

@@ -2610,21 +2610,15 @@ def _is_non_artifact(rel: str) -> bool:
                for part in rel.split("/") for pat in NON_ARTIFACT_COMPONENTS)
 
 
-# T-13994 (SPEC-1032 rule 6) — the paths an engine INSTALL holds of its own, which no release carries:
+# T-13994 (SPEC-1059 rule 6) — the paths an engine INSTALL holds of its own, which no release carries:
 # the venue binding at its default home (`venue.CONFIG_DEFAULT`), the journal a `-C` run writes at the
 # install root, and the `.yitc/` state and lock dir. Each is a path relative to the install root; a
-# directory entry covers everything under it. The two consumer-venue digests — the image's release
-# tree (`venue._engine_release`) and the engine release identity (`remote_verify._engine_identity`) —
-# read past them, so a correctly configured install still re-digests to its manifest and equals the
-# box it ships. Anything else that differs from the release — a changed, added or removed file —
-# still fails both. No other reader consults this set: `verify_release` judges a MIRROR, which holds none.
+# directory entry covers everything under it. The consumer-venue engine identity
+# (`remote_verify._engine_identity`, over the engine's `bin/`, the code a consumer pass ships —
+# T-14586) reads past them, so a correctly configured install ships and equals what the box runs.
+# Anything else under `bin/` that differs — a changed, added or removed file — still moves it. No
+# other reader consults this set: `verify_release` judges a MIRROR, which holds none.
 INSTALL_LOCAL_PATHS = ("bin/venue-config.yaml", "events.jsonl", ".yitc")
-
-
-def is_install_local(rel: str) -> bool:
-    """True when `rel` (a path relative to an install root, `/`-separated) is one of
-    `INSTALL_LOCAL_PATHS` or lies under one of them. PURE."""
-    return any(rel == p or rel.startswith(p + "/") for p in INSTALL_LOCAL_PATHS)
 
 
 def read_tracked_release_tree(root: Path, *, exec_paths: "set | None" = None) -> "dict | None":
@@ -5062,8 +5056,13 @@ CHECK_NOTES_HEAD_LINES = 12
 _CHECK_GIT_TIMEOUT = 60   # the same bound `_names_moving_ref` / `_materialize_tagged_release` use
 
 
-def _check_git(release_repo, argv: list):
+def _check_git(release_repo, argv: list, err: "list | None" = None):
     """Run one read-only `git -C <release_repo> …` and return its stdout, or None on ANY failure.
+
+    The call carries the per-call literal-path trust of the pin resolver (`init._release_repo_trust`,
+    T-14455; T-14610): a mirror clone owned by another OS user is otherwise refused by git as
+    "dubious ownership", and release check read that refusal as a mirror with no tags. When `err`
+    is a list, git's own reason for a failure is appended to it, so the caller can name it.
 
     THE REASON THIS EXISTS RATHER THAN INLINE `subprocess` CALLS: the verb's contract is that a
     branch pin or an unreachable mirror is «a plain error line, never a traceback». Routing every
@@ -5072,19 +5071,30 @@ def _check_git(release_repo, argv: list):
     own. The CALLER turns a None into the named line, because only it knows what was being asked.
     """
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    from lib import init as _init        # lazy, as cmd_release_check does — the one trust helper
     import subprocess
 
     try:
-        proc = subprocess.run(["git", "-C", str(release_repo)] + list(argv),
+        proc = subprocess.run(["git", *_init._release_repo_trust(release_repo),
+                               "-C", str(release_repo)] + list(argv),
                               capture_output=True, text=True, timeout=_CHECK_GIT_TIMEOUT,
                               env=_git_env._git_child_env())
-    except Exception:  # noqa: BLE001 — git missing/hanging/failing is UNANSWERABLE, never a crash
+    except Exception as exc:  # noqa: BLE001 — git missing/hanging/failing is UNANSWERABLE, never a crash
+        if err is not None:
+            err.append(f"git did not answer: {exc}")
         return None
-    return proc.stdout if proc.returncode == 0 else None
+    if proc.returncode == 0:
+        return proc.stdout
+    if err is not None:
+        lines = [ln.strip() for ln in (proc.stderr or "").splitlines() if ln.strip()]
+        fatal = [ln for ln in lines if ln.startswith(("fatal:", "error:"))]
+        err.append((fatal or lines or [f"git exited {proc.returncode}"])[0])
+    return None
 
 
-def release_tags(release_repo) -> list:
-    """The mirror's RELEASE tags, ordered oldest → newest. `[]` when the repo cannot be read.
+def release_tags(release_repo, err: "list | None" = None) -> list:
+    """The mirror's RELEASE tags, ordered oldest → newest. `[]` when the repo cannot be read — and
+    then, when `err` is a list, git's reason is in it (an empty tag set leaves it empty).
 
     ORDER COMES FROM `parse_release_version` + `_compare` — the SAME zero-extending tuple comparison
     the version floor already uses, so `v1.2` and `v1.2.0` order equal here exactly as they compare
@@ -5095,7 +5105,7 @@ def release_tags(release_repo) -> list:
     tags that are not releases, and guessing a version for one would let a non-release tag be
     reported as an available update.
     """
-    out = _check_git(release_repo, ["tag", "--list"])
+    out = _check_git(release_repo, ["tag", "--list"], err)
     if out is None:
         return []
     parsed = [(parse_release_version(line.strip()), line.strip()) for line in out.splitlines()
@@ -5185,7 +5195,13 @@ def cmd_release_check(args, *, repo_path, _die=None) -> None:
     pinned_ref = str(pin.get("ref") or "").strip()
     pinned = parse_release_version(pinned_ref)
 
-    tags = release_tags(release_repo)
+    list_error: list = []
+    tags = release_tags(release_repo, list_error)
+    if not tags and list_error:
+        # T-14610: a refusal is not an empty mirror — name git's own reason.
+        print(f"release check: the pin resolves, but git could not list the tags of {release_repo} — "
+              f"{list_error[0]}; the mirror cannot be asked whether a newer release exists.")
+        return
     if not tags:
         print(f"release check: the pin resolves, but {release_repo} lists no release tags — the "
               f"mirror cannot be asked whether a newer release exists.")
@@ -5273,7 +5289,9 @@ def _mirror_release_tags(release_repo, timeout: float) -> "list | None":
         answered = True
         names.update(line.strip() for line in local.splitlines() if line.strip())
     try:
-        proc = subprocess.run(["git", "-C", str(release_repo), "ls-remote", "--tags"],
+        from lib import init as _init  # the same per-call trust as `_check_git` (T-14610)
+        proc = subprocess.run(["git", *_init._release_repo_trust(release_repo),
+                               "-C", str(release_repo), "ls-remote", "--tags"],
                               capture_output=True, text=True, timeout=timeout,
                               stdin=subprocess.DEVNULL,
                               env=_git_env._git_child_env(dict(os.environ, GIT_TERMINAL_PROMPT="0")))

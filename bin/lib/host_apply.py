@@ -248,15 +248,23 @@ def _server_names(conf_text: str) -> set:
     return _parse_server_names(conf_text)[0]
 
 
+def _same_file(a, b) -> bool:
+    """True when two paths name the same file once symlinks are resolved (T-14562). `nginx -T` names a
+    vhost by the path its include glob matched — on a Debian layout the `sites-enabled/<site>` link —
+    while the target may be given as the `sites-available/<site>` file it points at: one file, two names,
+    not another site (SPEC-0111 §2c). A path that does not exist resolves to its normalized absolute form,
+    so a brand-new target still compares literally."""
+    return os.path.realpath(str(a)) == os.path.realpath(str(b))
+
+
 def _collision_violation(target_file: str, shipped_names: set, other_vhosts: dict) -> str:
     """Shared/foreign-vhost collision check (SPEC-0111 §2c). `other_vhosts` maps {file_path -> server_name
     set} for every OTHER vhost file present on the host (NOT the target). REFUSE (return a non-empty
     reason) if any server_name the shipped conf claims is ALSO declared by a DIFFERENT file — the change
     would silently fight another site for that name (the X-0097 overwrite-the-canonical-vhost class).
     Returns "" when the change exclusively owns every name it declares."""
-    target = str(target_file)
     for other_file, other_names in other_vhosts.items():
-        if str(other_file) == target:
+        if _same_file(other_file, target_file):
             continue
         clash = shipped_names & set(other_names)
         if clash:
@@ -312,7 +320,9 @@ def _reconciliation_record(shipped_text: str, target_path: str, live_dump: str) 
                   garbage server_names list (X-1193). None on the clean path.
     Returns {match, clobbered, missing, clobbered_by, parse_error}."""
     sections = _parse_nginx_dump(live_dump)
-    target_live = sections.get(str(target_path), "")
+    target_live = sections.get(str(target_path))
+    if target_live is None:   # the dump names the target under a symlink (sites-enabled) path — T-14562
+        target_live = next((c for p, c in sections.items() if _same_file(p, target_path)), "")
     shipped_names, parse_error = _parse_server_names(shipped_text)
     if parse_error:
         # HONEST about a parse it cannot make (X-1193): no name set is computed, so no confident
@@ -327,7 +337,7 @@ def _reconciliation_record(shipped_text: str, target_path: str, live_dump: str) 
     # text). Substring `in` would let EXTRA live directives in the target still pass — a false reconcile.
     body_reflected = bool(target_live) and _norm(shipped_text) == _norm(target_live)
     clobbered_by = sorted(p for p, c in sections.items()
-                          if str(p) != str(target_path) and (shipped_names & _server_names(c)))
+                          if not _same_file(p, target_path) and (shipped_names & _server_names(c)))
     return {"match": (not missing) and body_reflected, "clobbered": bool(clobbered_by),
             "missing": missing, "clobbered_by": clobbered_by, "parse_error": None}
 
@@ -341,7 +351,7 @@ def _effective_vhosts(nginx_cmd: str, exclude: str = "") -> dict:
     dump = _nginx(nginx_cmd, "-T")
     out: dict = {}
     for path, content in _parse_nginx_dump(dump.stdout or "").items():
-        if path != str(exclude):
+        if not (exclude and _same_file(path, exclude)):
             out[path] = _server_names(content)
     return out
 
@@ -698,7 +708,7 @@ def cmd_host_apply(args: argparse.Namespace, *, REPO_ROOT, REGISTRY_PATH, _appen
             for sib in target.parent.glob("*"):
                 # Skip the target itself + any `*.bak.<stamp>` LEGACY stray — backups now live OUTSIDE the
                 # nginx tree (X-0116), but a pre-fix run may have left one in here; it is not a live vhost.
-                if sib.is_file() and sib != target and ".bak." not in sib.name:
+                if sib.is_file() and not _same_file(sib, target) and ".bak." not in sib.name:
                     try:
                         other_vhosts[str(sib)] = _server_names(sib.read_text(encoding="utf-8"))
                     except (OSError, UnicodeDecodeError):

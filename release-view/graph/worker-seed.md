@@ -92,11 +92,13 @@ This closes the v1 failure mode «shipped infrastructure that nobody actually in
 
 ### 4. AI Independence
 
-Two-axis independence:
+Three-axis independence:
 
 **(a) Auditor independence:** Internal AI (primary) + external auditor SHOULD be different providers — each catches blind spots of the other, and where a second provider is available that pairing is the norm, not an option. When NO external provider resolves for the tier (binding → env → PATH → repo config, none answering), the audit is ADMITTED on the primary provider — never refused, never a wait — and every such verdict is STAMPED `auditor_independence: same-provider` and REMINDED AGAINST at session start. When an external provider DOES resolve, that path is UNCHANGED and the verdict is stamped `external`. No external-only gate, no refusal arm. This is SCOPED to the no-external-provider fallback: it does not make same-provider auditing a free choice. **Retrieved — SPEC-0201** (the stamp, the journaled same-provider event, the reminder seam, the resolution order): `bin/yitc-v2 graph query SPEC-0201`.
 
 **(b) Provider-neutral methodology language:** Methodology docs (`CHARTER.md`, `LIFECYCLE.md`, etc.) MUST NOT mention specific provider names or model IDs in normative text. Use abstractions ("primary AI", "external auditor"). Concrete provider bindings live in implementation config (`bin/`, hooks if added).
+
+**(c) Provider-independent storage:** project knowledge lives only in the project repository, never in a provider-specific store — **Retrieved — SPEC-1055** (rule 5): `bin/yitc-v2 graph query SPEC-1055`.
 
 ### 5. Single Source of Truth
 

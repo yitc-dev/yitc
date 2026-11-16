@@ -13,6 +13,8 @@ implements:
 - bin/lib/plan.py#_plan_prototype_owner_risk_rows
 - bin/lib/plan.py#_plan_prototype_owner_risk_block
 - bin/lib/audit.py#prototype_carry_block
+- bin/lib/plan.py#_proto_carried_by
+- bin/lib/plan.py#_plan_prototype_earlier_plans
 body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spike,\
   \ SPEC-0205), checks it there, and asks\nfor it in production. The carry must bring\
   \ over everything the owner kept and nothing else.\n\nThe CARRY REGISTRY is one\
@@ -34,73 +36,86 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ read by the existing YAML parser; a\nmalformed list refuses `plan stage accepted`\
   \ naming the fault. One item per change:\n`id: R-<n>` (never renumbered) · `kind:\
   \ added | changed | removed | supporting` · `surface` · `what` ·\n`locators: [path:line,\
-  \ …]` · `disposition: carry | not-carried` · `owner_row:` (required for `not-carried`,\
-  \ and for any item added, or changed in any field —\n`what`, `locators`, `disposition`\
-  \ — after the owner's read-back).\n- Granularity: one item never bundles two things\
-  \ the owner could see or test separately; a change no\n  owner sees (formatting,\
-  \ a helper) is a `supporting` item naming the item it serves in `what`.\n- The BASE\
-  \ is the merge-base of main and the prototype tag — defined from the moment the\
-  \ plan opts\n  in, and stable: the registry describes `git diff <base>...<prototype_ref>`.\
-  \ Locators point into the\n  prototype; a `removed` item's locator points into the\
-  \ base.\n- ONE PROTOTYPE COMMIT: the accept `plan check` records the prototype and\
-  \ base commits its packet\n  used; `plan stage accepted` pins exactly that prototype\
-  \ commit as `prototype_tip: <sha>` in the plan\n  frontmatter, refusing if the tag\
-  \ has moved since the check; every later check reads that sha,\n  never the moving\
-  \ tag. A newer prototype\n  is a registry amendment: re-point `prototype_tip` through\
-  \ a fresh accept check.\n- Expected state after the carry: a `carry` item as its\
-  \ CURRENT `what` states — the prototype's\n  drawing, unless the owner amended `what`\
-  \ by an `owner_row` (the amendment wins in every check:\n  audits, the verifier,\
-  \ the soak); a `not-carried` item is not applied by any card of the carry.\n- The\
-  \ section opens with the owner's read-back row (`owner_read: events.jsonl#ts=<ISO>`).\
-  \ The owner\n  reads the list once before the plan is accepted; this is where a\
-  \ sandbox change nobody meant to\n  keep becomes `not-carried`.\n- **Owner-risk\
-  \ item.** At the sandbox exit the owner may take a `carry` item on their own\n \
-  \ responsibility: its open detail is settled while building on main, and its acceptance\
-  \ is the\n  owner's check in a sandbox raised from landed main (SPEC-0205, ACCEPTANCE\
-  \ mode), any fix riding\n  the verifier walk and the SPEC-0205 rule 7 acceptance-finding\
-  \ route (§3). The item carries\n  `owner_risk: events.jsonl#ts=<ISO>` — the locator\
-  \ of the owner's own `owner_directive` row that\n  takes that item's risk, never\
-  \ the AI's own decision; the AI offers the marker when the owner says\n  «decide\
-  \ it, check on main». It is the owner's explicit decision, not an absorption: SPEC-0035\n\
-  \  rule 5 is unchanged. A marker on a `not-carried` item, or one that is not such\
-  \ a locator, refuses\n  `plan stage accepted` through the registry parse, naming\
-  \ the item; a marker whose locator resolves\n  to no `owner_directive` row refuses\
-  \ `plan stage accepted`, naming the item. The marker changes no\n  other gate.\n\
-  - **Before the read-back — the owner-words reconciliation.** Right before the owner\
-  \ reads the list,\n  the Controller runs `bin/yitc-v2 plan show <slug> --owner-words`\
-  \ and shows its output to the owner\n  beside the registry. Source rule: never the\
-  \ session's memory — the journal plus EVERY transcript\n  of the sessions that worked\
-  \ the spike: the prototype's declaring session (SPEC-0205 rule 4), the\n  sessions\
-  \ of the plan's `trial_run` rows, and those whose `owner_directive` names the plan,\
-  \ the\n  prototype or its branch, over the spike's life (its declaring row to the\
-  \ park that tagged the\n  prototype); a spike tag inside the prototype's history\
-  \ and absent from `main` is listed as not\n  read, for the owner to decide, since\
-  \ no row links it as a round; a tag the owner names with `--earlier-tag <tag>` (the\
-  \ prototype was copied from it) is read as a round of the same life — its declaring\
-  \ session, its branch, and the life from its declaring row — and every tag read\
-  \ is named in the output. Each session ref is mapped to its transcript\n  file(s)\
-  \ by the kernel's transcript resolution, and the output names which transcripts\
-  \ were read\n  and which refs had no transcript file. Every owner word is read through\
-  \ the redacting owner-text\n  path (SPEC-0163 §4e) and shown with a candidate registry\
-  \ item or plan rule; the read-back shows the\n  owner the unmapped words and the\
-  \ reversals (a later word turning an earlier one) beside the\n  registry, so a decision\
-  \ visible only as an absence in code gets an item or an owner-cited\n  `not-carried`\
-  \ line. The matching is a candidate the owner judges: the step writes neither the\n\
-  \  registry nor the plan and never blocks the accept (SPEC-0142 §2).\n\n### 3. The\
-  \ checks — lists by the kernel, meaning by the audits\n- **Plan accept.** MECHANICAL:\
-  \ the list parses, and every changed path of the base diff is a locator\n  of some\
-  \ item (a whole forgotten file refuses `plan stage accepted`, naming the paths).\
-  \ JUDGED: the\n  accept `plan check` packet carries the base diff beside the registry;\
-  \ the auditor checks, hunk by\n  hunk, that every owner-meaningful change has an\
-  \ item, the granularity, and that `owner_read` and\n  every later `owner_row` are\
-  \ cited. For an owner-risk item the packet carries the owner's words of\n  its row,\
-  \ or names it unresolved; the absence of trial evidence and its undecided detail\
-  \ are then\n  expected and never a finding or a RED, and the auditor judges the\
-  \ declaration instead: the item\n  is named, the cited words accept that risk for\
-  \ that item, and its verification after land is the\n  verifier's walk. Words that\
-  \ do not make the marker a finding, and the item is judged as unmarked.\n  The registry\
-  \ is plan body text, so the existing content hash\n  makes any later change re-open\
-  \ the check.\n- **The accept packet within the auditor's input budget.** The packet\
+  \ …]` · `disposition: carry | not-carried | carried-by-plan <slug>` · `owner_row:`\
+  \ (required for `not-carried`, and for any item added, or changed in any field —\n\
+  `what`, `locators`, `disposition` — after the owner's read-back).\n- Granularity:\
+  \ one item never bundles two things the owner could see or test separately; a change\
+  \ no\n  owner sees (formatting, a helper) is a `supporting` item naming the item\
+  \ it serves in `what`.\n- The BASE is the merge-base of main and the prototype tag\
+  \ — defined from the moment the plan opts\n  in, and stable: the registry describes\
+  \ `git diff <base>...<prototype_ref>`. Locators point into the\n  prototype; a `removed`\
+  \ item's locator points into the base.\n- ONE PROTOTYPE COMMIT: the accept `plan\
+  \ check` records the prototype and base commits its packet\n  used; `plan stage\
+  \ accepted` pins exactly that prototype commit as `prototype_tip: <sha>` in the\
+  \ plan\n  frontmatter, refusing if the tag has moved since the check; every later\
+  \ check reads that sha,\n  never the moving tag. A newer prototype\n  is a registry\
+  \ amendment: re-point `prototype_tip` through a fresh accept check.\n- Expected\
+  \ state after the carry: a `carry` item as its CURRENT `what` states — the prototype's\n\
+  \  drawing, unless the owner amended `what` by an `owner_row` (the amendment wins\
+  \ in every check:\n  audits, the verifier, the soak); a `not-carried` item is not\
+  \ applied by any card of the carry.\n- **Several plans on one prototype lineage\
+  \ — `carried-by-plan <slug>`.** A later plan opened from the\n  same prototype lineage\
+  \ describes the lineage's whole delta from its own base, like any plan, and\n  lists\
+  \ each item an earlier plan already carries as `disposition: carried-by-plan <slug>`,\
+  \ `<slug>`\n  naming that earlier plan — one line per item. Such an item counts\
+  \ for the path floor; the cut\n  and the verifier skip it (no writer card, no `prototype_lines`,\
+  \ no walk — the earlier plan's own\n  verifier walks it); and the named plan must\
+  \ exist in `plans/` and not be the plan itself, else\n  `plan stage accepted` refuses\
+  \ naming the slug. An EARLIER plan of the lineage is another plan that\n  passed\
+  \ accept (it pins a `prototype_tip`), is not `rejected` or `cancelled`, and whose\n\
+  \  `prototype_tip` is this plan's prototype commit or an ancestor of it; while one\
+  \ exists,\n  `plan stage accepted` refuses a plan whose registry names none of them\
+  \ in a `carried-by-plan`\n  item, naming them.\n- The section opens with the owner's\
+  \ read-back row (`owner_read: events.jsonl#ts=<ISO>`). The owner\n  reads the list\
+  \ once before the plan is accepted; this is where a sandbox change nobody meant\
+  \ to\n  keep becomes `not-carried`.\n- **Owner-risk item.** At the sandbox exit\
+  \ the owner may take a `carry` item on their own\n  responsibility: its open detail\
+  \ is settled while building on main, and its acceptance is the\n  owner's check\
+  \ in a sandbox raised from landed main (SPEC-0205, ACCEPTANCE mode), any fix riding\n\
+  \  the verifier walk and the SPEC-0205 rule 7 acceptance-finding route (§3). The\
+  \ item carries\n  `owner_risk: events.jsonl#ts=<ISO>` — the locator of the owner's\
+  \ own `owner_directive` row that\n  takes that item's risk, never the AI's own decision;\
+  \ the AI offers the marker when the owner says\n  «decide it, check on main». It\
+  \ is the owner's explicit decision, not an absorption: SPEC-0035\n  rule 5 is unchanged.\
+  \ A marker on a `not-carried` item, or one that is not such a locator, refuses\n\
+  \  `plan stage accepted` through the registry parse, naming the item; a marker whose\
+  \ locator resolves\n  to no `owner_directive` row refuses `plan stage accepted`,\
+  \ naming the item. The marker changes no\n  other gate.\n- **Before the read-back\
+  \ — the owner-words reconciliation.** Right before the owner reads the list,\n \
+  \ the Controller runs `bin/yitc-v2 plan show <slug> --owner-words` and shows its\
+  \ output to the owner\n  beside the registry. Source rule: never the session's memory\
+  \ — the journal plus EVERY transcript\n  of the sessions that worked the spike:\
+  \ the prototype's declaring session (SPEC-0205 rule 4), the\n  sessions of the plan's\
+  \ `trial_run` rows, and those whose `owner_directive` names the plan, the\n  prototype\
+  \ or its branch, over the spike's life (its declaring row to the park that tagged\
+  \ the\n  prototype); a spike tag inside the prototype's history and absent from\
+  \ `main` is listed as not\n  read, for the owner to decide, since no row links it\
+  \ as a round; a tag the owner names with `--earlier-tag <tag>` (the prototype was\
+  \ copied from it) is read as a round of the same life — its declaring session, its\
+  \ branch, and the life from its declaring row — and every tag read is named in the\
+  \ output. Each session ref is mapped to its transcript\n  file(s) by the kernel's\
+  \ transcript resolution, and the output names which transcripts were read\n  and\
+  \ which refs had no transcript file. Every owner word is read through the redacting\
+  \ owner-text\n  path (SPEC-0163 §4e) and shown with a candidate registry item or\
+  \ plan rule; the read-back shows the\n  owner the unmapped words and the reversals\
+  \ (a later word turning an earlier one) beside the\n  registry, so a decision visible\
+  \ only as an absence in code gets an item or an owner-cited\n  `not-carried` line.\
+  \ The matching is a candidate the owner judges: the step writes neither the\n  registry\
+  \ nor the plan and never blocks the accept (SPEC-0142 §2).\n\n### 3. The checks\
+  \ — lists by the kernel, meaning by the audits\n- **Plan accept.** MECHANICAL: the\
+  \ list parses, and every changed path of the base diff is a locator\n  of some item\
+  \ (a whole forgotten file refuses `plan stage accepted`, naming the paths). JUDGED:\
+  \ the\n  accept `plan check` packet carries the base diff beside the registry; the\
+  \ auditor checks, hunk by\n  hunk, that every owner-meaningful change has an item,\
+  \ the granularity, and that `owner_read` and\n  every later `owner_row` are cited.\
+  \ For an owner-risk item the packet carries the owner's words of\n  its row, or\
+  \ names it unresolved; the absence of trial evidence and its undecided detail are\
+  \ then\n  expected and never a finding or a RED, and the auditor judges the declaration\
+  \ instead: the item\n  is named, the cited words accept that risk for that item,\
+  \ and its verification after land is the\n  verifier's walk. Words that do not make\
+  \ the marker a finding, and the item is judged as unmarked.\n  The registry is plan\
+  \ body text, so the existing content hash\n  makes any later change re-open the\
+  \ check.\n- **The accept packet within the auditor's input budget.** The packet\
   \ points at the registry in the\n  plan body instead of copying it, and renders\
   \ the base diff by a fixed path rule, never a model's\n  judgement: test files are\
   \ listed with their line counts, and lockfiles, generated, vendored or\n  minified\
@@ -122,33 +137,37 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ `[]` (a card that builds no\n  item — not a writer), or `all` (the VERIFIER);\
   \ every `carry` item is owned by exactly one writer (a\n  `supporting` item may\
   \ be owned by the writer of the item it serves or directly); no card names an\n\
-  \  unknown or a `not-carried` item; exactly one `all` card, which `requires:` every\
-  \ other card of the\n  cut, while no card of the cut requires it — the verifier\
-  \ is the cut's LAST card; and the accept\n  verdict is still fresh for the CURRENT\
-  \ plan body (registry included) and `prototype_tip` — a\n  registry changed after\
-  \ accept refuses here until `plan check` re-reconciles it. The card-set\n  fingerprint\
-  \ covers each card's `prototype_lines`, the registry text and `prototype_tip`, so\
-  \ a\n  change to any re-opens the fidelity verdict. JUDGED: the fidelity audit packet\
-  \ carries the\n  registry; the auditor checks that the verifier's acceptance walks\
-  \ every item.\n- **Each writer card.** `audit pre` delivers its items in full beside\
-  \ the prototype diff; the\n  overlay: build exactly these items to their expected\
-  \ state; an unresolved departure from an item's expected state is a\n  stop-and-ask\
-  \ — `task pause --reason controller-wait` naming the item — never a silent drop\
-  \ and\n  never «the card governs»; building an owner amendment\n  already cited\
-  \ on the item is not a departure and asks nothing. An owner-risk item is no\n  stop-and-ask\
-  \ either: the card builds a reasonable resolution of its open detail, its audits\
-  \ do\n  not re-open it, and the verifier walks it like any item. The verdict's reuse\
-  \ key covers `prototype_lines`, those items' text, and `prototype_tip`.\n  `audit\
-  \ post` carries the same items, every `not-carried` item on the same surfaces and\
-  \ the\n  prototype hunks of their locators, and asks both ways: each item in its\
-  \ expected state; nothing\n  owner-visible shipped that no item names and no `not-carried`\
-  \ item applied. New implementation\n  and test files are the card's own design (SPEC-0205\
-  \ rule 5) and need no item. For an opted-in card\n  this replaces rule 5's per-card\
-  \ «which prototype findings it does NOT carry» request. A `[]` card's\n  `audit\
-  \ post` asks the forward half only: it changes no owner-visible behaviour on the\
-  \ registry's\n  surfaces.\n- **The verifier card — it walks and records; it does\
-  \ not repair.** An ordinary card, the last of\n  the cut. Its acceptance criteria:\
-  \ every registry item walked on the acceptance stand (SPEC-0205\n  rule 7) over\
+  \  unknown, a `not-carried` or a `carried-by-plan` item; exactly one `all` card,\
+  \ which `requires:` every other card of the\n  cut, while no card of the cut requires\
+  \ it — the verifier is the cut's LAST card; and the accept\n  check is FRESH for\
+  \ the CURRENT plan body (registry included) — «fresh» is SPEC-1061 §4 — and the\n\
+  \  pinned `prototype_tip` is the prototype commit it audited: a registry changed\
+  \ after accept refuses\n  here until it is re-reconciled as SPEC-1061 §3 admits.\
+  \ The card-set\n  fingerprint covers each card's `prototype_lines`, the registry\
+  \ text and `prototype_tip`, so a\n  change to any re-opens the fidelity verdict.\
+  \ JUDGED: the fidelity audit packet carries the\n  registry; the auditor checks\
+  \ that the verifier's acceptance walks every item.\n- **Each writer card.** `audit\
+  \ pre` delivers its items in full beside the prototype diff; the\n  overlay: build\
+  \ exactly these items to their expected state; an unresolved departure from an item's\
+  \ expected state is a\n  stop-and-ask — `task pause --reason controller-wait` naming\
+  \ the item — never a silent drop and\n  never «the card governs»; building an owner\
+  \ amendment\n  already cited on the item is not a departure and asks nothing. An\
+  \ owner-risk item is no\n  stop-and-ask either: the card builds a reasonable resolution\
+  \ of its open detail, its audits do\n  not re-open it, and the verifier walks it\
+  \ like any item. The verdict's reuse key covers `prototype_lines`, those items'\
+  \ text, and `prototype_tip`.\n  `audit post` carries the same items, every `not-carried`\
+  \ item on the same surfaces and the\n  prototype hunks of their locators, and asks\
+  \ both ways: each item in its expected state; nothing\n  owner-visible shipped that\
+  \ no item names and no `not-carried` item applied. On a post-GREEN\n  merge-integration\
+  \ re-audit an item on no path the integration touched is named by reference to\n\
+  \  the GREEN that judged it (SPEC-1018 «The merge-integration packet»). New implementation\n\
+  \  and test files are the card's own design (SPEC-0205 rule 5) and need no item.\
+  \ For an opted-in card\n  this replaces rule 5's per-card «which prototype findings\
+  \ it does NOT carry» request. A `[]` card's\n  `audit post` asks the forward half\
+  \ only: it changes no owner-visible behaviour on the registry's\n  surfaces.\n-\
+  \ **The verifier card — it walks and records; it does not repair.** An ordinary\
+  \ card, the last of\n  the cut. Its acceptance criteria: every registry item but\
+  \ a `carried-by-plan` one walked on the acceptance stand (SPEC-0205\n  rule 7) over\
   \ landed main, and its state recorded — a `carry` item in its expected state or\
   \ not, a\n  `not-carried` item applied or not — plus every owner-visible change\
   \ in the commits of the other\n  cards of the cut that has no item, named by its\
@@ -158,18 +177,41 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ and outside\n  the cut, naming the registry item it fixes), or settled by the\
   \ owner on the item — DROP (it\n  becomes `not-carried`) or ACCEPT AS SHIPPED (`what`\
   \ rewritten) — by an `owner_row`. The verifier\n  closes when the walk is recorded\
-  \ and every failure is routed or settled: it is the list, not the\n  fix.\n- **After\
-  \ the verifier — the plan's `postcheck` (SPEC-0034), unchanged.** The routed findings\
-  \ are\n  postcheck inputs; the deploy follows the walk and the fixes, as the project\
-  \ deploys today; the\n  realization exit counts failures against the registry after\
-  \ the deploy. This rule adds no deploy\n  binding, no repair card and no re-run\
-  \ of the cut audit.\n\n### 4. What this rule does not do\nNo new artifact type,\
-  \ store, verb, record format or deploy gate. The kernel's mechanical part is\nthree\
-  \ list checks (parse + path floor at accept, ownership at the cut, one prototype\
-  \ per carry); the\nmeaning is judged by the accept check, the fidelity audit, each\
-  \ card's two audits and the verifier's\nown acceptance. Making the registry REQUIRED\
-  \ for every prototype carry is a later SPEC-0205 rule 5\nsupersede, decided at the\
-  \ plan's realized exit on soak evidence.\n\n## Rationale\nIncident: <project> `docs/carry/round11-inventory/divergence-2026-11-02.md`\
+  \ and every failure is routed or settled: it is the list, not the\n  fix.\n- **The\
+  \ verifier template — path evidence, the one home.** A verifier card's acceptance\
+  \ proves\n  each claimed behaviour by ONE CONNECTED PATH through the named records,\
+  \ and states each element\n  below as a criterion; the cut gate (SPEC-0083 P5) asks\
+  \ it of every verifier card:\n  1. **Active pass of every item.** Each item is walked\
+  \ by doing the action it names on the stand\n     and reading what the action produced;\
+  \ viewing a screen or a record does not count as a pass.\n  2. **Seeding missing\
+  \ data.** Where the stand lacks the records an item's path needs, the walk\n   \
+  \  seeds them first and names what it seeded; an item is never passed on absent\
+  \ data.\n  3. **Step 0 — the stand as production.** Before the first item, the stand\
+  \ is raised from landed\n     main with production settings (the acceptance stand\
+  \ of SPEC-0205 rule 7) and its version is\n     recorded.\n  4. **Visibility under\
+  \ real limited logins.** What a role may or may not see is walked logged in\n  \
+  \   as a real account of that role, never through an administrator's view.\n  5.\
+  \ **Rolling mini-passes.** As each card of the cut lands, the items it carries are\
+  \ walked on the\n     stand then; the final pass walks every item once more over\
+  \ landed main.\n  6. **One stand and one pass for several plans.** Plans landing\
+  \ together may share one stand and\n     one pass; each item is recorded against\
+  \ the plan whose registry holds it.\n  7. **Path evidence, not totals.** The record\
+  \ of each item names the records, the actions and what\n     each showed along its\
+  \ path; a count — so many resolved, so many published — over records not\n     on\
+  \ that path proves nothing about the item.\n  The template binds a verifier card\
+  \ filed after it was added; a verifier card filed before is\n  judged by its own\
+  \ criteria, unchanged.\n- **After the verifier — the plan's `postcheck` (SPEC-0034),\
+  \ unchanged.** The routed findings are\n  postcheck inputs; the deploy follows the\
+  \ walk and the fixes, as the project deploys today; the\n  realization exit counts\
+  \ failures against the registry after the deploy. This rule adds no deploy\n  binding,\
+  \ no repair card and no re-run of the cut audit.\n\n### 4. What this rule does not\
+  \ do\nNo new artifact type, store, verb, record format or deploy gate. The kernel's\
+  \ mechanical part is\nlist checks (parse, path floor and the `carried-by-plan` checks\
+  \ at accept, ownership at the cut, one\nprototype per carry); the\nmeaning is judged\
+  \ by the accept check, the fidelity audit, each card's two audits and the verifier's\n\
+  own acceptance. Making the registry REQUIRED for every prototype carry is a later\
+  \ SPEC-0205 rule 5\nsupersede, decided at the plan's realized exit on soak evidence.\n\
+  \n## Rationale\nIncident: <project> `docs/carry/round11-inventory/divergence-2026-11-02.md`\
   \ (35 rows, per-row cause:\n(a) no card named it; (b) a card named it, no criterion\
   \ checked it; (c) a card excluded it alone;\n(a*) «the card governs»), plan round-6\
   \ D-p (CSV export lost). Class (a) is caught by the ownership\nlist check; (b) by\
@@ -194,48 +236,68 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ exactly as before): <project> X-2262 — plan creator-cabinet-a-creator-as-a-system-participant-\n\
   failed its accept check seven to eight times on 2026-11-05 on criteria the trial\
   \ cannot settle,\nwhich the owner had decided to settle on main and check in a sandbox\
-  \ raised from main. Owner:\n`events.jsonl#ts=` (kernel).\n\n## Verification\n- VP1:\
-  \ a malformed registry and a changed base-diff path that no item locates each refuse\n\
-  \  `plan stage accepted`; a formatting-only path as a `supporting` item passes;\
-  \ the accept packet of\n  an opted-in plan carries the diff and the registry, of\
-  \ any other plan is byte-unchanged; a tag moved between the accept\n  `plan check`\
-  \ and `plan stage accepted` refuses the accept.\n- VP2: on the gate to `executing`\
-  \ — a card of the cut without `prototype_lines`, a card naming\n  another prototype,\
-  \ zero or two owners of a `carry` item, an unknown item, a writer naming a\n  `not-carried`\
-  \ item, two `all` cards, an `all` card missing one card it must require, a card\
-  \ that requires the `all` card, and a\n  registry item changed after the accept\
-  \ verdict — each refuses naming the fault;\n  a valid cut (writers, a `[]` card,\
-  \ one verifier last) passes; changing one card's\n  `prototype_lines`, one registry\
-  \ item, or `prototype_tip` changes the card-set fingerprint.\n- VP3: the opted-in\
-  \ `audit pre` packet carries the card's items and the stop-and-ask overlay, and\
-  \ a\n  lines change defeats verdict reuse; the `audit post` packet carries the items,\
-  \ the surface's\n  `not-carried` items and their hunks, with negative examples:\
-  \ an element omitted from an\n  already-covered file, a shipped `not-carried` element;\
-  \ and a passing example with a new helper and\n  test file that no item names. A\
-  \ `[]` card's `audit post` packet asks the forward-only question; a\n  changed `prototype_tip`\
-  \ defeats audit-pre reuse. A card\n  building an owner amendment already cited on\
-  \ its item gets no stop-and-ask for it.\n- VP4: a card outside an opted-in plan\
-  \ gets packets byte-identical to before.\n- VP5: differential replay — the rounds\
-  \ 7-9 cut rebuilt read-only: items from the divergence table;\n  each historical\
-  \ card's `prototype_lines` mapped from the table's cause column (a (b), (c) or (a*)\n\
-  \  row names the card it cites; an (a) row names none). A class-(a) row has no owner\n\
-  \  even when it cites a card (the cited card did not name the element); a (b), (c)\
-  \ or (a*) row is\n  owned by every card it cites. The gate refuses with the expected\
-  \ set: zero owners = exactly the\n  21 (a) rows; two owners = exactly rows 10 and\
-  \ 15. With those resolved it passes.\n- VP6 (§2 owner-words reconciliation): on\
-  \ a fixture spike — a declaring row, a transcript filed under\n  another id and\
-  \ found through its `owner_directive` row, a ref with no file — `plan show <slug>\n\
-  \  --owner-words` lists the read transcript and the ref with no file, maps a decision\
-  \ to its registry\n  item and another to a plan rule, surfaces the unmapped decision\
-  \ and the reversal, drops a word after\n  the park, redacts a credential, exits\
-  \ 0 and leaves the plan file byte-identical; without the step no\n  reconciliation\
-  \ is shown (tests/test_t14520_spike_owner_words.py).\n- VP7 (§2-§3 owner-risk item):\
-  \ the accept packet of a registry with one marked item carries the\n  binding paragraph\
-  \ naming that item with its owner's words, and an unresolved marker as UNRESOLVED;\n\
-  \  without a marker the packet and a writer item's text are byte-unchanged; a marked\
-  \ item is no\n  stop-and-ask; a marker with no `owner_directive` row at its ts refuses\
-  \ `plan stage accepted`\n  naming the item, and a malformed or `not-carried` marker\
-  \ is refused by the parse\n  (tests/test_t14533_owner_risk_items.py).\n"
+  \ raised from main. Owner:\n`events.jsonl#ts=` (kernel).\n added the §3 verifier\
+  \ template in place, bounded to verifier cards filed after it (an\nalready-filed\
+  \ verifier keeps its criteria): <project>'s sixth cut pass found a verifier card\n\
+  satisfied by 30 resolved requests and 5 published on unrelated records, with no\
+  \ proof of the\nclaimed path (cross items X-2376, X-2378, X-2379).\nThe §2 `carried-by-plan\
+  \ <slug>` disposition was added in place by as an additive extension:\na SINGLE\
+  \ plan's registry without the value is judged exactly as before; what changes is\
+  \ a SECOND\nplan on a lineage whose earlier plan was accepted — admitted before\
+  \ with any registry, now refused\nunless it names that plan in a `carried-by-plan`\
+  \ item — a case the rule did not address before (no\nplan of this repository was\
+  \ on such a lineage): <project> X-2376 ask 4 — one prototype lineage forced a second\
+  \ theme\nto be folded into the first plan. A heavier design (inherited expected\
+  \ states, re-decisions) was\ntried in a kernel plan on 2026-11-15 and withdrawn.\n\
+  \n## Verification\n- VP1: a malformed registry and a changed base-diff path that\
+  \ no item locates each refuse\n  `plan stage accepted`; a formatting-only path as\
+  \ a `supporting` item passes; the accept packet of\n  an opted-in plan carries the\
+  \ diff and the registry, of any other plan is byte-unchanged; a tag moved between\
+  \ the accept\n  `plan check` and `plan stage accepted` refuses the accept.\n- VP2:\
+  \ on the gate to `executing` — a card of the cut without `prototype_lines`, a card\
+  \ naming\n  another prototype, zero or two owners of a `carry` item, an unknown\
+  \ item, a writer naming a\n  `not-carried` item, two `all` cards, an `all` card\
+  \ missing one card it must require, a card that requires the `all` card, and a\n\
+  \  registry item changed after the accept verdict — each refuses naming the fault;\n\
+  \  a valid cut (writers, a `[]` card, one verifier last) passes; changing one card's\n\
+  \  `prototype_lines`, one registry item, or `prototype_tip` changes the card-set\
+  \ fingerprint.\n- VP3: the opted-in `audit pre` packet carries the card's items\
+  \ and the stop-and-ask overlay, and a\n  lines change defeats verdict reuse; the\
+  \ `audit post` packet carries the items, the surface's\n  `not-carried` items and\
+  \ their hunks, with negative examples: an element omitted from an\n  already-covered\
+  \ file, a shipped `not-carried` element; and a passing example with a new helper\
+  \ and\n  test file that no item names. A `[]` card's `audit post` packet asks the\
+  \ forward-only question; a\n  changed `prototype_tip` defeats audit-pre reuse. A\
+  \ card\n  building an owner amendment already cited on its item gets no stop-and-ask\
+  \ for it.\n- VP4: a card outside an opted-in plan gets packets byte-identical to\
+  \ before.\n- VP5: differential replay — the rounds 7-9 cut rebuilt read-only: items\
+  \ from the divergence table;\n  each historical card's `prototype_lines` mapped\
+  \ from the table's cause column (a (b), (c) or (a*)\n  row names the card it cites;\
+  \ an (a) row names none). A class-(a) row has no owner\n  even when it cites a card\
+  \ (the cited card did not name the element); a (b), (c) or (a*) row is\n  owned\
+  \ by every card it cites. The gate refuses with the expected set: zero owners =\
+  \ exactly the\n  21 (a) rows; two owners = exactly rows 10 and 15. With those resolved\
+  \ it passes.\n- VP6 (§2 owner-words reconciliation): on a fixture spike — a declaring\
+  \ row, a transcript filed under\n  another id and found through its `owner_directive`\
+  \ row, a ref with no file — `plan show <slug>\n  --owner-words` lists the read transcript\
+  \ and the ref with no file, maps a decision to its registry\n  item and another\
+  \ to a plan rule, surfaces the unmapped decision and the reversal, drops a word\
+  \ after\n  the park, redacts a credential, exits 0 and leaves the plan file byte-identical;\
+  \ without the step no\n  reconciliation is shown (tests/test_t14520_spike_owner_words.py).\n\
+  - VP7 (§2-§3 owner-risk item): the accept packet of a registry with one marked item\
+  \ carries the\n  binding paragraph naming that item with its owner's words, and\
+  \ an unresolved marker as UNRESOLVED;\n  without a marker the packet and a writer\
+  \ item's text are byte-unchanged; a marked item is no\n  stop-and-ask; a marker\
+  \ with no `owner_directive` row at its ts refuses `plan stage accepted`\n  naming\
+  \ the item, and a malformed or `not-carried` marker is refused by the parse\n  (tests/test_t14533_owner_risk_items.py).\n\
+  - VP8 (§3 verifier template): §3 carries the verifier template with its seven named\
+  \ elements as\n  the one home of path evidence, and the SPEC-0083 P5 template points\
+  \ here without restating it\n  (tests/test_p5_template_questions.py).\n- VP9 (§2-§3\
+  \ carried-by-plan): an item naming an existing plan satisfies the path floor, needs\
+  \ no\n  writer card and is left out of the verifier walk; naming a missing plan\
+  \ or the plan itself refuses\n  `plan stage accepted` naming the slug; a second\
+  \ plan on the lineage of an accepted plan is\n  admitted with such an item naming\
+  \ it and refused without one (tests/test_registry_carried_by_plan.py).\n"
 cites:
 - SPEC-0205
 - SPEC-0070
@@ -254,8 +316,9 @@ binding:
 - plan-stage-entry:postcheck
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#prototype_carry_block: f7791789b51edc036e83095e9c8e6d67b90efc245e33866f1ab1c31b5fb4f861
+  bin/lib/audit.py#prototype_carry_block: c5fafc6da92efc4b71437e5003f6f6f1a028d92c2b18eb116f5584a42e089626
   bin/lib/plan.py#_plan_prototype_owner_risk_block: 5ca4d4e9397b75c4b3f72b0c76432d233228fc58883cdc0e8738e0db703f0cdd
   bin/lib/plan.py#_plan_prototype_owner_risk_rows: 36695c96f2b015f573e26d5a4dc93273893fdd373f53e8d9fa336eb8f9e4977e
-  bin/lib/plan.py#cmd_plan_show: 5c1b1bbdc5e6d7aaebb167f55eb011af61c8b569bb397694aa9c173447ac6f11
-  bin/lib/plan.py#owner_words_reconciliation: 598f222ba9f67f2c124a2580d00eb00077dbb2e0cc7fe8ea644741bea8373c3e
+  bin/lib/plan.py#cmd_plan_show: d87cd559b25e20cbdb0f3a44cbfa0727b72d90f357bc7f596bd77006cae6121b
+  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2
+  bin/lib/plan.py#owner_words_reconciliation: 2a961682437d3a5cb5154d203e9e7d2e34fb2096fbfc2ff0303256592ea2d59d

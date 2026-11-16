@@ -11,36 +11,38 @@ implements:
 binding:
 - code-enforced
 body: "## Internal\n\n`events.jsonl` is the single append-only governance journal\
-  \ (one JSON object per\nline, JSON Lines). Every entry is written through the single\
-  \ emission path\n`_append_event` (CHARTER §Principle 5). Each entry carries this\
-  \ envelope:\n\n    {\n      \"ts\": \"<ISO 8601 UTC>\", # required — defaults to\
-  \ _utc_now_iso; the\n                                              # adapter MAY\
-  \ supply the source-entry (utterance) ts\n      \"type\": \"<snake_case event>\"\
-  , # required\n      \"task_id\": \"<T-/D-/SPEC-/phase- id>\",# optional — present\
-  \ when tied to an artifact\n      \"agent\": \"main|audit-subprocess|cron|manual\"\
-  , # writer identity (provenance)\n      \"session_ref\": \"<opaque adapter-defined>\"\
-  , # this writer's session id\n      \"spawned_by\": \"<parent session_ref>|null\"\
-  , # subprocess writers; null otherwise\n      \"source_ref\": \"<opaque source-log\
-  \ locator>|null\", # supplied by the parser/adapter, OR by an\n                \
-  \                                          # explicit CLI locator; null when neither\
-  \ did\n      \"data\": {..., \"source\": \"yitc-v2-cli\" } # type-specific payload\
-  \ + source tag\n    }\n\nProvenance fields (`agent` / `session_ref` / `spawned_by`\
-  \ / `source_ref`) are\nenvelope-level siblings of `ts`/`type`/`task_id` — writer-origin\
-  \ metadata, distinct\nfrom the semantic `data` payload. Auto-filled by `_append_event`\
-  \ (\nprovenance_fields_schema). `agent` = writer identity (default `main`); `spawned_by`\n\
-  is reserved for genuine subprocess/cron writers.\n\n**`source_ref` — supplied, or\
-  \ honestly null; never dropped (X-1174).** It is an\nOPAQUE locator naming where\
-  \ this row CAME FROM, and it has TWO legitimate writers: the\nparser/adapter, which\
-  \ passes the transcript locator it captured; and a CALLER of the `event`\nverb,\
-  \ which may name one explicitly. An explicitly supplied locator PERSISTS for ANY\
-  \ event\ntype, or the emit REFUSES naming the reason — the third outcome, accepting\
-  \ the value and\nstoring null, is not admissible on this field. `null` therefore\
-  \ MEANS «no writer supplied\none», never «one was supplied and lost». This is what\
-  \ makes the field CITABLE: the\nload-bearing citation form `events.jsonl#source_ref=<ref>`\
-  \ (CHARTER §Principle 2)\ncan only resolve against a row that actually carries the\
-  \ ref, and a settlement can only be\ngiven a UNIQUE locator when several rows share\
-  \ a second. The refusal is a property of the\nemitting USE SITE, not of `_append_event`,\
-  \ which persists faithfully whatever it is given\n(lessons/fail-closed-belongs-to-the-reader-not-the-parser.md).\
+  \ (one JSON object per\nline, JSON Lines). In a CUT journal the same logical journal\
+  \ is appended to its ts-day\npartitions instead of the root file (where a row goes:\
+  \ SPEC-0190 rule 1). Every entry is written through the single emission path\n`_append_event`\
+  \ (CHARTER §Principle 5). Each entry carries this envelope:\n\n    {\n      \"ts\"\
+  : \"<ISO 8601 UTC>\", # required — defaults to _utc_now_iso; the\n             \
+  \                                 # adapter MAY supply the source-entry (utterance)\
+  \ ts\n      \"type\": \"<snake_case event>\", # required\n      \"task_id\": \"\
+  <T-/D-/SPEC-/phase- id>\",# optional — present when tied to an artifact\n      \"\
+  agent\": \"main|audit-subprocess|cron|manual\", # writer identity (provenance)\n\
+  \      \"session_ref\": \"<opaque adapter-defined>\", # this writer's session id\n\
+  \      \"spawned_by\": \"<parent session_ref>|null\", # subprocess writers; null\
+  \ otherwise\n      \"source_ref\": \"<opaque source-log locator>|null\", # supplied\
+  \ by the parser/adapter, OR by an\n                                            \
+  \              # explicit CLI locator; null when neither did\n      \"data\": {...,\
+  \ \"source\": \"yitc-v2-cli\" } # type-specific payload + source tag\n    }\n\n\
+  Provenance fields (`agent` / `session_ref` / `spawned_by` / `source_ref`) are\n\
+  envelope-level siblings of `ts`/`type`/`task_id` — writer-origin metadata, distinct\n\
+  from the semantic `data` payload. Auto-filled by `_append_event` (\nprovenance_fields_schema).\
+  \ `agent` = writer identity (default `main`); `spawned_by`\nis reserved for genuine\
+  \ subprocess/cron writers.\n\n**`source_ref` — supplied, or honestly null; never\
+  \ dropped (X-1174).** It is an\nOPAQUE locator naming where this row CAME FROM,\
+  \ and it has TWO legitimate writers: the\nparser/adapter, which passes the transcript\
+  \ locator it captured; and a CALLER of the `event`\nverb, which may name one explicitly.\
+  \ An explicitly supplied locator PERSISTS for ANY event\ntype, or the emit REFUSES\
+  \ naming the reason — the third outcome, accepting the value and\nstoring null,\
+  \ is not admissible on this field. `null` therefore MEANS «no writer supplied\n\
+  one», never «one was supplied and lost». This is what makes the field CITABLE: the\n\
+  load-bearing citation form `events.jsonl#source_ref=<ref>` (CHARTER §Principle 2)\n\
+  can only resolve against a row that actually carries the ref, and a settlement can\
+  \ only be\ngiven a UNIQUE locator when several rows share a second. The refusal\
+  \ is a property of the\nemitting USE SITE, not of `_append_event`, which persists\
+  \ faithfully whatever it is given\n(lessons/fail-closed-belongs-to-the-reader-not-the-parser.md).\
   \ One type is stricter still:\nan `owner_directive` is AUTHORITY-class, so its locator\
   \ is additionally derived-if-omitted\nand must OPEN on disk (<workshop-spec> refusal\
   \ ground 1 / / X-0447).\n\n### session_ref resolution — two roles (SPEC-0137)\n\n\
@@ -139,28 +141,28 @@ body: "## Internal\n\n`events.jsonl` is the single append-only governance journa
   \ cap, the head and tail are shortened\n  further, the head kept longer than the\
   \ tail, until the line fits or only a minimal head\n  and tail remain.\n\n### Append\
   \ ordering (per sync batch — atomic recovery path)\n\n1. Append new journal rows\
-  \ to events.jsonl (one O_APPEND syscall per row, < PIPE_BUF).\n2. fsync each journal\
-  \ file the batch appended to, and its directory — once per batch,\n   after the\
-  \ last append (the append itself only flushes).\n3. Atomic temp+rename update of\
-  \ the per-session checkpoint file (SPEC-0003).\n\nCrash between 1–2 or 2–3 → next\
-  \ sync re-reads from the old checkpoint; a row that had\nalready reached the journal\
-  \ is appended again as a byte-identical duplicate, which\nland's events union+dedup\
-  \ collapses. A failed fsync in step 2 skips step 3, with the\nsame effect. No silent\
-  \ data loss.\n\n### Concurrent-merge chronology\n\nParallel writing sessions each\
-  \ commit in their own worktree branch, then\n`land` to main. `events.jsonl` carries\
-  \ `.gitattributes merge=union`: the built-in git\n`union` driver keeps BOTH sides\
-  \ of an overlapping append-hunk instead of raising a\nconflict. Consequences (binding\
-  \ on all consumers):\n\n- **Chronology is `ts`, NOT physical line order.** Union\
-  \ interleaves each branch's block\n  as-is; a later-committed row may sit physically\
-  \ above an earlier one. Consumers MUST\n  order by the `ts` field. Physical adjacency\
-  \ (\"the line immediately after X\") is NOT a\n  valid probe or invariant — any\
-  \ such assumption is a bug (the one historical instance,\n   AC, was reworded to\
-  \ a `ts`-ordering claim).\n- **Union does not deduplicate.** When divergent branch\
-  \ histories place a byte-identical\n  line inside two CONFLICTING hunks at a non-alignable\
-  \ position (e.g. A=[X,Y], B=[Z,X] →\n  union yields [X,Y,Z,X], X twice — the merge\
-  \ cannot factor X as a common prefix/suffix),\n  the union driver emits that line\
-  \ from BOTH sides → a duplicate row. (Alignable cases —\n  identical appends at\
-  \ the same spot, or a shared row at a common prefix/suffix like\n  A=[X,Y]/B=[X,Z]\
+  \ to events.jsonl, or in a cut journal to the row's partition (one O_APPEND syscall\
+  \ per row, < PIPE_BUF).\n2. fsync each journal file the batch appended to, and its\
+  \ directory — once per batch,\n   after the last append (the append itself only\
+  \ flushes).\n3. Atomic temp+rename update of the per-session checkpoint file (SPEC-0003).\n\
+  \nCrash between 1–2 or 2–3 → next sync re-reads from the old checkpoint; a row that\
+  \ had\nalready reached the journal is appended again as a byte-identical duplicate,\
+  \ which\nland's events union+dedup collapses. A failed fsync in step 2 skips step\
+  \ 3, with the\nsame effect. No silent data loss.\n\n### Concurrent-merge chronology\n\
+  \nParallel writing sessions each commit in their own worktree branch, then\n`land`\
+  \ to main. `events.jsonl` carries `.gitattributes merge=union`: the built-in git\n\
+  `union` driver keeps BOTH sides of an overlapping append-hunk instead of raising\
+  \ a\nconflict. Consequences (binding on all consumers):\n\n- **Chronology is `ts`,\
+  \ NOT physical line order.** Union interleaves each branch's block\n  as-is; a later-committed\
+  \ row may sit physically above an earlier one. Consumers MUST\n  order by the `ts`\
+  \ field. Physical adjacency (\"the line immediately after X\") is NOT a\n  valid\
+  \ probe or invariant — any such assumption is a bug (the one historical instance,\n\
+  \   AC, was reworded to a `ts`-ordering claim).\n- **Union does not deduplicate.**\
+  \ When divergent branch histories place a byte-identical\n  line inside two CONFLICTING\
+  \ hunks at a non-alignable position (e.g. A=[X,Y], B=[Z,X] →\n  union yields [X,Y,Z,X],\
+  \ X twice — the merge cannot factor X as a common prefix/suffix),\n  the union driver\
+  \ emits that line from BOTH sides → a duplicate row. (Alignable cases —\n  identical\
+  \ appends at the same spot, or a shared row at a common prefix/suffix like\n  A=[X,Y]/B=[X,Z]\
   \ — are coalesced as one edit and do NOT duplicate.) In practice\n  provenance-stamped\
   \ events (distinct `session_ref`/`ts`) almost never byte-collide, so\n  the dedup\
   \ is a cheap idempotent GUARD, not a hot path; union's primary value is\n  conflict-free\

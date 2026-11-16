@@ -563,6 +563,13 @@ def _docker_run(argv) -> "tuple[str | None, str | None]":
 
 #: The project-layer cage instrument's served-source record (SPEC-0172 atom 4e / SPEC-0205 rule 3).
 CAGE_SERVED_SOURCE_EVENT = "spike_served_source_checked"
+# T-14652 — the ONE cue line a spike round's boundary verbs print (the spike open, the next-round open,
+# the park of a declared spike): a POINTER to the round cycle and to recording the run, never a restatement
+# of either (SPEC-1037 rule 8). The quoted section titles are the headings of patterns/spike-mode.md, pinned
+# by tests/test_spike_round_cue.py. Report-only: it gates nothing and prints only after the verb succeeded.
+SPIKE_ROUND_CUE = ("spike round: the round cycle is patterns/spike-mode.md §5d «Acceptance with fixes in the "
+                   "sandbox — the round cycle»; record the run and the owner's word per §6 «Record the run» "
+                   "(report-only, SPEC-0205).")
 
 
 def _cage_serving_worktree(wt, main_events, *, _run=None, _rows=None) -> "dict | None":
@@ -1544,6 +1551,12 @@ _SESSION_TERMINAL_TYPES = ("task_closed", "bg_dispatch_halted", "task_wont_do", 
 # `commit_landed(kind=pause)` — so a last-row-only read never saw the session as over.
 _SESSION_POST_TERMINAL_VERBS = ("audit pre", "audit post", "task pause")
 
+# T-14614 (X-2381) — rows that mean the session is WORKING AGAIN after its halt (a fresh claim or
+# start); one of these, or a row tied to ANOTHER task, means its later pause cannot re-end the halt.
+_SESSION_REVIVING_TYPES = ("worktree_created", "task_picked", "task_resumed", "worktree_adopted",
+                           "bg_dispatch_launched", "session_started")
+_TASK_ID_RE = re.compile(r"T-\d+")
+
 
 def _default_session_terminally_over(session_ref: "str | None", events_path) -> bool:
     """Did the JOURNAL record this session ENDING? The positive half of the dead-holder discrimination.
@@ -1577,6 +1590,15 @@ def _default_session_terminally_over(session_ref: "str | None", events_path) -> 
     (`task_paused`, `commit_landed(kind=pause)`,
     `cli_invoked` of `_SESSION_POST_TERMINAL_VERBS`) still reads over; ANY other later row reads not-over (fail-closed).
 
+    T-14614 (X-2381) — the halted worker's OWN `task_paused` on the HALTED task ends the halt protocol
+    and reads over again, whatever same-task rows came between (a deviation capture, the in-scope fix
+    commit the ceiling route asks for). Not another trailing-row allowlist entry: between the halt and
+    that pause the session still reads NOT over, and any non-bookkeeping row after the pause still
+    revives it. The pause does NOT re-end the halt when, since the halt, the session claimed or started
+    afresh (`_SESSION_REVIVING_TYPES`) or wrote a row tied to another `T-NNNN` task. Why a live worker
+    cannot read over through this: a live launch process is answered by `_session_proc_alive` before
+    this reader is asked, and the pause is the worker's last act — a resumed worker writes rows after it.
+
     T-13351 (X-1834 dispute) — `events_path` may also be a LIST of journals, folded as ONE UNION: a
     worker's halt row is appended in its TASK WORKTREE and reaches main only at land, so the in-flight
     guard passes (main, held worktree). Rows are deduplicated by exact line (a worktree journal repeats
@@ -1591,16 +1613,27 @@ def _default_session_terminally_over(session_ref: "str | None", events_path) -> 
     if not paths or (len(paths) > 1 and not Path(paths[0]).is_file()):
         return False          # union mode: main absent — fail-closed (segment_lines yields nothing).
 
-    def _fold(over, row):
+    # fold state: [over, halted task (the latest terminal row's task_id), halted-at-all, tainted since halt]
+    st = [False, None, False, False]
+
+    def _fold(row):
         t = row.get("type")
         data = row.get("data") if isinstance(row.get("data"), dict) else {}
+        tid = row.get("task_id")
         if t in _SESSION_TERMINAL_TYPES:
-            return True
-        return over and (t == "task_paused"
-                         or (t == "commit_landed" and data.get("kind") == "pause")
-                         or (t == "cli_invoked" and data.get("verb") in _SESSION_POST_TERMINAL_VERBS))
+            st[:] = [True, tid, True, False]
+            return
+        if st[2] and (t in _SESSION_REVIVING_TYPES
+                      or (isinstance(tid, str) and _TASK_ID_RE.fullmatch(tid) and tid != st[1])):
+            st[0], st[3] = False, True
+            return
+        if t == "task_paused" and st[2] and not st[3] and tid == st[1]:
+            st[0] = True        # T-14614: the halted worker's own pause ends the halt protocol.
+            return
+        st[0] = st[0] and ((t == "commit_landed" and data.get("kind") == "pause")
+                           or (t == "cli_invoked" and data.get("verb") in _SESSION_POST_TERMINAL_VERBS))
 
-    over, seen, rows = False, set(), []
+    seen, rows = set(), []
     for i, path in enumerate(paths):
         try:
             # `segment_lines` is the STREAMING segment-aware primitive (T-12226) and a T-12034 physical-read
@@ -1622,7 +1655,7 @@ def _default_session_terminally_over(session_ref: "str | None", events_path) -> 
                     if len(paths) > 1:
                         rows.append(row)
                     else:
-                        over = _fold(over, row)
+                        _fold(row)
         except OSError:
             if i == 0:
                 return False
@@ -1632,8 +1665,8 @@ def _default_session_terminally_over(session_ref: "str | None", events_path) -> 
         rows.sort(key=lambda r: (str(r.get("ts") or ""),
                                  0 if r.get("type") in _SESSION_TERMINAL_TYPES else 1))
         for row in rows:
-            over = _fold(over, row)
-    return over
+            _fold(row)
+    return st[0]
 
 
 def _default_park_carries_work(wt, task: str, *, _run_git_cap, landed_done: bool = False) -> "tuple[bool, str]":
@@ -2297,6 +2330,7 @@ def _declare_spike_late(slug: str, branch: str, stamp: "dict | None", main_wt: P
 
 
 def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm_dead: bool,
+                        successor: "str | None" = None,
                         _append_event, _classify_inert_paths, _die, _main_worktree,
                         _read_worktree_stamp, _stamp_is_own, _worktree_path_for_branch, _run_git_cap,
                         REPO_ROOT, _acting_session_ref,
@@ -2540,6 +2574,9 @@ def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm
             "discarded_by": acting, "held_by": (stamp or {}).get("session_ref"),
             "confirm_dead": bool(confirm_dead),
             "degraded": False, "branch_deleted": True}
+    if successor:
+        # T-14619 — a `--from-spike` park: the round continues in `successor` (reason next-round).
+        data["successor"] = successor
     if prototype:
         # T-12566 — additive payload keys (SPEC-0161); present ONLY on a declared spike's row.
         data.update({"prototype_ref": prototype["prototype_ref"], "prototype_tip": prototype["tip"]})
@@ -2683,6 +2720,7 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
         data = _discard_work_batch(
             work, getattr(args, "reason", None),
             declare_spike=bool(getattr(args, "declare_spike", False)),
+            successor=getattr(args, "successor", None),
             force=bool(getattr(args, "force", False)),
             confirm_dead=bool(getattr(args, "confirm_dead", False)),
             _append_event=_append_event, _classify_inert_paths=_classify_inert_paths, _die=_die,
@@ -2717,6 +2755,10 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
                   f"the declared spike's tip survives as a ref, not a branch")
             print(f"  next: file a card with `prototype_ref: {data['prototype_ref']}` (SPEC-0205 rule 5) — "
                   f"the prototype is its specification, never code to copy")
+            if not getattr(args, "successor", None):
+                # T-14652 — a declared spike's park closes a round: point at the round cycle. A park run
+                # by `worktree new --from-spike` (successor set) leaves the line to that verb.
+                print(SPIKE_ROUND_CUE)
         print(f"cd {main_wt}")
         return
     # FORCED-WITH-REASON (T-11330) — the --task shape now carries the work-in-flight bound, so its
@@ -4051,6 +4093,14 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         _dd = _dedup_journal_commit(f"merging {merge_head[:12]}")
         if _dd:
             print(f"  journal: {_dd} duplicate row(s) dropped by land's dedup, committed.")
+        # T-14594 — a hand-finished merge of a cut main drains the root as the governed merge does.
+        from lib import worktree as _wt_drain   # lazy, as `_dedup_journal_commit`
+        _drained = _wt_drain._drain_cut_branch_root(
+            W, what=f"worktree sync --resolved merged {merge_head[:12]}", _run_git_cap=_run_git_cap,
+            _dedup_events=_dedup_events, write_text_atomic=write_text_atomic)
+        if _drained:
+            print(f"  journal: {_drained} root row(s) drained into their day partitions "
+                  f"(committed unless a failed-commit note was printed above).")
 
         # ── THE RE-PROOF — REPORT-ONLY and THREE-STATE (STEP 3a(d)). It is the SAME conflict proof
         # `land` runs before the queue, called directly — never a second checker — and it GATES
@@ -4283,6 +4333,20 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                        "carried": carried_sink.get("paths", []), "deduped_rows": deduped_rows,
                        "preflight": None})
         return None
+    # T-14580 — the row's main_sha is the main this sync ACTUALLY merged: the second parent of the newest
+    # merge it made, read off that commit, never the entry read of `main` (a sibling land between that
+    # read and `git merge` made them differ) and never derived from live main (a later land carrying this
+    # merge would move it). No merge found or git failing keeps the entry read: the admission reader checks
+    # the row against the merge's real parents, so a wrong value refuses and never admits.
+    merged_main = main_sha
+    _mc = _run_git_cap(["rev-list", "--first-parent", "--merges", "-n", "1",
+                        f"{head_before}..{head_after}"], W)
+    _mc = (_mc.stdout or "").strip() if _mc.returncode == 0 else ""
+    if re.fullmatch(r"[0-9a-f]{40,64}", _mc):
+        _p2 = _run_git_cap(["rev-parse", "--verify", "-q", f"{_mc}^2"], W)
+        _p2 = (_p2.stdout or "").strip() if _p2.returncode == 0 else ""
+        if re.fullmatch(r"[0-9a-f]{40,64}", _p2):
+            merged_main = _p2
     behind_after = int((_run_git_cap(["rev-list", "--count", "HEAD..main"], W).stdout.strip() or "0"))
     # T-11697 — the append moved BELOW the currency phase (it used to sit here), because the row now
     # carries a set the phase-2 verdict is half of, and phase 2 is judgeable only AFTER the merge.
@@ -4298,7 +4362,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         for _p in carried_sink["paths"]:
             print(f"    {_p}")
     print(f"worktree sync: {branch} brought up to date with main IN PLACE — merged {behind} commit(s) "
-          f"(main {main_sha[:12]}); now {behind_after} behind. Worktree intact at {W}.")
+          f"(main {merged_main[:12]}); now {behind_after} behind. Worktree intact at {W}.")
     print(f"  main was NOT advanced — this is a SYNC, not a land. Integrate with "
           f"`yitc-v2 land --task {task}`." if task else
           f"  main was NOT advanced — this is a SYNC, not a land. Integrate with "
@@ -4357,7 +4421,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     extra_row = {"post_sync_proof": proof} if proof is not None else {}
     _append_event("worktree_synced", task,
                   {**extra_row, "branch": branch, "behind_before": behind, "behind_after": behind_after,
-                   "noop": False, "main_sha": main_sha, "head_before": head_before,
+                   "noop": False, "main_sha": merged_main, "head_before": head_before,
                    "head_after": head_after, "worktree": str(W),
                    # T-11907 (AC3) — the paths this sync RESOLVED, on the existing row rather than a
                    # new event type. Always present, so "resolved nothing" is distinguishable from
@@ -6770,7 +6834,7 @@ def _orphan_resume_task(tid: str, *, _find_task_yaml, state=None) -> "dict | Non
     the case it was built for. `paused_at` was never the safety property (the absent worktree is), and
     requiring it excluded the very shape that cannot write it: a session KILLED after landing its ship
     commit mid-task (`land` removes worktree+branch at stage=Commit) — in-progress on main, no pause
-    metadata, no worktree, and therefore NO governed way back in (<project> T-0165: `worktree new`
+    metadata, no worktree, and therefore NO governed way back in (boomrocket T-0165: `worktree new`
     refused the non-ready task, `task resume` refused for want of a writing worktree; the only exit was
     raw git + `worktree adopt`). Both admitted shapes are orphans by the same evidence:
       • paused with the worktree torn down at pause/land      — T-9317 / F-019
@@ -7071,16 +7135,20 @@ def _spike_handover_command(main_wt: Path, *, _die) -> "str | None":
 
 def _served_round_dirt(wt: Path, _run_git_cap) -> str:
     """T-14397 (SPEC-0205 rule 12) — what a served round holds uncommitted, for both hand-over gates.
-    A content change of the live `events.jsonl` is left out: every `-C <served>` verb appends its own
-    row AFTER its settle commit, so no governed verb could ever make the round clean (X-2154). The test
-    is positive and narrower than the land's fold set: an archive segment or the `.yitc` tail stays dirt,
-    because the park would snapshot those onto the branch, past the tip the next round inherited. A
-    deleted or renamed journal stays dirt, and a status that could not run reads as dirt."""
+    A content change (or, for a new day partition, the untracked file) of any journal segment is left
+    out: every `-C <served>` verb appends its own row AFTER its settle commit, and after the journal cut
+    (SPEC-0190) that row lands in a day partition, so no governed verb could ever make the round clean
+    (X-2154, T-14587). The family is `events.is_journal_family_path` minus the `.yitc/` hook tail,
+    which stays dirt: the park would snapshot it onto the branch. A deleted or renamed journal stays
+    dirt, and a status that could not run reads as dirt."""
+    from lib import events as _events   # lazy, as this module's other uses
     st = _run_git_cap(["status", "--porcelain"], wt)
     if st.returncode != 0:
         return f"git status failed in {wt}: {(st.stderr or st.stdout or '').strip()[:200]}"
     return "\n".join(ln for ln in st.stdout.splitlines()
-                     if ln.strip() and not (ln[:2] in (" M", "M ", "MM") and ln[3:] == "events.jsonl"))
+                     if ln.strip() and not (ln[:2] in (" M", "M ", "MM", "??")
+                                            and _events.is_journal_family_path(ln[3:])
+                                            and not ln[3:].startswith(".yitc/")))
 
 
 def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _read_worktree_stamp,
@@ -7185,7 +7253,7 @@ def _spike_round_handover(served: dict, branch: str, path: Path, main_wt: Path, 
              f"NOT parked, so nothing it gained is lost. The next round {branch} is OPEN at "
              f"{served['tip'][:12]}. Carry the change across, then `bin/yitc-v2 worktree park --work "
              f"{served['branch'][len('work/'):]}`.")
-    _park_spike_round(served["branch"][len("work/"):])
+    _park_spike_round(served["branch"][len("work/"):], successor=branch[len("work/"):])
 
 
 def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, _append_event, _die, _foreign_hold_report, _format_task_verdict_line, _live_claimed_task_ids, _main_worktree, _plan_structural_findings, _print_cross_territory_routing_hint, _print_scenario_impact_warn, _read_worktree_stamp, _report_graft_parse_errors, _run_git_cap, _stamp_is_own, _task_safety_verdict, _with_live_nodes, _with_repo_lock, _worktree_parent_leaf, _worktree_path_for_branch, graph_build_index, REPO_ROOT, _assert_task_claimable, _claim_task, _orphan_resume_task, _resume_orphan_in_worktree, _write_worktree_stamp, _session_started_lower_bound, _resolve_session_ref, _BOOKKEEPING_ALLOWLIST, _inflight_worktree_intents=None, _print_inflight_intent_overlap=None, _print_spike_mode_hint=lambda: None, _live_path_holders=None, _session_proc_alive=None, _work_resume_candidate=None, _print_scenario_staleness_warn=lambda **k: None, SPIKE_BRANCH_PREFIX=None, _is_journal_archive_dirt=None, _live_holder_refusal=None, _open_work_batch_hint_lines=None, _own_open_work_batches=None, _unclassified_dirt=None, _filing_read_gate_hint_lines=None, _await_live_land_tail=None, _park_spike_round=None) -> None:
@@ -7672,6 +7740,11 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         if served_round is not None:
             _spike_round_handover(served_round, branch, path, main_wt, _die=_die, _run_git_cap=_run_git_cap,
                                   _park_spike_round=_park_spike_round)
+        if spike:
+            # T-14652 — a spike round opened (`--spike`, or the next round `--from-spike`, whose hand-over
+            # above _die()s on any failure): point at the round cycle once. The park run inside the
+            # hand-over stays silent on it (successor set), so this verb prints the line once.
+            print(SPIKE_ROUND_CUE)
 
 
 

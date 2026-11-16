@@ -65,7 +65,7 @@ Identify the FIRST bad commit and the last good one:
   recovery worktree off `main` and revert there, then land the revert the normal way:
   ```
   bin/yitc-v2 worktree new --work recover-<slug>
-  cd <worktree> && git revert --no-edit <bad-sha> [<bad-sha-2>...]
+  cd <worktree> && git revert --no-edit <bad-sha> [<bad-sha-2> ...]
   # run §4 probes, then:
   bin/yitc-v2 land
   ```

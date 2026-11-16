@@ -194,6 +194,27 @@ def is_archive_segment(path, journal_path) -> bool:
     return p.parent == archive_dir(journal_path) and p.match(archive_glob(journal_path))
 
 
+JOURNAL_FAMILY_ROOTS = ("events.jsonl", ".yitc/events.jsonl")
+
+
+def is_journal_family_path(rel) -> bool:
+    """T-14587 — True iff the repo-relative `rel` is ANY physical segment of a journal: the live root
+    `events.jsonl`, the `.yitc/events.jsonl` sidecar, or an archive segment of either (dated or undated
+    day partitions after the journal cut, SPEC-0190).
+
+    The ONE predicate every authored-vs-bookkeeping decision asks, so a day partition a worktree wrote
+    is never classed as authored content beside a literal `== "events.jsonl"`. Blank / None -> False;
+    a leading "./" is normalised."""
+    if not rel:
+        return False
+    s = str(rel).replace("\\", "/")
+    while s.startswith("./"):
+        s = s[2:]
+    if s in JOURNAL_FAMILY_ROOTS:
+        return True
+    return any(is_archive_segment(s, root) for root in JOURNAL_FAMILY_ROOTS)
+
+
 def segment_paths(journal_path) -> tuple:
     """The ORDERED physical segment set of the ONE logical journal at `journal_path`.
 
@@ -390,6 +411,192 @@ def live_segment(journal_path) -> Path:
     return segment_paths(journal_path)[-1]
 
 
+# ── SPEC-0190 rule 1c — readers of a DATED LIVE family (T-14567) ──────────────────────────────────
+#
+# The writer is unchanged: `append_event` appends to the root file only. A later card makes appends
+# land in `archive/events-<write-day>.jsonl` — the SAME archive naming, so no new path class exists
+# and merge attributes, dirt classification and staging already admit those files. What changes is a
+# READER's right to assume "every archive row is older than every root row". That assumption holds
+# in the ROTATION shape (rotation moves only rows older than a boundary every root row is >=) and
+# nowhere else. Two separate questions follow, and they are never conflated:
+#   Q1 `split_shape` — can another segment hold rows a root-position shortcut would miss? It decides
+#      every completeness shortcut (a tail read, a suffix, a first-match stop).
+#   Q2 `is_appendable_segment` — can this file change outside a land? It decides cache invalidation
+#      only, never which rows a reader returns.
+# On today's rotation shape every function below answers so that each reader is byte-identical.
+
+#: How many leading lines of the root are sampled for its oldest row. A union merge can place a
+#: slightly older row a few lines in, and a rotated root's first lines are its oldest rows.
+_SPLIT_HEAD_LINES = 64
+#: The envelope `ts` when it is the row's FIRST key, as every writer of this journal emits it. Anchored
+#: at the line start, so a nested `data.ts` can never match. Such a row is NOT parsed (SPEC-0190 rule
+#: 10: the shape probe must not add a parse of a row the request's one scan already parses); a row in
+#: another key order (a hand-built fixture) falls back to the envelope parse `_row_ts`.
+_LEAD_TS_RE = re.compile(r'^\{\s*"ts"\s*:\s*"(\d{4}-\d{2}-\d{2}T[^"]*)"')
+
+
+def _lead_ts(line) -> "str | None":
+    m = _LEAD_TS_RE.match(line)
+    if m:
+        return m.group(1)
+    return _row_ts(line) if line.strip() else None
+
+
+def _root_oldest_ts(live: Path) -> "str | None":
+    """The oldest datable `ts` among the root's first `_SPLIT_HEAD_LINES` lines, or None."""
+    oldest = None
+    try:
+        with live.open("r", encoding="utf-8", errors="replace") as fh:
+            for _i, line in zip(range(_SPLIT_HEAD_LINES), fh):
+                ts = _lead_ts(line)
+                if ts is not None and (oldest is None or ts < oldest):
+                    oldest = ts
+    except OSError:
+        return None
+    return oldest
+
+
+def split_shape(journal_path) -> bool:
+    """SPEC-0190 rule 1c, Q1 — True iff an archive segment CAN hold a row newer than a root row.
+
+    False exactly in the ROTATION shape: no archive, or every archive label is OLDER than the date of
+    the root's oldest sampled row. Rotation moves whole UTC days (`rotation_boundary` is a date), so
+    it never leaves an archive labelled with the root's oldest date; SAME-DAY coexistence is therefore
+    the split shape, and no archive file is opened to decide it. True also when the root is absent
+    while an archive exists, when the root has no datable row in its head, and when any archive label
+    is undatable or newer. It reads labels and the root's head, never the clock, so it stays True
+    through idle days."""
+    live = Path(journal_path)
+    archives = segment_paths(live)[:-1]
+    if not archives:
+        return False
+    if not live.exists():
+        return True
+    root_oldest = _root_oldest_ts(live)
+    if root_oldest is None:
+        return True
+    root_day = root_oldest[:10]
+    for seg in archives:
+        label = segment_label(seg, live)
+        if label is None or label >= root_day:
+            return True
+    return False
+
+
+def dated_since(journal_path, since) -> bool:
+    """SPEC-0190 rule 1c — the CUTOFF-RELATIVE split question a windowed root-only read asks: can a row
+    dated at or after `since` sit outside the root? True when the root is absent beside archives, or
+    when `segment_paths_since(since)` admits any archive (a label on or after `since`'s date, or an
+    undatable one). Rotation keeps every archive older than the live window, so a window shorter than
+    it answers False there."""
+    live = Path(journal_path)
+    if not live.exists():
+        return len(segment_paths(live)) > 1
+    return len(segment_paths_since(live, since)) > 1
+
+
+def live_view_segments(journal_path, *, now=None) -> tuple:
+    """The live window as a VIEW over the dated family: `segment_paths_since(now - window - 1 day)`.
+
+    The root is always included (last). With no readable window the whole set is returned — the safe
+    direction. This is a view for windowed readers; it is NEVER an evidence membership set."""
+    try:
+        from lib import worktree as _wt   # noqa: PLC0415 — worktree imports this module at load
+        days = _wt.journal_live_window_days()
+    except Exception:   # noqa: BLE001 — an unreadable window must widen, never narrow
+        days = None
+    if days is None:
+        return segment_paths(journal_path)
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    floor = (now - datetime.timedelta(days=days + 1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return segment_paths_since(journal_path, floor)
+
+
+def recency_lanes(journal_path) -> tuple:
+    """`(root lane, dated lane)` — the root as a one-element tuple, and the archives newest label
+    FIRST with undatable labels ahead of all of them (they can hold anything). Each lane is read
+    newest-written-first by a recency reader; the lanes are merged by `ts`, never concatenated."""
+    live = Path(journal_path)
+    archives = segment_paths(live)[:-1]
+    undatable = [s for s in archives if segment_label(s, live) is None]
+    dated = sorted((s for s in archives if segment_label(s, live) is not None),
+                   key=lambda s: segment_label(s, live), reverse=True)
+    return (live,), tuple(undatable + dated)
+
+
+def is_appendable_segment(seg, journal_path, *, now=None) -> bool:
+    """SPEC-0190 rule 1c, Q2 — True iff `seg` may change outside a land: the root, an undatable
+    archive, or a dated file labelled UTC yesterday or later (a writer appending one second after
+    midnight still targets yesterday's file). For CACHE INVALIDATION only — never a row filter.
+
+    T-14570 — in a CUT journal (`is_cut_journal`) EVERY segment is appendable: the writer files a row
+    under its OWN ts day, so a late row (an old branch's land, an adapter-supplied ts) reaches any
+    dated partition, whatever its label. A cache keyed on a segment then proves the segment unchanged
+    by its file state, never by its label."""
+    live = Path(journal_path)
+    if Path(seg) == live:
+        return True
+    label = segment_label(seg, live)
+    if label is None:
+        return True
+    if is_cut_journal(live):
+        return True
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return label >= (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+# ── SPEC-0190 rule 1 — the CUT journal: one partition per UTC ts day (T-14570) ─────────────────────
+#
+# A repository moves to day partitions ONLY through the explicit, governed `journal cut` run on it by
+# its own session (owner decision events.jsonl#ts=2026-11-10T16:49:39Z) — never automatically. The
+# fact that a journal is cut is ON DISK, not a marker: its ONE undated partition
+# (`archive/events-undated.jsonl`), which the cut creates LAST, possibly empty. Every archive surface
+# already admits that path (archive_glob, merge=union, staging, dirt, lock identity) and every C4
+# reader already reads it as undatable, unskippable and appendable (`segment_label` -> None). The root
+# `events.jsonl` stays, tracked and EMPTY between lands, so a branch forked before the cut still
+# union-merges onto it; the land seam drains whatever reaches it (`rotate_journal(drain=True)`).
+# In an uncut journal nothing below changes a byte: every append and every land keep the one file.
+
+#: The label of the ONE undated partition — not a date, so `segment_label` reads it as UNDATABLE.
+UNDATED_LABEL = "undated"
+
+
+def undated_segment_path(journal_path) -> Path:
+    """The undated partition of `journal_path` — the cut fact, and the home of every undatable row."""
+    return archive_segment_path(journal_path, UNDATED_LABEL)
+
+
+def is_cut_journal(journal_path) -> bool:
+    """True iff `journal_path` is a ROOT journal that has been cut: its undated partition exists.
+    A segment path, the hook-tail or any other file answers False (rule 1b scope)."""
+    p = Path(journal_path)
+    if p.name != _ROOT_JOURNAL_NAME:
+        return False
+    try:
+        return undated_segment_path(p).is_file()
+    except OSError:
+        return False
+
+
+def _ts_day(ts) -> "str | None":
+    """The UTC day of a row `ts` when it is a real calendar date (the `_row_ts` test), else None."""
+    if not isinstance(ts, str) or len(ts) < 10:
+        return None
+    try:
+        datetime.datetime.strptime(ts[:10], "%Y-%m-%d")
+    except ValueError:
+        return None
+    return ts[:10]
+
+
+def partition_for(journal_path, ts) -> Path:
+    """The partition a row dated `ts` is appended to in a cut journal: the file of its OWN UTC day
+    (late and future rows alike), or the undated partition when `ts` is not a calendar date. So a
+    file labelled D holds exactly the rows dated D — the label contract C4's readers rely on."""
+    day = _ts_day(ts)
+    return archive_segment_path(journal_path, day) if day else undated_segment_path(journal_path)
+
+
 def journal_pathspecs(journal_path, root) -> list:
     """Every PRESENT physical segment of the ONE logical journal at `journal_path`, as pathspecs
     relative to `root` — the STAGING half of this surface (T-11536).
@@ -571,7 +778,8 @@ def rotation_boundary(journal_path, window_days: int) -> "str | None":
     return (anchor - datetime.timedelta(days=int(window_days))).strftime("%Y-%m-%d")
 
 
-def rotate_journal(journal_path, *, window_days, dedup, write_text_atomic, _at=None) -> "dict | None":
+def rotate_journal(journal_path, *, window_days=None, dedup, write_text_atomic, _at=None,
+                   drain=False) -> "dict | None":
     """SPEC-0190 rules 2+3 — MOVE rows older than the live window out of the live segment into
     ARCHIVE segments, as a crash-safe transaction. Returns None when nothing moves, else a summary.
 
@@ -609,11 +817,29 @@ def rotate_journal(journal_path, *, window_days, dedup, write_text_atomic, _at=N
     durable, before the live rewrite) and `live-truncate` (immediately before it). It exists because
     the card requires this crash behaviour DEMONSTRATED rather than argued, and two points inside one
     transaction cannot be reached by monkeypatching a shared primitive by call count. Production never
-    passes it; `index-update`, the third point, belongs to the seam helper."""
+    passes it; `index-update`, the third point, belongs to the seam helper.
+
+    `drain=True` — THE CUT AND THE LAND DRAIN of a cut journal (T-14570, SPEC-0190 rules 1+3). There is
+    no boundary: EVERY datable row of the root moves to the partition of its OWN ts day (future rows to
+    their own day too — no ceiling), every undatable row to the undated partition, and the root is
+    rewritten EMPTY. The undated partition is written in HALF 1 whether or not a row moves into it, and
+    LAST among the partitions, so the cut fact appears only after every dated row is durable, and
+    always before the root is truncated: an interrupted run leaves rows in BOTH places, never in
+    neither. The partition union is LAND'S OWN union+dedup — the injected `dedup` (SPEC-0002
+    `_dedup_events` keyed by `_event_dedup_key`), the same identity, never a second one: a root row is
+    added unless a canonically identical row is already there, so a re-run (or a fold that handed
+    partition rows back to the root) adds nothing, and canonically identical rows are ONE event
+    (SPEC-0190 rule 3; counted in `duplicates_collapsed`). A partition the drain adds nothing to is not rewritten. Returns None when the root held no row and the undated
+    partition already existed (the re-run no-op)."""
     live = live_segment(journal_path)
-    boundary = rotation_boundary(journal_path, window_days)
-    if boundary is None or not live.exists():
-        return None
+    if drain:
+        boundary = None
+        if not live.exists():
+            return None
+    else:
+        boundary = rotation_boundary(journal_path, window_days)
+        if boundary is None or not live.exists():
+            return None
     # T-13138 (X-1687) — STREAMED, never held: resident memory is bounded by the largest single
     # moving day, never by the live segment or by how far behind rotation has fallen.
     # T-13202 (SPEC-0190 rule 10) — and the live file is READ ONCE. The T-13138 form re-streamed the
@@ -648,11 +874,14 @@ def rotate_journal(journal_path, *, window_days, dedup, write_text_atomic, _at=N
             handles["keep"] = keep_path.open("w", encoding="utf-8")
             for line in _read(live):
                 ts = _row_ts(line)
-                if ts is None or ts >= boundary:     # rule 2: `ts >= boundary` STAYS; undatable never moves
+                if drain:                            # the cut: every row leaves the root
+                    label = ts[:10] if ts is not None else UNDATED_LABEL
+                elif ts is None or ts >= boundary:   # rule 2: `ts >= boundary` STAYS; undatable never moves
                     kept += 1
                     handles["keep"].write(line + "\n")
                     continue
-                label = ts[:10]
+                else:
+                    label = ts[:10]
                 fh = handles.get(label)
                 if fh is None:
                     if len(handles) >= 256:          # bound open descriptors; a reopen appends
@@ -664,6 +893,12 @@ def rotate_journal(journal_path, *, window_days, dedup, write_text_atomic, _at=N
         finally:
             for fh in handles.values():
                 fh.close()
+        fact_existed = undated_segment_path(live).is_file() if drain else True
+        if drain:
+            days.add(UNDATED_LABEL)                  # the cut fact is written in HALF 1, always
+            if fact_existed and days == {UNDATED_LABEL} \
+                    and not (spill_dir / f"day-{UNDATED_LABEL}").exists():
+                return None                          # cut, and nothing in the root: the re-run no-op
         if not days:
             return None                              # a no-op is cheap and VISIBLE — never a silent pass
 
@@ -673,20 +908,34 @@ def rotate_journal(journal_path, *, window_days, dedup, write_text_atomic, _at=N
         # itself — and every row this run moved into it must be there.
         adir = archive_dir(live)
         adir.mkdir(parents=True, exist_ok=True)
-        written, moved, missing = [], 0, 0
-        for label in sorted(days):
-            day = list(_read(spill_dir / f"day-{label}"))
+        written, moved, missing, collapsed = [], 0, 0, 0
+        # the undated partition sorts LAST (the cut fact appears after every dated row is durable)
+        for label in sorted(days, key=lambda d: (d == UNDATED_LABEL, d)):
+            spill = spill_dir / f"day-{label}"
+            day = list(_read(spill)) if spill.exists() else []
             seg = archive_segment_path(live, label)
-            existing = seg.read_text(encoding="utf-8", errors="replace").splitlines() if seg.exists() else []
-            merged = dedup([ln for ln in existing if ln] + day)
-            write_text_atomic(seg, "".join(ln + "\n" for ln in merged))
-            written.append(seg)
-            want = {_digest(ln) for ln in day}
-            del day, existing, merged
-            moved += len(want)
-            for line in _read(seg):
-                want.discard(_digest(line))
-            missing += len(want)
+            existing = [ln for ln in seg.read_text(encoding="utf-8", errors="replace").splitlines() if ln] \
+                if seg.exists() else []
+            merged = dedup(existing + day)   # T-14570: the drain uses land's identity too
+            if not seg.exists() or merged != existing:   # T-14570: an unchanged file is not rewritten
+                write_text_atomic(seg, "".join(ln + "\n" for ln in merged))
+                written.append(seg)
+            if drain:
+                # every root row must read back under LAND'S identity: re-adding the root rows to the
+                # partition as read off disk adds nothing (the same `dedup`, no second key)
+                back = dedup(list(_read(seg)))
+                miss = len(dedup(back + day)) - len(back)
+                collapsed += len(existing) + len(day) - len(merged)
+                moved += len(day)
+                missing += miss
+                del day, existing, merged, back
+            else:
+                want = {_digest(ln) for ln in day}
+                moved += len(want)
+                del day, existing, merged
+                for line in _read(seg):
+                    want.discard(_digest(line))
+                missing += len(want)
         _fsync_dir(adir)
         if missing:
             raise RuntimeError(
@@ -700,8 +949,11 @@ def rotate_journal(journal_path, *, window_days, dedup, write_text_atomic, _at=N
             _at("live-truncate")
         write_text_atomic(live, (ln + "\n" for ln in _read(keep_path)))   # streamed, never joined
     _fsync_dir(live.parent)
-    return {"moved": moved, "kept": kept, "boundary": boundary,
-            "segments": [str(s) for s in written]}
+    out = {"moved": moved, "kept": kept, "boundary": boundary,
+           "segments": [str(s) for s in written]}
+    if drain:
+        out.update(drained=True, cut=not fact_existed, duplicates_collapsed=collapsed)
+    return out
 
 
 def recombine_journal(journal_path, *, dedup, write_text_atomic) -> "dict | None":
@@ -1582,6 +1834,11 @@ def derive_block_classification(data) -> "str | None":
     return BLOCK_CLASSIFICATION_UNCLASSIFIED
 
 
+# The journal line's JSON separators (T-14566, SPEC-0025): compact for every newly written row — the
+# spaced form of older rows stays readable, every reader matching a row by text accepts both.
+SEPARATORS = (",", ":")
+
+
 def append_event(
     event_type: str,
     task_id: str | None,
@@ -1663,17 +1920,17 @@ def append_event(
     # adapter that shaped the row through `cap_text` declares it, and every other row is
     # stored whole; no whole-event truncator and no new ceiling (anti-complexity Principle 1 —
     # the lock, not the cap, carries atomicity).
-    line = json.dumps(event, ensure_ascii=False, default=_json_default)
+    line = json.dumps(event, ensure_ascii=False, default=_json_default, separators=SEPARATORS)
     if text_cap and len(line.encode("utf-8")) > MAX_EVENT_BYTES and isinstance(payload.get("text"), str):
         full = payload["text"]
         payload.setdefault("original_size_chars", len(full))
         payload.setdefault("sha256", hashlib.sha256(full.encode("utf-8")).hexdigest())
         payload["truncated"] = True
         keep = len(full)
-        while len(json.dumps(event, ensure_ascii=False, default=_json_default).encode("utf-8")) > MAX_EVENT_BYTES and keep > 80:
+        while len(json.dumps(event, ensure_ascii=False, default=_json_default, separators=SEPARATORS).encode("utf-8")) > MAX_EVENT_BYTES and keep > 80:
             keep = int(keep * 0.8)
             payload["text"] = _byte_head(full, keep * 3 // 4) + "\n…[elided]…\n" + _byte_tail(full, keep // 4)
-        line = json.dumps(event, ensure_ascii=False, default=_json_default)
+        line = json.dumps(event, ensure_ascii=False, default=_json_default, separators=SEPARATORS)
     if guard is not None:
         guard(events_path)  # SPEC-0078: reject consumer→ENGINE_ROOT journal writes (host-injected)
     if _GUARDED_JOURNALS:   # T-10401: inert in production (unset var); armed only under the test harness
@@ -1700,6 +1957,12 @@ def append_event(
     # lock target so land's truncating rewrite / a future temp+rename cannot swap the locked inode.
     row = (line + "\n").encode("utf-8")
     with journal_lock(events_path):
+        # T-14570 (SPEC-0190 rule 1) — in a CUT journal the row goes to the partition of its OWN ts
+        # day, under the SAME logical-journal lock; an uncut journal keeps its one file. Decided
+        # inside the lock, so a concurrent `journal cut` (which holds it) is either wholly before or
+        # wholly after this append.
+        if is_cut_journal(events_path):
+            events_path = partition_for(events_path, ts)
         with open(events_path, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
             fh.flush()
@@ -2003,7 +2266,8 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                  "\"cards\": [\"T-XXXX\"], \"text\": \"<what the owner authorized> cites "
                  "events.jsonl#ts=<owner row ts>\"}'`\n"
                  "  a decision that arrived MID-TURN (no owner row): \"mid_turn\": true with "
-                 "--source-ref <transcript>#uuid:<owner entry uuid>")
+                 "--source-ref <transcript>#uuid:<owner entry uuid>"
+                 f"\n  {vocab.MID_TURN_ENTRY_HINT}")
         if caller_data.get("mid_turn") is not None:
             _proof = dict(caller_data)
             _mid_turn_refusal = _mid_turn_owner_text_refusal(
@@ -2013,7 +2277,8 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                      "  the route (SPEC-0204 rule 2): --source-ref <transcript>#uuid:<owner entry uuid> "
                      "--data '{\"captured_via\": \"controller-delegated\", \"mid_turn\": true, "
                      "\"cards\": [\"T-XXXX\"], ...}'  (owner_text omitted = taken from the entry; "
-                     "if supplied it must be the owner's COMPLETE message, verbatim)")
+                     "if supplied it must be the owner's COMPLETE message, verbatim)"
+                     f"\n  {vocab.MID_TURN_ENTRY_HINT}")
             data["owner_text"] = journal.redact_owner_text(_proof["owner_text"])   # T-14199: proven raw, stored redacted
             data["owner_text_verified"] = True
         _citation_refusal = _delegated_citation_refusal(

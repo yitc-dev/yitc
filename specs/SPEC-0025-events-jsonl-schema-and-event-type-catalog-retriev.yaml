@@ -20,46 +20,54 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ Append-only, P5-safe: consumers parse\nunknown event types as an opaque `{ts,type,data}`\
   \ triple, never fail. No upfront closed enum.\n\n`events.jsonl` lives at `<project-root>/events.jsonl`.\
   \ JSON Lines format — one JSON object per line,\nappend-only. Manual writes during\
-  \ Day 1-2 used `cat >> events.jsonl`; Day 3+ the CLI emits structured.\n\n### Universal\
-  \ schema\n```jsonc\n{\"ts\": \"\", \"type\": \"<event_type>\", \"task_id\": \"T-XXXX\"\
-  , \"data\": {...}}\n```\n- `ts` — ISO 8601 UTC, microsecond optional\n- `type` —\
-  \ snake_case event name\n- `task_id` — optional, present when the event ties to\
-  \ a specific task\n- `data` — type-specific payload. May include `commit: <sha>`\
-  \ (for commit-related events:\n  `commit_landed`, `audit_post_completed`) or `audit_id:\
-  \ <task-audit-stage>` (for audit-related\n  events: `external_audit_completed`)\n\
-  \n#### `unresolved_locators` — the cross-type governed-citation mark (X-1465)\n\n\
-  An ADDITIVE-OPTIONAL `data` key that may appear on a row of **ANY** type — which\
-  \ is why it is homed\nhere in the universal schema rather than in one type's catalog\
-  \ entry. Shape:\n\n```jsonc\n\"unresolved_locators\": [{\"field\": \"<the governed\
-  \ field>\", \"locator\": \"<the ts as written>\",\n                         \"why\"\
-  : \"malformed | no-row\"}]\n```\n\n**What it records.** <workshop-spec> rule 2 holds\
-  \ that authority is proven by RESOLUTION, never by a\nnon-empty string — but it\
-  \ enforced that for one TYPED argument only, so a governed FREE-TEXT reason\ncould\
-  \ cite a locator that resolves to nothing. It did: `task update --status wont-do`\
-  \ accepted\n placeholder `events.jsonl#ts=2026-09-16T12:5x` (the real row is at\
-  \ 14:58:18Z) and LANDED\nit unchecked (deviation events.jsonl#ts=). `bin/lib/cli.py#_check_reason_locators`\n\
-  now scans the governed reason fields once per invocation and stamps this key onto\
-  \ the row in flight.\n\n**PRESENT ONLY ON AN OFFENDING ROW — never `false`, never\
-  \ an empty list.** `why` distinguishes the\ntwo failures that both had to be caught:\
-  \ `malformed` (the token is not a well-formed timestamp — the\n shape, which a resolve-only\
-  \ check would have skipped entirely) and `no-row` (well-formed, but\nno journal\
-  \ row carries that ts). A claim written `<project> events.jsonl#ts=<ts>` (or `<project>/`\
-  \ / `<project>:`), where `<project>` names another host-registry project, is resolved\
-  \ in THAT project's journal only; any other claim in this repository's journal and\
-  \ its main checkout's. A locator that RESOLVES, and one whose lookup could not be\
-  \ decided\n(I/O failure), are both silent — the fail-SAFE direction, since a governance\
-  \ mark must never assert\nan offence it cannot prove.\n\n**Report-only by design.**\
-  \ The mark is paired with a stderr WARN and refuses nothing: the class it\naddresses\
-  \ is a defect that LANDED unnoticed, and a stderr line in a background worker is\
-  \ gone the\nmoment the process exits — so the ROW is the durable half, making the\
-  \ record self-describing and\ngreppable (`journal query --grep unresolved_locators`).\
-  \ The key is derived at the write path, never\ncaller-supplied.\n\n### Required\
-  \ `duration_ms` field set ( — the machine-readable roster)\n\nThe event types on\
-  \ which `duration_ms` is a REQUIRED `data` field. This roster is the SINGLE source\n\
-  the schema self-test reads (`tests/test_test_and_audit_rows_carry_duration.py`),\
-  \ so the catalog and\nthe check cannot drift apart — a type is required-by-being-listed\
-  \ here, nowhere else:\n\n```yaml\nduration_ms_required_on:\n  - tests_passed\n \
-  \ - tests_failed\n  - audit_pre_completed\n  - audit_post_completed\n  - external_audit_completed\n\
+  \ Day 1-2 used `cat >> events.jsonl`; Day 3+ the CLI emits structured.\nA newly\
+  \ written row uses compact JSON separators (`,` and `:` with no space after them);\
+  \ an older row\ncarries `, ` and `: `. A reader that matches a row by its raw text\
+  \ — a needle, a regex, a slice —\naccepts both forms, or parses the row instead.\n\
+  The engine admission queue writes its full applied configuration once per distinct\
+  \ configuration\nhash, as an `admission_config` row (`data`: `admission`, `config_hash`,\
+  \ `config`), and each of its\n`admission_*` rows carries `config_hash` and `config_ref`\
+  \ — that row's `{ts, sha}`, or `\"unavailable\"`\n(SPEC-1045 rule 2 (e)); a row\
+  \ written before carries the inline `config` list instead.\n\n### Universal schema\n\
+  ```jsonc\n{\"ts\": \"\", \"type\": \"<event_type>\", \"task_id\": \"T-XXXX\", \"\
+  data\": {...}}\n```\n- `ts` — ISO 8601 UTC, microsecond optional\n- `type` — snake_case\
+  \ event name\n- `task_id` — optional, present when the event ties to a specific\
+  \ task\n- `data` — type-specific payload. May include `commit: <sha>` (for commit-related\
+  \ events:\n  `commit_landed`, `audit_post_completed`) or `audit_id: <task-audit-stage>`\
+  \ (for audit-related\n  events: `external_audit_completed`)\n\n#### `unresolved_locators`\
+  \ — the cross-type governed-citation mark (X-1465)\n\nAn ADDITIVE-OPTIONAL `data`\
+  \ key that may appear on a row of **ANY** type — which is why it is homed\nhere\
+  \ in the universal schema rather than in one type's catalog entry. Shape:\n\n```jsonc\n\
+  \"unresolved_locators\": [{\"field\": \"<the governed field>\", \"locator\": \"\
+  <the ts as written>\",\n                         \"why\": \"malformed | no-row\"\
+  }]\n```\n\n**What it records.** <workshop-spec> rule 2 holds that authority is proven\
+  \ by RESOLUTION, never by a\nnon-empty string — but it enforced that for one TYPED\
+  \ argument only, so a governed FREE-TEXT reason\ncould cite a locator that resolves\
+  \ to nothing. It did: `task update --status wont-do` accepted\n placeholder `events.jsonl#ts=2026-09-16T12:5x`\
+  \ (the real row is at 14:58:18Z) and LANDED\nit unchecked (deviation events.jsonl#ts=).\
+  \ `bin/lib/cli.py#_check_reason_locators`\nnow scans the governed reason fields\
+  \ once per invocation and stamps this key onto the row in flight.\n\n**PRESENT ONLY\
+  \ ON AN OFFENDING ROW — never `false`, never an empty list.** `why` distinguishes\
+  \ the\ntwo failures that both had to be caught: `malformed` (the token is not a\
+  \ well-formed timestamp — the\n shape, which a resolve-only check would have skipped\
+  \ entirely) and `no-row` (well-formed, but\nno journal row carries that ts). A claim\
+  \ written `<project> events.jsonl#ts=<ts>` (or `<project>/` / `<project>:`), where\
+  \ `<project>` names another host-registry project, is resolved in THAT project's\
+  \ journal only; any other claim in this repository's journal and its main checkout's.\
+  \ A locator that RESOLVES, and one whose lookup could not be decided\n(I/O failure),\
+  \ are both silent — the fail-SAFE direction, since a governance mark must never\
+  \ assert\nan offence it cannot prove.\n\n**Report-only by design.** The mark is\
+  \ paired with a stderr WARN and refuses nothing: the class it\naddresses is a defect\
+  \ that LANDED unnoticed, and a stderr line in a background worker is gone the\n\
+  moment the process exits — so the ROW is the durable half, making the record self-describing\
+  \ and\ngreppable (`journal query --grep unresolved_locators`). The key is derived\
+  \ at the write path, never\ncaller-supplied.\n\n### Required `duration_ms` field\
+  \ set ( — the machine-readable roster)\n\nThe event types on which `duration_ms`\
+  \ is a REQUIRED `data` field. This roster is the SINGLE source\nthe schema self-test\
+  \ reads (`tests/test_test_and_audit_rows_carry_duration.py`), so the catalog and\n\
+  the check cannot drift apart — a type is required-by-being-listed here, nowhere\
+  \ else:\n\n```yaml\nduration_ms_required_on:\n  - tests_passed\n  - tests_failed\n\
+  \  - audit_pre_completed\n  - audit_post_completed\n  - external_audit_completed\n\
   ```\n\nA row of one of these types with no `duration_ms` FAILS the check. Rows emitted\
   \ BEFORE\nlanded are grandfathered — the check reads fixture rows and the emitters,\
   \ not the historical\njournal (an append-only log cannot be retro-fixed, and the\
@@ -242,7 +250,7 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ for any\nnonconformity; CLI-emitted by `event` + `audit run`):\n```jsonc\n{\"\
   ts\": \"...\", \"type\": \"deviation_captured\", \"task_id\": \"T-XXXX | E-XXXX\
   \ | null\",\n \"data\": {\"kind\": \"defect|friction|improvement (OPTIONAL at capture\
-  \ — decided in triage, SPEC-0056; established by §2)\",\n          \"relates_to\"\
+  \ — decided in triage, SPEC-0056; established by  §2)\",\n          \"relates_to\"\
   : \"<failure-class id and/or aspect>\",\n          \"impact\": \"<WHAT is not as\
   \ it should be — the deviation itself, in one subject-bearing line>\", \"fingerprint\"\
   : \"<source-INDEPENDENT recurrence key>\",\n          \"finding\": \"<one-line,\
@@ -252,7 +260,7 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ int, \\\"N\\\" or \\\"#N\\\"; stored as the int >\",\n          \"actor\": \"\
   <WHO captured it — DERIVED at emit, never asked for + never caller-supplied >\"\
   ,\n          \"inspection_theme\": \"<T1..T8 — present WHEN captured_via:inspection,\
-  \ per SPEC-0057 (established)>\",\n          \"inspection_run_ref\": \"<the inspection\
+  \ per SPEC-0057 (established )>\",\n          \"inspection_run_ref\": \"<the inspection\
   \ run's inspection_completed ts/ref — present WHEN captured_via:inspection>\"}}\n\
   ```\n**`class` is the OPTIONAL failure-class instrument.** When present it MUST\
   \ be a CHARTER §AI\nfailure class id — the SPEC-0023 table, ids 1..20, given as\
@@ -373,16 +381,16 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ window). `task_id` null.\n```jsonc\n{\"ts\": \"...\", \"type\": \"triage_run_completed\"\
   ,\n \"data\": {\"routed\": 7, \"linked\": 3, \"promoted\": 1, \"window_since\":\
   \ \"<ts of prior watermark | null>\",\n          \"window_through\": \"<routed-boundary\
-  \ max ts | null>\", //\n          \"routes\": [{\"ts\": \"...\", \"fingerprint\"\
-  : \"<fp>\", // — per-capture\n                      \"target_kind\": \"task|decision|cross\"\
-  , \"target_id\": \"T-…|D-…|X-…\"}]}}\n```\n`routed`/`linked` are DERIVED from `routes`\
-  \ (the per-capture capture->target audit-trail):\n`routed` = #routed capture events,\
-  \ `linked` = the cites-owned (task/decision) subset; `promoted`\nstays operator-supplied.\
-  \ `routes` is OMITTED when the window routed nothing (additive, P5-safe unknown-key\
-  \ tolerance). The capture->target link is READ from the already-persisted carriers\n\
-  (a task `cites:` the fp, a cross carries it as `cross_requested.origin_fp`), not\
-  \ a new store.\nAppend-only, P5-safe. Until ships the verb, it is emittable via\
-  \ the generic `event` verb. A\n`data.probe: true` watermark is a **schema-probe,\
+  \ max ts | null>\",            //\n          \"routes\": [{\"ts\": \"...\", \"fingerprint\"\
+  : \"<fp>\",                 //  — per-capture\n                      \"target_kind\"\
+  : \"task|decision|cross\", \"target_id\": \"T-…|D-…|X-…\"}]}}\n```\n`routed`/`linked`\
+  \ are DERIVED from `routes` (the per-capture capture->target audit-trail):\n`routed`\
+  \ = #routed capture events, `linked` = the cites-owned (task/decision) subset; `promoted`\n\
+  stays operator-supplied. `routes` is OMITTED when the window routed nothing (additive,\
+  \ P5-safe unknown-key tolerance). The capture->target link is READ from the already-persisted\
+  \ carriers\n(a task `cites:` the fp, a cross carries it as `cross_requested.origin_fp`),\
+  \ not a new store.\nAppend-only, P5-safe. Until ships the verb, it is emittable\
+  \ via the generic `event` verb. A\n`data.probe: true` watermark is a **schema-probe,\
   \ NOT a real routing boundary** — the triage window\ncomputation MUST exclude `probe:\
   \ true` watermarks when finding the last boundary.\n\n**inspection_completed** (per\
   \ SPEC-0057 §6; established by §6 — RUN-accounting for a periodic **inspection**;\n\
@@ -393,65 +401,66 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   : \"...\", \"type\": \"inspection_completed\",\n \"data\": {\"theme\": \"T1\", \"\
   findings_count\": 4, \"high_count\": 1,\n          \"lenses_covered\": [\"doc-anchor-resolve\"\
   , \"rule-extraction\"],\n          \"criteria_ref\": \"patterns/inspection-criteria-roster.md#T1@<sha256[:12]>\"\
-  , // — checklist-hash\n          \"no_data\": false, // <workshop-spec> rule 1 —\
-  \ did the run produce a verdict at all\n          \"tracks_covered\": [\"primary\"\
-  , \"external\"], // — WHICH tracks ran (see below)\n          \"notes\": \"<free-text\
-  \ findings>\"}} // — `inspect record --notes`; absent when not given\n```\n**`tracks_covered`**\
-  \ (per SPEC-0057 §Run-mode) records **which of the declared tracks actually\nran**\
-  \ for that subject — the vocabulary is the two names the run-mode fixes, `primary`\
-  \ and `external`, in\nthat order. It is written on EVERY run, and an empty list\
-  \ means the run did NOT SAY what its coverage was;\na READER treats an empty list\
-  \ AND an ABSENT field (every record predating this) as **UNRECORDED — never\nas\
-  \ a claim that both tracks ran**, since inventing coverage for a run nobody described\
-  \ would put a\nstronger claim in the journal than was ever made. It exists because\
-  \ the dual-track discipline is the\nload-bearing half of the inspection method while\
-  \ its ABSENCE previously left no trace: on the 2026-08-13\ncycle `inspect record`\
-  \ was emitted for T1 through T10 while only T5 and T7 had a second track, and those\n\
-  eight events were indistinguishable here from converged ones.\n**It is COVERAGE,\
-  \ not a grade** — not a colour, score or band, and deliberately NOT a record of\
-  \ whether\nthe tracks CONVERGED (whether the two finding sets agreed is the operator's\
-  \ compare-after-both-finish\njudgement, and storing it would be the per-theme verdict\
-  \ SPEC-0057 §4 forbids). Consistently, a\nsingle-track run is suppressed NOWHERE:\
-  \ unlike `no_data` it still anchors its subject's review-due clock,\nbecause gating\
-  \ on a track count would derive exactly that forbidden judgement.\nThere is **NO\
-  \ color/verdict field** — an inspection's evaluation IS its findings list, not a\n\
-  GREEN/YELLOW/RED (SPEC-0057 §4 — a color floods RED and pushes toward scoring/bands);\
-  \ the only per-theme\nsignal is the derived binary `open HIGH?`. Additive, P5-safe\
-  \ (consumers ignore unknown keys).\nThe `inspect record` verb (SPEC-0057 §6) now\
-  \ emits this event with a REAL **checklist-hash**\n`criteria_ref` — `<roster>#<theme>@<sha256[:12]>`\
-  \ over the theme's living lens-checklist section in\n`patterns/inspection-criteria-roster.md`,\
-  \ so editing the checklist changes the hash and a stale theme\nrun is detectable.\
-  \ It stays MANUAL-FIRST (owner-invoked, no cron — SPEC-0057 §2); the generic `event`\n\
-  emit path remains valid (P5). A `data.probe: true` inspection_completed is a **schema-probe,\
-  \ NOT a real run** (mirror of\ntriage_run_completed) — would be excluded from a\
-  \ future run-register view (a saved-view over\nthese events), which is DEFERRED\
-  \ until a real pull (SPEC-0057 §6 — no such view exists in views/ yet; established\
-  \ by §9).\n\n**`spec_reverified`** (E-0019 kind-B) — emitted by `bin/yitc-v2 spec\
-  \ reverify <SPEC>`\nafter it records the durable content-signature freshness baseline.\
-  \ `task_id` = the reverified SPEC\nid; `data` = `{path, status, signed: [<anchor>...],\
-  \ unsignable: [<anchor>...]}`. Append-only,\nnon-gated. The blessed signatures live\
-  \ on the spec's `implements_signature:` field (SPEC-0006).\n\n**commit_landed**\
-  \ — emitted by BOTH commit verbs so every real git commit leaves a journal event\n\
-  : `task commit` emits it WITH `task_id` set; `work commit` emits it with NO `task_id`\
-  \ (the\ncommit is not task-tied) + `data.kind: \"work\"` to disambiguate. `data.commit`\
-  \ = short sha, recorded through the ONE\ncustody-sha helper `audit.recorded_sha`\
-  \ : `git rev-parse --short=7` — 7 characters, WIDENED\nby git where 7 would be ambiguous\
-  \ in that repo, and the full sha where git cannot answer — never a\nblind 7-character\
-  \ slice. Every custody row's `commit` takes the same value: `audit_<stage>_completed`,\n\
-  `external_audit_completed`, `task_closed` (and the card's `commit:`), the `custody_repin_*`\
-  \ keys, and\n`live_trigger_evidence --commit`, which alone refuses before append\
-  \ a value that is no commit of the\nrepo or is ambiguous. A row written before may\
-  \ still carry an ambiguous 7-character prefix;\nits readers resolve it per SPEC-0015\
-  \ §Internal (the ambiguous-recorded-prefix rule).\n\n**deploy_completed** (per SPEC-0094\
-  \ §1; emitted by `bin/yitc-v2 deploy`) — the governed\ndeploy-adoption record. Emitted\
-  \ ONLY after the project-declared `deploy:` / `rollback:` command (the\nexecutable\
-  \ smoke/health gate, from `yitc-ops.yaml` / SPEC-0093) exits 0 — a non-zero gate\
-  \ leaves NO\n`deploy_completed` (the broken revision is never recorded live). A\
-  \ deploy whose command STARTED leaves\nexactly ONE terminal row: where it then failed\
-  \ or was interrupted and no other terminal row\n(`deploy_convergence_failed` / `deploy_security_probe_post_failed`,\
-  \ SPEC-0097) records how it ended, that\nrow is a **deploy_failed** (revision, project,\
-  \ kind, the last step reached, and the exit code or caught\nsignal; `task_id` null)\
-  \ — never adoption evidence; its record contract is homed in SPEC-0094 §1\n. Emitted\
+  ,  //  — checklist-hash\n          \"no_data\": false,                         \
+  \   // <workshop-spec> rule 1 — did the run produce a verdict at all\n         \
+  \ \"tracks_covered\": [\"primary\", \"external\"],   //  — WHICH tracks ran (see\
+  \ below)\n          \"notes\": \"<free-text findings>\"}}            //  — `inspect\
+  \ record --notes`; absent when not given\n```\n**`tracks_covered`** (per SPEC-0057\
+  \ §Run-mode) records **which of the declared tracks actually\nran** for that subject\
+  \ — the vocabulary is the two names the run-mode fixes, `primary` and `external`,\
+  \ in\nthat order. It is written on EVERY run, and an empty list means the run did\
+  \ NOT SAY what its coverage was;\na READER treats an empty list AND an ABSENT field\
+  \ (every record predating this) as **UNRECORDED — never\nas a claim that both tracks\
+  \ ran**, since inventing coverage for a run nobody described would put a\nstronger\
+  \ claim in the journal than was ever made. It exists because the dual-track discipline\
+  \ is the\nload-bearing half of the inspection method while its ABSENCE previously\
+  \ left no trace: on the 2026-08-13\ncycle `inspect record` was emitted for T1 through\
+  \ T10 while only T5 and T7 had a second track, and those\neight events were indistinguishable\
+  \ here from converged ones.\n**It is COVERAGE, not a grade** — not a colour, score\
+  \ or band, and deliberately NOT a record of whether\nthe tracks CONVERGED (whether\
+  \ the two finding sets agreed is the operator's compare-after-both-finish\njudgement,\
+  \ and storing it would be the per-theme verdict SPEC-0057 §4 forbids). Consistently,\
+  \ a\nsingle-track run is suppressed NOWHERE: unlike `no_data` it still anchors its\
+  \ subject's review-due clock,\nbecause gating on a track count would derive exactly\
+  \ that forbidden judgement.\nThere is **NO color/verdict field** — an inspection's\
+  \ evaluation IS its findings list, not a\nGREEN/YELLOW/RED (SPEC-0057 §4 — a color\
+  \ floods RED and pushes toward scoring/bands); the only per-theme\nsignal is the\
+  \ derived binary `open HIGH?`. Additive, P5-safe (consumers ignore unknown keys).\n\
+  The `inspect record` verb (SPEC-0057 §6) now emits this event with a REAL **checklist-hash**\n\
+  `criteria_ref` — `<roster>#<theme>@<sha256[:12]>` over the theme's living lens-checklist\
+  \ section in\n`patterns/inspection-criteria-roster.md`, so editing the checklist\
+  \ changes the hash and a stale theme\nrun is detectable. It stays MANUAL-FIRST (owner-invoked,\
+  \ no cron — SPEC-0057 §2); the generic `event`\nemit path remains valid (P5). A\
+  \ `data.probe: true` inspection_completed is a **schema-probe, NOT a real run**\
+  \ (mirror of\ntriage_run_completed) — would be excluded from a future run-register\
+  \ view (a saved-view over\nthese events), which is DEFERRED until a real pull (SPEC-0057\
+  \ §6 — no such view exists in views/ yet; established by §9).\n\n**`spec_reverified`**\
+  \ (E-0019 kind-B) — emitted by `bin/yitc-v2 spec reverify <SPEC>`\nafter it records\
+  \ the durable content-signature freshness baseline. `task_id` = the reverified SPEC\n\
+  id; `data` = `{path, status, signed: [<anchor>...], unsignable: [<anchor>...]}`.\
+  \ Append-only,\nnon-gated. The blessed signatures live on the spec's `implements_signature:`\
+  \ field (SPEC-0006).\n\n**commit_landed** — emitted by BOTH commit verbs so every\
+  \ real git commit leaves a journal event\n: `task commit` emits it WITH `task_id`\
+  \ set; `work commit` emits it with NO `task_id` (the\ncommit is not task-tied) +\
+  \ `data.kind: \"work\"` to disambiguate. `data.commit` = short sha, recorded through\
+  \ the ONE\ncustody-sha helper `audit.recorded_sha` : `git rev-parse --short=7` —\
+  \ 7 characters, WIDENED\nby git where 7 would be ambiguous in that repo, and the\
+  \ full sha where git cannot answer — never a\nblind 7-character slice. Every custody\
+  \ row's `commit` takes the same value: `audit_<stage>_completed`,\n`external_audit_completed`,\
+  \ `task_closed` (and the card's `commit:`), the `custody_repin_*` keys, and\n`live_trigger_evidence\
+  \ --commit`, which alone refuses before append a value that is no commit of the\n\
+  repo or is ambiguous. A row written before may still carry an ambiguous 7-character\
+  \ prefix;\nits readers resolve it per SPEC-0015 §Internal (the ambiguous-recorded-prefix\
+  \ rule).\n\n**deploy_completed** (per SPEC-0094 §1; emitted by `bin/yitc-v2 deploy`)\
+  \ — the governed\ndeploy-adoption record. Emitted ONLY after the project-declared\
+  \ `deploy:` / `rollback:` command (the\nexecutable smoke/health gate, from `yitc-ops.yaml`\
+  \ / SPEC-0093) exits 0 — a non-zero gate leaves NO\n`deploy_completed` (the broken\
+  \ revision is never recorded live). A deploy whose command STARTED leaves\nexactly\
+  \ ONE terminal row: where it then failed or was interrupted and no other terminal\
+  \ row\n(`deploy_convergence_failed` / `deploy_security_probe_post_failed`, SPEC-0097)\
+  \ records how it ended, that\nrow is a **deploy_failed** (revision, project, kind,\
+  \ the last step reached, and the exit code or caught\nsignal; `task_id` null) —\
+  \ never adoption evidence; its record contract is homed in SPEC-0094 §1\n. Emitted\
   \ on EVERY deploy AND every rollback, so the\njournal names the current-live revision\
   \ — WHICH record that is (the latest PRODUCTION one) is the\nrule of SPEC-0094 §1,\
   \ pointed at here and not restated. `task_id` null (a\ndeploy is project-level,\
@@ -948,8 +957,12 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ which tree this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence`\
   \ row: `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
   \ which the run left unchanged apart from the journal) and the `main` commit that\n\
-  tree sat on. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever\
-  \ the runner\ncould not establish the tree (never a fabricated value — the discipline).\
+  tree sat on. When the run held its card's close-time spec activation on disk and\
+  \ that flipped\ncommitted spec files, the mark also carries `activation_flipped`:\
+  \ per such file its path, the blob\nthe commit held and the blob the run tested\
+  \ — what the SPEC-1018 merge-integration admission\ndiscounts, and nothing beyond\
+  \ it. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever the\
+  \ runner\ncould not establish the tree (never a fabricated value — the discipline).\
   \ It is RESERVED at\nthe hand route: `event --data` refuses it, so only the runner\
   \ writes it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its\
   \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\nThe same mark, recorded\
@@ -1009,23 +1022,28 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ come from the runner this verb just executed, not from an author.\n* `leg: \"\
   candidate\"` — the row is scoped to the CANDIDATE leg this verb runs. `land` verifies\
   \ TWO\n  legs (SPEC-0077); the pinned last-green leg is NOT run here and is NOT\
-  \ described by this row.\n* `stage6_run` — OPTIONAL : the tree the failed run tested\
-  \ and the `main` commit it sat on,\n  on the terms the `tests_passed` paragraph\
-  \ above gives the same mark; absent on a bare `--run`, which\n  records no tested\
-  \ tree. Never a credit: the land credits a green newest row only.\n\n**READ `attribution`\
-  \ AS THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation,\
-  \ not\na proof of causation: `not-in-diff` does NOT assert the failure is pre-existing\
-  \ on `main` (a card can\nbreak a file it never opened), and `in-diff` does not assert\
-  \ the card caused it. It is the strongest\nattribution computable without materializing\
-  \ and re-running main's tree, and it is what the incident\nneeded — establishing\
-  \ that a red sat in a layer the card had not written.\n\n**NOT A GATE, and not blocklisted\
-  \ for P8.** The emit changes no verdict and no exit code: a failing\nrun refuses\
-  \ exactly what it refused before it existed. And unlike `tests_passed`, this type\
-  \ is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES` — the green row\
-  \ is blocklisted because\nCHARTER §P8 says tests green BY ITSELF proves nothing\
-  \ (every task earns one for free, zero\ndifferential), whereas this row exists ONLY\
-  \ when a run actually failed, so its presence IS a\ndifferential. Same reasoning\
-  \ as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
+  \ described by this row.\n* `attribution_note` — OPTIONAL : present when any `layers`\
+  \ entry reads `not-in-diff`, and\n  printed beside the run's record line. It states\
+  \ what that value means — no changed path of this\n  card matches the failing file\
+  \ or a path its failure text names; it does not establish that the\n  failure is\
+  \ pre-existing or unrelated — so a reader of the row takes the relation, never a\
+  \ verdict\n  (the reading rule below).\n* `stage6_run` — OPTIONAL : the tree the\
+  \ failed run tested and the `main` commit it sat on,\n  on the terms the `tests_passed`\
+  \ paragraph above gives the same mark; absent on a bare `--run`, which\n  records\
+  \ no tested tree. Never a credit: the land credits a green newest row only.\n\n\
+  **READ `attribution` AS THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH\
+  \ relation, not\na proof of causation: `not-in-diff` does NOT assert the failure\
+  \ is pre-existing on `main` (a card can\nbreak a file it never opened), and `in-diff`\
+  \ does not assert the card caused it. It is the strongest\nattribution computable\
+  \ without materializing and re-running main's tree, and it is what the incident\n\
+  needed — establishing that a red sat in a layer the card had not written.\n\n**NOT\
+  \ A GATE, and not blocklisted for P8.** The emit changes no verdict and no exit\
+  \ code: a failing\nrun refuses exactly what it refused before it existed. And unlike\
+  \ `tests_passed`, this type is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES`\
+  \ — the green row is blocklisted because\nCHARTER §P8 says tests green BY ITSELF\
+  \ proves nothing (every task earns one for free, zero\ndifferential), whereas this\
+  \ row exists ONLY when a run actually failed, so its presence IS a\ndifferential.\
+  \ Same reasoning as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
   \ — emitted on BOTH outcomes of a `land` attempt ( — the journal mirror of\nthe\
   \ `LAND: OK|ABORT` stdout token contract). **Consumers MUST key off `data.status`\
   \ — NEVER\nread land_completed as success-only** (duration trend views filter `status:\
@@ -1737,12 +1755,28 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ and ran after it, one at a time, and the listed entries `unmatched` by any unit\
   \ of that\ninventory; a unit row that ran there carries `lane: true`. Such a row\
   \ decides as every unit row\ndoes, and nothing reads the count to decide. The list's\
-  \ reader is\n`bin/lib/land_verify_legs.py#_unit_lane_set`.\n\n`selection` on that\
-  \ `adapter` record (dict — <workshop-spec> rules 3, 6-9) = THE SHADOW\nSELECTION\
-  \ DECISION, RECORDED AND NEVER ACTED ON. Present only on a layer declaring `selection:\n\
-  shadow` whose adapter pass ran to its end; the full layer ran whatever the record\
-  \ says, and no\noutcome, exit code or admission decision reads it. Shape and semantics\
-  \ are homed at the writer\n(`bin/lib/land_verify_legs.py#_adapter_shadow_decision`;\
+  \ reader is\n`bin/lib/land_verify_legs.py#_unit_lane_set`.\n`unit_table` ( — SPEC-1046\
+  \ rule 13) = the record's `units` and the unit lists of its\n`selection`, `partial`\
+  \ and `credit` written once as one lossless table (`v`, `files`, `n`,\n`cols`, `refs`;\
+  \ shape homed at the writer `bin/lib/unit_table.py#encode`): a record carrying it\n\
+  has no `units` key and none of those lists, and a reader expands it\n(`bin/lib/unit_table.py#expand`)\
+  \ before reading a unit; a row without it is read as written.\n`verify_metrics.pre_deploy_skip`\
+  \ ( — SPEC-1051 rule 2) on a `tests_passed` / `tests_failed` /\n`land_completed`\
+  \ row = the run's skip-set record with `identity` (the versioned set identity a\
+  \ land\ncompares) beside it, its `units` and `kept` lists written as the same lossless\
+  \ table (`units_table`,\n`kept_table`; `held` as it is): a reader expands it (`bin/lib/unit_table.py#expand_skip`)\
+  \ before\nreading a file name; a row written before carries the lists. `venue_pre_deploy_skipped_ref`\n\
+  (`{as, n, sha256}`) replaces the `venue_pre_deploy_skipped` list when that list\
+  \ names exactly the\nfiles the same row's skip record leaves out on the venue (`bin/lib/unit_table.py#venue_skipped_names`\n\
+  resolves and verifies it). `verify_forecast.request.pre_deploy_skip` and a `land-preview`\n\
+  `credit-answer` request carry `{state, identity}` (before: `{state, key}`); `verify_forecast.preview_ref`\n\
+  = `{ts, sha}` of the preview row compared against; a `credit-answer` answer's `detail`\
+  \ is a mapping of\nthe answer's fields (before: a text rendering).\n\n`selection`\
+  \ on that `adapter` record (dict — <workshop-spec> rules 3, 6-9) = THE SHADOW\n\
+  SELECTION DECISION, RECORDED AND NEVER ACTED ON. Present only on a layer declaring\
+  \ `selection:\nshadow` whose adapter pass ran to its end; the full layer ran whatever\
+  \ the record says, and no\noutcome, exit code or admission decision reads it. Shape\
+  \ and semantics are homed at the writer\n(`bin/lib/land_verify_legs.py#_adapter_shadow_decision`;\
   \ the comparison with the full run by\n`#_layer_adapter_report_pass`) and not restated;\
   \ the registered keys are `schema`, `mode`,\n`decision`, `rung`, `reason`, `related`,\
   \ `related_reason`, `base`, `changed`, `eligible`,\n`units_total`, `fired_paths`,\
@@ -2046,11 +2080,27 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ the row is written, is outside\n`duration_ms`. Present on an ok land on the SAME\
   \ rule as `unattributed_ms` (the land entered the\nretry loop with a measurable\
   \ `t_start`); every phase is named, a phase never reached reads `0`.\nAbsent on\
-  \ the abort row. REPORT-ONLY, like the keys above.\nBOTH OUTCOMES CARRY THIS KEY\
-  \ SET (same plan slice S4) — the ABORT payload records\n`attempt_count` / `attempt_breakdown`\
-  \ / `pre_attempt_ms` with the SAME spellings, the SAME\nsemantics and the SAME presence\
-  \ rule (breakdown + `pre_attempt_ms` only above one attempt), so\nthere is ONE description\
-  \ here and no parallel abort-side one. Rationale identical to the ok side:\nan abort\
+  \ the abort row. REPORT-ONLY, like the keys above.\n`phase_timeline` (list) = the\
+  \ same clock's stretches IN ORDER, each\n`[phase, sub, offset_ms, ms]` with `offset_ms`\
+  \ from `t_start` (consecutive equal stretches merged),\nso a recurring phase (a\
+  \ retry, a yield redo) reads as separate occurrences and a paused span as the\n\
+  gap between two offsets. `phase_split_ms` (dict) = `setup`, `graph_rebuild` and\
+  \ `other`\neach split into named sub-spans plus `rest`, each map summing EXACTLY\
+  \ to its `phase_ms` value\n(`rest` holds rounding, unlabelled time and the reservation\
+  \ carve); the sub-span names are the\nlabels in `bin/lib/worktree.py#_land_integrate`\
+  \ and `#cmd_land`. `post_attempt_split_ms` (dict) = `unattributed_ms` split at its\
+  \ post-attempt boundaries plus `rest`, summing EXACTLY to\nit. All three ride on\
+  \ the SAME presence rule as `phase_ms`. `ended_at` (float epoch seconds) = the wall-clock\
+  \ moment `duration_ms` was read, on every ok land; the green-hold release\nrow (`admission_step`\
+  \ kind `hold`, outcome `cleared`) reads it to carry `after_land`\n{`land_tail_ms`,\
+  \ `release_ms`, `rest_ms`, `total_ms`} — the span from this row to the release,\n\
+  absent when the row or its `ended_at` cannot be read. `bin/yitc-v2 journal query\
+  \ --land-cycle`\nis the read-only report over these keys. REPORT-ONLY, like the\
+  \ keys above.\nBOTH OUTCOMES CARRY THIS KEY SET (same plan slice S4) — the ABORT\
+  \ payload records\n`attempt_count` / `attempt_breakdown` / `pre_attempt_ms` with\
+  \ the SAME spellings, the SAME\nsemantics and the SAME presence rule (breakdown\
+  \ + `pre_attempt_ms` only above one attempt), so\nthere is ONE description here\
+  \ and no parallel abort-side one. Rationale identical to the ok side:\nan abort\
   \ at attempt 3 has already paid two full suite runs, and before this the row showed\
   \ a\nsingle `duration_ms` (measured: 33.3h of abort cost in 7d that nothing attributed\
   \ per attempt).\nThe dying attempt is CLOSED into the breakdown before the row is\

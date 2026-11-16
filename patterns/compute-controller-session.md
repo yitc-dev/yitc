@@ -43,9 +43,9 @@ The owner says it once — «поднимай вычисления» / "raise th
 whole window; there is no per-step confirmation afterwards, and no cue means no box.
 
 ```
-bin/yitc-v2 venue raise # create from the SNAPSHOT, wait for ssh, run the readiness probe
-                                   # (a recorded seed CANDIDATE is raised first and auto-promoted on GREEN)
-bin/yitc-v2 venue publish # mirror host main onto the box clone, then write the record — refused if the probe or the mirror failed
+bin/yitc-v2 venue raise            # create from the SNAPSHOT, wait for ssh, run the readiness probe
+                                   #   (a recorded seed CANDIDATE is raised first and auto-promoted on GREEN)
+bin/yitc-v2 venue publish          # mirror host main onto the box clone, then write the record — refused if the probe or the mirror failed
 ```
 
 **List before you raise.** The provider project holds ONE box of this class, so `venue raise`
@@ -117,20 +117,20 @@ projects, plus the live worktree list, because a claim lives only inside its wor
 — **for the idle buffer** (a machine-scoped `config` tunable, default 15 minutes).
 
 ```
-bin/yitc-v2 venue delete --server-id <server-id> # the WHOLE teardown (rule 6), in this order:
-# 1. venue unpublish — remove the record FIRST, journaled WHOLE, server_id included
-# 2. the REFRESH LEG, by default (rule 6; kernel code, bin/lib/venue.py):
-# (1) drain on LEASES, never on run dirs; ensure the declared package set
-# (2) prepare the WORKED clone — quarantines + finished run dirs removed,
-# refs/venue/<req>-<att>/* + objects/info/commit-graph cleared, repack
-# (3) verify the clone + sync
-# (4) fstrim -av — REQUIRED before the snapshot is taken
-# (5) poweroff, wait status=off
-# (6) create_image, wait available → NEW snapshot id, recorded as the seed CANDIDATE
-# 3. DELETE the server (7)
+bin/yitc-v2 venue delete --server-id <server-id>   # the WHOLE teardown (rule 6), in this order:
+#  1. venue unpublish — remove the record FIRST, journaled WHOLE, server_id included
+#  2. the REFRESH LEG, by default (rule 6; kernel code, bin/lib/venue.py):
+#     (1) drain on LEASES, never on run dirs; ensure the declared package set
+#     (2) prepare the WORKED clone — quarantines + finished run dirs removed,
+#         refs/venue/<req>-<att>/* + objects/info/commit-graph cleared, repack
+#     (3) verify the clone + sync
+#     (4) fstrim -av — REQUIRED before the snapshot is taken
+#     (5) poweroff, wait status=off
+#     (6) create_image, wait available → NEW snapshot id, recorded as the seed CANDIDATE
+#  3. DELETE the server (7)
 # a refresh that fails deletes NOTHING and prints the command that finishes the job; the only skip
 # is `--skip-refresh "<why>"` (a broken box, a box already gone), journaled with its reason
-# the next bare `venue raise` verifies the candidate and PROMOTES it on a GREEN probe —
+# the next bare `venue raise` verifies the candidate and PROMOTES it on a GREEN probe  —
 # no manual `venue seed`; keep the PRIOR snapshot until then, and delete it by hand afterwards
 ```
 

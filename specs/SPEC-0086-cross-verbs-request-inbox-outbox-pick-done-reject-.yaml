@@ -576,6 +576,6 @@ implements_signature:
   bin/lib/cross.py#unroutable_rows: d464e658238a6da075c5cd81ef3607e4a11bd00d7590883715715b7d6c852ee8
   bin/lib/nightly.py#register_project: 3395a47dbab142e6e2163567cce2ce366b00dc7fdee0d1e9437731e00cf0ef2f
   bin/lib/session.py#cmd_session_pick: 71f4aa00368cee90587a968097653a668725d12104d4342edb54b8908bf4ba74
-  bin/lib/session.py#cmd_session_start: 209518a0b12ba06d7ca13514a927034ad0d08c8cc5416340463977967526f8ee
+  bin/lib/session.py#cmd_session_start: 63a89f0dbcf8f31c0748b952fe356249434ffe36971d4157899e3a88df625cb9
   bin/lib/task.py#_cross_link_held_skips: 19ac0040010219ee8529feeba1dbd861965dc31dd0320832f3f03355a2ae85eb
   bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a

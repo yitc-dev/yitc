@@ -28,17 +28,18 @@ administrator account (root) is needed only for the first few minutes of setup, 
 by itself, and the home folder does not list your projects on its own):
 
 ```text
-1. ssh <user>@<server> log in as your working user
-2. tmux attach -t yitc back into your kept terminal (after a reboot: tmux new -s yitc)
-3. <your AI tool> open it in any folder, or clear the session already open
-4. /yitc-projects type the start command, then pick the project
-5. the start line "Working in YITC mode — project <name>." must appear
+1. ssh <user>@<server>        log in as your working user
+2. tmux attach -t yitc        back into your kept terminal (after a reboot: tmux new -s yitc)
+3. <your AI tool>             open it in any folder, or clear the session already open
+4. /yitc-projects             type the start command, then pick the project
+5. the start line             "Working in YITC mode — project <name>." must appear
 ```
 
 This one order is also how you start the first time and how you restart — there is no separate
-start inside the project folder. Steps 3 and 4 show the AI tool form (clear with `/clear`); in
-<external-auditor> the start command is `$yitc-projects` (clear with `/new`); every tool's two commands are in
-the AI-tool list `bin/ai-tools.yaml` (`invoke`, `clear_session`).
+start inside the project folder. Steps 3 and 4 show one tool's form: start with `/yitc-projects`,
+clear with `/clear`. Another tool may spell them differently — one starts with `$yitc-projects` and
+clears with `/new`. Each tool's row in the AI-tool list `bin/ai-tools.yaml` gives its name (`label`)
+and its two commands (`invoke`, `clear_session`).
 
 **A second AI provider as the auditor.** A second,
 different AI provider checks the first one's work and catches the blind spots the first one cannot
@@ -46,13 +47,6 @@ see in itself — it is the norm, not an option. At install the AI binds an audi
 project's work: a different provider, or, if you say no to one, at least a different model of the same
 provider, with your answer recorded. Work runs without a different provider, every such check honestly
 marked, but the system keeps asking at each start until one is bound.
-
-**Two stands, when the product is iterated.** Not needed on day one. A project can keep two running
-copies besides production: the **DEV stand (ДОРАБОТКА)**, where an open spike — an experiment — is
-tried, and the **ACCEPTANCE stand (ПРИЁМКА)**, which shows landed `main` so you can click the result
-before real users do. While a spike is open, changes to what it explores go into the spike by default.
-The recommended order for finished work is card → land → ACCEPTANCE stand → production; `deploy` only
-prints advisory reminders and never blocks (SPEC-0205).
 
 ## You need no key and no account to install
 
@@ -92,13 +86,13 @@ When something misbehaves, or to update or roll back, read
 ## What the AI reads, in this order
 
 ```bash
-cat CHARTER.md # the 8 principles + the non-goals — why this exists, what it won't become
-cat AGENTS.md # the session protocol, part 1 of 3
-cat AGENTS-SESSIONS.md # part 2 — session postures, the worktree write-flow, scope boundary
-cat AGENTS-PROTOCOL.md # part 3 — the worker protocol, gates, filing, references
-cat LIFECYCLE.md # the 9-stage task lifecycle
-cat QUEUE.md # the queue model (active / done / parking-lot)
-cat GRAPH.md # how specs link to code
+cat CHARTER.md            # the 8 principles + the non-goals — why this exists, what it won't become
+cat AGENTS.md             # the session protocol, part 1 of 3
+cat AGENTS-SESSIONS.md    # part 2 — session postures, the worktree write-flow, scope boundary
+cat AGENTS-PROTOCOL.md    # part 3 — the worker protocol, gates, filing, references
+cat LIFECYCLE.md          # the 9-stage task lifecycle
+cat QUEUE.md              # the queue model (active / done / parking-lot)
+cat GRAPH.md              # how specs link to code
 ```
 
 Some AI tools also read a **vendor adapter** file automatically on entering a directory; this repo
@@ -109,20 +103,20 @@ or not your tool has one.
 ## Repo structure
 
 ```
-CHARTER.md # principles + non-goals (read first)
-AGENTS*.md # the AI session protocol, in three parts
-LIFECYCLE.md # 9-stage task lifecycle
-QUEUE.md # queue model
-GRAPH.md # specs <-> code linking
-onboarding/ # overview.md (explain the system) + bootstrap-order.md (install) + stations
-bin/ # the CLI — every governed action runs through `bin/yitc-v2 <verb>`
-tasks/<id>.yaml # one task per file
-specs/<id>.yaml # one spec per file
-decisions/<id>.yaml # one decision per file
-plans/ scenarios/ # plans and user-path scenarios
-patterns/ # reusable practices
-graph/index.json # derived spec <-> code graph (built by the tool, committed)
-events.jsonl # ONE append-only event log
+CHARTER.md            # principles + non-goals (read first)
+AGENTS*.md            # the AI session protocol, in three parts
+LIFECYCLE.md          # 9-stage task lifecycle
+QUEUE.md              # queue model
+GRAPH.md              # specs <-> code linking
+onboarding/           # overview.md (explain the system) + bootstrap-order.md (install) + stations
+bin/                  # the CLI — every governed action runs through `bin/yitc-v2 <verb>`
+tasks/<id>.yaml       # one task per file
+specs/<id>.yaml       # one spec per file
+decisions/<id>.yaml   # one decision per file
+plans/  scenarios/    # plans and user-path scenarios
+patterns/             # reusable practices
+graph/index.json      # derived spec <-> code graph (built by the tool, committed)
+events.jsonl          # ONE append-only event log
 ```
 
 ## License

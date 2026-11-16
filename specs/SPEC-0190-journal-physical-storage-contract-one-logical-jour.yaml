@@ -11,6 +11,7 @@ implements:
 - bin/lib/events.py#logical_journal
 - bin/lib/events.py#rotate_journal
 - bin/lib/events.py#recombine_journal
+- bin/lib/worktree.py#_drain_cut_branch_root
 - bin/lib/worktree.py#rotate_branch_journal
 - bin/lib/cli.py#_iter_events
 - bin/lib/cli.py#_iter_events_tail
@@ -20,6 +21,16 @@ implements:
 - bin/lib/views.py#_standing_rotation_defer
 - bin/lib/journal.py#revision_segment_paths
 - bin/lib/journal.py#revision_segment_show_argvs
+- bin/lib/events.py#is_cut_journal
+- bin/lib/events.py#partition_for
+- bin/lib/journal.py#cmd_journal_cut
+- bin/lib/journal.py#_pinned_engine_refusal
+- bin/lib/events.py#split_shape
+- bin/lib/events.py#is_appendable_segment
+- bin/lib/events.py#dated_since
+- bin/lib/events.py#recency_lanes
+- bin/lib/events.py#live_view_segments
+- bin/lib/journal.py#lanes_newest_first
 body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and today the\
   \ honest answer is the journal: every\ngoverned action rewrites one ever-growing\
   \ file, so the cost of doing anything is set by how long\nthe project has been running\
@@ -45,15 +56,22 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \ reading SPEC-0084 ratified when it held \"one journal\" to\nmean one MECHANISM,\
   \ explicitly not one physical FILE). A change that gives the archive its own\nline\
   \ format, its own reader, or its own append discipline violates this rule even if\
-  \ it saves\ndisk.\n**The archive REUSES the in-git archive convention this repo\
-  \ already has.** SPEC-0052 already\ndisplaces a closed task's audit YAMLs out of\
-  \ the active `decisions/` directory into in-git archives\nby `git mv`, precisely\
-  \ so the active corpus stays loadable while provenance stays git-tracked —\nthe\
-  \ same shape as this archive, for the same reason. CHARTER §Principle 1 filter 1\
-  \ therefore settles\nplacement and naming by reuse: extend that convention, do not\
-  \ introduce a second unrelated notion of\n\"archive\" into a repo that already has\
-  \ one.\n\n**One logical journal means ONE LOCK IDENTITY, keyed to the logical journal\
-  \ and never to a physical\nsegment.** The advisory sidecar lock that serialises\
+  \ it saves\ndisk.\n**A CUT journal is a ts-day PARTITION FAMILY.** Once a repository's\
+  \ own session has run the\nexplicit `journal cut` (never automatic, never on another\
+  \ repository), the root `events.jsonl`\nstays tracked and EMPTY, every dated row\
+  \ is appended to the partition of its OWN ts UTC day\n(`archive/events-<ts-day>.jsonl`,\
+  \ the naming above — a late row to its older day, a future-dated\nrow to its own\
+  \ future day) and every undatable row to ONE undated partition, whose existence\
+  \ is\nthe cut fact. Every partition of a cut journal is appendable. An uncut journal\
+  \ keeps the single\nlive segment as written above.\n**The archive REUSES the in-git\
+  \ archive convention this repo already has.** SPEC-0052 already\ndisplaces a closed\
+  \ task's audit YAMLs out of the active `decisions/` directory into in-git archives\n\
+  by `git mv`, precisely so the active corpus stays loadable while provenance stays\
+  \ git-tracked —\nthe same shape as this archive, for the same reason. CHARTER §Principle\
+  \ 1 filter 1 therefore settles\nplacement and naming by reuse: extend that convention,\
+  \ do not introduce a second unrelated notion of\n\"archive\" into a repo that already\
+  \ has one.\n\n**One logical journal means ONE LOCK IDENTITY, keyed to the logical\
+  \ journal and never to a physical\nsegment.** The advisory sidecar lock that serialises\
   \ appends and reads derives its key from the\njournal's resolved PATH, so a second\
   \ physical segment would get a second sidecar BY CONSTRUCTION —\nand `flock` does\
   \ not serialise two different inodes. Rotation writes two paths at once while an\n\
@@ -75,79 +93,127 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \ on their own (the same property SPEC-0168 rule 1 relies on), so\nit neither grows\
   \ without bound nor carries the history a citation resolves against. If it ever\
   \ does\nneed rotating, that is a separate change with its own evidence — never an\
-  \ unstated extension of this\none.\n\n**Rule 2 — The boundary is AGE, never a decreed\
-  \ byte number.** A row leaves the live segment\nbecause it is older than the live\
-  \ window, not because the file crossed a size. **The boundary is\nfully specified\
-  \ or it is not a boundary:** age is measured from the NEWEST row present in the\n\
-  logical journal — never from wall-clock `now`, which would make the same corpus\
-  \ segment differently\non two machines and make a rotation unreproducible — and\
-  \ the comparison is `ts < boundary` moves to\nthe archive, `ts >= boundary` stays\
-  \ live. Both halves matter: a reader declaring a horizon EQUAL to\nthe live window\
-  \ (there are two in this corpus) sits exactly on that comparison, so an unstated\n\
-  inclusivity is an off-by-one waiting to be discovered in production rather than\
-  \ here. A byte threshold is\nforbidden as the rotation trigger: it makes the boundary\
-  \ a function of write volume, so the same\ncalendar span rotates differently under\
-  \ load than idle, and it re-creates the decreed-number\nfailure this corpus has\
-  \ already recorded elsewhere. The live window is a governing parameter\n(§Parameters),\
-  \ not a constant buried in code.\n\n**A FUTURE-DATED ROW IS NOT A VALID ANCHOR (amended,\
-  \ on measurement).** \"The newest row\npresent\" is refined here because taken literally\
-  \ it is hijackable by ONE outlier: a single row\nstamped ahead of real time drags\
-  \ the boundary with it and archives the ENTIRE live journal in a\nsingle land. That\
-  \ is measured, not hypothetical — a synthetic corpus in `tests/test_land.py`\ncarries\
-  \ `cli_invoked` rows stamped 2099-01-01 beside real ones, and the first implementation\
-  \ of\nthis rule moved the anchor 73 years and emptied the live segment of all genuine\
-  \ history in one\npass. The same shape reaches production through a skewed clock\
-  \ or a malformed row, and its\nconsequence is severe in a quiet way: nothing is\
-  \ LOST, because the rows are in the archive and the\nfold still returns them, but\
-  \ every LIVE-SEGMENT reader goes blind at once — the failure mode\nhardest to notice,\
-  \ because the journal still looks healthy.\n\nSo the anchor is the newest row present\
-  \ **whose `ts` is not in the future**; a future-dated row is\nskipped for ANCHORING\
-  \ and needs no separate keep-rule, since it is trivially `>= boundary` and the\n\
-  ordinary comparison already leaves it live. **Wall-clock is a CEILING on the anchor,\
-  \ never the\nanchor** — and that distinction is precisely what this rule forbids\
-  \ and permits. The ban above is\non MEASURING FROM `now`, because that would make\
-  \ the same corpus segment differently on two\nmachines and make a rotation unreproducible.\
-  \ A ceiling that only ever REJECTS an impossible value\nchanges nothing for any\
-  \ corpus whose rows are in the past — which is every real one — so\nreproducibility\
-  \ is preserved exactly where this rule cares about it. Enforced single-site by\n\
-  `bin/lib/events.py#rotation_boundary`.\n\n**AND THE ANCHOR IS READ FROM THE TOP-LEVEL\
-  \ ENVELOPE, PARSED — never pattern-matched.** A row's\nage is decided by its ENVELOPE\
-  \ `ts` and by nothing else: a scan for the first `\"ts\"` in the raw\nline hands\
-  \ back a NESTED `data.ts` for any row whose envelope has none, and the row is then\
-  \ filed\nunder a date describing something else entirely — moving a row this rule\
-  \ says must never move. The\nparse costs about a second and a half over a 175 MB\
-  \ journal inside a seam that already runs for\nminutes, which is the correct trade\
-  \ in the one place that decides which rows leave the live file.\nA row whose envelope\
-  \ `ts` is absent, non-string or not a REAL CALENDAR DATE is UNDATABLE and never\n\
-  moves. Calendar, not shape: a digit/hyphen check admits `2026-02-31`, which is not\
-  \ a date — and that\nis not cosmetic, because such a value sorts perfectly well,\
-  \ so the row would be moved and filed under\na day that never existed, and as the\
-  \ NEWEST row it would raise inside the boundary computation and\nSILENTLY DISABLE\
-  \ ROTATION for the whole repo from then on. One impossible timestamp is enough for\n\
-  that, so the date is parsed and rejected rather than pattern-checked — the safe\
-  \ side, since a row left live is merely not-yet-archived while a row moved on a\n\
-  guess is filed where no reader will look for it.\n\n**Rule 3 — Rotation happens\
-  \ at the land seam, and nowhere else.** The seam that already performs a\nread-modify-write\
-  \ of the journal under its existing lock — `land`'s events union+dedup — is the\n\
-  seam that rotates. This adds no cron, no daemon, no scheduled job and no liveness\
-  \ question of its\nown: rotation is a step inside an operation that already holds\
-  \ the lock and already rewrites the\nfile. A rotation path that runs outside that\
-  \ seam is out of contract, because it would need its own\nconcurrency story against\
-  \ every appending session.\n**WRITE ORDER AND CRASH-ATOMICITY — the archive is DURABLE\
-  \ before the live file is truncated.**\nRotation is a truncating rewrite of one\
-  \ file plus a write of another, and\n`patterns/atomic-state-file-writes.md` names\
-  \ this journal explicitly as a risk class: `open(path,\n\"w\")` truncates at open,\
-  \ so a process death mid-write leaves an empty or partial file and history\nsimply\
-  \ disappears. Two constraints follow and neither is optional. **(a) Order:** the\
-  \ archive segment\nis written and made durable FIRST (sibling tempfile → fsync →\
-  \ `os.replace`), and only then is the\nlive file rewritten the same way. The reverse\
+  \ unstated extension of this\none.\n\n**Rule 1c — READERS OF A DATED LIVE FAMILY:\
+  \ completeness is decided by the SPLIT SHAPE, never by\nthe root's position.** In\
+  \ a cut journal (rule 1) appends land in the dated file of the row's own\nts day\
+  \ — the archive naming rule 1 already uses, so merge attributes, dirt classification,\
+  \ staging,\nrollback and the lock identity admit it unchanged — and the label contract\
+  \ below (a file labelled D\nholds exactly the rows dated D) holds for every partition.\n\
+  A reader asks TWO separate questions and never conflates them:\n(a) SPLIT SHAPE\
+  \ — can an archive file hold a row newer than a root row? It is the ROTATION shape\n\
+  (no) only when every archive label is older than the date of the root's oldest row;\
+  \ rotation moves\nwhole UTC days, so an archive labelled with that date (same-day\
+  \ coexistence), an absent root beside\narchives, an undatable label or a newer label\
+  \ is the split shape (yes). The decision opens no\narchive file.\nThe split shape\
+  \ decides every COMPLETENESS shortcut — a root tail, a root-back suffix, a first-match\n\
+  stop, a coverage certificate: on the split shape none of them certifies from the\
+  \ root alone, except\na WINDOWED root-only read whose window no archive can reach\
+  \ (the segments `segment_paths_since` of\nits cutoff admits are the root alone,\
+  \ and the root exists); otherwise the\nreader takes its segment-aware read, or reads\
+  \ both RECENCY LANES (the root, and the dated files\nnewest label first) merged\
+  \ by `ts`, opening an older-labelled file only while a timestamp bound\nsays it\
+  \ can still improve the answer (a file labelled D holds no row dated after D).\n\
+  (b) APPENDABLE — can this file change outside a land? In a cut journal, every partition;\
+  \ otherwise\nthe root, an undatable archive, and a dated file labelled UTC yesterday\
+  \ or later. It decides CACHE INVALIDATION only, never which rows a reader\nreturns.\n\
+  EVIDENCE membership is the COMPLETE logical segment set, sealed or not; the LIVE\
+  \ VIEW (the dated\nfiles a windowed reader opens, the live window plus one day)\
+  \ is a view for windowed readers, never\nan evidence set. On the rotation shape\
+  \ every reader behaves as before. No reader may impose one\nglobal output order\
+  \ across segments; within a segment the physical order is kept (rule 5).\n\n**Rule\
+  \ 2 — The boundary is AGE, never a decreed byte number.** A row leaves the live\
+  \ segment\nbecause it is older than the live window, not because the file crossed\
+  \ a size. **The boundary is\nfully specified or it is not a boundary:** age is measured\
+  \ from the NEWEST row present in the\nlogical journal — never from wall-clock `now`,\
+  \ which would make the same corpus segment differently\non two machines and make\
+  \ a rotation unreproducible — and the comparison is `ts < boundary` moves to\nthe\
+  \ archive, `ts >= boundary` stays live. Both halves matter: a reader declaring a\
+  \ horizon EQUAL to\nthe live window (there are two in this corpus) sits exactly\
+  \ on that comparison, so an unstated\ninclusivity is an off-by-one waiting to be\
+  \ discovered in production rather than here. A byte threshold is\nforbidden as the\
+  \ rotation trigger: it makes the boundary a function of write volume, so the same\n\
+  calendar span rotates differently under load than idle, and it re-creates the decreed-number\n\
+  failure this corpus has already recorded elsewhere. The live window is a governing\
+  \ parameter\n(§Parameters), not a constant buried in code.\n\n**A FUTURE-DATED ROW\
+  \ IS NOT A VALID ANCHOR (amended, on measurement).** \"The newest row\npresent\"\
+  \ is refined here because taken literally it is hijackable by ONE outlier: a single\
+  \ row\nstamped ahead of real time drags the boundary with it and archives the ENTIRE\
+  \ live journal in a\nsingle land. That is measured, not hypothetical — a synthetic\
+  \ corpus in `tests/test_land.py`\ncarries `cli_invoked` rows stamped 2099-01-01\
+  \ beside real ones, and the first implementation of\nthis rule moved the anchor\
+  \ 73 years and emptied the live segment of all genuine history in one\npass. The\
+  \ same shape reaches production through a skewed clock or a malformed row, and its\n\
+  consequence is severe in a quiet way: nothing is LOST, because the rows are in the\
+  \ archive and the\nfold still returns them, but every LIVE-SEGMENT reader goes blind\
+  \ at once — the failure mode\nhardest to notice, because the journal still looks\
+  \ healthy.\n\nSo the anchor is the newest row present **whose `ts` is not in the\
+  \ future**; a future-dated row is\nskipped for ANCHORING and needs no separate keep-rule,\
+  \ since it is trivially `>= boundary` and the\nordinary comparison already leaves\
+  \ it live. **Wall-clock is a CEILING on the anchor, never the\nanchor** — and that\
+  \ distinction is precisely what this rule forbids and permits. The ban above is\n\
+  on MEASURING FROM `now`, because that would make the same corpus segment differently\
+  \ on two\nmachines and make a rotation unreproducible. A ceiling that only ever\
+  \ REJECTS an impossible value\nchanges nothing for any corpus whose rows are in\
+  \ the past — which is every real one — so\nreproducibility is preserved exactly\
+  \ where this rule cares about it. Enforced single-site by\n`bin/lib/events.py#rotation_boundary`.\n\
+  \n**AND THE ANCHOR IS READ FROM THE TOP-LEVEL ENVELOPE, PARSED — never pattern-matched.**\
+  \ A row's\nage is decided by its ENVELOPE `ts` and by nothing else: a scan for the\
+  \ first `\"ts\"` in the raw\nline hands back a NESTED `data.ts` for any row whose\
+  \ envelope has none, and the row is then filed\nunder a date describing something\
+  \ else entirely — moving a row this rule says must never move. The\nparse costs\
+  \ about a second and a half over a 175 MB journal inside a seam that already runs\
+  \ for\nminutes, which is the correct trade in the one place that decides which rows\
+  \ leave the live file.\nA row whose envelope `ts` is absent, non-string or not a\
+  \ REAL CALENDAR DATE is UNDATABLE and never\nmoves. Calendar, not shape: a digit/hyphen\
+  \ check admits `2026-02-31`, which is not a date — and that\nis not cosmetic, because\
+  \ such a value sorts perfectly well, so the row would be moved and filed under\n\
+  a day that never existed, and as the NEWEST row it would raise inside the boundary\
+  \ computation and\nSILENTLY DISABLE ROTATION for the whole repo from then on. One\
+  \ impossible timestamp is enough for\nthat, so the date is parsed and rejected rather\
+  \ than pattern-checked — the safe side, since a row left live is merely not-yet-archived\
+  \ while a row moved on a\nguess is filed where no reader will look for it.\n\n**Rule\
+  \ 3 — Rotation happens at the land seam, and nowhere else.** The seam that already\
+  \ performs a\nread-modify-write of the journal under its existing lock — `land`'s\
+  \ events union+dedup — is the\nseam that rotates. This adds no cron, no daemon,\
+  \ no scheduled job and no liveness question of its\nown: rotation is a step inside\
+  \ an operation that already holds the lock and already rewrites the\nfile. A rotation\
+  \ path that runs outside that seam is out of contract, because it would need its\
+  \ own\nconcurrency story against every appending session.\n**WRITE ORDER AND CRASH-ATOMICITY\
+  \ — the archive is DURABLE before the live file is truncated.**\nRotation is a truncating\
+  \ rewrite of one file plus a write of another, and\n`patterns/atomic-state-file-writes.md`\
+  \ names this journal explicitly as a risk class: `open(path,\n\"w\")` truncates\
+  \ at open, so a process death mid-write leaves an empty or partial file and history\n\
+  simply disappears. Two constraints follow and neither is optional. **(a) Order:**\
+  \ the archive segment\nis written and made durable FIRST (sibling tempfile → fsync\
+  \ → `os.replace`), and only then is the\nlive file rewritten the same way. The reverse\
   \ order has a window in which the rows exist nowhere.\n**(b) Atomicity:** both writes\
   \ take the tempfile-then-replace path, so a crash leaves an orphan\ntempfile and\
   \ an untouched original rather than a truncated journal. A duplicate surviving a\
   \ crash is\nharmless — the union+dedup collapses it; a LOST row is not recoverable\
-  \ by anything.\n\n**MIGRATION ORDER — the archive path must be ADMITTED before the\
-  \ first rotation writes it, or the\nfirst rotation wedges every land in the repo.**\
-  \ `land` refuses on any main dirt outside a\nhand-maintained allowlist (`bin/lib/cli.py#_BOOKKEEPING_ALLOWLIST`,\
+  \ by anything.\n**The cut, and the land DRAIN of a cut journal.** The cut is a declared\
+  \ CONVERSION, distinct from\nrotation: every root row moves to its ts-day partition\
+  \ (undatable rows to the undated partition,\nwritten last), under the same write\
+  \ order and atomicity, and is recorded by one `journal_cut` row.\nAt the land seam\
+  \ a cut journal is DRAINED the same way instead of rotated, so root rows a union\n\
+  handed back reach their partitions before the fast-forward. Both keep exactly the\
+  \ rows land's own\nunion+dedup keeps, under the same canonical identity (SPEC-0002):\
+  \ canonically identical rows are\none event. A re-run with an empty root is a no-op.\n\
+  **Only the engine the repository runs cuts its journal.** In a repository that declares\
+  \ a pinned\nengine release (`kernel.engine`, SPEC-0195 rule 3), `journal cut` run\
+  \ by any other engine, or with\na declared pin that does not resolve, refuses before\
+  \ it writes anything and names `release update`\nas the remedy: update the repository\
+  \ to a release that carries the cut, then cut with that engine.\nA repository that\
+  \ declares no pin is cut as before.\n**The drain also follows every committed merge\
+  \ INTO a writing worktree.** When a worktree whose\njournal was opened before the\
+  \ cut merges a cut journal — `worktree sync` (its `--resolved` and\n`--from` forms\
+  \ included) or the update-from-main step of `land` — the same drain runs on that\n\
+  worktree's journal right after the merge commit, under the logical journal's lock,\
+  \ and its result\nis committed on the branch; a drain whose commit failed stays\
+  \ staged and the next merge commits\nit. So a worktree never holds root rows beside\
+  \ day partitions, which the segment reader would fold\nout of order.\n\n**MIGRATION\
+  \ ORDER — the archive path must be ADMITTED before the first rotation writes it,\
+  \ or the\nfirst rotation wedges every land in the repo.** `land` refuses on any\
+  \ main dirt outside a\nhand-maintained allowlist (`bin/lib/cli.py#_BOOKKEEPING_ALLOWLIST`,\
   \ an explicit frozenset of six\nliteral paths), and the archive segment is a NEW\
   \ path. So the first rotation leaves a file the next\nland refuses on — and so does\
   \ every land after it, until the allowlist is widened. The corpus has\nalready paid\
@@ -799,23 +865,38 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \                              # it, and only those. Changing it is a governed spec\
   \ edit.\n\n## Rationale\n\nHeld to what interprets the rules (<workshop-spec> rule\
   \ 3); the deliberation, the rejected one-off cut,\nand the ratification history\
-  \ live in the proposing plan.\n\n- Rules 1-3 exist because the cost being removed\
-  \ is git-object churn, not parse time: a full parse\n  of the whole file measured\
-  \ 1.45s, while ~293 commits/day each wrote a fresh ~6 MB loose object,\n  and `.git`\
-  \ twice reached tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after\
-  \ a\n  clear). Read rule 2's age boundary against that: the ground for the change\
-  \ is UNBOUNDEDNESS,\n  which is why a one-off cut cannot satisfy it and why the\
-  \ trigger cannot be a size.\n- Rule 5's phrasing is the one an earlier draft got\
-  \ wrong, and the correction is the point: the\n  honest guarantee is multiset identity,\
-  \ and every downstream acceptance criterion must be phrased\n  against it rather\
-  \ than against \"identical output\".\n- Rule 8 names a real, live instance rather\
-  \ than a hypothetical: a bound whose whole purpose is to\n  expire a standing deferral\
-  \ by size, computed from a `.stat` of the journal file.\n- Rule 9 rests on measurement:\
-  \ two lands died the same day on journal-driven test timeouts (a 180s\n  subprocess\
-  \ cap, and a 300s per-file cap against a 286s measured runtime — a 5% margin), the\n\
-  \  recorded suite total is 431.7 min across 879 files with 102 files at >=60s carrying\
-  \ 63% of it,\n  and nine files grew 55-63% in one window on tests whose diffs did\
-  \ not change. The startup anchor\n  pays it too: `session start` in a fresh worktree\
+  \ live in the proposing plan.\n\n- Rule 1c was added by (plan compact-journal-writes-and-per-day-live-segments):\
+  \ the readers\n  are prepared for a dated live family before the writer moves, so\
+  \ the writer's card changes one\n  site. Its audit residuals shaped it: same-day\
+  \ coexistence is split (rotation moves whole days, so\n  no archive is scanned to\
+  \ decide), evidence membership is the whole set and never the live view, a\n  dated\
+  \ lane stops only on a timestamp bound and orders rows by `ts` whatever their order\
+  \ inside a\n  file, and archive coverage is the conjunction of every admitted file.\n\
+  \n- Rule 3's drain after a merge into a worktree was added, in place as an additive\n\
+  \  case: in <project> (2026-11-11) a worktree opened before the cut merged main's\
+  \ cut, kept\n  its old rows in the root, and a red run recorded in a day partition\
+  \ folded before an older\n  `commit_landed` in the root, so the Tests to Commit\
+  \ return move was refused.\n- Rule 3's engine precondition on the cut was added\
+  \ by on the owner decision\n  events.jsonl#ts=, in place as an additive case: a\
+  \ consumer cut its journal\n  with a newer engine while its workers ran an older\
+  \ pinned release that cannot land on a cut\n  journal, and its lands aborted until\
+  \ the pin was moved.\n- Rules 1-3 exist because the cost being removed is git-object\
+  \ churn, not parse time: a full parse\n  of the whole file measured 1.45s, while\
+  \ ~293 commits/day each wrote a fresh ~6 MB loose object,\n  and `.git` twice reached\
+  \ tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after a\n  clear).\
+  \ Read rule 2's age boundary against that: the ground for the change is UNBOUNDEDNESS,\n\
+  \  which is why a one-off cut cannot satisfy it and why the trigger cannot be a\
+  \ size.\n- Rule 5's phrasing is the one an earlier draft got wrong, and the correction\
+  \ is the point: the\n  honest guarantee is multiset identity, and every downstream\
+  \ acceptance criterion must be phrased\n  against it rather than against \"identical\
+  \ output\".\n- Rule 8 names a real, live instance rather than a hypothetical: a\
+  \ bound whose whole purpose is to\n  expire a standing deferral by size, computed\
+  \ from a `.stat` of the journal file.\n- Rule 9 rests on measurement: two lands\
+  \ died the same day on journal-driven test timeouts (a 180s\n  subprocess cap, and\
+  \ a 300s per-file cap against a 286s measured runtime — a 5% margin), the\n  recorded\
+  \ suite total is 431.7 min across 879 files with 102 files at >=60s carrying 63%\
+  \ of it,\n  and nine files grew 55-63% in one window on tests whose diffs did not\
+  \ change. The startup anchor\n  pays it too: `session start` in a fresh worktree\
   \ measured 2m27s and blocked a governed verb\n  behind it.\n\n## Verification\n\n\
   - **Rule 10 + rule 4's horizon classes :** `tests/test_t13288_verb_read_contract.py`\
   \ — the\n  tripwire rule 10 names, differential in every arm (a planted double fold,\
@@ -910,15 +991,24 @@ concern:
     '
 implements_signature:
   bin/lib/cli.py#_iter_events: 52b325c121e77eb9002c87a7e0436ba2163ce676d12fd5f8eab703b6f4146f57
-  bin/lib/cli.py#_iter_events_tail: fa12d4ce872655532e771fc5c0324faedd0158f1d2c1eaac97aa4c55e26e4d19
-  bin/lib/cli.py#_land_integrate: b512e43484431fd6c01a301e2136b6c16faffa0351418b660b479f4749ee1599
-  bin/lib/events.py#append_event: ee30e6290cd567ce67cf153a726844efeb355364ef783d61f69495943354c091
+  bin/lib/cli.py#_iter_events_tail: ef297b87bd8302ee64223d811ca2d2f5d1c6684ef36362d55f6cfdbbba294a97
+  bin/lib/cli.py#_land_integrate: 3c1c0db0091713efa5164d8dc4ae6b12bb14f915531146f39bf57272ecd70692
+  bin/lib/events.py#append_event: a443cf31870900fe2f23f68f9fb946d47720f19cd759746d143cc804da07121a
+  bin/lib/events.py#dated_since: 7256541f481ddd3319fe007c43a15d0be0a7ce8407c65016e5d1c167b32a1c54
+  bin/lib/events.py#is_appendable_segment: 8a78954f7519d7cd9c09ddc1854a6b14025d04c3332f3f7b4f212aa592513881
+  bin/lib/events.py#live_view_segments: 782234c969a232f3216beb78acbf4c9df2132207c9fb75355109af43951b6db5
   bin/lib/events.py#logical_journal: 156d804643353bdc779b7d0729696c205a5bd1ef00973b74f9315c1ebd65b735
+  bin/lib/events.py#recency_lanes: 308371090f577873d1bd34499d9a873b3f1d87f32b68d3b1a8e9eb786161e64b
   bin/lib/events.py#recombine_journal: fdb186bc5ed87c8fdbd4f1bc2cf146411e79fd762216799a5c9abf6d41ee151e
-  bin/lib/events.py#rotate_journal: 73c3778bdbe9b6d5e328dd444cdc8bfcab21ea065f5a0c448b85dc35bda6b776
-  bin/lib/journal.py#archive_scan_events_covering: dec124e360b9ffabf44d19d0754f80b66016da62c7e6bc2d0a5ed6904dd0dbd3
-  bin/lib/journal.py#revision_segment_paths: 85a307411be6577a234fa3b5fe12de40dc3cb7acc59af14928ac25badbfc260a
-  bin/lib/journal.py#revision_segment_show_argvs: 8b12debd11a33b5605e1ab7ac31e1e672632d5b0606fd3e6c0b416f81b4b412a
-  bin/lib/journal.py#tail_scan_events_covering: d4a787b6e33cee23ce6189971e9330b81f5b18d1b234c27b0e2f2262f2184a23
+  bin/lib/events.py#rotate_journal: 3f46a4d3f157cc74f2d8415091ab8637f374ad047553e7c87e1d64c7757f725c
+  bin/lib/events.py#split_shape: 5c797c058415f2cae82ad9aa5eeabb648fa1c9116ed694897661f25a2b91d781
+  bin/lib/journal.py#_pinned_engine_refusal: 84cc8fa8e940e767b1c4d7bb27c82546b40d450f988ed382702293f796c3cd59
+  bin/lib/journal.py#archive_scan_events_covering: 301b22bb41b095f3049a2e2ea545bd29f35c964a4b5893aae67b83947ea21191
+  bin/lib/journal.py#cmd_journal_cut: 44dace6d27423d54ab5bb3215b1e59d9f12dc778ce05c2a082b8c44729a56a8e
+  bin/lib/journal.py#lanes_newest_first: e16b7735ed42021650b831aad06c121fc2e7f90a0558f1607108d8684f388a4c
+  bin/lib/journal.py#revision_segment_paths: 263c40d7a984e97c79c643224cd9df7cba8324488f2ffb4459aee6046afa03b1
+  bin/lib/journal.py#revision_segment_show_argvs: 4d531d3f6b1d75d89f22410fa83bb2a362d691e54c3fb040afe8f4d1e09b48f2
+  bin/lib/journal.py#tail_scan_events_covering: e88e7a5761aaf7744bba0a92b81c0cefd7876304f94b1403212d379bccb86326
   bin/lib/views.py#_standing_rotation_defer: 6b8e10f47876508037a39ddfb9b8c81f3a9fe3ece6143f9cb43f632b2217d86a
-  bin/lib/worktree.py#rotate_branch_journal: bfbf361b76462f1e65a371531a9c012ea1caba70e151f161b0a17b9021897f2b
+  bin/lib/worktree.py#_drain_cut_branch_root: b6eb9502bfac4e317df36b4986b6424ebfb1de69f8eb214e4474aa26f26a5e93
+  bin/lib/worktree.py#rotate_branch_journal: 73520a5152b39c369c67bc3f4063a081a79953d5f0cf40fe4c2b9ed566c66b3d

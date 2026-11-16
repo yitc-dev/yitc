@@ -49,6 +49,7 @@ from pathlib import Path
 import yaml
 
 from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader
+from lib import unit_table  # T-14568: journal-read adapter records are expanded from their compact table (SPEC-1046)
 from lib import journal  # the ONE parsed journal fold + its request-scoped memo (CHARTER §P5)
 
 
@@ -1246,7 +1247,7 @@ def _test_class_executions(events_path, *, EXECUTION_EVENT=None, _execution_defe
 
 def _test_class_near_misses(events_path, names, *, EXECUTION_EVENT=None, NEAR_MISS_CAP=None, _execution_defect=None, _parse_stamped_deadline=None) -> list:
     """Fold the journal → the `test_class_executed` records that TRIED to record a run of a still-surfaced
-    class and did NOT (X-0470). <project> emitted `outcome: green` with `run:` instead of `evidence:`; the
+    class and did NOT (X-0470). Boomrocket emitted `outcome: green` with `run:` instead of `evidence:`; the
     record was dropped, the debt line did not move, and nothing anywhere said why — so they read kernel
     source to find the contract. A near-miss is the loudest possible evidence someone is trying to discharge
     the debt, and it was the one thing the surface stayed silent about.
@@ -1923,7 +1924,7 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         if row.get("outcome") != KNOWN_BROKEN_LAYER_PASSED or row.get("retried"):
             return False
         if "adapter" in row:
-            report = row["adapter"]
+            report = unit_table.expand(row["adapter"])
             if not isinstance(report, dict):
                 return False
             units = report.get("units")
@@ -1940,7 +1941,7 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         the assertion text. Only a `passed-partial` credited run needs it: a partial run proves the
         pair only by having RUN each of these files."""
         same = (_layer_rows_by_name(data) or {}).get(_known_broken_file(pair))
-        report = same[0].get("adapter") if same and len(same) == 1 else None
+        report = unit_table.expand(same[0].get("adapter")) if same and len(same) == 1 else None
         units = report.get("units") if isinstance(report, dict) else None
         if not isinstance(units, list) or not all(isinstance(u, dict) for u in units):
             return None
@@ -1966,7 +1967,7 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         if row.get("outcome") != KNOWN_BROKEN_LAYER_PASSED_PARTIAL or row.get("retried"):
             return False
         failed = rec["failed_units"]
-        report = row.get("adapter")
+        report = unit_table.expand(row.get("adapter"))
         units = report.get("units") if isinstance(report, dict) else None
         if not failed or not isinstance(units, list) or not all(
                 isinstance(u, dict) and u.get("status") == KNOWN_BROKEN_LAYER_PASSED

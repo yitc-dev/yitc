@@ -1,7 +1,7 @@
 ---
 name: consumer-suite-parallelization
 class: technique
-sourced_from: <project> (parallelize the backend-integration verify suite — 990 tests, 269s sequential quiet-box) + <project> X-0892 / (the layer-SPLIT transition — measured double-run bill + the coverage-hole replay) + <project> X-0931 / (the post-split window measured — the all-or-nothing savings shape and the attribution-replay method) + <project> X-0945 / X-0946 / (the probe-invocation-shape lever — the measured throwaway-vs-exec fleet asymmetry, and the decision NOT to derive a fleet threshold from it) + <project> 2026-08-25 (the one-week land window measured for the SECOND-round split question — the 63% bring-up floor and the co-fire rate that together decide how FINE a layer may be cut) + <project> X-1478 / / / / / / / (the verify-parallelism programme measured 2026-09-14..17 — land wall 405.7s -> 133s, the stack layer 437s -> 124s; the ordered adoption path in §Adopting concurrency is distilled from it)
+sourced_from: boomrocket (parallelize the backend-integration verify suite — 990 tests, 269s sequential quiet-box) + <project> X-0892 / (the layer-SPLIT transition — measured double-run bill + the coverage-hole replay) + <project> X-0931 / (the post-split window measured — the all-or-nothing savings shape and the attribution-replay method) + <project> X-0945 / X-0946 / (the probe-invocation-shape lever — the measured throwaway-vs-exec fleet asymmetry, and the decision NOT to derive a fleet threshold from it) + <project> 2026-08-25 (the one-week land window measured for the SECOND-round split question — the 63% bring-up floor and the co-fire rate that together decide how FINE a layer may be cut) + <project> X-1478 / / / / / / / (the verify-parallelism programme measured 2026-09-14..17 — land wall 405.7s -> 133s, the stack layer 437s -> 124s; the ordered adoption path in §Adopting concurrency is distilled from it)
 applies_to: any consumer cutting its land-verify wall-clock — a layer that runs a large HERMETIC suite sequentially (§Parallelize), a monolithic layer being SPLIT into several subject-scoped layers (§Splitting a monolithic layer), or a layer whose cost is in HOW its probes invoke their container rather than in the probes themselves (§How your probes invoke their container) — any consumer about to MEASURE what a split bought it (§What shape of saving, §Before you trust a per-land attribution), and any consumer planning a SECOND round of splitting on an already-split layer (§How FINE to cut). Those levers stay consumer-scoped. ONLY §The WASTE lever applies more widely — any project reading an expensive verify unit for known waste — the kernel's own suite included (the T4 P7 probe's checklist home). §Adopting concurrency — the order of operations applies to any consumer adopting SPEC-0152 rule-16 CONCURRENCY (`independent_layers` + `layer_worker_shares`) — it orders the steps, it does not restate their rules.
 ---
 
@@ -9,7 +9,7 @@ applies_to: any consumer cutting its land-verify wall-clock — a layer that run
 
 ## Problem
 
-One growing test layer comes to dominate every land's verify wall-clock (<project>: 990 backend
+One growing test layer comes to dominate every land's verify wall-clock (boomrocket: 990 backend
 tests ≈ 269s quiet-box ≈ ~90% of each ~280s land, timeout already raised once 300→600s). The
 sequential runtime grows with the suite forever; raising the timeout treats the symptom. Subject
 scoping (SPEC-0152 rule 16 `subject_globs`) removes the layer from IRRELEVANT lands — this pattern
@@ -36,7 +36,7 @@ late.
 ## Precondition — hermetic first, parallel second
 
 Parallelize ONLY a layer that is already hermetic per-run (the SPEC-0152 rule-16 hermeticity
-contract: unique-per-run container/port/db — see <project> `bin/verify-hermetic.sh`). Intra-run
+contract: unique-per-run container/port/db — see boomrocket `bin/verify-hermetic.sh`). Intra-run
 test-level parallel safety is a SEPARATE claim the suite must earn: every worker needs its own
 resource slice. For the DB mechanism fork (per-worker database vs schema vs transaction rollback)
 see `patterns/test-isolation-strategies.md` — pick the least-churn mechanism that catches the bug
@@ -53,7 +53,7 @@ classes you care about.
    `-n`; capture that run. A parallel runner that swallows failures is a gate-weakening, not a
    speedup (SPEC-0103: the suite CONTENT is untouched — only wall-clock changes).
 4. **Measure before/after on the same box** — record both figures verbatim in the closure record
-   (<project> target: 269s → ≤120s). A "feels faster" claim is not a probe.
+   (boomrocket target: 269s → ≤120s). A "feels faster" claim is not a probe.
 5. **Update the layer timeout comment** — the declared per-layer `timeout:` was sized for the
    sequential run; re-derive it from the measured parallel figure + headroom, and say so in the
    carrier comment.
@@ -70,7 +70,7 @@ classes you care about.
 
 ## Live instance
 
-<project> is the first application of this pattern (its numbers above); its closure record
+boomrocket is the first application of this pattern (its numbers above); its closure record
 carries the measured before/after and the differential broken-test run.
 
 ---
@@ -155,7 +155,7 @@ path simply runs nothing and the land is green for free.
 3. **Pass condition: at least one replacement layer RUNS for each.** Any glob for which every
    replacement would skip is a coverage hole; fix the replacements' globs before flipping.
 
-**It finds real holes.** Run before flipping on <project>'s own set, it found TWO — `<project>.pin`
+**It finds real holes.** Run before flipping on <project>'s own set, it found TWO — `ticket-review.pin`
 (a pinned-library bump would have run NOTHING) and `scripts/**` (an ordinary new script would have run
 NOTHING) — **after two audits had already passed those same globs**. Reviewers read globs for
 plausibility; only the replay reads them for coverage.
@@ -351,12 +351,12 @@ failure being described here is not "throwaway is wrong" — it is that the choi
 | project | throwaway (`run --rm`) | exec |
 |---|---|---|
 | <project> | 55 | 10 |
-| <project> | 0 | 70 |
+| boomrocket | 0 | 70 |
 | <project> | 2 | 15 |
 
 For <project> that shape cost about **92s of a 197s layer — roughly 47%** (an empty throwaway
 container measured 1.8s steady-state; a real cheap probe measured 3.43s, so more than half of each
-probe was create-and-destroy). **<project> does the same KIND of work for zero container churn.**
+probe was create-and-destroy). **boomrocket does the same KIND of work for zero container churn.**
 
 **Nobody was wrong on purpose.** Two projects arrived at opposite shapes independently, and nothing
 in the methodology, the onboarding runbook, or any check ever put the question in front of them. A

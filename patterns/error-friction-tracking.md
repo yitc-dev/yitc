@@ -329,7 +329,7 @@ at session start) that is a candidate for a future CLI / land-time check.
 **Captured (event-only):**
 
 ```bash
-bin/yitc-v2 event deviation_captured --task --data '{
+bin/yitc-v2 event deviation_captured --task  --data '{
   "relates_to": "cli-vs-manual",
   "impact": "low",
   "fingerprint": "orphaned-auto-emit-event-uncommitted-at-session-end",

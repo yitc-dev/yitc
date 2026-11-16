@@ -51,18 +51,18 @@ local→kernel reconciliation to happen and stay visible.
 
 ## §Example — X-0140 (tests/verify layers, 2026-06-30)
 
-`<project>` added an admin-UI "Lifecycle" (Zhiznenny tsikl) view but its land gate (`yitc-verify.yaml`, a single
+`social-parser` added an admin-UI "Lifecycle" (Zhiznenny tsikl) view but its land gate (`yitc-verify.yaml`, a single
 hermetic backend command) silently does not test the frontend. It is building a vitest+jsdom render
 test **locally now** (a hermetic, project-realm test — step 1's safety honored), and signaled the
 kernel via cross **X-0140** (step 2). The kernel SHIPPED a per-layer `verify.layers` carrier (each land
 layer declare-or-waive, executable at `land` — run every layer / fail-on-any — RETIRING
-the single `yitc-verify.yaml`) **from <project>'s real case as the basis** (step 3 — the seed-and-grow
-tests/verify instance). On ship, <project> reconciles its local vitest wiring onto the blessed
+the single `yitc-verify.yaml`) **from social-parser's real case as the basis** (step 3 — the seed-and-grow
+tests/verify instance). On ship, social-parser reconciles its local vitest wiring onto the blessed
 `yitc-ops.yaml verify.layers` form, X-0140 closing only then (step 4).
 
-> **Instance not yet end-to-end:** step 1's **marked lesson** at <project> (pointing at the local
+> **Instance not yet end-to-end:** step 1's **marked lesson** at social-parser (pointing at the local
 > vitest wiring + citing X-0140 + the retire condition) is the consumer-side step still owed — it is
-> authored in <project>'s own repo, not from the kernel session. Until it exists the local
+> authored in social-parser's own repo, not from the kernel session. Until it exists the local
 > provisional is unmarked; the instance is faithful in shape but not yet fully evidenced.
 
 ## §Anti-pattern

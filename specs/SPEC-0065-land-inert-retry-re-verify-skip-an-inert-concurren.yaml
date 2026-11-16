@@ -191,14 +191,16 @@ body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency r
   \ it is SPEC-1030 rule 6 (`bin/yitc-v2 graph query SPEC-1030`),\n      not restated\
   \ here. Where a pre-deploy class lists its units, the run also covers the land only\n\
   \      when the skip set the land computes equals the one the run recorded (SPEC-1051\
-  \ rule 2).\n  (5) THE REST OF THE LAND STILL RUNS — the credit replaces the candidate\
-  \ leg and nothing else. The\n      SPEC-0163 any-author floor runs over the same\
-  \ branch delta and its refusal aborts the land with\n      `main` untouched; the\
-  \ host-leak check runs; and the SPEC-0077 pinned leg runs exactly when its\n   \
-  \   trigger and the project's policy (SPEC-0186) say so — the credit neither reads\
-  \ nor moves\n      either. Where the pinned leg is due the head is verified ALONE\
-  \ (no batch is formed onto a\n      credited tree) and a pinned failure refuses\
-  \ the land as on any other.\nA project MAY switch the credit off (`verify_policy.stage6_credit`,\
+  \ rule 2): equal versioned identities, whichever written form each record takes;\
+  \ a record that cannot be read refuses `pre-deploy-skip-set-differs`.\n  (5) THE\
+  \ REST OF THE LAND STILL RUNS — the credit replaces the candidate leg and nothing\
+  \ else. The\n      SPEC-0163 any-author floor runs over the same branch delta and\
+  \ its refusal aborts the land with\n      `main` untouched; the host-leak check\
+  \ runs; and the SPEC-0077 pinned leg runs exactly when its\n      trigger and the\
+  \ project's policy (SPEC-0186) say so — the credit neither reads nor moves\n   \
+  \   either. Where the pinned leg is due the head is verified ALONE (no batch is\
+  \ formed onto a\n      credited tree) and a pinned failure refuses the land as on\
+  \ any other.\nA project MAY switch the credit off (`verify_policy.stage6_credit`,\
   \ SPEC-0186 rule 10); absent a\ndeclaration it is ON, for the engine as for a consumer.\
   \ Every credited land records WHICH Stage-6 row\nit credited (`land_completed.stage6_credit`)\
   \ — on the post-sync-proof arm also the proof it took\n(`stage6_credit.post_sync_proof`:\
@@ -484,7 +486,7 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/worktree.py#_inert_unread_delta: abcdad53c0382963799bfbfc5403d15e26c822ce57b3d2b47b9a96fea385b815
-  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663
+  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800
   bin/lib/worktree.py#_land_post_sync_proof_credit: 928f58ed18292da2f6133616deeafc6aaa7c4ee3b5e953d18dbea5230f9a501b
   bin/lib/worktree.py#_land_stage6_credit: d7c5d09651de840cfb2a2a50701aaf6137c9ae1d9154040fe1448092dcf96be1
   bin/lib/worktree.py#_land_verify_skip_judge: fb315a6754d5d170e9ed1650612c5915ad30d6a60a8edd03c3f7f46d14b20f44

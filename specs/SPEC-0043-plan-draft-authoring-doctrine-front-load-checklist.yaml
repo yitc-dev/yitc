@@ -5,6 +5,8 @@ created_at: 2026-06-06 07:14:05+00:00
 consumed: false
 implements:
 - bin/lib/plan.py#cmd_plan_file
+- bin/lib/plan.py#parse_plan_units
+- bin/lib/plan.py#render_unit_skeletons
 binding:
 - plan-stage-entry:draft
 body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED rather\
@@ -101,33 +103,55 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ rule variants and their numbers, and the deliberation\n   chronology are removed,\
   \ not kept beside it — git history, the journal and the audit records\n   keep them.\
   \ Each correction is named by its one line in the External checks / audits section\n\
-  \   (SPEC-0083 §The record — a pointer, not restated here).\n\n### Resume path for\
-  \ an existing `status: draft` plan (no new read verb)\nSessions never scan `plans/`\
-  \ (the picker reads `tasks/` only), and `plan stage draft` is unreachable\n(draft\
-  \ is the INITIAL status — the bundle is delivered by `plan file`, not by a stage\
-  \ verb). So a\nsession reopening a draft rediscovers this doctrine via the ALWAYS-LOADED\
-  \ LIFECYCLE §Plan-lifecycle\ndraft-row pointer → `graph query SPEC-0043`. That pointer\
-  \ IS the sole rediscovery route by design;\nno read verb is added for resumed draft\
-  \ authoring.\n\n### Delivery wiring (how this doctrine reaches the author)\nIdeas\
-  \ (`plan file --idea`) are flat holding pens —\nthey get NEITHER the draft-stage\
-  \ delivery NOR the heavy skeleton (unchanged).\n( last-touch refresh: `cmd_plan_file`'s\
-  \ trailing next-hint also carries the post-specs FORK\npointer — trial-eligible\
-  \ → `plan stage trial`, else → `plan stage accepted` — but that pointer is\ngoverned\
-  \ by SPEC-0034/SPEC-0035, NOT this front-load doctrine; this spec's delivery rule\
-  \ + skeleton\nsections are unchanged.)\n\n### Anti-complexity note (<workshop-spec>\
-  \ §7 / CHARTER §P1 F3 — what is retired)\nNOTHING is retired by this spec. It is\
-  \ admitted because it fills a real WIRING + CONTENT gap (the\ndraft bundle was never\
-  \ delivered, and no doctrine said what a draft should front-load), NOT because\n\
-  it accretes a parallel mechanism: it REUSES the existing plan-stage-entry axis,\
-  \ the existing\n`_emit_plan_stage_entered` delivery helper, and the existing `cmd_plan_file`\
-  \ verb — no new gate, no\nnew verb, no new store, no draft-completeness validator.\n\
-  \n## Parameters\n\nNone consumed. Every governing constant referenced (the big-plan\
-  \ apply-when criteria; the audit\ntemplates; the trial-eligibility rule; the decomposition\
-  \ discipline) lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec>\
-  \ / big-plan-checklist) — pointed at, NEVER duplicated or\n`consumed:` here (<workshop-spec>\
-  \ rule 3 / P5).\n\n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1\
-  \ Analysis is a delivered, ordered procedure); the\nPLAN draft stage had the delivery\
-  \ AXIS (SPEC-0034 binds `plan-stage-entry:draft`) but the bundle was\nnever delivered\
+  \   (SPEC-0083 §The record — a pointer, not restated here).\n10. **Units — the decomposition\
+  \ map, for a plan that will be cut into cards.** Write the `## Units`\n   section\
+  \ the skeleton seeds: one top-level bullet per unit, `- **<ID> — <title>.**`, then\n\
+  \   `Carries:` (what the card delivers), `requires:` (unit ids; `—` for none; a\
+  \ range `U1–U3` runs\n   over the declared order; text in parentheses is prose,\
+  \ never an edge), `Owns:` (the locators the\n   card writes — a backticked path,\
+  \ optionally `#symbol`, and spec ids) and `Proves:` (the probes,\n   `;`-separated,\
+  \ one acceptance item each). A locator followed by `(new)` declares a creation.\
+  \ A\n   unit already cut says `filed as T-NNNN`; an edge to it carries that id.\n\
+  \   `bin/yitc-v2 plan show <slug> --unit-skeletons` prints the units as a `task\
+  \ file --from-stdin`\n   batch — emitted, never filed — and refuses a requires target\
+  \ no unit declares, naming the edge.\n   How to cut the units is SPEC-0046 §A, the\
+  \ cut itself SPEC-0070 — pointers, not restated here.\n11. **Draft documents — for\
+  \ a large plan that changes a system in production.** The skeleton seeds\n   a `##\
+  \ Draft documents` section: list the paths of the project documents prepared before\
+  \ the\n   plan's first check round (only the ones the plan needs — rights or threat\
+  \ matrix, seam map, guards\n   by change kind, pre-mortem, readiness checklist,\
+  \ decision records). Verify first: a document\n   about a mechanism is verified\
+  \ against the live system before it enters a plan. They are project\n   documents,\
+  \ read by the people and helpers who write the plan and cut it, never attached whole\
+  \ to\n   an audit. A prompt, not a gate: an empty section is normal for a plan that\
+  \ needs none. What each\n   document holds and how it reaches the cut: `patterns/plan-draft-documents.md`\
+  \ — a pointer, not\n   restated here.\n\n### Resume path for an existing `status:\
+  \ draft` plan (no new read verb)\nSessions never scan `plans/` (the picker reads\
+  \ `tasks/` only), and `plan stage draft` is unreachable\n(draft is the INITIAL status\
+  \ — the bundle is delivered by `plan file`, not by a stage verb). So a\nsession\
+  \ reopening a draft rediscovers this doctrine via the ALWAYS-LOADED LIFECYCLE §Plan-lifecycle\n\
+  draft-row pointer → `graph query SPEC-0043`. That pointer IS the sole rediscovery\
+  \ route by design;\nno read verb is added for resumed draft authoring.\n\n### Delivery\
+  \ wiring (how this doctrine reaches the author)\nIdeas (`plan file --idea`) are\
+  \ flat holding pens —\nthey get NEITHER the draft-stage delivery NOR the heavy skeleton\
+  \ (unchanged).\n( last-touch refresh: `cmd_plan_file`'s trailing next-hint also\
+  \ carries the post-specs FORK\npointer — trial-eligible → `plan stage trial`, else\
+  \ → `plan stage accepted` — but that pointer is\ngoverned by SPEC-0034/SPEC-0035,\
+  \ NOT this front-load doctrine; this spec's delivery rule + skeleton\nsections are\
+  \ unchanged.)\n\n### Anti-complexity note (<workshop-spec> §7 / CHARTER §P1 F3 —\
+  \ what is retired)\nNOTHING is retired by this spec. It is admitted because it fills\
+  \ a real WIRING + CONTENT gap (the\ndraft bundle was never delivered, and no doctrine\
+  \ said what a draft should front-load), NOT because\nit accretes a parallel mechanism:\
+  \ it REUSES the existing plan-stage-entry axis, the existing\n`_emit_plan_stage_entered`\
+  \ delivery helper, and the existing `cmd_plan_file` verb — no new gate, no\nnew\
+  \ verb, no new store, no draft-completeness validator.\n\n## Parameters\n\nNone\
+  \ consumed. Every governing constant referenced (the big-plan apply-when criteria;\
+  \ the audit\ntemplates; the trial-eligibility rule; the decomposition discipline)\
+  \ lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec> / big-plan-checklist)\
+  \ — pointed at, NEVER duplicated or\n`consumed:` here (<workshop-spec> rule 3 /\
+  \ P5).\n\n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1 Analysis\
+  \ is a delivered, ordered procedure); the\nPLAN draft stage had the delivery AXIS\
+  \ (SPEC-0034 binds `plan-stage-entry:draft`) but the bundle was\nnever delivered\
   \ — `draft` is the initial status, so `plan stage draft` is never called. A session\n\
   filing a plan therefore got no front-load guidance, and a draft could stay a bare\
   \ title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
@@ -180,15 +204,19 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ AC3):** the generated plan skeleton contains the six base\n  sections (## Problem\
   \ / intent, ## Done criterion, ## Verification plan, ## External checks /\n  audits,\
   \ ## Planned artifacts / corpus impact, ## Realization-exit criteria — the sixth\
-  \ added). Probe: state-check the sandbox `plan file` output.\n- **VP4 (idea path\
-  \ unchanged — regression):** `plan file --idea` still emits the FLAT idea skeleton\n\
-  \  and NO draft-stage delivery (no `plan_stage_entered`, no bundle print). Probe:\
-  \ same test.\n- **VP5 (LIFECYCLE pointer, AC4):** LIFECYCLE.md §Plan-lifecycle draft\
-  \ row carries the SPEC-0043\n  pointer (grep); the full mandatory handbook seed\
-  \ stays ≤ 2500 lines (wc -l check).\n- **VP6 (pointer-discipline, AC5):** this body\
-  \ restates NO gate mechanic — every gate rule is a\n  pointer to its home (SPEC-0034\
-  \ / SPEC-0035 / <workshop-spec> / big-plan-checklist). Probe:\n  audit-pre/post\
-  \ pointer-discipline check + grep (no gate-rule restatement).\n"
+  \ added), plus the optional `## Units` section in the item-10 form and the\n  `##\
+  \ Draft documents` section carrying the item-11 verify-first rule (tests/test_sandbox_method_texts.py).\
+  \ Probe: state-check\n  the sandbox `plan file` output; tests/test_plan_unit_skeletons.py\
+  \ drives `plan file` and\n  `plan show --unit-skeletons` (one skeleton per unit,\
+  \ an undeclared requires target refused, the\n  batch filed through `task file --from-stdin`).\n\
+  - **VP4 (idea path unchanged — regression):** `plan file --idea` still emits the\
+  \ FLAT idea skeleton\n  and NO draft-stage delivery (no `plan_stage_entered`, no\
+  \ bundle print). Probe: same test.\n- **VP5 (LIFECYCLE pointer, AC4):** LIFECYCLE.md\
+  \ §Plan-lifecycle draft row carries the SPEC-0043\n  pointer (grep); the full mandatory\
+  \ handbook seed stays ≤ 2500 lines (wc -l check).\n- **VP6 (pointer-discipline,\
+  \ AC5):** this body restates NO gate mechanic — every gate rule is a\n  pointer\
+  \ to its home (SPEC-0034 / SPEC-0035 / <workshop-spec> / big-plan-checklist). Probe:\n\
+  \  audit-pre/post pointer-discipline check + grep (no gate-rule restatement).\n"
 cites:
 - SPEC-0034
 - SPEC-0035
@@ -202,3 +230,5 @@ activation_owner_task: null
 proposed_by: null
 implements_signature:
   bin/lib/plan.py#cmd_plan_file: 1edaaf81e9141657f44179262be47aa3eebd07c73db0b4082cecbbef8321ed86
+  bin/lib/plan.py#parse_plan_units: a41c6afa6fdcbb28d2885caa26245d096a29a2aa3ddc5e6eb327a283e81ca5ac
+  bin/lib/plan.py#render_unit_skeletons: b5a3e021132d1c73569b90445a12c51412bcfe43c8dfbadc3f7174f5cc11304e

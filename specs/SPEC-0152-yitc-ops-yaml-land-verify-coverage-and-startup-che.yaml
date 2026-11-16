@@ -88,7 +88,7 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ carrier;, X-0129)\nThe `coverage:` top-level section is the durable carrier for\
   \ the **B5 coverage-admission** — WHICH\nload-bearing code surfaces are REASONED\
   \ spec-less (a deliberate exclusion) vs a genuine NEW orphan.\nBefore this carrier\
-  \ the judgment survived ONLY as a consumer's closed-task free-text (the <project>\n\
+  \ the judgment survived ONLY as a consumer's closed-task free-text (the trend-finder\n\
   \ ~30-module list) and ROTTED the moment no one re-read it: `graph build` reported\
   \ code↔spec\ncoverage but had no admission REFERENCE, so a NEWLY-added uncovered\
   \ load-bearing module tripped nothing\nand was indistinguishable from a reasoned\
@@ -505,10 +505,10 @@ implements_signature:
   bin/lib/land_verify_legs.py#_verify_layer_forecast: d71acfb0af91c44098f5f0ad7da6e290471f54498d76127f739ab869108c2aaf
   bin/lib/land_verify_legs.py#_verify_selected_layers: 26fe747f068bb04690ca8293db9ed6ef59abe73ead1e09677805890c87655d13
   bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
-  bin/lib/task.py#cmd_task_test: 6118eeaee705c3e0dfee4669c823bae571a74d797461ec3a0fb03b2b17c5568a
+  bin/lib/task.py#cmd_task_test: 6545d2b1cd2555eb414731e02ba65370cb92b045a2dda1f424d46596ba335945
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
   bin/lib/verify_wiring.py#_verify_infrastructure_globs: 24b9da17eacfdc1d6fa4bd2dcfa4dae66744eed2a379c0dfa2233fa8b1389099
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 1540c07971ea9f05ff70a2fb89449f5ca8d066e7adb66831c8fcc1cb0b7a2366
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 21572a384556a0e2f4b3a9f195993268160aeb3197284c25667d53434bf79d7b
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279

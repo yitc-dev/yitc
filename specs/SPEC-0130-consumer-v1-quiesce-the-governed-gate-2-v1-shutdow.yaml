@@ -14,7 +14,7 @@ body: "## Scenario\n\nA brownfield consumer being migrated onto YITC v2 reaches 
   \ the host V1 git-hook coupling stops firing on its files. Today the owner/AI\n\
   does this BY HAND — flips the project's registry `active: false` and writes a `.no-v1-hooks`\
   \ marker —\nwith no verb, so the action leaves no journal evidence and recurs identically\
-  \ for every v1-incumbent\nmigration (<project>, then <project>). Under this rule\
+  \ for every v1-incumbent\nmigration (<project>, then boomrocket). Under this rule\
   \ a single governed verb performs both effects\nidempotently and records the shutdown\
   \ as a journal event, so the quiesce is visible across sessions\nand never hand-done.\n\
   \n## Internal\n\nTHE RULE. `bin/yitc-v2 -C <consumer> quiesce` (the CLI verb TOKEN\
@@ -43,7 +43,7 @@ body: "## Scenario\n\nA brownfield consumer being migrated onto YITC v2 reaches 
   \ writes into another repo, not a governed verb's runtime host/consumer mutation.\
   \ The\nverb never edits ANOTHER project's source.\n\nSCOPE BOUND (honest cut). This\
   \ spec governs EXACTLY the two effects above + the event. The\ngate-2 friction log\
-  \ (the kernel workshop's onboarding frictions log, §<project> gate-2) records\n\
+  \ (the kernel workshop's onboarding frictions log, §trend-finder gate-2) records\n\
   two SIBLING gate-2 preconditions — disabling the consumer's repo-LOCAL git hooks,\
   \ and fast-forwarding\na stale `main` off a dated auto-session branch — which are\
   \ OUT of scope here (each is its own task if\na real migration pulls it; CHARTER\
@@ -63,7 +63,7 @@ body: "## Scenario\n\nA brownfield consumer being migrated onto YITC v2 reaches 
   \ evidence and recurred per migration. Replaced by one governed,\n   evidenced verb\
   \ (AGENTS §Verb-execution discipline — hand-work skips the journal emit).\n4. **Real\
   \ incident / prior-art / analog?** Real: deviation `v1-quiesce-for-gate2-migration-hand-done-no-verb`\n\
-  \   (triage 2026-07-02, 2×), recurring for the <project> gate-2 migration. Prior-art:\
+  \   (triage 2026-07-02, 2×), recurring for the boomrocket gate-2 migration. Prior-art:\
   \ `init` /\n   `deploy` / `hostapply` are the sibling consumer-operational verbs;\
   \ the gate-2 friction log is the\n   documented migration context.\n\n## Verification\n\
   \nPROBE ( acceptance): against a fixture consumer + fixture registry (`YITC_REGISTRY`),\n\

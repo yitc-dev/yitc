@@ -57,9 +57,11 @@ import threading
 import time
 from pathlib import Path
 
+from lib import events
 from lib import journal as journal_mod  # the shared bounded tail-scan journal reader
 from lib import state
 from lib import test_discovery  # T-12694 — the ONE `test_*.py` discovery home (stdlib-only leaf)
+from lib import unit_table  # T-14568 — every journal-read adapter record is expanded from its compact table (SPEC-1046)
 
 
 #: T-12587 (SPEC-0152 rule 16) — the OPTIONAL widen-only key a project may put on its `verify:` section
@@ -3580,7 +3582,14 @@ def _verify_duration_samples_from_journal(main_wt: Path, limit: int, *, _run_git
         (`read_text().splitlines()`, ~116 MB on the kernel checkout, several times that as objects)
         on every land's tail to look at its last few green lands. Same horizon (this one file), same
         token prefilter, same `errors="replace"` decode; an unreadable file yields nothing, as the
-        failed read did."""
+        failed read did.
+
+        T-14567 (SPEC-0190 rule 1c) — on the split shape the newest rows may sit in a dated file:
+        the lanes are merged by `ts` newest-first (`journal.lanes_newest_first`), a dated file opened
+        only while it can still improve the result (a timestamp bound, never a match count)."""
+        if events.split_shape(path):
+            yield from journal_mod.lanes_newest_first(path, ['"land_completed"', '"tests_passed"'])
+            return
         try:
             for slice_lines, _head, _start in journal_mod._backward_superset_chunks(
                     path, ['"land_completed"', '"tests_passed"']):
@@ -3994,7 +4003,7 @@ def _per_unit_flaky_rate(events_path, since=None, until=None, *, _iter_events, _
         ran: dict = {}                               # entity -> a first-attempt failure in this record
         layers = data.get("consumer_verify_layers")
         for lrow in layers if isinstance(layers, list) else []:
-            rec = lrow.get("adapter") if isinstance(lrow, dict) else None
+            rec = unit_table.expand(lrow.get("adapter")) if isinstance(lrow, dict) else None
             if not isinstance(rec, dict) or not (isinstance(lrow.get("layer"), str) and lrow["layer"]):
                 continue
             records["read"] += 1
@@ -4407,7 +4416,7 @@ def _layer_slowest_unit(row) -> "list | None":
     `adapter.units[]`, each `{file, project?, duration_ms}`), or None when the row carries no usable
     unit. A unit with no positive int `duration_ms` or no `file` is skipped; ties go to the name
     that sorts first, so the answer does not depend on the report's order. PURE."""
-    adapter = row.get("adapter") if isinstance(row, dict) else None
+    adapter = unit_table.expand(row.get("adapter")) if isinstance(row, dict) else None
     units = adapter.get("units") if isinstance(adapter, dict) else None
     best = None
     for unit in units if isinstance(units, list) else []:
@@ -5902,7 +5911,7 @@ def _adapter_previous_attempt(journals, layer: str, branch, *, whole: bool = Fal
                 else ("passed", "failed", "timed-out", "prep-failed")))
             if not (ran or whole):
                 continue
-            rec = row.get("adapter") if ran and isinstance(row.get("adapter"), dict) else None
+            rec = unit_table.expand(row.get("adapter")) if ran and isinstance(row.get("adapter"), dict) else None
             told = rec.get("attempt") if rec is not None and isinstance(rec.get("attempt"), dict) else {}
             tid = ev.get("task_id")
             named = whole and any(
@@ -5994,7 +6003,7 @@ def _adapter_credit_basis(previous, base, *, deciding: bool = False) -> dict:
         rec["reason"] = "previous-attempt-passed"
         return out
     rec["decision"] = "void"
-    was = previous.get("adapter")
+    was = unit_table.expand(previous.get("adapter"))
     told = was.get("attempt") if isinstance(was, dict) else None
     if not isinstance(told, dict):
         rec["reason"] = "record-missing"
@@ -6372,7 +6381,7 @@ def _named_by_layer(rows) -> dict:
         data = ev.get("data") if isinstance(ev, dict) else None
         layers = data.get("consumer_verify_layers") if isinstance(data, dict) else None
         for r in layers if isinstance(layers, list) else []:
-            rec = r.get("adapter") if isinstance(r, dict) else None
+            rec = unit_table.expand(r.get("adapter")) if isinstance(r, dict) else None
             units = rec.get("units") if isinstance(rec, dict) else None
             failed = [u for u in units if isinstance(u, dict) and u.get("status") == "failed"] \
                 if isinstance(units, list) else []
@@ -7006,7 +7015,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     A fault while the credit decision is taken credits nothing (`credit-error`); a fault of the
     ladder is `selection-error` on both records.
 
-    A SHIPPED DECISION (T-13973 — SPEC-1032 rule 4). `shipped` is the decision the HOST took for
+    A SHIPPED DECISION (T-13973 — SPEC-1059 rule 4). `shipped` is the decision the HOST took for
     this layer, carried to a box that runs the pass over the same tree (`_adapter_shipped_decision`
     builds it from the host's own pass, `worktree._consumer_zero_probe_guard(plan_out=...)`):
     `{selection, credit, units, left_out, credited?, previous?}` — the two records as the host wrote them and
@@ -7316,12 +7325,12 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     "compared": False, "disagreements": [], "error": f"{type(e).__name__}: {e}"[:300]})
 
         def _follow_shipped(inventory):
-            """T-13973 (SPEC-1032 rule 4) — follow the decision the host shipped for this layer
+            """T-13973 (SPEC-1059 rule 4) — follow the decision the host shipped for this layer
             (see the docstring's last paragraph). Returns what `_decide` returns: the inventory
             entries `run` is to be invoked with, or None for the whole inventory."""
             got = shipped if isinstance(shipped, dict) else {}
             want = got.get("units")
-            # T-13994 (SPEC-1032 rule 5) — the host's `list` named units for this layer and this
+            # T-13994 (SPEC-1059 rule 5) — the host's `list` named units for this layer and this
             # pass's `list` answered with NONE (`list_reason: empty`, an answer the reader above
             # already refuses as an inventory): the run here cannot verify what the plan was taken
             # over. The record says so; the host names the layer on the Stage-6 row and the land
@@ -7332,7 +7341,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 rec["listed_none"] = {"plan_listed": plan_listed}
                 print(f"land(consumer): verify layer {layer!r} lists NO unit here, while the shipped "
                       f"plan was taken over {plan_listed} listed unit(s) — the layer is named on the "
-                      f"Stage-6 row and the land takes no verdict for it from this pass (SPEC-1032 rule 5)")
+                      f"Stage-6 row and the land takes no verdict for it from this pass (SPEC-1059 rule 5)")
 
             def _keys(units):
                 if not (isinstance(units, list) and all(isinstance(u, dict) and isinstance(u.get("file"), str)
@@ -8110,14 +8119,14 @@ def _one_card_candidate_kw(batch_members) -> dict:
 
 
 def _adapter_shipped_decision(rec, sink) -> dict:
-    """T-13973 (SPEC-1032 rule 4) — the decision ONE host-side pass of a deciding layer took, in the
+    """T-13973 (SPEC-1059 rule 4) — the decision ONE host-side pass of a deciding layer took, in the
     form a box follows (`_layer_adapter_report_pass(shipped=...)`): `{selection, credit, units,
     left_out, credited?, previous?}`. `rec` is the pass's record, `sink` the dict it was handed:
     `selection` / `credit` are the record's two deciding records as written (None where the layer
     reads no such mode); `units`, `left_out`, `credited` and `previous` are the run plan the pass
     took (`sink["plan"]`, `_adapter_run_plan`'s answer), each unit `{file, project?}`. `units` None
     — the plan narrows nothing, or the pass never reached a plan — runs the whole inventory.
-    `listed` (T-13994, SPEC-1032 rule 5) is how many units the host's `list` named (`sink["inventory"]`),
+    `listed` (T-13994, SPEC-1059 rule 5) is how many units the host's `list` named (`sink["inventory"]`),
     None when it named none usable; a box whose own `list` names none of them says so on its row. PURE."""
     def _names(units):
         return [{"file": u["file"], **({"project": u["project"]} if u.get("project") else {})}
@@ -8163,9 +8172,12 @@ def _pre_deploy_declaration(classes) -> "dict | None":
     no pre-deploy class. T-14211 (SPEC-1051 rule 1): where an entry declares `units:` (the LISTED
     order) the record also carries `listed_classes` (their names), `listed` (`{file: class}`, every
     listed file) and `never_move` (every pre-deploy entry's `never_move:` globs) — keys absent when no
-    entry declares `units:`, so a fallback-only declaration reads exactly as before. PURE."""
+    entry declares `units:`, so a fallback-only declaration reads exactly as before. T-14623 (SPEC-1051
+    rules 1-2): with a listed class, `returns_on` (`{listed file: [globs]}`, every entry's `returns_on:`
+    keys that the SAME entry's `units:` lists — a key outside them is inert) — absent when no entry
+    declares one, so a declaration without it reads exactly as before. PURE."""
     names, layers = [], {}
-    listed_classes, listed, never = [], {}, []
+    listed_classes, listed, never, returns_on = [], {}, [], {}
     for c in classes if isinstance(classes, list) else ():
         if not (isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"):
             continue
@@ -8178,6 +8190,12 @@ def _pre_deploy_declaration(classes) -> "dict | None":
                 layers.setdefault(ly.strip(), name)
         never += [g.strip() for g in c.get("never_move") if isinstance(g, str) and g.strip()] \
             if isinstance(c.get("never_move"), list) else []
+        own = {u.strip() for u in c["units"] if isinstance(u, str)} if isinstance(c.get("units"), list) else set()
+        for f, gs in (c.get("returns_on").items() if isinstance(c.get("returns_on"), dict) else ()):
+            got = [g.strip() for g in gs if isinstance(g, str) and g.strip()] if isinstance(gs, list) else []
+            # T-14623: the shape is the contract read's to refuse; a key outside THIS class's units is inert
+            if isinstance(f, str) and f.strip() in own and got:
+                returns_on.setdefault(f.strip(), []).extend(got)
         if isinstance(c.get("units"), list):          # T-14211: the LISTED order (SPEC-1051 rule 1)
             listed_classes.append(name)
             for u in c["units"]:
@@ -8188,6 +8206,8 @@ def _pre_deploy_declaration(classes) -> "dict | None":
     out = {"classes": names, "layers": layers}
     if listed_classes:      # T-14211: absent unless a class declares `units:` — the fallback reads as before
         out.update({"listed_classes": listed_classes, "listed": listed, "never_move": never})
+        if returns_on:      # T-14623: absent unless an entry declares `returns_on:`
+            out["returns_on"] = returns_on
     return out
 
 
@@ -8415,7 +8435,7 @@ def _pre_deploy_row_results(data) -> dict:
     fp1:52b9914eaa62e877). One file is one unit across its contexts. PURE."""
     statuses: dict = {}
     for ly in data.get("consumer_verify_layers") or () if isinstance(data.get("consumer_verify_layers"), list) else ():
-        ad = ly.get("adapter") if isinstance(ly, dict) else None
+        ad = unit_table.expand(ly.get("adapter")) if isinstance(ly, dict) else None
         for u in (ad.get("units") or ()) if isinstance(ad, dict) and isinstance(ad.get("units"), list) else ():
             if isinstance(u, dict) and isinstance(u.get("file"), str) and u["file"]:
                 statuses.setdefault(u["file"], []).append(u.get("status"))
@@ -8463,7 +8483,10 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                 candidate or a DESCENDANT of it — ordered as SPEC-1047 rule 6 orders candidates: an
                 ancestor's later pass never clears it, and a pair git cannot order leaves it standing),
                 `card-changed` (the card's diff changes the file itself), `reads-changed` (the file
-                names a path the card's diff changes — T-14370; its entry's `reads` lists those paths);
+                names a path the card's diff changes — T-14370; its entry's `reads` lists those paths),
+                `returns-on` (a glob of the file's `returns_on:` matches a path the card's diff changes —
+                T-14623; its entry's `returned_on` names the first such path in sorted order and
+                `returns_on_glob` the glob it matched);
       `state` — `skipping`; or `uncovered` (every listed file runs, `units` empty) while the LAST
                 between-deploys run (`run_kind: scheduled`; one run = one `(run_ref, attempt)`, the last
                 = the one whose last row comes last) is absent, unreadable, incomplete for the current
@@ -8524,31 +8547,42 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                 standing.add(f)
     changed_set = {str(p)[2:] if str(p).startswith("./") else str(p) for p in changed}
     broken = set(known_broken or ())
+    returns_on = decl.get("returns_on") or {}
     units, kept = [], []
     for f in sorted(listed):
+        # T-14623 (SPEC-1051 rule 2): the first changed path, in sorted order, a `returns_on:` glob matches
+        ret = next(((p, g) for p in sorted(changed_set) for g in returns_on.get(f) or ()
+                    if fnmatch.fnmatch(p, g)), None)
         why = ("never-move" if any(fnmatch.fnmatch(f, g) for g in decl.get("never_move") or ()) else
                "always" if f in (always or ()) else
                "known-broken" if f in broken or os.path.basename(f) in broken else
                "final-failure" if f in standing else
                "card-changed" if f in changed_set else
-               "reads-changed" if os.path.basename(f) in (readers or {}) else None)
+               "reads-changed" if os.path.basename(f) in (readers or {}) else
+               "returns-on" if ret else None)
         entry = {"file": f, "class": listed[f], "why": why}
         if why == "reads-changed":
             entry["reads"] = list(readers[os.path.basename(f)])
+        if why == "returns-on":
+            entry["returned_on"], entry["returns_on_glob"] = ret
         (kept.append(entry) if why else units.append({"file": f, "class": listed[f]}))
     return {**base, "state": "skipping", "units": units, "kept": kept}
 
 
-def _pre_deploy_skip_key(rec) -> "tuple | None":
-    """T-14211 (SPEC-1051 rule 2, SPEC-0065 §Bound) — what two skip-set records are compared by: the
-    state and the files the COMPUTATION leaves out — those the run left out (`units`) and those it held
-    back for the run's inventories (`held`, `_pre_deploy_close_skip`), so a record of the set a run
-    actually applied compares with the set a land computes without inventories. None for no record
-    (no listed class). PURE."""
-    if not isinstance(rec, dict):
-        return None
-    return (rec.get("state"), tuple(sorted(str(u.get("file")) for key in ("units", "held")
-                                           for u in rec.get(key) or () if isinstance(u, dict))))
+def _pre_deploy_skip_key(rec) -> "str | None":
+    """T-14211 / T-14569 (SPEC-1051 rule 2, SPEC-0065 §Bound) — what two skip-set records are compared
+    by: their versioned identity (`unit_table.skip_identity`, the one home) over the state and the files
+    the COMPUTATION leaves out — those the run left out (`units`) and those it held back for the run's
+    inventories (`held`, `_pre_deploy_close_skip`) — so a record of the set a run actually applied
+    compares with the set a land computes without inventories, and two sets of one size with different
+    members never compare equal. None for no record (no listed class). PURE."""
+    return unit_table.skip_identity(rec)
+
+
+def _pre_deploy_skip_same(a, b) -> bool:
+    """T-14569 — do two skip-set records (a run row's, a land's, a request's — any written shape) name
+    the same set? Equal keys, neither unavailable (`unit_table.skip_same`). PURE."""
+    return unit_table.skip_same(a, b)
 
 
 def _selection_set_key(names, *, rule_version, skip=None) -> "dict | None":
@@ -8686,9 +8720,168 @@ def _reader_trigger_artifacts(paths) -> list:
     2026-10-07..14). The journal is cut for the reason it always was: it is union-merged, never a
     named fixture."""
     from lib import events, graph as graph_mod   # lazy, as the rest of this module reads them
-    return [p for p in paths if p and p != "events.jsonl"
-            and not str(p).startswith(graph_mod.GRAPH_DIR + "/")   # the one value home, T-0631
-            and not events.is_archive_segment(Path(p), Path("events.jsonl"))]
+    return [p for p in paths if p and not events.is_journal_family_path(p)   # T-14587: one predicate
+            and not str(p).startswith(graph_mod.GRAPH_DIR + "/")]   # the one value home, T-0631
+
+
+#: T-14186 — the calls that load a module by name or by path at run time rather than by an `import`
+#: statement, matched on the called name (moved here from `worktree` by T-14603; `worktree` aliases them).
+_STAGE6_DYNAMIC_LOADERS = frozenset({"spec_from_file_location", "SourceFileLoader", "import_module",
+                                     "__import__", "load_source", "load_module", "run_path", "run_module",
+                                     "exec", "execfile"})
+#: T-14186 — the modules that provide such loaders; importing one (under any alias) counts as a loader.
+_STAGE6_LOADER_MODULES = frozenset({"importlib", "runpy", "imp", "pkgutil", "zipimport"})
+
+#: T-14603 — what a source's import scan returns when the link cannot be established (unreadable, not
+#: Python that parses, or a module loader named): it may reach any module.
+_IMPORTS_UNKNOWN = None
+
+
+def _static_imports(text, *, lib_mods, sibling_mods=frozenset(), rel_pkg=False):
+    """T-14603 (SPEC-1051 rule 2) — `(lib modules, sibling modules)` one source imports statically, or
+    `_IMPORTS_UNKNOWN` when the link cannot be established: the text does not parse, or it names a
+    module loader (`_STAGE6_DYNAMIC_LOADERS`, called, aliased or passed on) or imports a loader module
+    (`_STAGE6_LOADER_MODULES`) — which path a loader receives is not decidable from the text, so such a
+    source may load anything (the T-14186 judgement). Every `import` / `from … import` in the tree
+    counts, a function-local one included. A lib module is `lib.X` (`import lib.X`, `from lib import X`,
+    `from lib.X import …`), or with `rel_pkg` (a source inside `bin/lib`) a relative `from . import X` /
+    `from .X import …`; a sibling module is a top-level `import X` / `from X import …` naming one of
+    `sibling_mods`. Any import of the `lib` package from outside it also counts `__init__` (when it is
+    among `lib_mods`): importing `lib.X` executes the package initializer first. PURE."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return _IMPORTS_UNKNOWN
+    libs, sibs = set(), set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                parts = a.name.split(".")
+                if parts[0] in _STAGE6_LOADER_MODULES or a.name in _STAGE6_DYNAMIC_LOADERS:
+                    return _IMPORTS_UNKNOWN
+                if parts[0] == "lib":
+                    libs.update(n for n in ("__init__", parts[1] if len(parts) > 1 else "") if n in lib_mods)
+                elif parts[0] in sibling_mods:
+                    sibs.add(parts[0])
+        elif isinstance(node, ast.ImportFrom):
+            parts = node.module.split(".") if node.module else []
+            names = [a.name for a in node.names]
+            if (parts and parts[0] in _STAGE6_LOADER_MODULES) or any(n in _STAGE6_DYNAMIC_LOADERS for n in names):
+                return _IMPORTS_UNKNOWN
+            if node.level == 0 and parts and parts[0] == "lib":
+                if "__init__" in lib_mods:
+                    libs.add("__init__")
+                if len(parts) > 1:
+                    if parts[1] in lib_mods:
+                        libs.add(parts[1])
+                else:
+                    libs.update(n for n in names if n in lib_mods)
+            elif node.level == 1 and rel_pkg:
+                if parts:
+                    if parts[0] in lib_mods:
+                        libs.add(parts[0])
+                else:
+                    libs.update(n for n in names if n in lib_mods)
+            elif node.level == 0 and parts and parts[0] in sibling_mods:
+                sibs.add(parts[0])
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            if (node.attr if isinstance(node, ast.Attribute) else node.id) in _STAGE6_DYNAMIC_LOADERS:
+                return _IMPORTS_UNKNOWN
+    return libs, sibs
+
+
+def _pre_deploy_import_readers(tests_dir, lib_changed) -> dict:
+    """T-14603 (SPEC-1051 rule 2) — `{test basename: [changed bin/lib paths it imports]}`: the tests under
+    `tests_dir` (`test_discovery.test_files`) that import a changed `bin/lib` module directly or
+    transitively — through the static imports of the `bin/lib` modules beside the tests dir
+    (`<tests_dir>/../bin/lib`) and of the `tests/` sibling modules a test imports. `lib_changed` maps a
+    changed module name to its path (a deleted module included: an import of it still counts).
+
+    FAIL-CLOSED: where the import link cannot be established — a test, a sibling it imports or a
+    `bin/lib` module on its path that cannot be read, does not parse, or names a module loader
+    (`_static_imports`) — the test is a reader of EVERY changed module. Empty when nothing changed in
+    `bin/lib` or no `bin/lib` dir sits beside the tests dir. Each source is read and parsed once. Reads
+    only."""
+    tests_dir = Path(tests_dir)
+    lib_dir = tests_dir.parent / "bin" / "lib"
+    if not lib_changed or not lib_dir.is_dir():
+        return {}
+    lib_mods = frozenset({p.stem for p in lib_dir.glob("*.py")} | set(lib_changed))
+    sib_paths = {p.stem: p for p in tests_dir.glob("*.py")}
+    sib_mods = frozenset(sib_paths)
+
+    def _read(path):
+        try:
+            return path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    lib_edges: dict = {}
+    for m in lib_mods:
+        p = lib_dir / f"{m}.py"
+        if not p.is_file():
+            lib_edges[m] = set()                         # a deleted module imports nothing any more
+            continue
+        text = _read(p)
+        got = _IMPORTS_UNKNOWN if text is None else _static_imports(text, lib_mods=lib_mods, rel_pkg=True)
+        lib_edges[m] = _IMPORTS_UNKNOWN if got is _IMPORTS_UNKNOWN else got[0]
+    reach: dict = {}
+
+    def _lib_reach(m):
+        """the changed modules `m` reaches (itself included), or `_IMPORTS_UNKNOWN`; DFS over a seen set."""
+        if m not in reach:
+            seen, stack, hit = {m}, [m], set()
+            while stack:
+                cur = stack.pop()
+                edges = lib_edges.get(cur, set())
+                if edges is _IMPORTS_UNKNOWN:
+                    hit = _IMPORTS_UNKNOWN
+                    break
+                if cur in lib_changed:
+                    hit.add(cur)
+                for nxt in edges:
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        stack.append(nxt)
+            reach[m] = hit
+        return reach[m]
+
+    scans: dict = {}
+
+    def _scan(stem, path):
+        if stem not in scans:
+            text = _read(path)
+            scans[stem] = _IMPORTS_UNKNOWN if text is None else _static_imports(
+                text, lib_mods=lib_mods, sibling_mods=sib_mods)
+        return scans[stem]
+
+    every = sorted(lib_changed.values())
+    out: dict = {}
+    for path in test_discovery.test_files(tests_dir):
+        hit, unknown = set(), False
+        seen, stack = {path.stem}, [(path.stem, path)]
+        while stack and not unknown:
+            stem, p = stack.pop()
+            got = _scan(stem, p)
+            if got is _IMPORTS_UNKNOWN:
+                unknown = True
+                break
+            libs, sibs = got
+            for m in libs:
+                r = _lib_reach(m)
+                if r is _IMPORTS_UNKNOWN:
+                    unknown = True
+                    break
+                hit |= r
+            for s in sibs:
+                if s not in seen:
+                    seen.add(s)
+                    stack.append((s, sib_paths[s]))
+        if unknown:
+            out[path.name] = list(every)
+        elif hit:
+            out[path.name] = sorted(lib_changed[m] for m in hit)
+    return out
 
 
 def _pre_deploy_changed_readers(tests_dir, changed) -> dict:
@@ -8698,13 +8891,39 @@ def _pre_deploy_changed_readers(tests_dir, changed) -> dict:
     basename, its verified fixture-only opt-out honoured) over the paths a test can read by name
     (`worktree._reader_trigger_artifacts`: not the journal, its segments or the generated graph). Empty
     when `changed` is unknown or empty, or there is no tests dir. A failing scan raises: the caller
-    then skips nothing. Reads only."""
+    then skips nothing. T-14603 — UNIONED with the import readers of the changed `bin/lib` modules
+    (`_pre_deploy_import_readers`: a test importing one directly or transitively, or one whose imports
+    cannot be established), so a test that reaches a changed module without naming its file is a reader
+    too. T-14606 — a changed spec file is also read by a test naming its id `SPEC-NNNN`
+    (`verify_runner._selection_spec_id`), by the same tripwire reader asked for the id. Reads only."""
     if not changed or not Path(tests_dir).is_dir():
         return {}
     out: dict = {}
-    for path in _reader_trigger_artifacts(sorted({str(p) for p in changed})):
+    norm = sorted({str(p)[2:] if str(p).startswith("./") else str(p) for p in changed})
+    from lib import verify_runner as _vr   # lazy, as `_pre_deploy_skip_read` reads it
+    for path in _reader_trigger_artifacts(norm):
         for name in _land_tail_tripwire_readers(Path(tests_dir), [path]):
             out.setdefault(name, []).append(path)
+        # T-14606 — a changed spec file is also read by a test naming its id `SPEC-NNNN` (the slug in
+        # the file name is rarely written in a test): the SAME reader derivation, asked for the id.
+        sid = _vr._selection_spec_id(path)
+        if sid:
+            for name in _land_tail_tripwire_readers(Path(tests_dir), [sid]):
+                # the path's own verified fixture-only opt-out holds for its id hit too
+                try:
+                    text = (Path(tests_dir) / name).read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    text = ""                            # unreadable: kept, as the reader keeps it
+                if Path(path).name in {Path(m).name for m in _TAIL_FIXTURE_ONLY_RE.findall(text)}:
+                    continue
+                have = out.setdefault(name, [])
+                if path not in have:
+                    have.append(path)
+    lib_changed = {p[len("bin/lib/"):-3]: p for p in norm
+                   if p.startswith("bin/lib/") and p.endswith(".py") and "/" not in p[len("bin/lib/"):]}
+    for name, paths in _pre_deploy_import_readers(Path(tests_dir), lib_changed).items():
+        have = out.setdefault(name, [])
+        have.extend(p for p in paths if p not in have)
     return out
 
 
@@ -8863,7 +9082,7 @@ def _pre_deploy_skip_line(where: str, rec) -> str:
 
 
 def _layer_row_listed_none(row) -> bool:
-    """T-13994 (SPEC-1032 rule 5) — is this `consumer_verify_layers[]` row the row of a layer whose
+    """T-13994 (SPEC-1059 rule 5) — is this `consumer_verify_layers[]` row the row of a layer whose
     `list` named NO unit on the consumer venue while the plan the host shipped had listed units for it?
     True when the row's `adapter` record carries the box follower's `listed_none` mark (a mapping).
     Such a row's outcome is whatever the run gave, and no land takes a verdict for that layer from
@@ -8873,7 +9092,7 @@ def _layer_row_listed_none(row) -> bool:
 
 
 def venue_empty_layers(rows) -> list:
-    """T-13994 (SPEC-1032 rule 5) — the layers a consumer venue pass names on its Stage-6 row
+    """T-13994 (SPEC-1059 rule 5) — the layers a consumer venue pass names on its Stage-6 row
     (`verify_metrics.venue_empty_layers`): `[{layer, plan_listed}]`, one per layer name, in row order,
     for every row `_layer_row_listed_none` reads as marked. Empty when none is. PURE."""
     out, seen = [], set()
@@ -8992,7 +9211,7 @@ def _consumer_layer_duration_fold(rows, *, window=100, top_k=5):
             if ms is None:
                 continue
             L["durations"].append(ms)
-            rec = r.get("adapter")
+            rec = unit_table.expand(r.get("adapter"))
             units = rec.get("units") if isinstance(rec, dict) else None
             for u in units if isinstance(units, list) else ():
                 if not isinstance(u, dict) or not isinstance(u.get("file"), str) or not u["file"]:
@@ -9114,6 +9333,7 @@ def _adapter_first_attempt(rec) -> str:
     (`exit: None`).
     Under `off` and `shadow` a failed check ends the pass at once, after a usable `list`, so
     there the order changes nothing."""
+    rec = unit_table.expand(rec)                  # T-14568: a journal-read record carries its units as a table
     if not isinstance(rec, dict):
         return "command"
     if rec.get("outer") == "timed-out":

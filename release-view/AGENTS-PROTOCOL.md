@@ -228,8 +228,8 @@ proceed's «Never paste a menu» by naming the tool-form as the banned shape).
 ```
 **Recommend: (A) — <reason in one line>.**
 Alternatives:
-- (B)... — <trade-off>
-- (C)... — <trade-off>
+- (B) ... — <trade-off>
+- (C) ... — <trade-off>
 ```
 
 If the owner just says "go ahead" — AI takes (A) and proceeds. Owner can always redirect.

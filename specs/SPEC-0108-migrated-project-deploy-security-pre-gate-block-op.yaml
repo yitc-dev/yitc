@@ -53,7 +53,7 @@ body: "## Scenario\n\nA project migrated from v1 to v2 still deploys via its own
   \   route its pre-deploy gate to THIS security gate (not the retired v1 gate); the\
   \ wiring is verifiable\n   repo-locally (the resolved pre-gate command), without\
   \ depending on any external absolute path.\n\n## Rationale\n\nReal incident: the\
-  \ validation deploy of <project> was BLOCKED by the v1 Release Gate's\nBuild-Gate\
+  \ validation deploy of social-parser was BLOCKED by the v1 Release Gate's\nBuild-Gate\
   \ + DECISIONS governance branches (23 retired blockers) plus 2 open criticals —\
   \ governance\nnoise on a v2 project. Audit-pre flagged THREE times (incl. an owner-reset\
   \ pass) that wiring a v2\nsecurity gate + a finding-acceptance store without a governing\
@@ -67,15 +67,15 @@ body: "## Scenario\n\nA project migrated from v1 to v2 still deploys via its own
   \ (Build Gate + DECISIONS) from the v2 deploy path — a named\nremoval, not pure\
   \ accretion; (4) real incident + 3× independent-auditor finding. Prior-art:\nevery\
   \ surveyed project gates the executable check at its own deploy (<project> `scripts/deploy.sh`,\n\
-  <project>'s blocking gates, <project>'s post-deploy gate).\n\n## Verification\n\n\
-  - A migrated project's v2 deploy over a findings report whose only open criticals\
+  <project>'s blocking gates, boomrocket's post-deploy gate).\n\n## Verification\n\
+  \n- A migrated project's v2 deploy over a findings report whose only open criticals\
   \ are governed-accepted\n  or unexpired-waived PASSES the pre-gate (exit 0); a report\
   \ carrying a non-accepted open critical\n  BLOCKS it (exit ≠ 0).\n- A missing /\
   \ unparseable / stale (> threshold) findings report → pre-gate FAILS CLOSED.\n-\
   \ An EXPIRED waiver → its finding blocks again.\n- The post-deploy coupling gate\
   \ PASSES when all coupled images share the release token, FAILS when one\n  is stale/empty.\n\
   - Repo-local check: the project's deploy command resolves its pre-deploy gate to\
-  \ the v2 security gate,\n  not the v1 Release Gate.\n- First adoption (<project>):\
+  \ the v2 security gate,\n  not the v1 Release Gate.\n- First adoption (social-parser):\
   \ bin/v2-security-gate.sh + bin/v2-security-waivers.yaml +\n  bin/smoke-test.sh\
   \ (release-label) + deploy.sh PRE_DEPLOY_GATE repoint; probed by bin/tests/test-deploy-gates.sh.\n"
 cites:

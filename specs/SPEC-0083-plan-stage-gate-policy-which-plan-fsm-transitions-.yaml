@@ -8,6 +8,7 @@ consumed: false
 implements:
 - bin/lib/plan.py#cmd_plan_stage
 - bin/lib/plan.py#_plan_gate_template_text
+- bin/lib/plan.py#cmd_plan_check
 body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial → accepted\
   \ → decomposition → executing →\npostcheck → realized), the transition verb (`plan\
   \ stage <NEXT>`) asks the external auditor a\nper-gate question template (homed\
@@ -208,93 +209,135 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ not hold\n  this gate. Report a finding above info only for what that re-examination\
   \ finds in the plan,\n  its draft specs, its cut or its evidence as they now stand,\
   \ or for a conclusion or run-ref\n  this gate relies on that you cannot re-establish.\n\
-  \n**P5 — decomposition→executing fidelity template (asked by `plan stage executing`;\
-  \ MANDATORY-BLOCKING — SPEC-0070 §3):**\nAudit the FILED TASK CARD SET (delivered\
-  \ in the prompt as `## Decomposition — the filed task CARD\nSET`) against the plan\
-  \ AND its goals — the SET-level properties no single-card audit-pre can reach\n\
-  (the cut, not one card):\n- Coverage 1:1 — is every plan part / accept-unit mapped\
-  \ to exactly ONE card, with no plan part\n  unmapped and no card outside the plan's\
-  \ scope?\n- One coherent change-set per card (SPEC-0046 §A) — the default grain:\
-  \ related claims on the same\n  files or surface, proven by one verify pass, belong\
-  \ in one card. Does any card BUNDLE parts a split\n  ground separates — the parts\
-  \ are independent and each pays for its own fixed cost, a reviewer must\n  judge\
-  \ them separately, or one part must land first — or carry an acceptance OVERLAPPING\
-  \ a sibling\n  card's claim? Is one coherent change-set FRAGMENTED across cards\
-  \ no split ground separates? A finding\n  that a card should be SPLIT (or cards\
-  \ MERGED) is a RECOMMENDATION — ADVISORY, never blocking\n  : report it with the\
-  \ split it proposes; split recommendations, however many,\n  never make the verdict\
-  \ RED; whether to follow one is the project's call under its own declared\n  grouping\
-  \ rules (SPEC-0046 §A). An acceptance overlapping a sibling card's claim is not\
-  \ a split\n  recommendation and is reported at its own severity.\n- Declared grouping\
-  \ preference (SPEC-0046 §A) — where the cut material (the plan body or\n  a card)\
-  \ names a project-declared task-grouping preference, whether a grouping FOLLOWS\
-  \ it or the\n  cutter DECLINED it, are that preference's SOURCE and RATIONALE named\
-  \ there (for a declined one,\n  with the reason it was not followed)? The project's\
-  \ declared rules DECIDE its grouping: a card\n  grouped by them is not re-cut by\
-  \ this gate — a split you would still recommend is the advisory\n  recommendation\
-  \ above. A cut that names NO preference is ANSWERED-CLEAN — it is judged by SPEC-0046\n\
-  \  §A alone and must NOT be reported for lacking a declaration.\n- `requires:` ordering\
-  \ encoded, not prose — is every intended precedence (a «first» / «before» /\n  verifier-after-settled\
-  \ relationship) carried by a `requires:` edge, so no later writer can legally\n\
-  \  run before a card it depends on? (A named-first card with NO outgoing dependency\
-  \ edge is the defect.)\n- Singular activation — does each `proposed` spec have EXACTLY\
-  \ ONE `activation_owner_task` across its\n  sibling cards (the others `cite` it)\
-  \ — never zero, never two? Answer this ONLY from the\n  `## Proposed-spec activation`\
-  \ block appended to the card set (X-0707) — it is the\n  AUTHORITATIVE evidence\
-  \ and the ONLY evidence: in V2 the activation owner is a spec→task POINTER on\n\
-  \  the SPEC yaml, NOT a per-card field, so a card's `cites:` is NOT a proxy for\
-  \ ownership and MUST NOT\n  be read as one. The block lists every spec with `proposed_by\
-  \ ==` this plan, resolving each\n  `activation_owner_task` against the cut. The\
-  \ DEFECT SHAPES are exactly two: a spec reading\n  `NO activation_owner_task — UNOWNED`\
-  \ (zero owners — nothing in the cut will ever activate it), and a\n  spec whose\
-  \ owner reads `NOT a member of this cut` (the cut cannot deliver the activation\
-  \ it\n  promises). A spec reading `owner: T-NNNN — IN this cut` is CORRECT and must\
-  \ NOT be reported, and the\n  explicit `(no spec is born of this plan …)` line means\
-  \ the question is ANSWERED-CLEAN — NOT\n  unchecked — so it must NOT be reported\
-  \ either. A blocking RED must rest only on findings that can be verified.\n- Anchor\
-  \ wiring carried by the cut (SPEC-0070 §3) — for each `proposed` plan spec in the\n\
-  \  `## Proposed-spec activation` block, does its `activation_owner_task` card either\
-  \ CARRY the\n  code-anchor wiring work itself OR `requires:` the card that does\
-  \ (a predecessor may wire it), OR\n  does the spec declare a SPEC-0151 `execution:`\
-  \ disposition — and is the owner card `requires:`-ordered\n  after every implementing\
-  \ card? The DEFECT SHAPE: an owner card whose scope wires no anchor, with no\n \
-  \ `requires:` edge to a card that does and no `execution:` disposition — the spec\
-  \ would activate\n  anchor-less.\n- Probe quality — is each card's acceptance probe\
-  \ satisfiable AND journalable AT THAT task's OWN\n  closure (no future-bound / soak-dependent\
-  \ / luck-only probe), and does a promised invariant carry\n  an explicit probe rather\
-  \ than only a prose promise?\n- No reopened settled choice — does any card REOPEN\
-  \ a design choice the plan/specs already settled\n  (e.g. a «confirm-or-revise»\
-  \ embedded in the card instead of implementing the accepted unit)?\n- Touch-forecast\
-  \ present + plausible — does each card carry an `expected_touch` naming the\n  concrete\
-  \ files/symbols its scope implies, and is that plausibly the cut's blast-radius\
-  \ (present,\n  non-empty, not obviously mismatched vs the card's scope)? An empty\
-  \ `expected_touch` on a decomposed\n  card is a cut-fidelity gap (SPEC-0046 §Persist-the-enumerated-blast-radius)\
-  \ — the cutter already\n  enumerated the touch to size the cut, so a blank forecast\
-  \ is reason-then-discard, not \"unknown yet\".\n- Set-level semantic coherence over\
-  \ a SHARED SURFACE (X-0593) — do any two cards in this\n  cut WRITE or KEY the same\
-  \ named surface, and if so does the cut state which definition GOVERNS?\n  Read\
-  \ the `## Shared surfaces` block appended to the card set: it lists every surface\
-  \ named by >=2\n  cards (grouped by the `expected_touch` path, so `a.py` and `a.py#sym`\
-  \ count as one surface) with\n  the sharing cards' COMMON `cites:` resolved against\
-  \ the corpus. A shared surface whose line reads\n  `(no ACTIVE governing spec cited\
-  \ in common)` is the DEFECT SHAPE: two independent workers can then\n  each implement\
-  \ a self-consistent reading, and nothing before the merge land verify compares them.\n\
-  \  Ask it card-to-card, not card-to-plan: are the two cards' acceptance/scope readings\
-  \ of that surface\n  mutually satisfiable? The cut must either cite the ACTIVE spec\
-  \ that governs the surface, or name\n  ONE card as its definer and `requires:`-order\
-  \ the other after it.\n- Fidelity to intent — taken as a whole, does the cut faithfully\
-  \ realize the plan's PURPOSE, not\n  merely the literal `implementation_plan` map?\n\
-  - Correction since a prior verdict of this gate — where the cut changed after a\
-  \ recorded\n  verdict of this gate, this pass IS the required fresh verdict: judge\
-  \ the changed cards AND every\n  card, `requires:` edge, activation owner and closure\
-  \ probe that depends on them, and any prior\n  finding the change could reopen.\
-  \ A card-cut or completion-criterion change is never wording,\n  however small its\
-  \ text, whatever its recorded classification says.\n- Recorded correction classifications\
-  \ — for each correction line the plan's External\n  checks / audits section records\
-  \ since the verdict or trial evidence this gate relies on, does\n  its before →\
-  \ after support its classification for THIS gate's question: could the correction\
-  \ change what a conforming implementation or trial judgement permits,\n  requires,\
-  \ produces or accepts for ANY supported case (eligibility, authority, failure handling,\n\
+  \n**P4 round — the accept-gate ROUND template (asked by `plan check --round`, appended\
+  \ after the stage\ntemplate; a round is checking, never admission):**\n- Mark EVERY\
+  \ finding with a `scope:` field, `plan` or `card`. `plan`: the coherence of owner\n\
+  \  decisions, build and rollout order, security boundaries, acceptance, done and\
+  \ realization\n  criteria, and the reach of each decision to the items it governs;\
+  \ completeness — every\n  requirement, deliverable and rule change of the plan carried\
+  \ by a named unit or a verification\n  probe, and the carry registry's coverage\
+  \ when the plan has one. `card`: local to one item, screen\n  or component whose\
+  \ carrying unit will own it (its error, empty, loading or retry states, the\n  wording\
+  \ or granularity of one item that hides no unregistered requirement, a stale or\
+  \ partial\n  reference, quoting, a missing test path); `where` names that carrying\
+  \ unit. When unsure, `plan`.\n- The round's verdict is read from the plan-scope\
+  \ findings only: GREEN — none; YELLOW — all low;\n  RED — any medium or high. Card-scope\
+  \ findings are recorded with their carrying unit and reach the\n  cut as card content;\
+  \ they never move the round's verdict.\n- The record carries `round: N` and is saved\
+  \ under its own name\n  (`decisions/<slug>-audit-round-<N>.yaml`); it never overwrites\
+  \ the plain `plan check` record and\n  never admits the plan — acceptance reads\
+  \ only the plain record and its change checks.\n- Rounds end when the last round\
+  \ has no plan-scope HIGH, not on GREEN: a round is not repeated to\n  turn plan-scope\
+  \ mediums into GREEN.\n- Between rounds: ONE fix batch over the plan-scope findings,\
+  \ then ONE change check before the next\n  round — `audit adhoc --routine` over\
+  \ the diff since the last check, with the owner decisions and\n  the full text of\
+  \ every registry item or requirement the diff touches, asking whether the change\n\
+  \  closes each finding and whether it introduces a contradiction or a regression.\
+  \ A blind\n  reconciliation of the edit against the plan's draft documents takes\
+  \ at most one turn per round.\n  A fix that breaks a previous fix is the CHARTER\
+  \ §Failure trigger case, applied from that home;\n  the simplification taken is\
+  \ stated with the next change check.\n\n**P5 — decomposition→executing fidelity\
+  \ template (asked by `plan stage executing`; MANDATORY-BLOCKING — SPEC-0070 §3):**\n\
+  Audit the FILED TASK CARD SET (delivered in the prompt as `## Decomposition — the\
+  \ filed task CARD\nSET`) against the plan AND its goals — the SET-level properties\
+  \ no single-card audit-pre can reach\n(the cut, not one card):\n- Coverage 1:1 —\
+  \ is every plan part / accept-unit mapped to exactly ONE card, with no plan part\n\
+  \  unmapped and no card outside the plan's scope?\n- One coherent change-set per\
+  \ card (SPEC-0046 §A) — the default grain: related claims on the same\n  files or\
+  \ surface, proven by one verify pass, belong in one card. Does any card BUNDLE parts\
+  \ a split\n  ground separates — the parts are independent and each pays for its\
+  \ own fixed cost, a reviewer must\n  judge them separately, or one part must land\
+  \ first — or carry an acceptance OVERLAPPING a sibling\n  card's claim? Is one coherent\
+  \ change-set FRAGMENTED across cards no split ground separates? A finding\n  that\
+  \ a card should be SPLIT (or cards MERGED) is a RECOMMENDATION — ADVISORY, never\
+  \ blocking\n  : report it with the split it proposes; split recommendations, however\
+  \ many,\n  never make the verdict RED; whether to follow one is the project's call\
+  \ under its own declared\n  grouping rules (SPEC-0046 §A). An acceptance overlapping\
+  \ a sibling card's claim is not a split\n  recommendation and is reported at its\
+  \ own severity.\n- Declared grouping preference (SPEC-0046 §A) — where the cut material\
+  \ (the plan body or\n  a card) names a project-declared task-grouping preference,\
+  \ whether a grouping FOLLOWS it or the\n  cutter DECLINED it, are that preference's\
+  \ SOURCE and RATIONALE named there (for a declined one,\n  with the reason it was\
+  \ not followed)? The project's declared rules DECIDE its grouping: a card\n  grouped\
+  \ by them is not re-cut by this gate — a split you would still recommend is the\
+  \ advisory\n  recommendation above. A cut that names NO preference is ANSWERED-CLEAN\
+  \ — it is judged by SPEC-0046\n  §A alone and must NOT be reported for lacking a\
+  \ declaration.\n- `requires:` ordering encoded, not prose — is every intended precedence\
+  \ (a «first» / «before» /\n  verifier-after-settled relationship) carried by a `requires:`\
+  \ edge, so no later writer can legally\n  run before a card it depends on? (A named-first\
+  \ card with NO outgoing dependency edge is the defect.)\n- Singular activation —\
+  \ does each `proposed` spec have EXACTLY ONE `activation_owner_task` across its\n\
+  \  sibling cards (the others `cite` it) — never zero, never two? Answer this ONLY\
+  \ from the\n  `## Proposed-spec activation` block appended to the card set (X-0707)\
+  \ — it is the\n  AUTHORITATIVE evidence and the ONLY evidence: in V2 the activation\
+  \ owner is a spec→task POINTER on\n  the SPEC yaml, NOT a per-card field, so a card's\
+  \ `cites:` is NOT a proxy for ownership and MUST NOT\n  be read as one. The block\
+  \ lists every spec with `proposed_by ==` this plan, resolving each\n  `activation_owner_task`\
+  \ against the cut. The DEFECT SHAPES are exactly two: a spec reading\n  `NO activation_owner_task\
+  \ — UNOWNED` (zero owners — nothing in the cut will ever activate it), and a\n \
+  \ spec whose owner reads `NOT a member of this cut` (the cut cannot deliver the\
+  \ activation it\n  promises). A spec reading `owner: T-NNNN — IN this cut` is CORRECT\
+  \ and must NOT be reported, and the\n  explicit `(no spec is born of this plan …)`\
+  \ line means the question is ANSWERED-CLEAN — NOT\n  unchecked — so it must NOT\
+  \ be reported either. A blocking RED must rest only on findings that can be verified.\n\
+  - Anchor wiring carried by the cut (SPEC-0070 §3) — for each `proposed` plan spec\
+  \ in the\n  `## Proposed-spec activation` block, does its `activation_owner_task`\
+  \ card either CARRY the\n  code-anchor wiring work itself OR `requires:` the card\
+  \ that does (a predecessor may wire it), OR\n  does the spec declare a SPEC-0151\
+  \ `execution:` disposition — and is the owner card `requires:`-ordered\n  after\
+  \ every implementing card? The DEFECT SHAPE: an owner card whose scope wires no\
+  \ anchor, with no\n  `requires:` edge to a card that does and no `execution:` disposition\
+  \ — the spec would activate\n  anchor-less.\n- Probe quality — is each card's acceptance\
+  \ probe satisfiable AND journalable AT THAT task's OWN\n  closure (no future-bound\
+  \ / soak-dependent / luck-only probe), and does a promised invariant carry\n  an\
+  \ explicit probe rather than only a prose promise?\n- No reopened settled choice\
+  \ — does any card REOPEN a design choice the plan/specs already settled\n  (e.g.\
+  \ a «confirm-or-revise» embedded in the card instead of implementing the accepted\
+  \ unit)?\n- Successor or in-place, per touched spec — for each ACTIVE spec a card\
+  \ changes, does the card\n  choose between an in-place amend and a successor by\
+  \ the SPEC-1037 §7 probe, and is that choice\n  stated on the card? A successor\
+  \ where the probe answers in-place (or the reverse) is a finding;\n  when several\
+  \ cards of the cut restate one active spec, read\n  `patterns/restating-an-active-spec-across-cards.md`\
+  \ for how the cut carries it.\n- Path evidence for a verifier card — for each card\
+  \ the card set marks with a\n  `path-evidence cue:` line, and for any other card\
+  \ whose essence is to verify the cut's result,\n  does its acceptance meet the verifier\
+  \ template of SPEC-1058 §3? That template is the one home of\n  what a verifier's\
+  \ proof must show; read it there — it is not restated here.\n- Fixtures only for\
+  \ named preconditions — does any card's acceptance or test plan use a fixture or\n\
+  \  a mock to stand in for a runtime contract the cut has not yet delivered? A fixture\
+  \ establishes\n  only a precondition the card names; a mocked missing runtime contract\
+  \ makes a test green over a\n  contract that does not exist, and is a finding.\n\
+  - Touch-forecast present + plausible — does each card carry an `expected_touch`\
+  \ naming the\n  concrete files/symbols its scope implies, and is that plausibly\
+  \ the cut's blast-radius (present,\n  non-empty, not obviously mismatched vs the\
+  \ card's scope)? An empty `expected_touch` on a decomposed\n  card is a cut-fidelity\
+  \ gap (SPEC-0046 §Persist-the-enumerated-blast-radius) — the cutter already\n  enumerated\
+  \ the touch to size the cut, so a blank forecast is reason-then-discard, not \"\
+  unknown yet\".\n- Set-level semantic coherence over a SHARED SURFACE (X-0593) —\
+  \ do any two cards in this\n  cut WRITE or KEY the same named surface, and if so\
+  \ does the cut state which definition GOVERNS?\n  Read the `## Shared surfaces`\
+  \ block appended to the card set: it lists every surface named by >=2\n  cards (grouped\
+  \ by the `expected_touch` path, so `a.py` and `a.py#sym` count as one surface) with\n\
+  \  the sharing cards' COMMON `cites:` resolved against the corpus. A shared surface\
+  \ whose line reads\n  `(no ACTIVE governing spec cited in common)` is the DEFECT\
+  \ SHAPE: two independent workers can then\n  each implement a self-consistent reading,\
+  \ and nothing before the merge land verify compares them.\n  Ask it card-to-card,\
+  \ not card-to-plan: are the two cards' acceptance/scope readings of that surface\n\
+  \  mutually satisfiable? The cut must either cite the ACTIVE spec that governs the\
+  \ surface, or name\n  ONE card as its definer and `requires:`-order the other after\
+  \ it.\n- Fidelity to intent — taken as a whole, does the cut faithfully realize\
+  \ the plan's PURPOSE, not\n  merely the literal `implementation_plan` map?\n- Correction\
+  \ since a prior verdict of this gate — where the cut changed after a recorded\n\
+  \  verdict of this gate, this pass IS the required fresh verdict: judge the changed\
+  \ cards AND every\n  card, `requires:` edge, activation owner and closure probe\
+  \ that depends on them, and any prior\n  finding the change could reopen. A card-cut\
+  \ or completion-criterion change is never wording,\n  however small its text, whatever\
+  \ its recorded classification says.\n- Recorded correction classifications — for\
+  \ each correction line the plan's External\n  checks / audits section records since\
+  \ the verdict or trial evidence this gate relies on, does\n  its before → after\
+  \ support its classification for THIS gate's question: could the correction change\
+  \ what a conforming implementation or trial judgement permits,\n  requires, produces\
+  \ or accepts for ANY supported case (eligibility, authority, failure handling,\n\
   \  safety, scope, observability, evidence or exit criteria)?\n  A line you cannot\
   \ confirm is behaviour-bearing, and the conclusions or run-refs it kept do\n  not\
   \ stand.\n  Re-examine in this pass the conclusions and run-refs such a line kept.\
@@ -338,26 +381,45 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ disagreement itself; SPEC-0035 rule 5 already said of the same\nrecord that the\
   \ classification is never a gate of its own. The paragraph «A disputed label is\
   \ a\nnote, not a hold» and the last three sentences of the templates' correction\
-  \ bullet state that\nreading where the gate auditor meets it.\n\n## Verification\n\
-  \n- VP1 (P2 blocks): `plan stage specs <slug>` with a RED/ABORT `gate-specs` verdict\
-  \ REFUSES\n  (non-zero, no status write). Probe: tests/test_plan_stage.py RED-GREEN.\n\
-  - VP2 (one home, P5): the gate-policy table AND the P1-P5 question templates live\
-  \ ONLY here;\n  <workshop-spec> carries a POINTER, not the table. Probe: `_plan_gate_template_text`\
-  \ resolves every\n  PLAN_GATE_TEMPLATE_ANCHORS key from this spec (tests/test_t0349_plan_gate_templates.py).\n\
-  - VP3 (code link): `graph build` resolves `implements: bin/lib/plan.py#cmd_plan_stage`\
-  \ (non-dangling\n  without a binding).\n- VP4 (activation): this spec resolves to\
-  \ exactly one `activation_owner_task`; closing\n  it flips proposed→active.\n- VP5\
-  \ (correction invalidation): §Correction invalidation states the per-gate rule (P2-P5,\n\
-  \  P5's delta-checked fresh verdict, card-cut / completion-criterion never exempt,\
-  \ wording-only keeps\n  P2-P4, one record home), and the P2-P5 templates the real\
-  \ gate reader extracts each carry the\n  scrutinize instruction. Probe: tests/test_t13597_semantic_evidence_invalidation.py.\n\
+  \ bullet state that\nreading where the gate auditor meets it.\n\n added the three\
+  \ P5 questions on successor-or-in-place, verifier path evidence and\nfixtures, from\
+  \ a consumer's cut passes (cross items X-2376, X-2378, X-2379): a project rule of\n\
+  one successor per card cost a lineage review per card with no gate objecting; a\
+  \ verifier card\npassed on aggregate counts over unrelated records; a mocked missing\
+  \ runtime contract was caught\nonly at that card's own audit-pre. Additive questions\
+  \ asked on the next gate run, in place.\n\n added the P4 round template: a consumer\
+  \ checked a large plan's accept gate in rounds under a\nscope lens nine times with\
+  \ a hand-typed focus block (cross items X-2376, X-2379); its plan-scope\nmediums\
+  \ stayed about twelve per round and never converged, while one round stood RED with\
+  \ no high.\nRounds therefore end on no plan-scope high, not on GREEN. Additive,\
+  \ in place.\n\n## Verification\n\n- VP1 (P2 blocks): `plan stage specs <slug>` with\
+  \ a RED/ABORT `gate-specs` verdict REFUSES\n  (non-zero, no status write). Probe:\
+  \ tests/test_plan_stage.py RED-GREEN.\n- VP2 (one home, P5): the gate-policy table\
+  \ AND the P1-P5 question templates live ONLY here;\n  <workshop-spec> carries a\
+  \ POINTER, not the table. Probe: `_plan_gate_template_text` resolves every\n  PLAN_GATE_TEMPLATE_ANCHORS\
+  \ key from this spec (tests/test_t0349_plan_gate_templates.py).\n- VP3 (code link):\
+  \ `graph build` resolves `implements: bin/lib/plan.py#cmd_plan_stage` (non-dangling\n\
+  \  without a binding).\n- VP4 (activation): this spec resolves to exactly one `activation_owner_task`;\
+  \ closing\n  it flips proposed→active.\n- VP5 (correction invalidation): §Correction\
+  \ invalidation states the per-gate rule (P2-P5,\n  P5's delta-checked fresh verdict,\
+  \ card-cut / completion-criterion never exempt, wording-only keeps\n  P2-P4, one\
+  \ record home), and the P2-P5 templates the real gate reader extracts each carry\
+  \ the\n  scrutinize instruction. Probe: tests/test_t13597_semantic_evidence_invalidation.py.\n\
   - VP6 (advisory split): the P5 template the real gate reader extracts states that\
   \ a split\n  recommendation is advisory and never makes the verdict RED, and that\
   \ the project's declared\n  grouping rules decide. Probe: tests/test_decomposition_fidelity_gate.py.\n\
   - VP7 (disputed correction label): the correction bullet of each P2-P5 template,\
   \ as the\n  real gate prompt carries it, keeps the unconfirmed-line reading, reports\
   \ a disagreement with a\n  label alone as a note that holds no gate, and still holds\
-  \ the gate on what the re-examination\n  finds or cannot re-establish. Probe: tests/test_t13859_correction_label_report_only.py.\n"
+  \ the gate on what the re-examination\n  finds or cannot re-establish. Probe: tests/test_t13859_correction_label_report_only.py.\n\
+  - VP8 (three cut questions): the P5 template the real gate reader extracts asks\n\
+  \  successor-or-in-place per touched spec, path evidence for a verifier card by\
+  \ naming SPEC-1058 §3\n  without restating its template, and fixtures only for named\
+  \ preconditions. Probe:\n  tests/test_p5_template_questions.py.\n- VP9 (accept-gate\
+  \ round): the P4 round template the real gate reader extracts carries\n  the scope\
+  \ definitions, the plan-scope verdict rule, the end-of-rounds rule and the between-rounds\n\
+  \  batching limits; a `plan check --round` prompt carries it after the stage template,\
+  \ and its\n  record never admits the plan. Probe: tests/test_plan_check_rounds.py.\n"
 cites:
 - SPEC-0034
 - SPEC-0070
@@ -371,4 +433,5 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/plan.py#_plan_gate_template_text: 94cd0921e45f4b9463b4f507f51bb8a46ca5684e0bab517df40c9e66296eea46
-  bin/lib/plan.py#cmd_plan_stage: 60f37718bb790aeb0ad7469298f0c2057c635c5999b0d805cd6bdc67bb6877cc
+  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
+  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2

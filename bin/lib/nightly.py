@@ -1082,7 +1082,7 @@ def _default_freshness_adapter(proj_path: Path, decl: dict, *, now: _dt.datetime
     """The DEFAULT read-only freshness ADAPTER (the injectable seam's default impl), DISPATCHING on the
     declaration's `kind` (SPEC-0110 r2):
       - kind == "command" → RUN the project's declared read-only command and parse its stdout JSON
-        contract (_run_command_freshness_adapter) — the LIVE source the project owns (e.g. <project>'s
+        contract (_run_command_freshness_adapter) — the LIVE source the project owns (e.g. trend-finder's
         datastore query + container-log heartbeat);
       - kind == "file" / absent → load a project-provided NORMALIZED freshness FILE (path from
         `decl['adapter']`, or the legacy `decl['source_ref']`, relative to the project root) already in
@@ -1556,7 +1556,7 @@ def _reads_exemptions_for(proj_path: Path) -> list:
 def _check_born_waiver_freshness(proj_path: Path, *, dormant=None) -> dict:
     """OPERATIONAL-HYGIENE check (SPEC-0105 rule 1 / X-0130): surface a project's `yitc-ops.yaml` born
     waivers whose init PLACEHOLDER was never replaced — they sit as legitimate-looking fail-closed
-    defaults indefinitely (observed on <project>: deploy.policy/security/inspection still verbatim
+    defaults indefinitely (observed on trend-finder: deploy.policy/security/inspection still verbatim
     born-waivers months post-migration). The born-waiver SIGNATURE is owned single-SoT by init.py
     (BORN_WAIVER_MARKER / BORN_CATALOG_WAIVE_MARKER / BORN_WAIVER_PLACEHOLDER_EXPIRY). Verdict `alert` iff any stale born-waiver
     remains OR the carrier is present-but-UNREADABLE; `ok` if the carrier carries none; `skip` only for
@@ -1629,7 +1629,7 @@ def _check_concern_conformance(proj_path: Path, *, now=None) -> dict:
 
     T-10292: an UNREADABLE carrier is an ALERT, never a silent skip — the source discriminates
     `no-carrier` from `unreadable`, and collapsing both to `skip` made a BROKEN carrier read as health
-    exactly when the checks it silences matter most (live instance: <project>, fu_256827b7c49f). Same
+    exactly when the checks it silences matter most (live instance: social-parser, fu_256827b7c49f). Same
     rule the sibling SPEC-0110 freshness adapter already holds: an unreadable source is a MISS (r3).
     Read-only; nothing persisted (the §6 fence)."""
     from lib import init  # lazy — the concern-conformance source of truth (init.concern_conformance)
@@ -1859,7 +1859,7 @@ def _check_adapter_conformance(proj_path: Path) -> dict:
 def _check_adoption_completeness(proj_path: Path) -> dict:
     """CONSUMER ADOPTION-COMPLETENESS conformance check (SPEC-0122 R6, T-10694 / X-0543): a pinned
     external-shared-library dependency proves CODE IDENTITY (R2 no-local-diff) but NOT SURFACE COVERAGE —
-    <project>'s <project> adoption ran 6/15 endpoints, 0 UI, 0 ops checks INVISIBLY for weeks. Run
+    boomrocket's ticket-review adoption ran 6/15 endpoints, 0 UI, 0 ops checks INVISIBLY for weeks. Run
     per-project on the nightly so a partial/undeclared adoption is caught even in a repo no session has
     opened. REUSES the single source `init.adoption_completeness` (CHARTER §P5 — no parallel resolution
     logic; the report-only sibling of `_check_adapter_conformance`).
@@ -1980,7 +1980,7 @@ def _check_carrier_shape(proj_path: Path) -> dict:
     converted from reading the three LIVE consumer carriers to committed fixtures (kernel tests must
     not depend on projects, SPEC-0131 rule 4). The fixtures preserve the SHAPE coverage verbatim — but
     a committed fixture can NEVER see a real carrier drifting to a new shape, which is exactly the
-    regression class <project> + <project> really hit (t10286's docstring: 'A clean-fixture test
+    regression class boomrocket + social-parser really hit (t10286's docstring: 'A clean-fixture test
     could never see it — only the real carriers do'). That canary belongs on the READ-ONLY
     cross-project surface, never the kernel land gate — reported here, NEVER a blocker.
 
@@ -3873,7 +3873,7 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
     is fully read-only (no backup snapshot, no event emit). `--registry PATH` overrides the registry
     location. `_freshness_adapter` is the injectable, project-supplied read-only freshness adapter
     returning NORMALIZED per-pipeline freshness — the default is the thin file-based adapter; a project
-    with a live source (T-9598's <project> pull) swaps its own in through this same seam (SPEC-0110
+    with a live source (T-9598's trend-finder pull) swaps its own in through this same seam (SPEC-0110
     r2), so the kernel grader embeds no project-specific format. `_verify_pool_width` is the same
     shape of injected host collaborator for the §2c quiet lane: a zero-arg callable returning the
     host-derived SPEC-0132 verify-admission pool width — EXACTLY the width a land derives — so the

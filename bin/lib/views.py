@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from lib import inspection  # single calibration home for BYTES_PER_TOKEN (T-10313/T-10316 shared axis)
+from lib import unit_table  # T-14568: journal-read adapter records are expanded from their compact table (SPEC-1046)
 from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader (T-9740)
 from lib import journal as journal_mod  # T-11444: the SPEC-0190 segment-aware journal folds
 from lib import plan  # T-10927: the run-scoped plan→task link index (read-only accessor)
@@ -1866,7 +1867,7 @@ _NO_BEST_PAIR_NOTE = (
 # ANSWER: NO — declined, deliberately, and the thin-bucket sentence below IS the whole adequacy rule
 # at bucket altitude. Three grounds, so the question is not re-opened per reader:
 #   1. THE EVIDENCE CITED FOR EXTENDING REFUTES IT. T-10745's live trigger reads a 0.54 RED share in
-#      <project> at n=13 and calls it "a thin bucket read as a thin finding". n=13 is ABOVE the
+#      ticket-review at n=13 and calls it "a thin bucket read as a thin finding". n=13 is ABOVE the
 #      floor (5) — an extended floor would have stamped that bucket `verdict_mix_claimed: true` and
 #      ENDORSED the very read it was invoked to prevent. A floor calibrated on a POOLED sample does
 #      not transfer to a bucket's n; there is no second calibrated number to import, and inventing
@@ -3484,7 +3485,7 @@ def _view_test_layout_hotspots(events_path: "Path", since=None, until=None, *, t
         """One layer row of one land → `(layer, identity, kind, detail, units, ts)`, or None when
         the row carries no shadow selection. `kind` is `units` | `full` | `unidentified` |
         `unreadable`; `detail` is what the kind is counted by."""
-        rec = row.get("adapter") if isinstance(row, dict) else None
+        rec = unit_table.expand(row.get("adapter")) if isinstance(row, dict) else None
         sel = rec.get("selection") if isinstance(rec, dict) else None
         if sel is None:
             return None
@@ -3897,7 +3898,7 @@ def _view_not_adopted(events_path: "Path | None" = None, project: "str | None" =
         # unit separator (subjects may contain anything), %x1e = record separator between commits.
         # `--diff-merges=first-parent` is what makes a MERGE classifiable: plain `--name-only` lists
         # NO files for a merge, so every merge would fall to the fail-closed count-it rule — and on a
-        # real corpus (<project>, 2026-08-06) merges were HALF the surviving count, re-burying the
+        # real corpus (boomrocket, 2026-08-06) merges were HALF the surviving count, re-burying the
         # genuine code commits this card exists to surface. First-parent is the honest question here:
         # "what did this commit bring onto main?"
         raw = _git_read(repo_root, "log", "--format=%x1e%h%x1f%s", "--name-only",
@@ -6014,7 +6015,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     counterpart of the CARRIER-read undeclared-subject line printed beside it, and the pair is deliberate:
     the carrier can only answer "is a subject DECLARED?", which a layer declaring a SUPERSET answers while
     still never skipping — that layer is invisible to the carrier and visible only here (<project>: 0% skip
-    on all four layers across 453 lands at an 84.6s median, against <project>'s 0.9s median with globs on
+    on all four layers across 453 lands at an 84.6s median, against boomrocket's 0.9s median with globs on
     all 8). Same discipline as every view above: report-only, count-derived, suppressed-when-clean, NEVER
     gates. UNFLOORED at the LINE — the evidence floor lives inside the fold, which does not score a layer
     until it has been observed enough times to mean anything, and which never reads an ABSENT per-layer row
@@ -6382,7 +6383,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
         if _cg:
             # TWO CAUSES, OPPOSITE REMEDIES (T-10568 / X-0423). The detector already knows which one this
             # is (`comment_contract_kind`); before, this line hardcoded the X-0401 restore for BOTH — and
-            # against <project>'s T-0203 (a SPEC-0152 re-home, 3 anchors, comments intact) a literal
+            # against boomrocket's T-0203 (a SPEC-0152 re-home, 3 anchors, comments intact) a literal
             # reading would have destroyed ~150 lines of the consumer's own prose. So the text now follows
             # the cause. A view that omits the key reads `full-strip` → today's line, verbatim, unchanged.
             _kind = (_cc.get("comment_contract_kind") or "full-strip") if isinstance(_cc, dict) else "full-strip"
@@ -7510,7 +7511,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             _names = [str(c.get("class")) for c in _cls if c.get("class")]
             _named = (" — " + ", ".join(_names[:_CAP]) +
                       (f" +{len(_names) - _CAP} more" if len(_names) > _CAP else "")) if _names else ""
-            # The emit shape is named INLINE, not left to `bin/yitc-v2 debt` (X-0470 / T-10635): <project>
+            # The emit shape is named INLINE, not left to `bin/yitc-v2 debt` (X-0470 / T-10635): boomrocket
             # read this exact line, emitted `outcome: green` with `run:`, and the record was silently
             # dropped — the debt line did not move and nothing said why, so they read kernel source to
             # learn the contract. A remedy command whose payload is wrong is not a remedy.
@@ -8924,7 +8925,7 @@ def _view_consumer_deploy_policy(*, registry_path=None, engine_root=None, kernel
                                  _v2_projects=None, _read_yaml=None) -> dict:
     """consumer-deploy-policy lens (T-10047 / X-0187 / SPEC-0097): the deploy-autonomy stance of EVERY
     registry yitc_v2 CONSUMER, side by side, so divergence + declare-or-waive gaps are visible in one
-    glance (the X-0187 incident: <project> born-WAIVED despite JWT/telegram auth + PII, <project>
+    glance (the X-0187 incident: boomrocket born-WAIVED despite JWT/telegram auth + PII, social-parser
     opted-in A/S/C1 — same SPEC-0097 vocab, ad-hoc per-project). A pure DERIVED review view (D-0053):
     stores the QUERY, recomputes fresh on read from each consumer's yitc-ops.yaml carrier (SPEC-0093
     rule 7 / P5) — no new store, no new node/edge, no gate, no event.
@@ -9092,7 +9093,7 @@ def _view_mandatory_concern_gaps(*, registry_path=None, engine_root=None, kernel
     `nightly._check_concern_drift` / `init.concern_drift` (SPEC-0143) asks whether the consumer's
     `adoption:` LEDGER kept up with contract-VERSION moves; this asks whether the CARRIER answers the
     concern at all (declare-or-waive). They diverge in both directions: drift reported
-    <project>/spike_sandbox `un-adopted` while that carrier DECLARES `spike_sandbox.bridge` (already
+    boomrocket/spike_sandbox `un-adopted` while that carrier DECLARES `spike_sandbox.bridge` (already
     answered — no gap here), and drift reports non-mandatory concerns (<project>/freshness) that this
     lens excludes. Reading drift as "who owes an answer" over-reports; that conflation is what produced
     a wrong fleet answer by hand.
@@ -9110,7 +9111,7 @@ def _view_mandatory_concern_gaps(*, registry_path=None, engine_root=None, kernel
         silence is therefore never reported as debt — a view that manufactured fleet-wide obligation out
         of an opt-in concern would be worse than no view.
       - DIFFERENTIAL. A project appears for a concern ONLY when it has answered NEITHER way; a coherent
-        `waiver:` is an ANSWER (<project> waiving `spike_sandbox` as a pure library is absent from
+        `waiver:` is an ANSWER (ticket-review waiving `spike_sandbox` as a pure library is absent from
         that concern's row). A project with no gaps is omitted entirely — a view listing everyone proves
         nothing.
       - DECLARE-OR-WAIVE ONLY. The match is on the stance verdict for the concern's own carrier label; a
@@ -9260,7 +9261,7 @@ def _view_sandbox_family(members=None, *, registry_path=None, engine_root=None, 
 
     THE INCIDENT IS THE SPEC (2026-08-13, X-0852). A controller searched the fleet for the key name
     `spike_sandbox`, found none in <project>, and concluded <project> had no sandbox. It has one — declared
-    under `sandbox_entry`. A second miss followed on <project>, where the key was present but its VALUE
+    under `sandbox_entry`. A second miss followed on boomrocket, where the key was present but its VALUE
     unread. A reader with full repo access navigated wrong twice in one sitting. The three concerns are
     CORRECT and stay distinct (an external consult confirmed: the schema is not what failed, navigation
     is) — so this is the consult's option (ii): a derived GROUPING that makes the family reachable from
@@ -10542,7 +10543,7 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
         for lrow in layers:
             if not isinstance(lrow, dict) or not (isinstance(lrow.get("layer"), str) and lrow["layer"]):
                 continue
-            rec = lrow.get("adapter")
+            rec = unit_table.expand(lrow.get("adapter"))
             lunits: dict = {}
             if isinstance(rec, dict):
                 if rec.get("usable") is True:

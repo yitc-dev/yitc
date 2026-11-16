@@ -233,7 +233,7 @@ A read-only Controller session is NOT special-cased: it reads on main, but a fil
 - `realpath <repo-root>/**` ONLY (the engine's own root; a consumer session reads its own repository root here). Use `realpath`, not a raw string prefix — symlinks inside the repo or `../` relative paths defeat naive prefix checks.
 
 **External territory** = anything outside that repository (referenced read-only — NEVER edited or made an acceptance probe target from any write; not monitored/probed — with ONE narrow carve-out: a **read-only fold of the kernel-owned SHARED coordination log** for `to:<self>` routing/intake entries (via **`bin/yitc-v2 cross inbox`**) is territory-SAFE and PERMITTED (reading a coordination log for intake ≠ surveillance/probing of another project); the carve-out is read-only and scoped to that shared log — every WRITE to another project's repo stays forbidden, SPEC-0084 §3. *(The retired per-repo `CROSS-TASKS.md`, tombstoned at the cutover when its per-repo spec was superseded, was this carve-out's predecessor surface.)*). The engine host's neighbours, as examples:
-- `<host-home>/projects/<project>/` (V1 platform)
+- `<host-home>/projects/ai-team-framework/` (V1 platform)
 - `<host-home>/<provider-config>/` (user-level settings, `/yitc` skill commands, hooks)
 - `<host-home>/bin/`
 - `<host-home>/yitc-workspace/` (operating plans, retrospective drafts)

@@ -383,7 +383,7 @@ QUALIFYING_PROPERTIES = (
 #: What a source KIND can attest STRUCTURALLY — a closed table, never a free-text claim. Measured
 #: against the real consumers during the plan's trial: `postgres-table` is <project>'s `system_errors`
 #: (run-3, 5 PASS + 1 PARTIAL — the ONE kind this module has a reader for); the other three are the
-#: shapes <project> and <project> actually capture into (run-2 / run-6). A source kind the kernel
+#: shapes boomrocket and social-parser actually capture into (run-2 / run-6). A source kind the kernel
 #: has no reader for cannot attest queryability by declaring it.
 _SOURCE_KIND_CAPABILITIES = {
     # kind:            (consumer-owned, durable, queryable)
@@ -497,7 +497,7 @@ def qualifying_source_violations(source, *, label: str = "source") -> list:
                                       "fold on")
 
     # (6) coverage — the "not one narrow slice" half. The in-scope classes are the CONFIRMABLE kinds:
-    # a source capturing only one of them (<project> captures React render crashes only — run-2)
+    # a source capturing only one of them (boomrocket captures React render crashes only — run-2)
     # silently hides the classes it never sees, which is a narrower failure than seeing nothing.
     classes = source.get("classes")
     declared_classes = {c.strip() for c in classes if isinstance(c, str) and c.strip()} \

@@ -62,9 +62,9 @@ Subscription (ChatGPT) mode is mandatory for the governed auditor — the prefli
 should stay on the same subscription login.
 
 ```
-<external-auditor> login status # -> "Logged in using ChatGPT"
-<external-auditor> login # (re)authenticate if the subscription token ever expires
-<external-auditor> doctor # full health: install / config / auth / sandbox / reachability
+<external-auditor> login status        # -> "Logged in using ChatGPT"
+<external-auditor> login               # (re)authenticate if the subscription token ever expires
+<external-auditor> doctor              # full health: install / config / auth / sandbox / reachability
 ```
 
 The login writes to whatever `CODEX_HOME` points at. Keep it on the home `codex_home:` names so the interactive `<external-auditor>` and the governed auditor share one login — two homes

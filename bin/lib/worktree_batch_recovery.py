@@ -50,7 +50,7 @@ _RECOVER_RESIDUE_BOOKKEEPING_SUBJECT_RE = re.compile(r"^(?:land|worktree sync): 
 # (T-9799 refused to identify an amend target by subject for exactly that reason), so eligibility
 # here is subject AND footprint: a commit wearing the subject but carrying authored content fails
 # the footprint test and the whole recovery REFUSES rather than discarding it.
-_RECOVER_RESIDUE_BOOKKEEPING_PATHS = ("events.jsonl",)
+# The journal arm is `events.is_journal_family_path` (T-14587): the root AND every day partition.
 _RECOVER_RESIDUE_BOOKKEEPING_PREFIXES = ("graph/",)
 
 
@@ -73,7 +73,8 @@ def _residue_bookkeeping_only(sha: str, W: "Path", _run_git_cap) -> bool:
         paths = [p.strip() for p in (getattr(f, "stdout", "") or "").splitlines() if p.strip()]
         if not paths:
             return False
-        return all(p in _RECOVER_RESIDUE_BOOKKEEPING_PATHS
+        from lib import events as _events   # lazy leaf import (T-14587)
+        return all(_events.is_journal_family_path(p)
                    or p.startswith(_RECOVER_RESIDUE_BOOKKEEPING_PREFIXES) for p in paths)
     except Exception:                          # noqa: BLE001 — an unreadable commit is never eligible
         return False
@@ -306,39 +307,34 @@ def cmd_batch_residue(target: str, *, is_work: bool, _append_event, _die, _main_
              f"destroys authored work to undo a batch. Inspect it with "
              f"`git -C {W} log --oneline {tip}..HEAD` and land or move it first.")
 
-    # NOTHING JOURNALED IS LOST — and the restoration is done BY GIT, not by reading the file.
-    # `events.jsonl` is append-only + union-merged, so a bare `git reset --hard` would discard the
-    # rows the killed land had folded. The obvious repair is to read the file, reset, and write the
-    # missing lines back (T-11467's `_land_rollback_bookkeeping_to_entry` does exactly that, and its
-    # raw read is CORRECT there). Here git can do the same job with no read at all: the pre-reset
-    # HEAD's copy of the journal is a SUPERSET of the tip's on this branch — appends only ever add —
-    # so restoring THAT blob into the working tree after the reset preserves every row by
-    # construction, with no read, no dedup and no temp file. Deliberately `--worktree` only: the rows
-    # land back as ordinary trailing worktree DIRT, which is precisely what the next land's step-1b
-    # fold is for, and staging them here would make this recovery author a commit it has no business
-    # authoring.
+    # NOTHING JOURNALED IS LOST (T-14605 — the ONE core both rollbacks share). The journal is
+    # append-only + union-merged, so a bare `git reset --hard` would discard the rows the killed land
+    # had folded AND any row still uncommitted in the working file — and after the journal cut those
+    # rows sit in `archive/events-<day>.jsonl`, not the root file. The earlier `git restore --source
+    # <pre-reset HEAD> -- events.jsonl` restored the ROOT's COMMITTED blob only (audit-pre
+    # fp1:4af44b2ab8868f10): `batch_landing._reset_hard_keeping_journal` snapshots every journal-family
+    # WORKING file the reset moves and re-appends what the reset took off. The rows land back as
+    # ordinary trailing worktree DIRT — never staged, which would make this recovery author a commit it
+    # has no business authoring — which is precisely what the next land's step-1b fold is for.
+    from lib import batch_landing as _bl          # noqa: PLC0415 — keeps this module's import graph flat
     head_before = (getattr(_run_git_cap(["rev-parse", "HEAD"], W), "stdout", "") or "").strip()
     if not head_before:
         _die(f"worktree recover-land: REFUSED — HEAD on {branch} is unreadable, so the journal rows "
              f"this reset would discard could not be restored afterwards (branch untouched).")
 
-    r = _run_git_cap(["reset", "--hard", tip], W)
-    if getattr(r, "returncode", 1) != 0:
-        _die(f"worktree recover-land: REFUSED — `git reset --hard {tip[:9]}` on {branch} exited "
-             f"nonzero: {(getattr(r, 'stderr', '') or getattr(r, 'stdout', '') or '').strip()}")
+    res = _bl._reset_hard_keeping_journal(W, tip, _run_git_cap=_run_git_cap)
+    if res["outcome"] == "reset-failed":
+        _die(f"worktree recover-land: REFUSED — `git reset --hard {tip[:9]}` on {branch} could not "
+             f"run safely: {res['error']} (branch untouched unless git says otherwise).")
 
-    rows_restored = False
-    rj = _run_git_cap(["restore", "--source", head_before, "--worktree", "--", "events.jsonl"], W)
-    if getattr(rj, "returncode", 1) == 0:
-        rows_restored = True
-    else:
+    rows_restored = res["outcome"] == "restored"
+    if not rows_restored:
         # The branch IS at its pre-batch tip; what failed is the row restoration. Say exactly that —
         # reporting a clean restore would be the one dishonest outcome available here.
         print(f"worktree recover-land: WARNING — {branch} was restored to {tip}, but the journal "
-              f"rows the reset removed could NOT be put back: "
-              f"{(getattr(rj, 'stderr', '') or getattr(rj, 'stdout', '') or '').strip()}. They remain "
-              f"wherever they were already landed; recover them with "
-              f"`git -C {W} restore --source {head_before} --worktree -- events.jsonl`.",
+              f"rows the reset removed could NOT all be put back: {res['error']}. They remain "
+              f"wherever they were already landed; recover them from the pre-reset commit with "
+              f"`git -C {W} show {head_before}:<journal path>`.",
               file=sys.stderr, flush=True)
 
     _append_event("land_batch_head_restored", (None if is_work else target),

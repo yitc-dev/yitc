@@ -1026,7 +1026,7 @@ def _py_def_region_end(lines: list, body_from: int, indent: int) -> "int | None"
 # T-10545 (X-0410) — the slash-branch extension MUST contain a LETTER. Its char class admits digits and
 # dots, so a bare `\.[A-Za-z0-9]+` tail also matched a dotted VERSION TUPLE: `1.43.46/1.43.48` parsed as
 # path `1.43.46/1.43` + extension `.48`, and the leg-2 advisor derived version tuples (1.43.46/1.43.48,
-# 2.55.2/2.56.0) as expected_touch entries — <project> hand-corrected the field. A real path's extension
+# 2.55.2/2.56.0) as expected_touch entries — boomrocket hand-corrected the field. A real path's extension
 # is alphabetic; a numeric tail is the tuple's tell, and by shape alone it is the ONLY thing separating
 # the two. Letter-ANYWHERE (not letter-first) keeps real extensions like .7z/.mp4/.h5 admissible.
 # BOUND (honest, not the whole X-0410 story): by SHAPE this rejects the numeric-tail FALSE POSITIVE only.
@@ -1060,7 +1060,7 @@ _PATH_LIKE_RE = re.compile(r"[\w.\-]+(?:/[\w.\-]+)+(?:#[\w.\-]+)?")  # T-12113: 
 # reads INSTEAD of regexing the analysis prose. The distinction they encode: `derive_path_tokens`
 # above answers "what paths does this text MENTION" — a question whose answer can never be an
 # authorization, because a thorough analysis mentions the read-only prior-art it eliminated, the
-# scratch repro it ran, and the directories it searched. On <project> T-0262 that mention-set was
+# scratch repro it ran, and the directories it searched. On boomrocket T-0262 that mention-set was
 # written into expected_touch and declared 6 paths where 1 was real. A declaration must be DECLARED.
 _TOUCH_MARKER_RE = re.compile(r"^[ \t]*expected_touch[ \t]*:[ \t]*(.+?)[ \t]*$", re.MULTILINE)
 _GLOB_META = ("*", "?", "[")

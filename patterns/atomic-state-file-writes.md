@@ -47,11 +47,11 @@ def write_text_atomic(path, content):
             f.flush
             os.fsync(f.fileno)
         if existing_mode is not None:
-            os.chmod(tmp, existing_mode) # rewrite: keep the target's own mode
+            os.chmod(tmp, existing_mode)          # rewrite: keep the target's own mode
         else:
-            cur = os.umask(0); os.umask(cur) # new file: umask-respecting default
+            cur = os.umask(0); os.umask(cur)       # new file: umask-respecting default
             os.chmod(tmp, 0o666 & ~cur)
-        os.replace(tmp, p) # chmod BEFORE replace → atomicity unchanged
+        os.replace(tmp, p)                          # chmod BEFORE replace → atomicity unchanged
     except Exception:
         try: os.unlink(tmp)
         except OSError: pass

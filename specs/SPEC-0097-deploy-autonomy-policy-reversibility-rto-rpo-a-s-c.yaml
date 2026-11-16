@@ -64,8 +64,8 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   \ — **BUT ONLY IF THE CODE IS IN THE IMAGE** (the correction below). → autonomous\
   \ after the green\n  cycle + smoke + the per-change live-probe + the §11 convergence\
   \ verification.\n  **Class-A reversibility is CONDITIONAL on image-carried code\
-  \ (X-0353, <project>, 3h outage).**\n  \"Rollback = redeploy the prior image\" is\
-  \ TRUE only when the running code is BAKED INTO the image. Where\n  the runtime\
+  \ (X-0353, boomrocket, 3h outage).**\n  \"Rollback = redeploy the prior image\"\
+  \ is TRUE only when the running code is BAKED INTO the image. Where\n  the runtime\
   \ MOUNTS the code into the container (a bind-mount / volume — the shape both X-0353\
   \ and X-0374\n  ran on), the image does NOT carry the code: rolling the image back\
   \ re-runs the SAME mounted working tree,\n  so **an image rollback reverses NOTHING**\
@@ -652,7 +652,7 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   \ worker did not deploy (X-2173, 2026-11-02).\n\n### History moved from the rule\
   \ body\n\nEach entry is a passage moved word for word out of the rule text of the\
   \ section it names;\nthe rule it explains stays there.\n\n- From «2a. Class S on\
-  \ a DOWN surface»: <project> hit this twice on 2026-07-16.\n- From «5. Per-class\
+  \ a DOWN surface»: boomrocket hit this twice on 2026-07-16.\n- From «5. Per-class\
   \ evidence gate (the close/adoption gate)»: Before the gate merely\n  SELECTED the\
   \ `classes.S` block and dropped it, so a violated or un-probeable security property\n\
   \  still deployed autonomously — the same selected-then-dropped defect as the C1\
@@ -878,5 +878,5 @@ implements_signature:
   bin/lib/deploy.py#_security_probe_precondition: eefa57dbc4bd4e4f3aff2ded61d768e293ddce4400ec5bbafab9d92f9542e645
   bin/lib/deploy.py#_service_sources_unchanged: 47adfc5cbc3579e717e737c32abee8ca60c37268891aaf627133cbdd9538ad2c
   bin/lib/deploy.py#_verify_convergence: 1f5d3c2f268f3bcf83d79ecdc4f125f279427b6ee6989c03ed253824e8185a09
-  bin/lib/deploy.py#cmd_deploy: b2726455fbe1306a8557abc99eff4a05f9c373bdf07135ded36d2f3ee81cbd12
+  bin/lib/deploy.py#cmd_deploy: 34a3fa95620a11e9e576c19a122546b0187052aa5c7bdac5fc9e18490008d3e6
   bin/lib/init.py#_hook_deploy_policy: c57bb5dc865aaa77bbfe57fe5fccd1f963bd5dbb02895ef430137891263e2c1b

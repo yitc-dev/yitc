@@ -334,19 +334,19 @@ body: "## Scenario\n\nA session that authored an item on the shared coordination
   \ gate would not have\n    fired on the very item that demonstrates the reject leg.\
   \ Widening was MEASURED and DECLINED\n    : over the live log `re-?issue|re-?file|re-?submit|re-?send`\
   \ adds 26 hits of which ~2 are\n    genuine, the rest NARRATING a past re-file (\"\
-  re-filed to:<project>\", \"the ask re-issued\n    corrected as X-0397\"). The predicate\
-  \ GUARDS AN ACTION and so fails closed; its precision is the\n    property that\
-  \ must not erode, and the shared predicate would carry those false hits onto the\n\
-  \    AUTHOR side too. X-0387 was dispositioned by one-time backfill instead.\n \
-  \   The refusal runs BEFORE the emit (the same by-construction ordering as the citation\
-  \ check) and is\n    journal-observable via the ordinary `cross_refused` trace.\n\
-  \    `--re-entry` arms an ORDINARY followup through `followup add` (SPEC-0095) —\
-  \ one capture\n    mechanism, one event shape, one fold — carrying the X-NNNN as\
-  \ `relates_to` (PROVENANCE) and the\n    author's words as `trigger`; optional **`--re-entry-awaits\
-  \ <T-NNNN>`** supplies the `awaits` fire\n    key, and without it the waiter stays\
-  \ VISIBLE in the debt echo's armed clause but cannot auto-fire\n    (SPEC-0095's\
-  \ own stated honest limit — a condition about a PEER's repo state has no local\n\
-  \    terminal task, and inventing one is the false-fire class). `--no-re-entry`\
+  re-filed to:social-parser\", \"the ask re-issued\n    corrected as X-0397\"). The\
+  \ predicate GUARDS AN ACTION and so fails closed; its precision is the\n    property\
+  \ that must not erode, and the shared predicate would carry those false hits onto\
+  \ the\n    AUTHOR side too. X-0387 was dispositioned by one-time backfill instead.\n\
+  \    The refusal runs BEFORE the emit (the same by-construction ordering as the\
+  \ citation check) and is\n    journal-observable via the ordinary `cross_refused`\
+  \ trace.\n    `--re-entry` arms an ORDINARY followup through `followup add` (SPEC-0095)\
+  \ — one capture\n    mechanism, one event shape, one fold — carrying the X-NNNN\
+  \ as `relates_to` (PROVENANCE) and the\n    author's words as `trigger`; optional\
+  \ **`--re-entry-awaits <T-NNNN>`** supplies the `awaits` fire\n    key, and without\
+  \ it the waiter stays VISIBLE in the debt echo's armed clause but cannot auto-fire\n\
+  \    (SPEC-0095's own stated honest limit — a condition about a PEER's repo state\
+  \ has no local\n    terminal task, and inventing one is the false-fire class). `--no-re-entry`\
   \ records its\n    reason on the SAME `cross_closed` as an additive `re_entry_dismissed`\
   \ key — deliberately OUTSIDE\n    `_NOTE_KEYS`, so a dismissal can never occupy\
   \ the resolution-note slot. Both flags are REFUSED on\n    `--withdraw`: a retraction\

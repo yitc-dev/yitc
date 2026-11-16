@@ -50,6 +50,7 @@ from pathlib import Path
 
 from lib import graph as graph_mod   # T-11395: the ONE event-catalog predicate the pre-queue
                                      # uncatalogued-type refusal reuses
+from lib import unit_table  # T-14568: journal-read adapter records are expanded from their compact table (SPEC-1046)
 from lib import host_apply as _host_apply  # T-11280: the ONE home of CONSUMER_OPS_CONTRACT
 from lib import journal as journal_mod     # the shared bounded tail-scan journal reader
 from lib import lockfile                   # the ONE flock-target open (the reservation seam)
@@ -326,7 +327,7 @@ def _acquire_land_reservation(main_wt: Path, on_wait=None, on_degrade=None,
     WHY the livelock needs this. Correctness forbids the cheap fix — the ff-race loser MUST re-verify
     (land never ffs an untested A+B combination), so the loop is merge -> verify(minutes) -> ff. When
     the inter-land arrival interval is shorter than a verify, the lander loses the race EVERY pass and
-    exhausts the bounded retries (<project> task/T-0192, 5/5 three runs running; and T-10548's own
+    exhausts the bounded retries (boomrocket task/T-0192, 5/5 three runs running; and T-10548's own
     land, 2026-07-15, under a 4-lander fleet). `_land_retry_backoff_seconds` (T-0254 + T-10010) only
     shrinks the COLLISION PROBABILITY — under a sustained fleet it stays ~1. This grants what nothing
     else does: a WINDOW in which the verify-paid lander can actually finish. Peers park on it
@@ -8048,7 +8049,7 @@ def _layer_case_keys(layer_row) -> "set | None":
     id that itself contains ` - ` or `::` is kept verbatim."""
     if not isinstance(layer_row, dict):
         return None
-    adapter = layer_row.get("adapter")
+    adapter = unit_table.expand(layer_row.get("adapter"))
     if (not isinstance(adapter, dict) or adapter.get("usable") is not True or adapter.get("void")
             or not isinstance(adapter.get("units"), list)):
         return None
@@ -8762,6 +8763,97 @@ def _land_restore_candidate_head(W: "Path | None", pre_sha: "str | None", *,
                                               or "").strip() or "nonzero exit")
     return _record(_LAND_RESTORE_DONE)
 
+def _reset_hard_keeping_journal(W, target: str, *, _run_git_cap) -> dict:
+    """T-14605 — `git reset --hard <target>` in `W` WITHOUT losing a journal row. The ONE core both
+    rollbacks share: the land-abort rollback (`_land_rollback_bookkeeping_to_entry`, T-11467) and the
+    killed-land recovery (`worktree_batch_recovery.cmd_batch_residue`).
+
+    The journal is append-only and union-merged, so a bare reset would discard the rows a bookkeeping
+    commit folded AND any row still uncommitted in the working file. Which files hold them is the
+    journal FAMILY (`events.is_journal_family_path`): after the journal cut (T-14585) the rows sit in
+    `archive/events-<day>.jsonl`, and a snapshot of the root `events.jsonl` alone dropped 19 rows of
+    task/T-14587 (land commit 33744e71a2). So, BEFORE the reset, the paths it will move are read from
+    `git diff --name-only <target> --` (the target tree against the WORKING tree: committed and
+    uncommitted changes alike) and each WORKING file is snapshotted; after it, every snapshot line
+    missing from the post-reset file is re-appended in order (exact-line identity, the `_dedup_events`
+    one), recreating a file the reset removed. A file the reset does not move is never read.
+
+    Returns {"outcome": "restored" | "reset-failed" | "restore-failed", "restored_rows": int,
+    "snapshot_rows": int, "error": str}. A failure BEFORE the reset (the diff, a snapshot) is
+    `reset-failed` with the branch UNTOUCHED — nothing has been lost yet, so nothing is reset."""
+    import os as _os
+    import hashlib as _hashlib
+    from lib import events as _events               # noqa: PLC0415 — the journal-family predicate
+    from lib import evidence_custody as _custody   # noqa: PLC0415 — keeps the hot import graph unchanged
+
+    def _out(outcome, error="", restored=0, snap=0):
+        return {"outcome": outcome, "restored_rows": restored, "snapshot_rows": snap, "error": error}
+
+    try:
+        d = _run_git_cap(["diff", "--name-only", "--no-renames", target, "--"], W)
+    except Exception as e:                     # noqa: BLE001 — reported, never swallowed
+        return _out("reset-failed", f"the journal paths could not be listed: {type(e).__name__}: {e}")
+    if getattr(d, "returncode", 1) != 0:
+        return _out("reset-failed", "the journal paths the reset would move could not be listed: "
+                    + ((getattr(d, "stderr", "") or "").strip() or "git diff exited nonzero"))
+    rels = sorted({ln.strip() for ln in (getattr(d, "stdout", "") or "").splitlines()
+                   if _events.is_journal_family_path(ln.strip())})
+    # T-13138 (X-1687) — each pre-reset file is captured COMPRESSED (`_JournalSnapshot`: exactly
+    # `read_text(encoding="utf-8").splitlines()` on iteration, strict decode at capture), and the
+    # restore below streams, so a large live segment is never held twice.
+    snaps = []
+    try:
+        for rel in rels:
+            jp = Path(W) / rel
+            snaps.append((jp, _custody._JournalSnapshot(jp) if jp.exists() else []))
+    except OSError as e:
+        return _out("reset-failed", f"the journal could not be read before the reset: {e}")
+    def _snap_rows():                           # counted only for a failure message: a re-read
+        return sum(sum(1 for _ in s) for _jp, s in snaps)
+
+    try:
+        r = _run_git_cap(["reset", "--hard", target], W)
+    except Exception as e:                     # noqa: BLE001 — reported, never swallowed
+        return _out("reset-failed", f"{type(e).__name__}: {e}")
+    if getattr(r, "returncode", 1) != 0:
+        return _out("reset-failed", (getattr(r, "stderr", "") or getattr(r, "stdout", "")
+                                     or "").strip() or "the reset exited nonzero")
+
+    def _digest(line):
+        # an exact-line identity held as 16 bytes, never the line (a collision, 2^-128, is the one
+        # way a restorable row could be taken as already present)
+        return _hashlib.blake2b(line.encode("utf-8"), digest_size=16).digest()
+
+    restored = 0
+    try:
+        for jp, before in snaps:
+            def _base_lines(jp=jp):
+                if not jp.exists():
+                    return
+                with jp.open("r", encoding="utf-8") as fh:
+                    yield from journal_mod.stream_lines(fh)
+
+            seen = {_digest(ln) for ln in _base_lines()}
+            extra = []
+            for ln in before:
+                if ln.strip() and _digest(ln) not in seen:
+                    seen.add(_digest(ln))
+                    extra.append(ln)
+            if not extra:
+                continue
+            jp.parent.mkdir(parents=True, exist_ok=True)
+            tmp = jp.with_suffix(jp.suffix + ".t11467.tmp")
+            # the `"\n".join(base + extra) + "\n"` text, streamed: base re-read, then the restored rows
+            with tmp.open("w", encoding="utf-8") as out_fh:
+                out_fh.writelines(ln + "\n" for ln in _base_lines())
+                out_fh.writelines(ln + "\n" for ln in extra)
+            _os.replace(str(tmp), str(jp))
+            restored += len(extra)
+    except OSError as e:
+        return _out("restore-failed", str(e), restored=restored, snap=_snap_rows())
+    return _out("restored", restored=restored)
+
+
 def _land_rollback_bookkeeping_to_entry(W: "Path | None", entry_sha: "str | None", *,
                                         branch: "str | None" = None, _run_git_cap=None,
                                         minted_shas=None, main_ref: str = "main") -> str:
@@ -8806,9 +8898,6 @@ def _land_rollback_bookkeeping_to_entry(W: "Path | None", entry_sha: "str | None
     already on a path that is ending, so raising here would replace a precise diagnosis with a git
     error.
     """
-    import os as _os
-    import subprocess as _subprocess
-
     if not entry_sha or W is None or _run_git_cap is None:
         # No entry sha was recorded, so step-1b never ran and the branch never moved — every preflight
         # refusal ends here. A positive fact about the ordering, not an inference from a missing value.
@@ -8857,64 +8946,20 @@ def _land_rollback_bookkeeping_to_entry(W: "Path | None", entry_sha: "str | None
                      f"{sha[:9]} above it is not a commit this land minted (nor a catch-up merge of "
                      f"{main_ref}) — refusing to discard it")
 
-    journal = Path(W) / "events.jsonl"
-    # T-13138 (X-1687) — the pre-reset journal is captured COMPRESSED (`evidence_custody._JournalSnapshot`:
-    # exactly `read_text(encoding="utf-8").splitlines()` on iteration, strict decode at capture), and the
-    # restore below streams: the branch's live segment (~116 MB on the kernel checkout) was held twice
-    # plus a set of its lines on every aborting land that had committed its bookkeeping.
-    from lib import evidence_custody as _custody   # noqa: PLC0415 — keeps the hot import graph unchanged
-    try:
-        before = _custody._JournalSnapshot(journal) if journal.exists() else []
-    except OSError as e:
-        return _loud(_LAND_RESTORE_FAILED, f"the journal could not be read before the reset: {e}")
-
-    try:
-        r = _run_git_cap(["reset", "--hard", entry_sha], W)
-    except Exception as e:                     # noqa: BLE001 — reported, never swallowed
-        return _loud(_LAND_RESTORE_FAILED, f"{type(e).__name__}: {e}")
-    if getattr(r, "returncode", 1) != 0:
-        return _loud(_LAND_RESTORE_FAILED, (getattr(r, "stderr", "") or getattr(r, "stdout", "")
-                                            or "").strip() or "the reset exited nonzero")
-
-    # AC2 — put back every row the reset took off the working file. Append-only + exact-line dedup:
-    # a row already carried by the entry-sha version is not duplicated, and one that is not is
-    # restored IN ORDER as trailing dirt for the next land's fold.
-    restored_rows = 0
-    try:
-        import hashlib as _hashlib
-
-        def _digest(line):
-            # an exact-line identity held as 16 bytes, never the line (a collision, 2^-128, is the one
-            # way a restorable row could be taken as already present)
-            return _hashlib.blake2b(line.encode("utf-8"), digest_size=16).digest()
-
-        def _base_lines():
-            if not journal.exists():
-                return
-            with journal.open("r", encoding="utf-8") as fh:
-                yield from journal_mod.stream_lines(fh)
-
-        seen = {_digest(ln) for ln in _base_lines()}
-        extra = []
-        for ln in before:
-            if ln.strip() and _digest(ln) not in seen:
-                seen.add(_digest(ln))
-                extra.append(ln)
-        if extra:
-            tmp = journal.with_suffix(journal.suffix + ".t11467.tmp")
-            # the `"\n".join(base + extra) + "\n"` text, streamed: base re-read, then the restored rows
-            with tmp.open("w", encoding="utf-8") as out_fh:
-                out_fh.writelines(ln + "\n" for ln in _base_lines())
-                out_fh.writelines(ln + "\n" for ln in extra)
-            _os.replace(str(tmp), str(journal))
-            restored_rows = len(extra)
-    except OSError as e:
+    # T-14605 — every journal-family path the reset moves is snapshotted and restored, not the root
+    # file alone: after the journal cut the rows sit in `archive/events-<day>.jsonl`, and a bookkeeping
+    # commit that folded them was reset away with nothing to put them back (task/T-14587, 33744e71a2).
+    res = _reset_hard_keeping_journal(W, entry_sha, _run_git_cap=_run_git_cap)
+    if res["outcome"] == "reset-failed":
+        return _loud(_LAND_RESTORE_FAILED, res["error"])
+    restored_rows = res["restored_rows"]
+    if res["outcome"] == "restore-failed":
         # The branch IS at its entry sha; what failed is the row restoration. Say exactly that —
         # reporting it as a clean restore would be the one dishonest outcome available here.
         print(f"land: WARNING — {branch or '<branch>'} was returned to {entry_sha}, but "
-              f"{len(before)} journal row(s) read before the reset could NOT be written back: {e}. "
-              f"Rows this land folded may be missing from this worktree (they remain wherever they "
-              f"were already landed).", file=sys.stderr, flush=True)
+              f"{res['snapshot_rows']} journal row(s) read before the reset could NOT all be written "
+              f"back: {res['error']}. Rows this land folded may be missing from this worktree (they "
+              f"remain wherever they were already landed).", file=sys.stderr, flush=True)
         return _LAND_RESTORE_FAILED
 
     print(f"land: the branch {branch or '<branch>'} is left at {entry_sha} — EXACTLY the sha it "
