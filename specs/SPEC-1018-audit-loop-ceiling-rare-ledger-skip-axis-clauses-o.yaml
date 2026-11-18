@@ -211,7 +211,12 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ GREEN at its commit or names no `audited_base`, on the RED-fix route, and — for\
   \ the carry\nblock — when the carry fingerprint differs. What is rendered is kept\
   \ whole first, and a packet it\nstill does not fit is refused `merge_integration_packet_incomplete`,\
-  \ as above.\n\n| Exit | Admitted when | Verbs | What it spends | Guard |\n|---|---|---|---|---|\n\
+  \ as above. The ordered\nresolutions and the final task delta are measured against\
+  \ the project's whole-packet ceiling,\n`lib.audit.AUDIT_MAX_PACKET_BYTES`, when\
+  \ the project sets it in its yitc-ops.yaml `thresholds:`\n(SPEC-1031), and against\
+  \ the engine's built-in audit-post diff bound otherwise; the refusal names\nthe\
+  \ bound, its source and, on the built-in bound, that setting as the route.\n\n|\
+  \ Exit | Admitted when | Verbs | What it spends | Guard |\n|---|---|---|---|---|\n\
   | **Post-GREEN merge integration** | everything since the GREEN is a chain of the\
   \ card's own governed sync merges, any number of them, clean or hand-resolved, each\
   \ accounted for by its row, with a green governed Tests run at the merged HEAD after\
@@ -303,16 +308,22 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ with no cause named — the re-sign had to sit directly on the merge and\nevery\
   \ path of it had to be a spec. In place, as an additive extension (SPEC-1037 §7):\
   \ a re-sign\ndirectly on the merge carrying only spec paths is admitted as before.\n\
-  \nEach case above arises on a small minority of audit passes. Rendered inside <workshop-spec>\
-  \ this detail\nreached every session entering Audit-pre or Audit-post; as a reference\
-  \ behind one index paragraph\nand the head of the acting verb's help it is met by\
-  \ the session that has the case at hand\n(<workshop-spec> §6, the rare-case option).\n\
-  \n## Verification\n\n- VP1 (one home): every block of §Rare ceiling cases is present\
-  \ in this spec and absent from\n  <workshop-spec>, and <workshop-spec> carries exactly\
-  \ one index paragraph naming this spec and the heading to\n  search.\n- VP2 (reachable\
-  \ from the verb): the first lines of the `audit pre`, `audit post`,\n  `audit consult`\
-  \ and `task commit` help name this spec.\n- VP3 (no stage render): no stage entry\
-  \ delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
+  \nThe bound the ordered resolutions are measured against reads the project threshold\
+  \ since\n(<project> X-2417):, GREEN and then three main merges, was refused\n`merge_integration_packet_incomplete`\
+  \ at 322,890 B over a constant 300,000 that no project setting\nreached, while the\
+  \ whole-packet threshold (X-2386) bounded only the packet around it. In\nplace,\
+  \ as an additive extension (SPEC-1037 §7): with no project value the bound and the\
+  \ refusal are\nas before.\n\nEach case above arises on a small minority of audit\
+  \ passes. Rendered inside <workshop-spec> this detail\nreached every session entering\
+  \ Audit-pre or Audit-post; as a reference behind one index paragraph\nand the head\
+  \ of the acting verb's help it is met by the session that has the case at hand\n\
+  (<workshop-spec> §6, the rare-case option).\n\n## Verification\n\n- VP1 (one home):\
+  \ every block of §Rare ceiling cases is present in this spec and absent from\n \
+  \ <workshop-spec>, and <workshop-spec> carries exactly one index paragraph naming\
+  \ this spec and the heading to\n  search.\n- VP2 (reachable from the verb): the\
+  \ first lines of the `audit pre`, `audit post`,\n  `audit consult` and `task commit`\
+  \ help name this spec.\n- VP3 (no stage render): no stage entry delivers this spec.\n\
+  The executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
 cites:
 - SPEC-0015
 - SPEC-0013

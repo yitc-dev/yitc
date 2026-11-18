@@ -9,11 +9,11 @@ applies_to: substantive plans (foundational decisions, multi-step proposals, pla
 
 Seven probes for a substantive plan/proposal. AI consults before finalizing a big plan.
 
-> **Status.** For a LARGE plan (the «When to apply» criteria below) this checklist is MANDATORY at the
-> gate that admits the plan to `decomposition`: a filled `checklist_pass` + a fresh `plan check --full` +
-> a dry-run when the plan's rules are novel. Rule home: SPEC-0034 §Mandatory big-plan check
-> (`bin/yitc-v2 graph query SPEC-0034`) — not restated here. `plan check --full` auto-applies this
-> checklist for big plans (`big_plan_checklist: true` in the verdict) + a structural pre-pass mechanizes P7.
+> **Status.** For a LARGE plan (the «When to apply» criteria below) this self-traversal and its
+> `checklist_pass` block are RECOMMENDED: a missing block is a report-only finding, never a refusal.
+> Rule home: SPEC-0034 §Mandatory big-plan check (`bin/yitc-v2 graph query SPEC-0034`) — not restated
+> here. `plan check` auto-applies this checklist for big plans (`big_plan_checklist: true` in the
+> verdict) + a structural pre-pass mechanizes P7.
 
 Adapted from v1 §21.
 
@@ -40,7 +40,7 @@ Open the `tasks/` directory, filter `status: parked`. For each parked entry answ
 - If **no** → document inline: `[T-XXXX parked] not in scope: {reason}`
 - If **yes** → document inline: `[T-XXXX parked] in scope: included as {task-ref or milestone}`
 
-Without inline documentation per parked entry — the plan is not considered complete.
+Without inline documentation per parked entry — P1 has not passed.
 
 **Slip example (v1 B-985):** B-985 (subagent-rollout) was DEFERRED with trigger «when pipeline foundation ships». D-131 shipped — trigger fired — B-985 did not appear in the launch plan because the author skipped the DEFERRED traverse. Owner discovered the gap by asking about B-985 directly.
 
@@ -66,7 +66,7 @@ done_definition:
   date: "YYYY-MM-DD"
 ```
 
-Finalization without this block is forbidden.
+Without this block P3 has not passed.
 
 **Slip example:** Developer shipped a feature: API returns 200, all tests green. Owner expected a user-visible change on a specific UI screen. Different «done» understandings discovered at acceptance. Rework ≥1 day. P3 forces alignment before implementation starts.
 
@@ -154,7 +154,7 @@ quantitative_claims:
 quantitative_claims: none
 ```
 
-Finalization with unannotated high- or medium-magnitude claim forbidden.
+An unannotated high- or medium-magnitude claim means P6 has not passed.
 
 **Slip example (v1 origin):** Session #19 2026-05-14 — AI estimated «$1500/day cost reduction from backlog archive» without the probe-before-claim step. Owner corrected ( had already moved roles to excerpts, real ~$200-400/day). P6 would have surfaced the stale-state assumption before the utterance.
 
@@ -221,7 +221,7 @@ checklist_pass:
   P7: documented  # deliverables_mapping block + prose_only_deferrals: none + per-part adoption_probe
 ```
 
-Missing any probe = the plan is not final.
+Missing any probe = the self-traversal is incomplete (whether that blocks anything is SPEC-0034's call, not this checklist's).
 
 ## Anti-pattern
 

@@ -65,9 +65,10 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ the engine fingerprints (<workshop-spec> rule 1) of the ceiling row's\nfindings,\
   \ which is exactly what the Controller must act on. It carries NO `needs_owner_reset`\
   \ — the\nkey is retired with the flag it named, so a halt still carrying it would\
-  \ ask for a continuation no\nverb can grant. `journal query --dispatch-status` reads\
-  \ the halt as needs-CONTROLLER.\n\nWHAT THE CONTROLLER DOES, and why the split is\
-  \ a rule and not a convention: it records ONE typed\n`ceiling_decision` per fingerprint\
+  \ ask for a continuation no\nverb can grant. It carries `kind: audit-ceiling`, as\
+  \ does the terminal-RED halt of SPEC-1039 rule 4.\n`journal query --dispatch-status`\
+  \ reads the halt as needs-CONTROLLER.\n\nWHAT THE CONTROLLER DOES, and why the split\
+  \ is a rule and not a convention: it records ONE typed\n`ceiling_decision` per fingerprint\
   \ (`yitc-v2 audit decide`, <workshop-spec> rule 2, which REFUSES in a\nworker context)\
   \ and re-dispatches; the worker then resumes with `audit pre|post --on-decisions`\n\
   (rule 3). Deciding a residual is a scope judgement, which §4's authority boundary\

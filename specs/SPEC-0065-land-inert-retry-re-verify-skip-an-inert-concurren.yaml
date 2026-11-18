@@ -486,7 +486,7 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/worktree.py#_inert_unread_delta: abcdad53c0382963799bfbfc5403d15e26c822ce57b3d2b47b9a96fea385b815
-  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800
+  bin/lib/worktree.py#_land_integrate: 7ae56210b64072a7184f4dd8047963b1dc0e9bb5b81a95e3167fc679a2a40898
   bin/lib/worktree.py#_land_post_sync_proof_credit: 928f58ed18292da2f6133616deeafc6aaa7c4ee3b5e953d18dbea5230f9a501b
   bin/lib/worktree.py#_land_stage6_credit: d7c5d09651de840cfb2a2a50701aaf6137c9ae1d9154040fe1448092dcf96be1
   bin/lib/worktree.py#_land_verify_skip_judge: fb315a6754d5d170e9ed1650612c5915ad30d6a60a8edd03c3f7f46d14b20f44

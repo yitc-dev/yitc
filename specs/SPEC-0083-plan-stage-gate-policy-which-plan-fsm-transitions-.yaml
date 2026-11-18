@@ -89,68 +89,76 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ and holds no gate. A gate is held only by what that re-examination finds in the\n\
   plan, its draft specs, its cut or its evidence as they now stand, or by a conclusion\
   \ or run-ref\nthe gate relies on that it cannot re-establish. Every correction still\
-  \ gets its line and its\nclassification.\n\n### Plan-stage question templates (re-homed\
-  \ VERBATIM from <workshop-spec> §Plan-stage overlays)\n\n**Selection carrier (deterministic\
-  \ — the VERB invocation, never bare `status`):**\n- **ad-hoc check** (`plan check\
-  \ <slug>` [+`--focus`]) → the ONE shaping template that exists:\n  `draft` → P1\
-  \ below. Ad-hoc shaping is DRAFT-ONLY; at `specs`+ the checks ride the gate\n  templates\
-  \ (P2-P4) and the accept-gate lens;\n- **gate template** → asked by the TRANSITION\
-  \ verb itself: `plan stage <NEXT>` asks the\n  entry-gate template FOR `<NEXT>`\
-  \ (the verb already gates the prior stage and delivers the stage\n  bundle — the\
-  \ template question joins that exact moment). No new flag, no new verb.\n\n**Gate\
-  \ policy — homed in SPEC-0083 ( stable-surface split, P5).** WHICH plan-FSM\ntransition\
-  \ blocks on the audit verdict vs records-and-proceeds is the ORTHOGONAL concern\
-  \ to the\nquestion TEMPLATES below (WHAT is asked); the one-table gate POLICY lives\
-  \ single-SoT in SPEC-0083\n(`graph query SPEC-0083`). The per-gate question templates\
-  \ (P1-P5) below are UNAFFECTED by the split.\n\n**Plan-FINALIZATION overlay — reached-active\
-  \ acceptance (mirrors SPEC-0034 §realized\nclause (a)).** The aggregate `audit post\
-  \ --plan` finalization overlay tells the external\nauditor the SAME realize-gate\
-  \ semantics the code gate (`_require_plan_finalization_ready`) enforces:\na `proposed_by`\
-  \ spec satisfies the gate when it has REACHED `active` — current `active` OR a\n\
-  POST-active state (`superseded` / `retired`), which the spec FSM (proposed -> active\
-  \ -> superseded\n-> retired) makes reachable ONLY after `active`, so either status\
-  \ PROVES the spec became normative. So a\nlineage-evolved corpus of superseded/retired\
-  \ specs is CORRECT and realized — the auditor must NOT\nRED it for \"zero currently-active\
-  \ specs\" nor YELLOW it for \"a superseded spec in the corpus\". ONLY a\nnever-active\
-  \ NON-TERMINAL status (proposed / draft) or an unknown status is a genuine half-realized\n\
-  finding; a DELIBERATE terminal (withdrawn / rejected) is EXEMPT (mirrors SPEC-0034\
-  \ §realized\nclause (a)) — a deliberately-abandoned plan-born spec is a tracked\
-  \ scope-cut, NOT an unrealized\nobligation, so it is flagged `[deliberately abandoned]`,\
-  \ EXCLUDED from the reached-active tally, and\nis NEVER a finding (the lens mirrors\
-  \ the code gate `_require_plan_finalization_ready`). The corpus\nbody reports `reached-active?\
-  \ N/N` (active + post-active, deliberate terminals excluded) for this gate;\nthe\
-  \ auditor judges against THAT, not a bare current-active tally. (P5 — the lens reads\
-  \ the code gate.)\n\n**Plan-FINALIZATION overlay — drain-at-realize correctness.**\
-  \ A `realized` plan is a\nTERMINAL carrier (historical record + pointer only), so\
-  \ the finalization auditor ALSO checks that any\ndurable/living content the plan\
-  \ HOSTED — criteria, rosters, checklists, standing rules, living tables\n— was DRAINED\
-  \ to a STABLE home (a spec or a non-FSM pattern) before realize: no durable content\
-  \ is\norphaned in the terminal plan (P5 one-home / P7; SPEC-0034 §realized). A plan\
-  \ retaining ONLY a\nhistorical record + a pointer to the stable home is GREEN; durable/living\
-  \ content still authored IN\nthe terminating plan (not merely pointed-to) is a drain\
-  \ finding. Living/WIP content was legitimate\nwhile the plan was ACTIVE — the check\
-  \ fires AT the realize transition, NOT before.\n\n**P1 — plan-draft shaping template\
-  \ («prover' draft» (\"check the draft\"), owner-invoked):**\n- Is the problem GROUNDED\
-  \ — real incident / prior-art / external analog (anti-cx F4)?\n- Are all angles/halves\
-  \ of the carve ENUMERATED — completeness ONLY: is every part LISTED at all\n  (a\
-  \ deliverable simply omitted is invisible to a resolver)? Includes the status-template-matrix\n\
-  \  completeness check (trial-run-2): everything a carrier/mechanism section PROMISES\
-  \ (e.g. a\n  template per status/gate) must appear in the deliverables — a promised-but-undelivered\
-  \ member\n  is an omitted half. Whether listed parts should be SEPARATE plans is\
-  \ the NEXT question, not this one.\n- **Plan-split criterion — one convergence regime\
-  \ / one fate per plan (<workshop-spec>):** do parts have\n  different validation\
-  \ horizons (one provable now, one needs accumulated real data)? independently\n\
-  \  rejectable fates? does one part consume the other's real-data output? Any YES\
-  \ → recommend\n  splitting into cross-referenced plans (tracked ids, no requires\
-  \ between them). **Trial-FSM\n  carve-out (trial-run-1):** for a trial-ELIGIBLE\
-  \ plan, its own design-convergence (trial) phase\n  followed by implementation (executing)\
-  \ is ONE sequential regime — that built-in sequence is NOT\n  a split signal; apply\
-  \ the split signals only to parts whose fates stay independently rejectable\n  AFTER\
-  \ accept.\n- Trial-eligibility pre-assessment: mechanism/behavioral (trial-bound)\
-  \ vs prose/docs (skips trial)?\n- Is the existing-analog sweep honest — corpus +\
-  \ plans/ + journal searched?\n- Are references inside the draft body CURRENT — no\
-  \ superseded/stale FSM or artifact references?\n  Judge stage vocabulary against\
-  \ the AUTHORITATIVE plan FSM (LIFECYCLE §Plan-lifecycle:\n  draft→specs→trial→accepted→executing→postcheck→realized),\
+  \ gets its line and its\nclassification.\n**A clerical record defect is a note,\
+  \ not a hold.** The same reading covers the whole class: a\ndefect of how the process\
+  \ recorded something — a label, a missing field of a record row, a\nmissing cite\
+  \ where the governing contract is named elsewhere in the same artifact — is by itself\n\
+  a report-only note at severity info at every plan gate, and the gate still re-establishes\
+  \ each\nconclusion the record carries. Evidence a conclusion rests on that cannot\
+  \ be re-established —\nthe authority for a decision, adoption proof, freshness,\
+  \ trial evidence that applies — keeps its\nconsequence.\n\n### Plan-stage question\
+  \ templates (re-homed VERBATIM from <workshop-spec> §Plan-stage overlays)\n\n**Selection\
+  \ carrier (deterministic — the VERB invocation, never bare `status`):**\n- **ad-hoc\
+  \ check** (`plan check <slug>` [+`--focus`]) → the ONE shaping template that exists:\n\
+  \  `draft` → P1 below. Ad-hoc shaping is DRAFT-ONLY; at `specs`+ the checks ride\
+  \ the gate\n  templates (P2-P4) and the accept-gate lens;\n- **gate template** →\
+  \ asked by the TRANSITION verb itself: `plan stage <NEXT>` asks the\n  entry-gate\
+  \ template FOR `<NEXT>` (the verb already gates the prior stage and delivers the\
+  \ stage\n  bundle — the template question joins that exact moment). No new flag,\
+  \ no new verb.\n\n**Gate policy — homed in SPEC-0083 ( stable-surface split, P5).**\
+  \ WHICH plan-FSM\ntransition blocks on the audit verdict vs records-and-proceeds\
+  \ is the ORTHOGONAL concern to the\nquestion TEMPLATES below (WHAT is asked); the\
+  \ one-table gate POLICY lives single-SoT in SPEC-0083\n(`graph query SPEC-0083`).\
+  \ The per-gate question templates (P1-P5) below are UNAFFECTED by the split.\n\n\
+  **Plan-FINALIZATION overlay — reached-active acceptance (mirrors SPEC-0034 §realized\n\
+  clause (a)).** The aggregate `audit post --plan` finalization overlay tells the\
+  \ external\nauditor the SAME realize-gate semantics the code gate (`_require_plan_finalization_ready`)\
+  \ enforces:\na `proposed_by` spec satisfies the gate when it has REACHED `active`\
+  \ — current `active` OR a\nPOST-active state (`superseded` / `retired`), which the\
+  \ spec FSM (proposed -> active -> superseded\n-> retired) makes reachable ONLY after\
+  \ `active`, so either status PROVES the spec became normative. So a\nlineage-evolved\
+  \ corpus of superseded/retired specs is CORRECT and realized — the auditor must\
+  \ NOT\nRED it for \"zero currently-active specs\" nor YELLOW it for \"a superseded\
+  \ spec in the corpus\". ONLY a\nnever-active NON-TERMINAL status (proposed / draft)\
+  \ or an unknown status is a genuine half-realized\nfinding; a DELIBERATE terminal\
+  \ (withdrawn / rejected) is EXEMPT (mirrors SPEC-0034 §realized\nclause (a)) — a\
+  \ deliberately-abandoned plan-born spec is a tracked scope-cut, NOT an unrealized\n\
+  obligation, so it is flagged `[deliberately abandoned]`, EXCLUDED from the reached-active\
+  \ tally, and\nis NEVER a finding (the lens mirrors the code gate `_require_plan_finalization_ready`).\
+  \ The corpus\nbody reports `reached-active? N/N` (active + post-active, deliberate\
+  \ terminals excluded) for this gate;\nthe auditor judges against THAT, not a bare\
+  \ current-active tally. (P5 — the lens reads the code gate.)\n\n**Plan-FINALIZATION\
+  \ overlay — drain-at-realize correctness.** A `realized` plan is a\nTERMINAL carrier\
+  \ (historical record + pointer only), so the finalization auditor ALSO checks that\
+  \ any\ndurable/living content the plan HOSTED — criteria, rosters, checklists, standing\
+  \ rules, living tables\n— was DRAINED to a STABLE home (a spec or a non-FSM pattern)\
+  \ before realize: no durable content is\norphaned in the terminal plan (P5 one-home\
+  \ / P7; SPEC-0034 §realized). A plan retaining ONLY a\nhistorical record + a pointer\
+  \ to the stable home is GREEN; durable/living content still authored IN\nthe terminating\
+  \ plan (not merely pointed-to) is a drain finding. Living/WIP content was legitimate\n\
+  while the plan was ACTIVE — the check fires AT the realize transition, NOT before.\n\
+  \n**P1 — plan-draft shaping template («prover' draft» (\"check the draft\"), owner-invoked):**\n\
+  - Is the problem GROUNDED — real incident / prior-art / external analog (anti-cx\
+  \ F4)?\n- Are all angles/halves of the carve ENUMERATED — completeness ONLY: is\
+  \ every part LISTED at all\n  (a deliverable simply omitted is invisible to a resolver)?\
+  \ Includes the status-template-matrix\n  completeness check (trial-run-2): everything\
+  \ a carrier/mechanism section PROMISES (e.g. a\n  template per status/gate) must\
+  \ appear in the deliverables — a promised-but-undelivered member\n  is an omitted\
+  \ half. Whether listed parts should be SEPARATE plans is the NEXT question, not\
+  \ this one.\n- **Plan-split criterion — one convergence regime / one fate per plan\
+  \ (<workshop-spec>):** do parts have\n  different validation horizons (one provable\
+  \ now, one needs accumulated real data)? independently\n  rejectable fates? does\
+  \ one part consume the other's real-data output? Any YES → recommend\n  splitting\
+  \ into cross-referenced plans (tracked ids, no requires between them). **Trial-FSM\n\
+  \  carve-out (trial-run-1):** for a trial-ELIGIBLE plan, its own design-convergence\
+  \ (trial) phase\n  followed by implementation (executing) is ONE sequential regime\
+  \ — that built-in sequence is NOT\n  a split signal; apply the split signals only\
+  \ to parts whose fates stay independently rejectable\n  AFTER accept.\n- Trial-eligibility\
+  \ pre-assessment: mechanism/behavioral (trial-bound) vs prose/docs (skips trial)?\n\
+  - Is the existing-analog sweep honest — corpus + plans/ + journal searched?\n- Are\
+  \ references inside the draft body CURRENT — no superseded/stale FSM or artifact\
+  \ references?\n  Judge stage vocabulary against the AUTHORITATIVE plan FSM (LIFECYCLE\
+  \ §Plan-lifecycle:\n  draft→specs→trial→accepted→executing→postcheck→realized),\
   \ which the prompt assembly MUST include.\n  The assembled FSM line (`_plan_fsm_line`)\
   \ ALSO states that `trial` is OWNER-INVOKED and\n  conditionally SKIPPED for trial-ineligible\
   \ (prose/docs) plans (SPEC-0035): a `specs → accepted`\n  transition that skips\
@@ -173,25 +181,40 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ not hold\n  this gate. Report a finding above info only for what that re-examination\
   \ finds in the plan,\n  its draft specs, its cut or its evidence as they now stand,\
   \ or for a conclusion or run-ref\n  this gate relies on that you cannot re-establish.\n\
-  \n**P3 — specs→trial gate template (asked by `plan stage trial`; MANDATORY-BLOCKING):**\n\
-  - Eligibility rationale honest — BOTH legs (mechanism-class AND convergence not\
-  \ honestly\n  obtainable by text audit alone)?\n- `## Trial protocol` baked and\
-  \ sound: mode + why, probe targets, exit criteria, safety envelope\n  (never mutates\
-  \ production data) — per `patterns/trial-methods.md`?\n- Draft specs composed +\
-  \ checked (the prior stage actually complete)?\n- Recorded correction classifications\
-  \ — for each correction line the plan's External\n  checks / audits section records\
-  \ since the verdict or trial evidence this gate relies on, does\n  its before →\
-  \ after support its classification for THIS gate's question: could the correction\
-  \ change what a conforming implementation or trial judgement permits,\n  requires,\
-  \ produces or accepts for ANY supported case (eligibility, authority, failure handling,\n\
-  \  safety, scope, observability, evidence or exit criteria)?\n  A line you cannot\
-  \ confirm is behaviour-bearing, and the conclusions or run-refs it kept do\n  not\
-  \ stand.\n  Re-examine in this pass the conclusions and run-refs such a line kept.\
-  \ Your disagreement with\n  a line's classification is by itself a report-only note\
-  \ at severity info: it does not hold\n  this gate. Report a finding above info only\
-  \ for what that re-examination finds in the plan,\n  its draft specs, its cut or\
-  \ its evidence as they now stand, or for a conclusion or run-ref\n  this gate relies\
-  \ on that you cannot re-establish.\n\n**P4 — trial→accepted trial-evidence block\
+  - Clerical record defects — a defect of how the process recorded something (a label,\
+  \ a missing\n  field of a record row, a missing cite where the governing contract\
+  \ is named elsewhere in the\n  same artifact) is by itself a report-only note at\
+  \ severity info: it does not hold this gate.\n  Evidence a conclusion rests on that\
+  \ you cannot re-establish (the authority for a decision,\n  adoption proof, freshness,\
+  \ trial evidence that applies) keeps its consequence.\n\n**P3 — specs→trial gate\
+  \ template (asked by `plan stage trial`; MANDATORY-BLOCKING):**\n- Eligibility rationale\
+  \ honest — BOTH legs (mechanism-class AND convergence not honestly\n  obtainable\
+  \ by text audit alone)?\n- Trial or postcheck — do the protocol's runs exercise\
+  \ the design before it is built, or do\n  they build or ship a version and watch\
+  \ it behave (for example «trial = ship an opt-in v1»)?\n  The second is a shipped-behaviour\
+  \ soak: it belongs at postcheck, not in trial — SPEC-0035\n  rule 10(a).\n- `##\
+  \ Trial protocol` baked and sound: mode + why, probe targets, exit criteria, safety\
+  \ envelope\n  (never mutates production data) — per `patterns/trial-methods.md`?\n\
+  - Draft specs composed + checked (the prior stage actually complete)?\n- Recorded\
+  \ correction classifications — for each correction line the plan's External\n  checks\
+  \ / audits section records since the verdict or trial evidence this gate relies\
+  \ on, does\n  its before → after support its classification for THIS gate's question:\
+  \ could the correction change what a conforming implementation or trial judgement\
+  \ permits,\n  requires, produces or accepts for ANY supported case (eligibility,\
+  \ authority, failure handling,\n  safety, scope, observability, evidence or exit\
+  \ criteria)?\n  A line you cannot confirm is behaviour-bearing, and the conclusions\
+  \ or run-refs it kept do\n  not stand.\n  Re-examine in this pass the conclusions\
+  \ and run-refs such a line kept. Your disagreement with\n  a line's classification\
+  \ is by itself a report-only note at severity info: it does not hold\n  this gate.\
+  \ Report a finding above info only for what that re-examination finds in the plan,\n\
+  \  its draft specs, its cut or its evidence as they now stand, or for a conclusion\
+  \ or run-ref\n  this gate relies on that you cannot re-establish.\n- Clerical record\
+  \ defects — a defect of how the process recorded something (a label, a missing\n\
+  \  field of a record row, a missing cite where the governing contract is named elsewhere\
+  \ in the\n  same artifact) is by itself a report-only note at severity info: it\
+  \ does not hold this gate.\n  Evidence a conclusion rests on that you cannot re-establish\
+  \ (the authority for a decision,\n  adoption proof, freshness, trial evidence that\
+  \ applies) keeps its consequence.\n\n**P4 — trial→accepted trial-evidence block\
   \ (joins the accept-gate `plan check` prompt when a\ntrial ran; MANDATORY-BLOCKING):**\n\
   - Does the JOURNALED trial evidence (runs + convergence claim) support «design converged»\
   \ — or\n  did runs stop while the design was still moving?\n- Did the trial feed\
@@ -209,18 +232,31 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ not hold\n  this gate. Report a finding above info only for what that re-examination\
   \ finds in the plan,\n  its draft specs, its cut or its evidence as they now stand,\
   \ or for a conclusion or run-ref\n  this gate relies on that you cannot re-establish.\n\
-  \n**P4 round — the accept-gate ROUND template (asked by `plan check --round`, appended\
-  \ after the stage\ntemplate; a round is checking, never admission):**\n- Mark EVERY\
-  \ finding with a `scope:` field, `plan` or `card`. `plan`: the coherence of owner\n\
-  \  decisions, build and rollout order, security boundaries, acceptance, done and\
-  \ realization\n  criteria, and the reach of each decision to the items it governs;\
-  \ completeness — every\n  requirement, deliverable and rule change of the plan carried\
-  \ by a named unit or a verification\n  probe, and the carry registry's coverage\
-  \ when the plan has one. `card`: local to one item, screen\n  or component whose\
-  \ carrying unit will own it (its error, empty, loading or retry states, the\n  wording\
-  \ or granularity of one item that hides no unregistered requirement, a stale or\
-  \ partial\n  reference, quoting, a missing test path); `where` names that carrying\
-  \ unit. When unsure, `plan`.\n- The round's verdict is read from the plan-scope\
+  - Clerical record defects — a defect of how the process recorded something (a label,\
+  \ a missing\n  field of a record row, a missing cite where the governing contract\
+  \ is named elsewhere in the\n  same artifact) is by itself a report-only note at\
+  \ severity info: it does not hold this gate.\n  Evidence a conclusion rests on that\
+  \ you cannot re-establish (the authority for a decision,\n  adoption proof, freshness,\
+  \ trial evidence that applies) keeps its consequence.\n\n**P4 round — the accept-gate\
+  \ ROUND template (asked by `plan check --round`, appended after the stage\ntemplate;\
+  \ a round is checking, never admission):**\n- Mark EVERY finding with a `scope:`\
+  \ field, `plan` or `card`, by ONE question: can the one unit\n  it names resolve\
+  \ it inside the contracts already settled, without changing what another unit\n\
+  \  must do and without undoing what the plan's acceptance judged? YES is `card`,\
+  \ with that unit in\n  `where`; NO is `plan`. Always `plan`, however few units it\
+  \ touches: a violation of a settled\n  contract (an accepted spec, an owner decision),\
+  \ feasibility, the validity of a proof. A finding\n  that names no single unit is\
+  \ `plan`. A detail several units share is `card` when one named\n  defining unit\
+  \ settles it and the others only use it.\n  Examples — `plan`: the coherence of\
+  \ owner\n  decisions, build and rollout order, security boundaries, acceptance,\
+  \ done and realization\n  criteria, and the reach of each decision to the items\
+  \ it governs; completeness — every\n  requirement, deliverable and rule change of\
+  \ the plan carried by a named unit or a verification\n  probe, and the carry registry's\
+  \ coverage when the plan has one. `card`: local to one item, screen\n  or component\
+  \ whose carrying unit will own it (its error, empty, loading or retry states, the\n\
+  \  wording or granularity of one item that hides no unregistered requirement, a\
+  \ stale or partial\n  reference, quoting, a missing test path); `where` names that\
+  \ carrying unit. When unsure, `plan`.\n- The round's verdict is read from the plan-scope\
   \ findings only: GREEN — none; YELLOW — all low;\n  RED — any medium or high. Card-scope\
   \ findings are recorded with their carrying unit and reach the\n  cut as card content;\
   \ they never move the round's verdict.\n- The record carries `round: N` and is saved\
@@ -345,58 +381,79 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ at severity info: it does not hold\n  this gate. Report a finding above info only\
   \ for what that re-examination finds in the plan,\n  its draft specs, its cut or\
   \ its evidence as they now stand, or for a conclusion or run-ref\n  this gate relies\
-  \ on that you cannot re-establish.\n\n**`--focus \"<text>\"` — the composable append\
-  \ (on `plan check` / `audit post --plan`):** appends an\nowner/session-specific\
-  \ question block AFTER the stage template (the ad-hoc form made composable —\nit\
-  \ never REPLACES the template). The appended text is recorded VERBATIM in the saved\
-  \ verdict\n`notes` field — **`notes` IS the single verbatim carrier** (full text,\
-  \ byte-equal);\n`prompt_excerpt` stays a ~200-char excerpt and is NEVER the carrier.\
-  \ No new schema field.\n\n**Verdict recording (ONE canonical schema — P5):** every\
-  \ plan-gate verdict saves to the canonical\naudit-result schema (AGENTS §Saved audit\
-  \ result) extended by TWO additive fields:\n`stage_template:` (the template name\
-  \ asked — e.g. `plan-draft`, `gate-specs`, `gate-trial`,\n`gate-accepted`) and `gate_policy:`\
-  \ (`on-demand | auto-advisory | mandatory-blocking`). The legacy\ndraft-check shape\
-  \ (`draft:`/`kind:`/`content_hash`) is NORMALIZED onto this schema — its\nfreshness\
-  \ extras (`content_hash`/`accept_freshness_hash`) join as additive fields; no second\n\
-  verdict format survives.\n\n**Retirement (what this head removes):** (a) hand-authored\
-  \ free-form external-auditor prompts for\nplan-stage questions are DEMOTED to the\
-  \ documented manual fallback ONLY (CLI unavailable /\nrecovery — same posture as\
-  \ LIFECYCLE §4/§8 manual fallback); (b) the habit of pasting ad-hoc\nquestion blocks\
-  \ into bespoke auditor runs for plans is RETIRED — its replacement IS `--focus`.\n\
-  \n## Parameters\n\nNone consumed. The audit-loop ceiling constant (= 2) lives in\
-  \ its own home (<workshop-spec>) — not\nduplicated here.\n\n## Rationale\n\nPrior-art:\
-  \ <workshop-spec> carved a stable surface out of SPEC-0055 (`supersedes: ~`, parent\
-  \ lives on)\n— the same carve shape used here. The P2-P5 gate infrastructure already\
-  \ existed; the\npolicy table was a sub-surface of the large multi-concern <workshop-spec>.\
-  \ Splitting the policy into\nits own spec lets the normative P2 reshape (advisory→blocking)\
-  \ route cleanly through the spec FSM\n(<workshop-spec> §7) without a normative in-place\
-  \ edit of an active spec, and gives the gate policy one\nlegible home (P5). Real\
-  \ driver: (owner-approved option A — settle the SPEC-0034 open\nquestion).\n\nDisputed\
-  \ correction labels. Public issue #80 item 1 (a consumer project, release\nv2.9.0,\
-  \ 2026-10-11): on one plan, gate-specs rounds 5, 6 and 7 each returned one finding\
-  \ of the\nsame kind — the line recording the previous round's fix was classed as\
-  \ wording where the gate\nwanted behaviour-bearing. Every fix adds a line, so every\
-  \ round could find a new one, at one\npaid round per label. The templates told the\
-  \ auditor how to read an unconfirmed line and were\nsilent on how to report the\
-  \ disagreement itself; SPEC-0035 rule 5 already said of the same\nrecord that the\
-  \ classification is never a gate of its own. The paragraph «A disputed label is\
-  \ a\nnote, not a hold» and the last three sentences of the templates' correction\
-  \ bullet state that\nreading where the gate auditor meets it.\n\n added the three\
-  \ P5 questions on successor-or-in-place, verifier path evidence and\nfixtures, from\
-  \ a consumer's cut passes (cross items X-2376, X-2378, X-2379): a project rule of\n\
-  one successor per card cost a lineage review per card with no gate objecting; a\
-  \ verifier card\npassed on aggregate counts over unrelated records; a mocked missing\
-  \ runtime contract was caught\nonly at that card's own audit-pre. Additive questions\
-  \ asked on the next gate run, in place.\n\n added the P4 round template: a consumer\
-  \ checked a large plan's accept gate in rounds under a\nscope lens nine times with\
-  \ a hand-typed focus block (cross items X-2376, X-2379); its plan-scope\nmediums\
-  \ stayed about twelve per round and never converged, while one round stood RED with\
-  \ no high.\nRounds therefore end on no plan-scope high, not on GREEN. Additive,\
-  \ in place.\n\n## Verification\n\n- VP1 (P2 blocks): `plan stage specs <slug>` with\
-  \ a RED/ABORT `gate-specs` verdict REFUSES\n  (non-zero, no status write). Probe:\
-  \ tests/test_plan_stage.py RED-GREEN.\n- VP2 (one home, P5): the gate-policy table\
-  \ AND the P1-P5 question templates live ONLY here;\n  <workshop-spec> carries a\
-  \ POINTER, not the table. Probe: `_plan_gate_template_text` resolves every\n  PLAN_GATE_TEMPLATE_ANCHORS\
+  \ on that you cannot re-establish.\n- Clerical record defects — a defect of how\
+  \ the process recorded something (a label, a missing\n  field of a record row, a\
+  \ missing cite where the governing contract is named elsewhere in the\n  same artifact)\
+  \ is by itself a report-only note at severity info: it does not hold this gate.\n\
+  \  Evidence a conclusion rests on that you cannot re-establish (the authority for\
+  \ a decision,\n  adoption proof, freshness, trial evidence that applies) keeps its\
+  \ consequence.\n\n**`--focus \"<text>\"` — the composable append (on `plan check`\
+  \ / `audit post --plan`):** appends an\nowner/session-specific question block AFTER\
+  \ the stage template (the ad-hoc form made composable —\nit never REPLACES the template).\
+  \ The appended text is recorded VERBATIM in the saved verdict\n`notes` field — **`notes`\
+  \ IS the single verbatim carrier** (full text, byte-equal);\n`prompt_excerpt` stays\
+  \ a ~200-char excerpt and is NEVER the carrier. No new schema field.\n\n**Verdict\
+  \ recording (ONE canonical schema — P5):** every plan-gate verdict saves to the\
+  \ canonical\naudit-result schema (AGENTS §Saved audit result) extended by TWO additive\
+  \ fields:\n`stage_template:` (the template name asked — e.g. `plan-draft`, `gate-specs`,\
+  \ `gate-trial`,\n`gate-accepted`) and `gate_policy:` (`on-demand | auto-advisory\
+  \ | mandatory-blocking`). The legacy\ndraft-check shape (`draft:`/`kind:`/`content_hash`)\
+  \ is NORMALIZED onto this schema — its\nfreshness extras (`content_hash`/`accept_freshness_hash`)\
+  \ join as additive fields; no second\nverdict format survives.\n\n**Retirement (what\
+  \ this head removes):** (a) hand-authored free-form external-auditor prompts for\n\
+  plan-stage questions are DEMOTED to the documented manual fallback ONLY (CLI unavailable\
+  \ /\nrecovery — same posture as LIFECYCLE §4/§8 manual fallback); (b) the habit\
+  \ of pasting ad-hoc\nquestion blocks into bespoke auditor runs for plans is RETIRED\
+  \ — its replacement IS `--focus`.\n\n## Parameters\n\nNone consumed. The audit-loop\
+  \ ceiling constant (= 2) lives in its own home (<workshop-spec>) — not\nduplicated\
+  \ here.\n\n## Rationale\n\nPrior-art: <workshop-spec> carved a stable surface out\
+  \ of SPEC-0055 (`supersedes: ~`, parent lives on)\n— the same carve shape used here.\
+  \ The P2-P5 gate infrastructure already existed; the\npolicy table was a sub-surface\
+  \ of the large multi-concern <workshop-spec>. Splitting the policy into\nits own\
+  \ spec lets the normative P2 reshape (advisory→blocking) route cleanly through the\
+  \ spec FSM\n(<workshop-spec> §7) without a normative in-place edit of an active\
+  \ spec, and gives the gate policy one\nlegible home (P5). Real driver: (owner-approved\
+  \ option A — settle the SPEC-0034 open\nquestion).\n\nDisputed correction labels.\
+  \ Public issue #80 item 1 (a consumer project, release\nv2.9.0, 2026-10-11): on\
+  \ one plan, gate-specs rounds 5, 6 and 7 each returned one finding of the\nsame\
+  \ kind — the line recording the previous round's fix was classed as wording where\
+  \ the gate\nwanted behaviour-bearing. Every fix adds a line, so every round could\
+  \ find a new one, at one\npaid round per label. The templates told the auditor how\
+  \ to read an unconfirmed line and were\nsilent on how to report the disagreement\
+  \ itself; SPEC-0035 rule 5 already said of the same\nrecord that the classification\
+  \ is never a gate of its own. The paragraph «A disputed label is a\nnote, not a\
+  \ hold» and the last three sentences of the templates' correction bullet state that\n\
+  reading where the gate auditor meets it.\n\n added the three P5 questions on successor-or-in-place,\
+  \ verifier path evidence and\nfixtures, from a consumer's cut passes (cross items\
+  \ X-2376, X-2378, X-2379): a project rule of\none successor per card cost a lineage\
+  \ review per card with no gate objecting; a verifier card\npassed on aggregate counts\
+  \ over unrelated records; a mocked missing runtime contract was caught\nonly at\
+  \ that card's own audit-pre. Additive questions asked on the next gate run, in place.\n\
+  \n added the P4 round template: a consumer checked a large plan's accept gate in\
+  \ rounds under a\nscope lens nine times with a hand-typed focus block (cross items\
+  \ X-2376, X-2379); its plan-scope\nmediums stayed about twelve per round and never\
+  \ converged, while one round stood RED with no high.\nRounds therefore end on no\
+  \ plan-scope high, not on GREEN. Additive, in place.\n\n added the P3 trial-or-postcheck\
+  \ question: a plan's trial protocol was to ship an opt-in\nv1 and watch it run,\
+  \ and three gate-trial rounds judged that protocol without asking whether\nsuch\
+  \ a soak belongs in trial at all; the owner named it (events.jsonl#ts=).\nSPEC-0035\
+  \ binds only at trial entry, so before this question its rule 10(a) was first judged\n\
+  after the plan was already in trial. Additive question, in place.\n\n stated the\
+  \ P4 round's plan|card boundary as one question and widened the disputed-label\n\
+  reading to the class of clerical record defects. A trial (plan\nplan-checks-stay-at-plan-depth-label-each-finding-,\
+  \ cancelled after it; records\ndecisions/plan-depth-trial-r1-audit-adhoc.yaml and\
+  \ decisions/plan-depth-trial-r1b-audit-adhoc.yaml;\ncross X-2446) labelled 65 real\
+  \ findings of one large consumer plan under the question: scope\nagreement 65 of\
+  \ 74 labels between the external auditor and a blind reading, no protected kind\n\
+  labelled `card`, about one finding in nine card-scope. The requester's own re-sort\
+  \ counted 9 of\n56 findings as defects of the process's own records, none high.\
+  \ Both changes keep every\nalready-covered case as it was (the old lists stay as\
+  \ the question's examples; a disputed label\nstays a note), so they are in place.\n\
+  \n## Verification\n\n- VP1 (P2 blocks): `plan stage specs <slug>` with a RED/ABORT\
+  \ `gate-specs` verdict REFUSES\n  (non-zero, no status write). Probe: tests/test_plan_stage.py\
+  \ RED-GREEN.\n- VP2 (one home, P5): the gate-policy table AND the P1-P5 question\
+  \ templates live ONLY here;\n  <workshop-spec> carries a POINTER, not the table.\
+  \ Probe: `_plan_gate_template_text` resolves every\n  PLAN_GATE_TEMPLATE_ANCHORS\
   \ key from this spec (tests/test_t0349_plan_gate_templates.py).\n- VP3 (code link):\
   \ `graph build` resolves `implements: bin/lib/plan.py#cmd_plan_stage` (non-dangling\n\
   \  without a binding).\n- VP4 (activation): this spec resolves to exactly one `activation_owner_task`;\
@@ -419,7 +476,16 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ round): the P4 round template the real gate reader extracts carries\n  the scope\
   \ definitions, the plan-scope verdict rule, the end-of-rounds rule and the between-rounds\n\
   \  batching limits; a `plan check --round` prompt carries it after the stage template,\
-  \ and its\n  record never admits the plan. Probe: tests/test_plan_check_rounds.py.\n"
+  \ and its\n  record never admits the plan. Probe: tests/test_plan_check_rounds.py.\n\
+  - VP10 (trial-or-postcheck): the prompt `plan stage trial` sends carries the P3\
+  \ question\n  routing a shipped-behaviour soak to postcheck with its pointer to\
+  \ SPEC-0035 rule 10(a). Probe:\n  tests/test_t0349_plan_gate_templates.py.\n- VP11\
+  \ (boundary question + clerical class): the P4 round template the real gate reader\n\
+  \  extracts asks the one plan-or-card question with its three always-`plan` kinds,\
+  \ the no-single-unit\n  and unsure rules and the shared-detail sentence; §The record\
+  \ and each P2-P5 template state the\n  clerical record defect as a report-only note\
+  \ at severity info and keep the consequence of evidence\n  that cannot be re-established.\
+  \ Probe: tests/test_t14700_plan_boundary_and_clerical.py.\n"
 cites:
 - SPEC-0034
 - SPEC-0070
@@ -433,5 +499,5 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/plan.py#_plan_gate_template_text: 94cd0921e45f4b9463b4f507f51bb8a46ca5684e0bab517df40c9e66296eea46
-  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
-  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2
+  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd
+  bin/lib/plan.py#cmd_plan_stage: 04eedba70690a04f2e3fabd3b2dd4bfe9cff5a2f9603207dc7fcee69ce4b8b5f

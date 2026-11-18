@@ -497,7 +497,8 @@ def _layer_row_passed_skip_only(row) -> bool:
     return isinstance(total, int) and not isinstance(total, bool) and len(ran) + len(removed) == total
 
 
-def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
+def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list, *,
+                           reason_out: "list | None" = None) -> bool:
     """T-10485 (X-0339) — does the LAYER-ROW ref `land_completed@<ts>#<layer>` resolve?
 
     The land-emitted verify-layer ship class (SPEC-0015 §Land-emitted verify-layer ships): a task whose
@@ -536,7 +537,15 @@ def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
             FAIL-CLOSED: a missing / non-`True` `definition_changed` is UNKNOWN, never "changed" — so
             an ordinary task citing a pre-existing UNCHANGED layer row on its own land is refused (the
             anti-freeride bound), and every legacy row (none carry the field) refuses as it always did.
-    Pure function of (layer, tid, ts, events) — no I/O."""
+    Pure function of (layer, tid, ts, events) — no I/O.
+
+    T-14695 — `reason_out` (optional, absent ⇒ unchanged): on a False verdict ONE line naming the
+    condition that failed is appended — the T-12106 `_resolve_gate_row_ref` precedent. Read only by
+    the no-ref-resolves diagnostic, so the verdict is never computed twice."""
+    def _no(why):
+        if reason_out is not None:
+            reason_out.append(why)
+        return False
     own_branch = f"task/{tid}"
     hit = None
     layer_ran_before = False
@@ -564,20 +573,26 @@ def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
                            # F-high — the pinned land is otherwise un-cite-able the moment the next
                            # land runs, which in a live consumer is immediately).
         if data.get("branch") != own_branch:
-            return False   # (iii) the row is on another task's land
+            return _no(f"condition (iii): the `land_completed` row at {ts} is on branch "   # (iii)
+                       f"`{data.get('branch')}`, not this task's `{own_branch}` — a layer row is "
+                       "evidence only on the citing task's own land")
         hit = rows
     if not hit:
-        return False                                                    # (i)
+        return _no(f"condition (i): no `land_completed` row at {ts} carries a `{layer}` layer row")
     passed = [r for r in hit if r.get("outcome") == "passed"            # (ii)
               or _layer_row_passed_skip_only(r)]
     if not passed:
-        return False
+        return _no(f"condition (ii): the `{layer}` row at {ts} did not pass (outcome "
+                   f"{', '.join(repr(r.get('outcome')) for r in hit)})")
     if not layer_ran_before:
         return True                                                     # (iv) NOVELTY — the layer is new
     # (iv) REWIRE — an earlier land ran this layer, so only the ship's OWN recorded provenance can prove
     # this ship is what changed what runs behind the name. `is True` — a truthy string or a missing key
     # buys nothing (fail-closed; the reader owns the missing-value judgement).
-    return any(r.get("definition_changed") is True for r in passed)
+    if any(r.get("definition_changed") is True for r in passed):
+        return True
+    return _no(f"condition (iv): `{layer}` ran on an earlier land and the row at {ts} does not "
+               "record `definition_changed: true`, so this land did not put the layer there")
 # T-10937 — the SECOND correlated selector on the same blocklisted type, for the NEVER-LANDING ABORT
 # ship class. Spelled `land_completed@<ts>#branch=<branch>` — the literal `branch=` prefix is what
 # keeps it from shadowing (or being shadowed by) the T-10485 layer form, which addresses a bare layer
@@ -1896,6 +1911,101 @@ def p8_commit_locator_only_refs(data) -> list:
     return lookalikes
 
 
+# ── T-14695 (<project> T-1396, X-2427) — a ref whose TYPE alone means it can never resolve ───────────
+# `_resolve_evidence_ref` returns False for a `_NON_EVIDENTIAL_EVIDENCE_TYPES` member written bare or
+# `@<ts>`-pinned, before it reads any row: that is a property of the SPELLING, true on every journal.
+# So, like the T-13923 look-alike, it is refused at the WRITE by a pure string test (resolution itself
+# stays read-side, T-12866) and named per ref at the READ. The `#` selector forms are NOT flagged:
+# whether one resolves depends on rows, which only the reader judges.
+def _non_evidential_bare_type(ref) -> "str | None":
+    """The `_NON_EVIDENTIAL_EVIDENCE_TYPES` member `ref` names bare or `@<ts>`-pinned (after an optional
+    `<project>:` consumer prefix, whose form keeps the same rule), else None. Pure string read."""
+    if not isinstance(ref, str) or not ref.strip():
+        return None
+    ref = ref.strip()
+    if ref.startswith((_IN_PROCESS_EVIDENCE_PREFIX, _EXIT_STATUS_EVIDENCE_PREFIX)):
+        return None
+    consumer = _split_consumer_journal_ref(ref)
+    if consumer is not None:
+        ref = consumer[1]
+    etype, _, rest = ref.partition("@")
+    etype = etype.strip()
+    if "#" in rest or "#" in etype:
+        return None
+    return etype if etype in _NON_EVIDENTIAL_EVIDENCE_TYPES else None
+
+
+def p8_non_evidential_bare_refs(data) -> list:
+    """T-14695 — the `evidence_events` members of `data` that name a non-evidential type bare or
+    `@<ts>`-pinned (`_non_evidential_bare_type`). Any one such member is reported, whatever stands
+    beside it: it can never count, so the row would carry a ref that only looks like evidence. Pure;
+    never raises."""
+    refs = data.get("evidence_events") if isinstance(data, dict) else None
+    if not isinstance(refs, list):
+        return []
+    return [r for r in refs if _non_evidential_bare_type(r)]
+
+
+def non_evidential_ref_clause(etype: str = "") -> str:
+    """T-14695 — the ONE wording for why such a ref never resolves, printed by the emit refusal
+    (`events.cmd_event`) and by the per-ref no-ref-resolves reason, so the two say the same thing."""
+    named = f"`{etype}` is" if etype else "the type is"
+    return (f"{named} non-evidential — closure bookkeeping or a P8 row itself "
+            f"({', '.join(sorted(_NON_EVIDENTIAL_EVIDENCE_TYPES))}), which every task earns, so it never "
+            "resolves bare or `@<iso-ts>`-pinned. A `land_completed` row is citable only through a `#` "
+            "selector form, and a verify-layer row (`land_completed@<iso-ts>#<layer>`) only when that "
+            "land is the citing task's OWN (`task/<task-id>` branch); otherwise cite the row the "
+            "MECHANISM itself emitted")
+
+
+def _evidence_ref_diagnosis(ref, tid: str, events, *, REPO_ROOT=None, _gate_ref_diagnosis) -> str:
+    """T-14695 — WHY one `evidence_events` ref did not resolve, for the no-ref-resolves reason.
+
+    Read only on the already-failing path. Each arm names the condition `_resolve_evidence_ref`
+    applies to that spelling; where the condition reads rows, the reason comes from the resolver's
+    own reason channel (`_resolve_layer_row_ref`, `_gate_ref_diagnosis`), never a second judgement.
+    The verdict is never recomputed here — this only words it. Pure; never raises on a row shape."""
+    if not isinstance(ref, str) or not ref.strip():
+        return "not a non-empty string, so not a ref"
+    ref = ref.strip()
+    if _is_p2_commit_locator_ref(ref):
+        return "written as " + p2_commit_locator_clause()
+    bare = _non_evidential_bare_type(ref)
+    if bare:
+        return non_evidential_ref_clause(bare)
+    if ref.startswith(_IN_PROCESS_EVIDENCE_PREFIX) or ref.startswith(_EXIT_STATUS_EVIDENCE_PREFIX) \
+            or _split_consumer_journal_ref(ref) is not None:
+        return "did not meet the conditions of its form (grammar forms (8), (9), (11))"
+    etype, _, rest = ref.partition("@")
+    ts, sep, sel = rest.partition("#")
+    etype, ts, sel = etype.strip()[:120], ts.strip(), sel.strip()
+    if sep:
+        if not sel or not ts:
+            return "a `#` selector needs both a pinned `@<iso-ts>` and a non-empty selector"
+        if etype == _SCHEDULED_RUN_EVIDENCE_TYPE:
+            return "did not meet the conditions of grammar form (7)"
+        if etype != _LAYER_ROW_EVIDENCE_TYPE:
+            return (f"a `#` selector is honoured only on `{_LAYER_ROW_EVIDENCE_TYPE}` and "
+                    f"`{_SCHEDULED_RUN_EVIDENCE_TYPE}`; `{etype}` carries one")
+        if sel.startswith(_GATE_ROW_SELECTOR_PREFIX):
+            return _gate_ref_diagnosis(ref, tid, events, REPO_ROOT=REPO_ROOT) or \
+                "did not meet the conditions of grammar form (10)"
+        if "=" in sel:
+            return "did not meet the conditions of its `land_completed` selector form"
+        why: list = []
+        try:
+            _resolve_layer_row_ref(sel, tid, ts, list(events), reason_out=why)
+        except Exception:          # noqa: BLE001 — a wording aid never breaks the verdict it explains
+            why = []
+        return why[0] if why else "did not meet the verify-layer row conditions (i)-(iv)"
+    # ONE wording whatever the corpus (a plain list here, the debt seam's indexed corpus there), so
+    # the close-time reason and the debt line's reason stay byte-identical (test_t11740 B6).
+    if not ts:
+        return f"no `{etype}` row carries task_id {tid} (a bare type resolves only on this task's own row)"
+    return (f"no single `{etype}` row at {ts} — none at that second, or several with none tied to "
+            f"{tid}")
+
+
 def _p8_evidence_is_substantive(ev: dict, tid: str, events: list, *,
                                 _is_consumer_build=None, REPO_ROOT=None, with_reason=False, _gate_ref_diagnosis, _is_p2_commit_locator_ref, _resolve_evidence_ref):
     """T-10282 (X-0246) — is this P8 adoption event SUBSTANTIVE, or prose asserting its own conclusion?
@@ -1938,7 +2048,9 @@ def _p8_evidence_is_substantive(ev: dict, tid: str, events: list, *,
 
     AND IT NAMES NO DISTINCTION IT CANNOT MAKE. `_resolve_evidence_ref` answers a bool, so
     "unresolvable" and "circular" are ONE reason here, not two. Inventing the split would be prose
-    asserting its own precision — the very thing this predicate rejects in the payloads it judges."""
+    asserting its own precision — the very thing this predicate rejects in the payloads it judges.
+    (T-14695: the per-ref reasons now come from the resolver's own conditions per spelling —
+    `_evidence_ref_diagnosis` — so each ref is named with the condition it failed.)"""
     def _verdict(ok, reason=None):
         return (ok, reason) if with_reason else ok
 
@@ -1951,28 +2063,18 @@ def _p8_evidence_is_substantive(ev: dict, tid: str, events: list, *,
         return _verdict(False, "payload is missing " + " and ".join(missing))
     if not any(_resolve_evidence_ref(r, tid, events, _is_consumer_build=_is_consumer_build,
                                      REPO_ROOT=REPO_ROOT) for r in refs):
-        # T-12021 (X-1245) — NAME THE LOOK-ALIKE. The verdict here is UNMOVED: a P2-locator ref never
-        # resolved and still does not. What is retired is the UNDIAGNOSED refusal — the shape has no
-        # `@`, so the parse below reads the whole string as an event type, no row has that type, and
-        # the author was told only "no ref resolves", which reads identically to "the mechanism has
-        # not fired yet". That is what burned two emissions on <project>: the author had just read
-        # CHARTER §Principle 2, where the durable journal locator IS spelled this way. The extra
-        # clause is REPORT-ONLY and fires only on the failing path, so a clean payload pays nothing.
-        if any(_is_p2_commit_locator_ref(r) for r in refs):
-            return _verdict(False, "no `evidence_events` ref resolves — and at least one is written "
-                                   "as " + p2_commit_locator_clause())
-        # T-12106 — NAME THE UNMET CONDITION for a form-(10) `gate=` ref. The verdict is UNMOVED;
-        # what is retired is a refusal an author cannot act on. Form (10) is the only form whose
-        # conditions are read off ANOTHER land's row and a git revision, so "no ref resolves" gave
-        # the author nothing to fix — unlike the payload-key clauses above, which name their key.
-        # Report-only, and only on the already-failing path, so a clean payload pays nothing.
-        gate_why = next((w for w in (_gate_ref_diagnosis(r, tid, events, REPO_ROOT=REPO_ROOT)
-                                     for r in refs) if w), None)
-        if gate_why:
-            return _verdict(False, "no `evidence_events` ref resolves — the `gate=` ref did not "
-                                   f"resolve because {gate_why}")
-        return _verdict(False, "no `evidence_events` ref resolves "
-                               "(unresolvable, or circular — a ref that proves only that the task closed)")
+        # T-14695 (X-2427) — NAME EACH REF AND WHY. The verdict is UNMOVED; what is retired is the
+        # one generic line (<project> T-1396: three refs, one sentence, no way to tell a wrong branch
+        # from a bookkeeping type). The T-12021 look-alike and T-12106 `gate=` wordings are kept,
+        # now per ref inside the list. Report-only, and only on the already-failing path.
+        if not with_reason:
+            return False
+        per_ref = []
+        for r in refs:
+            shown = (r.strip() if isinstance(r, str) else repr(r))[:120]   # quote a ref up to 120 chars
+            per_ref.append(f"`{shown}`: " + _evidence_ref_diagnosis(
+                r, tid, events, REPO_ROOT=REPO_ROOT, _gate_ref_diagnosis=_gate_ref_diagnosis))
+        return _verdict(False, "no `evidence_events` ref resolves — " + "; ".join(per_ref))
     return _verdict(True)
 
 

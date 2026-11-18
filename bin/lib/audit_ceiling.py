@@ -1312,7 +1312,12 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                         f"exists "
                         f"(`{pdata.get('disposition')}`, recorded {prior.get('ts')}). Rule 4: decisions "
                         f"are append-only and never edited — a wrong one is superseded by a NEW ceiling "
-                        f"row, not by a second decision here.",
+                        f"row, not by a second decision here."
+                        + ((f" A plan whose subject moved after this decision needs no second one: "
+                            f"run `yitc-v2 plan stage <NEXT> {plan_slug_arg} --on-decisions` — when "
+                            f"every residual carries a `fix` the pass binds the CURRENT signature; an "
+                            f"`accept` or `defer` binds only the signature it named (SPEC-1041 rule 9, "
+                            f"T-14702).") if is_plan else ""),
                         {"ceiling_ref": ceiling_ref, "finding_fingerprint": finding_fp})
 
         # (x) FAIL-CLOSED ON THE SUBJECT (T-12383, X-1371). A null `subject_revision` is never a
@@ -1706,7 +1711,8 @@ def mi_tested_is_head(tree, subject, *, git, inert, flipped=None) -> bool:
 def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, rows, stage_rows,
                                 git, resolve, diff_cap=None, spec_parts=None, sign_at=None,
                                 transparent=None, red_fix_ok=False, hand_merge_ok=False,
-                                tested_is_head=None, inert=None, lifecycle=None) -> tuple:
+                                tested_is_head=None, inert=None, lifecycle=None,
+                                diff_cap_source=None) -> tuple:
     """T-13260 / T-14544 (SPEC-1018 «Exits from a spent GREEN», «Post-GREEN merge integration») — may
     ONE audit-post judge HEAD because everything since the card's GREEN commit A is a chain of its own
     governed sync merges with main?
@@ -1759,7 +1765,9 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
              each side, never its patch (T-14574); every other section stays byte-complete. Ordered and
              attributed — no union, no subtraction. When the sections together exceed `diff_cap` the
              pass is REFUSED `merge_integration_packet_incomplete` — never truncated. The cap counts
-             UTF-8 bytes. T-14617: with the judged base of the GREEN (its own record's `audited_base`;
+             UTF-8 bytes. T-14683: the caller passes the cap in force (the project's whole-packet
+             ceiling when its thresholds: sets one, else the built-in diff bound) and, as
+             `diff_cap_source`, the bracket the refusal names after it (its source and route). T-14617: with the judged base of the GREEN (its own record's `audited_base`;
              never on the RED-fix route) the final task delta carries only the paths in U — every path
              a merge's resolution or its p1 -> M_i change, the re-sign commit, A -> subject or the
              judged base -> the last imported main tip touched; a path outside U is listed as
@@ -2268,7 +2276,9 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     if isinstance(diff_cap, int) and diff_cap > 0 and total > diff_cap:
         return None, (f"merge_integration_packet_incomplete: the ordered resolution diffs of "
                       f"{len(merges)} merge(s) and the final task delta need {total} bytes, over the "
-                      f"packet diff cap {diff_cap} — the pass would not show the auditor the whole "
+                      f"packet diff cap {diff_cap}"
+                      + (f" [{diff_cap_source}]" if diff_cap_source else "")
+                      + " — the pass would not show the auditor the whole "
                       f"resolution; nothing is truncated and no pass is spent")
 
     # ── TESTS — the newest governed Tests row after the newest merge's row is green, at the subject ──
@@ -2667,7 +2677,8 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
                            ceiling_subject_revision, current_subject, reaudit_after_close,
                            unresolvable, strict_descendant, unresolvable_reason=None,
                            resolve_revision=None, late_refs=None, subject_refusal=None,
-                           ship_of_record_only=None, sync_merges=None, on_decisions_bind) -> tuple:
+                           ship_of_record_only=None, sync_merges=None, on_decisions_bind,
+                           plan_gate_fix_binds_at_pass=False) -> tuple:
     """SPEC-0204 rule 3's ADMISSION — `(named_revision, None)` or `(None, {kind, why, message})`.
 
     THE CLOSED REFUSAL LADDER: three kinds, exactly the set rule 3 names and no fourth. Each is its
@@ -3013,6 +3024,53 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
             "named_revision": ceiling_subject_revision,
             "current_subject": current_subject,
         }
+    # T-14702 (<project> X-2447) — AT A PLAN GATE WHOSE SIGNATURE IS RECOMPUTABLE A `fix` IS BOUND AT
+    # THE PASS too, the plan-gate twin of the T-14058 clause above. A plan-gate `fix` is a plan-body or
+    # cut edit, recorded at one moment and applied — or re-shaped by the owner — at another; holding the
+    # pass to the signature typed at `audit decide` wedged the gate whenever the subject moved again
+    # before the pass (arm 1 refused, rule 4 forbids a second decision, no verb opens a new ceiling
+    # row). So when EVERY bound decision is a `fix` the pass is admitted at the CURRENT signature when it
+    # DIFFERS from the gate's recorded (ceiling-row) one; an unchanged or unknown signature is refused.
+    # The auditor still verifies every `fix` residual on the pass (an echoed-open `fix` is RED). A set
+    # holding an `accept` or `defer` never carries to a subject it did not name: when the current
+    # signature is not the one the set names it is refused by name. SCOPED: set only by the plan-gate
+    # caller for the `content_hash` and `card_set_fingerprint` signatures; a non-empty bound set only.
+    if plan_gate_fix_binds_at_pass and bound:
+        _route = (f"An all-`fix` decision set binds the signature current when the pass runs; an "
+                  f"`accept` or `defer` binds only the signature it was recorded against "
+                  f"(SPEC-1041 rule 9, T-14702).")
+        if all(str(d.get("disposition") or "").strip().lower() == "fix" for d in bound.values()):
+            if current_subject and ceiling_subject_revision and current_subject != ceiling_subject_revision:
+                return current_subject, None
+            return None, {
+                "kind": "decisions-not-for-this-revision",
+                "why": "plan_gate_subject_unchanged_since_ceiling",
+                "message": (f"{tid} gate {stage}: the `fix` decision(s) on {ceiling_ref} are applied by "
+                            f"editing the gate's subject, but its current signature "
+                            f"({current_subject or 'unresolvable'}) is not a changed one — the ceiling "
+                            f"row audited {ceiling_subject_revision or 'an unresolvable signature'}. "
+                            f"Apply the fix (edit the plan body or the cut), then re-run this command. "
+                            f"{_route} No auditor was invoked and no pass was spent."),
+                "named_revision": ceiling_subject_revision,
+                "current_subject": current_subject,
+            }
+        if not current_subject or current_subject != named_revision:
+            _held = sorted(k for k, d in bound.items()
+                           if str(d.get("disposition") or "").strip().lower() in ("accept", "defer"))
+            return None, {
+                "kind": "decisions-not-for-this-revision",
+                "why": "accept_or_defer_not_for_moved_subject",
+                "message": (f"{tid} gate {stage}: the subject moved — its current signature "
+                            f"({current_subject or 'unresolvable'}) is not the one the decisions on "
+                            f"{ceiling_ref} name ({named_revision or 'unresolvable'}), and "
+                            f"{len(_held)} of them ({', '.join(_held)}) are `accept`/`defer`, which "
+                            f"never carry to a subject they did not name. The moved-subject route "
+                            f"exists for an all-`fix` set only: restore the subject those decisions "
+                            f"name to run the pass. {_route} No auditor was invoked and no pass was "
+                            f"spent."),
+                "named_revision": named_revision,
+                "current_subject": current_subject,
+            }
     arm2_ancestry = False
     arm2_revision = evidence_revision
     if stage == "post" and revisions:

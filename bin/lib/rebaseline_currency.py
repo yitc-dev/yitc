@@ -4952,12 +4952,16 @@ def _wont_do_authored_paths(W, base: str, tid: str, *, _run_git_cap, _lifecycle_
 _UNCLOSED_CARD_ADMITTED_STATUSES = ("done", "wont-do", "parked")
 
 
-def _unclosed_card_ship_refusal(branch: str, W, *, _run_git_cap, _lifecycle_record_path) -> "str | None":
+def _unclosed_card_ship_refusal(branch: str, W, *, _run_git_cap, _lifecycle_record_path,
+                                admitted_open_out: "list | None" = None) -> "str | None":
     """The T-14407 refusal DETAIL (the `_die` site carries the head + route), or None when the land is
     admitted on this axis. Pure of `_die`.
     None on: not a `task/T-NNNN` branch; no card for the id on the branch; a card in an admitted
     status; an open card whose branch carries bookkeeping only. FAIL-CLOSED: a card whose status
-    cannot be read, a git failure, or a missing classifier refuses."""
+    cannot be read, a git failure, or a missing classifier refuses.
+    `admitted_open_out` (T-14681, SPEC-0184 rule 4): when supplied, the card id is appended on the
+    ONE admit that rests on the branch staying bookkeeping-only — an open card, bookkeeping alone —
+    so the land can keep that premise true by forming no batch. Nothing else is appended."""
     m = re.fullmatch(r"task/(T-\d{4,})", branch or "")
     if not m:
         return None
@@ -4992,6 +4996,8 @@ def _unclosed_card_ship_refusal(branch: str, W, *, _run_git_cap, _lifecycle_reco
         return (f"{branch}: card {tid} has status {shown}, and the branch diff vs main could "
                 f"not be read (git failed), so it cannot be proven bookkeeping-only (fails closed).\n" + nxt)
     if not authored:
+        if admitted_open_out is not None:
+            admitted_open_out.append(tid)
         return None                      # bookkeeping-only open branch (e.g. a pause record) — lands as today
     return (f"{branch}: card {tid} has status {shown} (not closed) and the branch carries "
             f"authored work: " + ", ".join(authored) + "\n" + nxt)

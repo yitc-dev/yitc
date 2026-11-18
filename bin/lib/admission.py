@@ -1298,6 +1298,58 @@ def ticket_task(p, name):
     return task if isinstance(task, str) else None
 
 
+class QueueStateUnreadable(OSError):
+    """T-14676 — the queue's state exists but cannot be read, so whether a card's run is pending is
+    UNDETERMINED (never read as «none pending»)."""
+
+
+def _read_entry(path):
+    """The JSON object at `path`; None when the file is gone (a ticket dropped or an entry removed since
+    the listing — absent, never an error); QueueStateUnreadable when it exists and cannot be read."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, UnicodeDecodeError) as e:
+        raise QueueStateUnreadable(f"{path}: {type(e).__name__}: {e}") from e
+    if not isinstance(data, dict):
+        raise QueueStateUnreadable(f"{path}: not a JSON object")
+    return data
+
+
+def card_stage6_pending(p, card):
+    """T-14676 — the pid of `card`'s own Stage-6 run (`task test --run`) while it waits in the queue or
+    runs, else None. Queued: a live run ticket carrying `stage6` and naming the card (the governed run
+    files it with that mark; an own-tests or deploy ticket, or one an older engine filed, carries none).
+    Running: a live RUNNING entry of a run kind, `stage6`, naming the card — a run that re-executed
+    itself after its sync keeps its pid and its entry. Absent or empty state reads None; a live
+    ticket or entry that exists but cannot be read raises QueueStateUnreadable (undetermined, never
+    «none»). Call under LOCK: the governed run files its ticket under the same LOCK after repeating
+    its stage decision (`task_test_entry`, `stage_check`), and RUNNING is written before the ticket is
+    dropped (`commit_pass`), so a run is either seen here or sees the moved pointer before it takes a
+    slot. Read by `stage` (SPEC-1038 «Scope of the move rules»)."""
+    if not card:
+        return None
+    cur(p["main"])                 # `tickets()` orders by the queue's settings: read them from this repo's main
+    for name in tickets(p["queue"]):
+        if kind_mark(name)[0] != "run" or is_deploy(name):
+            continue
+        data = _read_entry(Path(p["queue"]) / name)
+        if data and data.get("task") == card and data.get("stage6") is True:
+            return int(name.split("-")[1])
+    try:
+        names = os.listdir(p["running"])
+    except FileNotFoundError:
+        names = []
+    for name in names:
+        if not name.isdigit() or not alive(int(name)):
+            continue
+        entry = _read_entry(Path(p["running"]) / name)
+        if entry and entry.get("kind") in UNIT_KINDS and entry.get("stage6") is True and entry.get("task") == card:
+            return int(name)
+    return None
+
+
 def set_hold(p, card, wt, s=None) -> str:
     """After a green end of card `card`'s Stage-6 run (T-14197 calls it): with GREEN_HOLD on, the hold
     for that card, written under LOCK; one standing for the same card is renewed; one standing for
@@ -3063,7 +3115,7 @@ def _waiting_signals(on_signal):
 
 @contextlib.contextmanager
 def task_test_entry(*, main, root, task, form, kernel, append_event, sweep=False, exclusive=False,
-                    full=False, args=None, eligible=None):
+                    full=False, args=None, eligible=None, stage_check=None):
     """The queue's entry for `task test` (`form` "run" or "own"), switched on. Yields the pass record
     {revision, config_hash, pass_ts, kind, place}; at exit the RUNNING entry goes and the descriptors
     this process holds are closed (its children keep theirs)."""
@@ -3166,6 +3218,11 @@ def task_test_entry(*, main, root, task, form, kernel, append_event, sweep=False
                         """Read once, under LOCK at this run's first filing (T-14273); a refiled ticket of
                         this run keeps what that read found."""
                         if "ns" not in kept:
+                            # T-14676: the run's stage decision again, under the LOCK its ticket is filed
+                            # in — the hold `stage` takes to read the queue and move the pointer — so a
+                            # pointer moved since the pre-queue check refuses here, before any slot
+                            if stage_check is not None:
+                                stage_check()
                             kept["ns"] = carried_arrival(p, task)
                             if kept["ns"]:
                                 say(f"{task}'s last run stopped at its admission sync on a merge conflict: "
@@ -3177,7 +3234,7 @@ def task_test_entry(*, main, root, task, form, kernel, append_event, sweep=False
                                     log_kind="run-exclusive" if exclusive else ("run-mark" if mark else "run"),
                                     venue=lambda: venue_state(root, kernel=kernel, placement=placement),
                                     placed=placed, fast=fast, light=light, unit=(str(root), task) if task else None,
-                                    state=state, kernel=kernel)
+                                    state=state, kernel=kernel, info={"stage6": True} if task else None)
                         if placed.get("fast"):
                             got2 = fast_pass(p, "no-layer", pin="run", task=task, ticket=placed["ticket"],
                                              recheck=fast[1], state=state)

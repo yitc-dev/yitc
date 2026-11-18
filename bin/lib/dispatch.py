@@ -1338,17 +1338,35 @@ def _controller_wait_release(events: "list") -> "dict | None":
     T-13929 — a pause NOT newer than that launched row still releases when the launch's OWN worker
     recorded it at/after that launch's spawn (`journal._launch_own_window`): the launched row is
     written only after the launch probe, so a worker that stops inside the probe leaves its pause
-    older than its own launched row. A pause of any other session there is a past launch's stop."""
+    older than its own launched row. A pause of any other session there is a past launch's stop.
+
+    T-14694 — the bound is the newest LAUNCH-AXIS row (`journal.DISPATCH_LAUNCH_TYPES`), not the
+    launched row alone. A launch still inside its probe has a `bg_dispatch_spawned` row and no launched
+    row yet; bounding by the launched row let an OLDER pause release the guard for that live, unclaimed
+    worker, and a second dispatch launched beside it (<project> T-1618, 13 s apart). For such a spawned
+    row the own-window is the spawned row itself: its worker's ref (`data.expected`) and its ts."""
     pause = journal._controller_wait_pause(events)
     if pause is None:
         return None
-    launched = next((e for e in reversed(events or [])
-                     if e.get("type") == "bg_dispatch_launched"), None)
-    if (launched is not None and (pause.get("ts") or "") <= (launched.get("ts") or "")
-            and not journal._in_launch_own_window(
-                pause, journal._launch_own_window(events, launched))):
-        return None
-    return pause
+    newest = next((e for e in reversed(events or [])
+                   if e.get("type") in journal.DISPATCH_LAUNCH_TYPES), None)
+    if newest is None or (pause.get("ts") or "") > (newest.get("ts") or ""):
+        return pause
+    if newest.get("type") == "bg_dispatch_launched":
+        window = journal._launch_own_window(events, newest)
+    else:
+        data = newest.get("data") if isinstance(newest.get("data"), dict) else {}
+        window = (data["expected"], newest["ts"]) if data.get("expected") and newest.get("ts") else None
+    return pause if journal._in_launch_own_window(pause, window) else None
+
+
+def _launch_row_label(row: "dict | None") -> str:
+    """T-14694 — name one launch-axis row for an operator: type, ts, worker ref, pid. Pure."""
+    if not row:
+        return ""
+    d = row.get("data") if isinstance(row.get("data"), dict) else {}
+    return (f"{row.get('type')} @ {row.get('ts') or '?'} (worker {d.get('expected') or '?'}, "
+            f"pid {d.get('pid') if d.get('pid') is not None else '?'})")
 
 
 def _resume_contract_block(pause: "dict | None") -> str:
@@ -2079,8 +2097,8 @@ DISPATCH_WATCHER_CUE = """\
 ARM A WATCHER (MANDATORY — controller duty, system-driven detection per §Watcher):
   Detection of completion / stall / blocked-on-land MUST be system-driven, NOT human-prompted. Before
   moving on, ARM the blessed watcher over the ids you just dispatched — do NOT hand-roll a poll loop,
-  and do NOT wait to be re-prompted. Run it under the harness Monitor primitive (the persistent
-  watch-until-condition wrapper §Watcher names — NOT a plain background job, which can be SWEPT before
+  and do NOT wait to be re-prompted. Run it under the harness background primitive with its stdout
+  left attached (the form §Watcher names — NOT a plain shell background job, which can be SWEPT before
   it reports a single line, silently leaving you with no monitor), and key off its terminal token:
 
     bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY ...]
@@ -2183,14 +2201,15 @@ _WATCH_ANY_TERMINAL_KEY_PREFIX = "any_terminal:"
 # harness twice in a row (<project> X-1103, 2026-08-25) — both wrapper tasks reported KILLED, not
 # completed — while every worker it watched stayed alive and healthy. That is the SAME topology defect
 # T-11489 closed for `land`: the watcher shared the launching shell's PROCESS GROUP, and the harness
-# kill is group-directed. It is also the same FAILURE MODE OF THE REMEDY: `--help` already recommends
+# kill is group-directed. It is also the same FAILURE MODE OF THE REMEDY: `--help` then recommended
 # running the watcher under the harness Monitor primitive, and that recommendation was correct — but
 # it held only while every operator picked the right wrapper, and picking wrong failed SILENTLY.
 #
 # So the answer is the settled one, applied to its second caller: leave the caller's process group at
 # entry, before the poll loop blocks. A swept, timed-out or NEVER-ARMED wrapper then costs a RE-ARM
-# and nothing else. Monitor stays RECOMMENDED — but as ergonomics (you still want to SEE the token),
-# not as the thing standing between the operator and a destroyed watch.
+# and nothing else. The wrapper stays RECOMMENDED — now the harness background primitive with stdout
+# attached (T-14669) — but as ergonomics (you still want to SEE the token), not as the thing standing
+# between the operator and a destroyed watch.
 #
 # WHY A SECOND KNOB RATHER THAN LAND'S. `YITC_LAND_KEEP_PROCESS_GROUP` would be a lie in the name here,
 # and one variable silently governing two unrelated processes is a surprise nobody predicts from
@@ -4435,12 +4454,47 @@ def _pgid_of(pid):
         return None
 
 
+def _claimed_worker_confirmed_dead(wt, launch_ref, *, _read_worktree_stamp, _session_proc_alive,
+                                   _proc_scan_is_takeable) -> "tuple[bool, str]":
+    """T-14666 — is the worker holding a claimed task worktree CONFIRMED dead? `(dead, why)`.
+
+    The SPEC-0133 liveness predicate (the `--session-id` existence probe + its "was that negative
+    definite?" companion), never a second liveness model (CHARTER §P1 F1). Dead ONLY on positive
+    evidence on every axis: the worktree carries a stamp naming its holder session, the /proc scan
+    is takeable, and neither the stamped ref nor the launch's assigned ref has a live process. Any
+    unreadable or absent answer is NOT dead — the caller keeps its refusal."""
+    try:
+        stamp = _read_worktree_stamp(wt) if (_read_worktree_stamp and wt) else None
+    except Exception:  # noqa: BLE001 — an unreadable stamp is unverifiable, never dead
+        stamp = None
+    stamp_ref = (stamp or {}).get("session_ref")
+    if not stamp_ref:
+        return (False, "the worktree carries no session stamp, so its holder's death is unverifiable")
+    try:
+        takeable = bool(_proc_scan_is_takeable())
+    except Exception:  # noqa: BLE001
+        takeable = False
+    if not takeable:
+        return (False, "the /proc scan is not takeable, so a negative liveness read is not definite")
+    for ref in dict.fromkeys(r for r in (stamp_ref, launch_ref) if r):
+        try:
+            alive = bool(_session_proc_alive(ref))
+        except Exception:  # noqa: BLE001
+            alive = True
+        if alive:
+            return (False, f"session {ref} has a LIVE process")
+    return (True, f"no live process for the stamped holder {stamp_ref}"
+                  + (f" or the launched worker {launch_ref}" if launch_ref and launch_ref != stamp_ref
+                     else ""))
+
+
 def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
                       _dispatch_status_events, _classify_dispatch, _live_task_worktrees,
                       _append_event, _run_git_cap, _pid_is_session, _utc_now_iso,
                       DISPATCH_TERMINAL_TYPES, _dispatch_events_tail_first=None,
                       _read_worktree_stamp=None, defer=False, _park_claimed_worktree=None,
-                      _reap_wait_secs=DEFER_REAP_WAIT_SECS, _sleep=time.sleep) -> None:
+                      _reap_wait_secs=DEFER_REAP_WAIT_SECS, _sleep=time.sleep,
+                      _session_proc_alive=None, _proc_scan_is_takeable=None) -> None:
     """`dispatch --stop --task T-XXXX [--defer]` (T-10376; the `--defer` arm T-11548) — the GOVERNED
     controller stop of a dispatched worker, in TWO arms sharing ONE mechanism and ONE set of rails.
 
@@ -4583,7 +4637,26 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
     # refusal; there is no shared generic tail, so the operator can never receive a specific diagnosis
     # above a contradicting one (`lessons/carving-an-exception-into-a-fail-closed-gate` §2).
     live = _live_task_worktrees()
+    # T-14666 — the DEAD-CLAIM arm of the bare `--stop`: a claimed worktree whose worker is CONFIRMED
+    # dead (SPEC-0133 liveness predicate) admits the stop of that worktree's own detached runs
+    # (T-14466 `_stop_worktree_runs`); worktree and branch are KEPT for the preserving re-dispatch.
+    # Any other claimed case keeps the T-10376 refusal below, verbatim.
+    _alive_probe = lambda r: (_session_proc_alive or _default_session_proc_alive)(r)   # noqa: E731
+    _takeable_probe = lambda: (_proc_scan_is_takeable or _default_proc_scan_is_takeable)()  # noqa: E731
+    _rs = _read_worktree_stamp or (lambda _wt: None)   # no stamp reader → unverifiable → refusal
+    _first_launch_ts = newest.get("ts")
+    _first_ref = (newest.get("data") or {}).get("expected") if isinstance(newest.get("data"), dict) else None
+    dead_claim, dead_why, dead_stamp_ref = False, None, None
     if task in live and not defer:
+        dead_claim, dead_why = _claimed_worker_confirmed_dead(
+            live[task], _first_ref, _read_worktree_stamp=_rs, _session_proc_alive=_alive_probe,
+            _proc_scan_is_takeable=_takeable_probe)
+        if dead_claim:
+            try:
+                dead_stamp_ref = (_rs(live[task]) or {}).get("session_ref")
+            except Exception:  # noqa: BLE001
+                dead_stamp_ref = None
+    if task in live and not defer and not dead_claim:
         # BARE `--stop` — the T-10376 refusal, VERBATIM and BYTE-FOR-BYTE UNCHANGED (T-11548 AC3).
         # An earlier draft appended a sentence advertising `--defer` here; audit-post pass 1 caught it
         # (HIGH) — AC3 pins EVERY existing refusal as it is today, and "behaviourally identical" is not
@@ -4639,7 +4712,29 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
     # Scoped to THIS task's worktree as cwd — never another task's run. `--defer` only: a claim-less
     # worker has no worktree, hence no scope that could tell its run from a sibling's.
     stopped_runs = None
-    if defer:
+    if dead_claim:
+        # T-14666 — RE-CHECK immediately before signalling (audit-pre pass-1 finding): a replacement
+        # worker may have come up since the first read. A newer launch row, a changed stamp ref, or any
+        # live ref → REFUSE with nothing signalled and nothing appended (fail-closed toward keeping).
+        _evs2 = _inflight_events(task, _dispatch_status_events, _dispatch_events_tail_first)
+        _l2 = [e for e in _evs2 if e.get("type") == "bg_dispatch_launched"]
+        _new2 = _l2[-1] if _l2 else newest
+        _ref2 = (_new2.get("data") or {}).get("expected") if isinstance(_new2.get("data"), dict) else None
+        try:
+            _stamp2 = (_rs(live[task]) or {}).get("session_ref")
+        except Exception:  # noqa: BLE001
+            _stamp2 = None
+        _dead2, _why2 = _claimed_worker_confirmed_dead(
+            live[task], _ref2, _read_worktree_stamp=_rs, _session_proc_alive=_alive_probe,
+            _proc_scan_is_takeable=_takeable_probe)
+        if (_new2.get("ts") != _first_launch_ts or _ref2 != _first_ref
+                or _stamp2 != dead_stamp_ref or not _dead2):
+            _die(f"dispatch --stop: REFUSED — {task}'s claimed worktree ({live[task]}) changed hands or "
+                 f"its worker came alive between the liveness read and the run stop "
+                 f"({_why2 if not _dead2 else 'a newer launch row or a re-stamped worktree'}). "
+                 f"NOTHING was signalled and NOTHING was appended; re-read `yitc-v2 dispatch "
+                 f"--dispatch-status --task {task}` before acting.")
+    if defer or dead_claim:
         stopped_runs = _stop_worktree_runs(live.get(task), wait_secs=_reap_wait_secs, _sleep=_sleep)
     # (5) evidence-first — capture ALL main dirt BEFORE any restore.
     porcelain = _run_git_cap(["status", "--porcelain"], main_wt)
@@ -4702,7 +4797,12 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
                    # guard consumes it identically; the KIND is what names the cause (AC1).
                    "kind": "controller_defer" if defer else "controller_stop",
                    "reason": ("controller-defer: claimed worker taken out of the wave"
-                              if defer else "controller-stop: rogue/dead claim-less worker"),
+                              if defer else
+                              (f"controller-stop: dead claimed worker ({dead_why}); its detached runs "
+                               f"stopped, worktree kept" if dead_claim
+                               else "controller-stop: rogue/dead claim-less worker")),
+                   # T-14666 — the kept worktree path on the dead-claim arm only (None elsewhere).
+                   "worktree_kept": str(live[task]) if dead_claim else None,
                    # T-11548 — the machine-readable disposal outcome, so a reader never has to infer
                    # which of the two things happened. Absent (None) on the claim-less arm, which
                    # disposes of no worktree.
@@ -4723,6 +4823,9 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
     if defer:
         print(f"dispatch --stop --defer: {task} — governed controller DEFER of a claimed worker "
               f"(taken out of the wave, to be re-run later)")
+    elif dead_claim:
+        print(f"dispatch --stop: {task} — governed controller stop of a DEAD claimed worker's detached "
+              f"runs ({dead_why}); worktree {live[task]} and its branch KEPT")
     else:
         print(f"dispatch --stop: {task} — governed controller stop of a claim-less rogue/dead worker")
     if warm_ref:
@@ -4730,7 +4833,7 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
               f"{newest.get('task_id')} and moved on to {task} in its front-loaded chain; its launch "
               f"record carries the pid + assigned worker ref.")
     print(f"  proc:     {proc_result}")
-    if defer:
+    if defer or dead_claim:
         if stopped_runs:
             print("  runs:     " + "; ".join(
                 f"{'group' if u['scope'] == 'group' else 'pid'} {u['pgid'] if u['scope'] == 'group' else u['pid']}"
@@ -5497,7 +5600,11 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
         _is_consumer = bool(_is_consumer_build()) if _is_consumer_build is not None else False
     except Exception:   # noqa: BLE001 — advisory text must never break a dispatch
         _is_consumer = False
-    _engine_root = ENGINE_ROOT if ENGINE_ROOT is not None else REPO_ROOT
+    _content_root = ENGINE_ROOT if ENGINE_ROOT is not None else REPO_ROOT
+    # T-14689 — a pinned release copy is never the CLI a worker is told to run: name the stable engine
+    # (handbook CONTENT keeps resolving against the pinned root, `_content_root`).
+    from lib import host_paths   # noqa: PLC0415 — stdlib-only leaf
+    _engine_root = host_paths.stable_engine_root(_content_root)
     # T-10717 — the same target-awareness for the REST of the preamble's engine invocations (claim /
     # land / task refuse / the two SPEC rule-home fetches / the header's dispatch provenance), plus
     # the SPEC-0092 `--kernel` prefix so a consumer's `graph query` reaches the KERNEL spec the
@@ -5537,7 +5644,7 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                 _worker_preamble, is_consumer=True,
                 cli_form=_worker_invocation_prefix(is_consumer=True, engine_root=_engine_root,
                                                    repo_root=REPO_ROOT),
-                engine_root=_engine_root, repo_root=REPO_ROOT)
+                engine_root=_content_root, repo_root=REPO_ROOT)
         except Exception:   # noqa: BLE001 — advisory text must never break a dispatch
             pass
         # T-13757: point 0 also names the consumer's OWN floor map (its own specs' before-* rows).
@@ -6031,6 +6138,13 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                 _od = _other.get("data") or {}
                 _seen = (f" Newest stop for this id: {_other.get('type')}"
                          f"({_od.get('reason') or _od.get('kind') or '?'}) @ {_other.get('ts')}.")
+            # T-14694 — a launch newer than that stop holds the id: name it, so a second
+            # `--resume` beside a first one still in its probe refuses naming the first launch.
+            _nl = next((e for e in reversed(_launch_evs)
+                        if e.get("type") in journal.DISPATCH_LAUNCH_TYPES), None)
+            if _nl is not None and (_other is None
+                                    or (_nl.get("ts") or "") >= (_other.get("ts") or "")):
+                _seen += f" A newer launch holds this id: {_launch_row_label(_nl)}."
             _die(f"dispatch --resume {task}: `--resume` serves ONLY a live "
                  f"`task_paused(reason=controller-wait)` row newer than the newest launch, and there is "
                  f"none — no recorded controller-wait contract to relaunch from.{_seen} Every OTHER "
@@ -6056,10 +6170,12 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
             # Deviation captured: classify-dispatch-sref-overloaded-row-identity-vs-inflight-guard-holder.
             _newest_launch_ev = next((e for e in reversed(_launch_evs) if e.get("session_ref")), None)
             holder = (_newest_launch_ev.get("session_ref") if _newest_launch_ev else None) or holder
+            _nl_skip = next((e for e in reversed(_launch_evs)
+                             if e.get("type") in journal.DISPATCH_LAUNCH_TYPES), None)
             print(
                 f"dispatch: SKIPPED {task} (in-flight-dispatch: an in-flight bg_dispatch is already "
                 f"launched for it by controller session {holder or 'unknown'}, worker not yet at a "
-                f"worktree). NOT spawning "
+                f"worktree; first launch: {_launch_row_label(_nl_skip)}). NOT spawning "
                 f"a redundant worker: a sibling controller already dispatched this id. Re-check via "
                 f"`yitc-v2 journal query --dispatch-status`. The other --task ids still launch.",
                 flush=True

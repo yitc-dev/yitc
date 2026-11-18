@@ -7622,7 +7622,8 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         # moment (replaces the 2 ad-hoc hint lines) + run the EXISTING structural pre-pass over the
         # claimed task's scope+acceptance — the decomposition step's mechanical half (reuse, NOT a
         # parallel validator — CHARTER §1 F1). Report-not-block: surfaces + reports, never gates.
-        print(_analysis_procedure_reminder(task, card=claimed, root=path))   # T-9741: pass the real tid so the per-stage sequence shows concrete commands; T-13872: and the claimed card, so it lists the stages of the card's class; T-14523: and the worktree, so a consumer's printed `-C` names the checkout that holds the claim
+        _contract = _analysis_procedure_reminder(task, card=claimed, root=path)   # T-14665: kept for the tail pointer below
+        print(_contract)   # T-9741: pass the real tid so the per-stage sequence shows concrete commands; T-13872: and the claimed card, so it lists the stages of the card's class; T-14523: and the worktree, so a consumer's printed `-C` names the checkout that holds the claim
         # T-1050 (SPEC-0076 §6c): Analysis impact-WARN — scenarios passing through the specs this
         # task touches. Read-only, never blocks (the claim already happened above).
         _print_scenario_impact_warn(claimed)
@@ -7677,6 +7678,24 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         print(f"next: edit per plan, then (substantive) `yitc-v2 task plan --finalize {task}` "
               f"→ `audit pre` → `task execute` → `task commit` → `audit post` → `task test --run --evidence` "
               f"(Tests) → `task close` → `land` — stage order {' → '.join(_row[_row.index('Execution'):])}")
+        # T-14665: the claim contract above is longer than a 40-line tail, and workers keep only the tail.
+        # A copy plus this LAST line puts it in reach of that reader (the T-13934 closing-pointer shape,
+        # pointed at a file because the tail reader lost the screen copy). The copy lives in the worktree's
+        # PRIVATE git admin dir, beside the session stamp (`_worktree_stamp_path`): never in the working
+        # tree, so it is no dirt for `task commit` / park / land in any repo, and `git worktree remove`
+        # deletes it with the admin dir.
+        _n = len(_contract.splitlines())
+        try:
+            _gd = _run_git_cap(["rev-parse", "--absolute-git-dir"], path)
+            if _gd.returncode != 0 or not _gd.stdout.strip():
+                raise OSError(f"git admin dir unresolved for {path}")
+            _cfile = Path(_gd.stdout.strip()) / f"claim-contract-{task}.txt"
+            _cfile.write_text(_contract + "\n", encoding="utf-8")
+            print(f"claim contract (the Stage-1 procedure + per-stage sequence printed above, {_n} lines) "
+                  f"is also at {_cfile} — if this output reached you cut, read that file whole")
+        except OSError as _e:   # advisory copy; the claim already stands
+            print(f"claim contract ({_n} lines) is printed above; its file copy could not be written ({_e}) "
+                  f"— if this output reached you cut, re-read it with `yitc-v2 stage Analysis --task {task}`")
     else:
         print(f"cd {path}")
         # T-10782 (SPEC-0051, X-0616): the SAME report-only spike-mode hint the task-claim branch

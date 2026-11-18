@@ -62,27 +62,28 @@ body: "## Scenario\n\nA plan's accept check comes back RED. The author fixes wha
   \ the plan's own plan-born specs. Every\n  other input of the freshness hash is\
   \ NOT eligible and needs a fresh anchor (a new `plan check`):\n  an active or proposed\
   \ spec of the corpus outside the plan, the prototype pair (`prototype_tip`),\n \
-  \ the scenario-fidelity slice. `audit adhoc --plan` refuses before the auditor,\
-  \ naming the input,\n  when one changed since the anchor, and when nothing changed\
-  \ at all.\n\n### 3. Admission — two arms\n`plan stage accepted` admits a plan when\
-  \ EITHER\n- **(i)** the anchor is GREEN or YELLOW and the plan's current freshness\
-  \ hashes (the body's and the\n  accept gate's) equal the anchor's; OR\n- **(ii)**\
-  \ the latest change check starts at exactly this anchor (its hashes and its findings),\
-  \ ends\n  at exactly the current hashes, carries the diff of every input it reports\
-  \ changed, is GREEN or\n  YELLOW, and marks every high of the anchor closed.\nNothing\
-  \ else admits. Every check the gate makes besides freshness — the prototype pin\
-  \ of an opted-in\nplan among them — applies on both arms alike. A refusal names\
-  \ its cause: the anchor high left open,\nthe hash the latest change check does not\
-  \ reach, the RED attempt, a changed input it shows no diff\nfor, or the not-eligible\
-  \ change that needs a fresh anchor. The `plan_stage_entered` row names the arm\n\
-  and the record it admitted on.\n\n### 4. «Fresh» at the gates after acceptance\n\
-  A FRESH accept check at `accepted → decomposition` (SPEC-0070 §2) and at the cut's\
-  \ check (SPEC-1058\n§3) reads the same two arms over that gate's own basis — the\
-  \ plan body; arm (i) still needs a GREEN\nor YELLOW anchor, so a RED anchor is fresh\
-  \ there only through arm (ii), whether or not the body moved\nsince. At the cut\
-  \ the pinned `prototype_tip` is also checked against the prototype commit the anchor\n\
-  audited, which no change check moves.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\
-  \nBorn work-first by from the cancelled plan `sandbox-exit-plan-check-and-cut-kernel-mechanism`\n\
+  \ the scenario-fidelity slice, the plan-stage obligations due at the plan's status\
+  \ (SPEC-0034\n  §Plan-stage obligations at the plan checkpoints). `audit adhoc --plan`\
+  \ refuses before the auditor, naming the input,\n  when one changed since the anchor,\
+  \ and when nothing changed at all.\n\n### 3. Admission — two arms\n`plan stage accepted`\
+  \ admits a plan when EITHER\n- **(i)** the anchor is GREEN or YELLOW and the plan's\
+  \ current freshness hashes (the body's and the\n  accept gate's) equal the anchor's;\
+  \ OR\n- **(ii)** the latest change check starts at exactly this anchor (its hashes\
+  \ and its findings), ends\n  at exactly the current hashes, carries the diff of\
+  \ every input it reports changed, is GREEN or\n  YELLOW, and marks every high of\
+  \ the anchor closed.\nNothing else admits. Every check the gate makes besides freshness\
+  \ — the prototype pin of an opted-in\nplan among them — applies on both arms alike.\
+  \ A refusal names its cause: the anchor high left open,\nthe hash the latest change\
+  \ check does not reach, the RED attempt, a changed input it shows no diff\nfor,\
+  \ or the not-eligible change that needs a fresh anchor. The `plan_stage_entered`\
+  \ row names the arm\nand the record it admitted on.\n\n### 4. «Fresh» at the gates\
+  \ after acceptance\nA FRESH accept check at `accepted → decomposition` (SPEC-0070\
+  \ §2) and at the cut's check (SPEC-1058\n§3) reads the same two arms over that gate's\
+  \ own basis — the plan body; arm (i) still needs a GREEN\nor YELLOW anchor, so a\
+  \ RED anchor is fresh there only through arm (ii), whether or not the body moved\n\
+  since. At the cut the pinned `prototype_tip` is also checked against the prototype\
+  \ commit the anchor\naudited, which no change check moves.\n\n## Parameters\n\n\
+  None consumed.\n\n## Rationale\n\nBorn work-first by from the cancelled plan `sandbox-exit-plan-check-and-cut-kernel-mechanism`\n\
   (cancelled 2026-11-15; its §Evidence base holds the measurements) and the <project>\
   \ lesson\n`sandbox-to-plan-carry-and-owner-read-back` (cross items X-2371, X-2376,\
   \ X-2379). Before this rule\n`plan stage accepted` admitted only on a full check\
@@ -161,10 +162,10 @@ init_concern: null
 implements_signature:
   bin/lib/audit.py#cmd_audit_adhoc: 485831717b1ccef3832e7b8770c5c2b17364c34f867e26341c2db8fc2f49288c
   bin/lib/plan.py#_plan_accept_core: c21844f46d3aee701e320b600c5d9998696534b22fcd7e18aec79d22f6189277
-  bin/lib/plan.py#_plan_accept_freshness_hash: c01e877b6b37a1fb06071553132c2d0cc9df847a4473e295b0b1929d614003e6
+  bin/lib/plan.py#_plan_accept_freshness_hash: 2eec1e614aeaf254ed76b5d7d0a2a6ad6ddb2ba517f18250b0752620a7f5eaa7
   bin/lib/plan.py#_plan_change_check_admission: b6696663cd836884b6815ce49eb29a5950a5a126b0e9e8764e9a87d1c46eac1a
-  bin/lib/plan.py#_plan_prototype_cut_faults: 52f8cc1e5bee426c18d026271cf4bc561cd54a3c3fae512fcd8fd3904cdb4299
+  bin/lib/plan.py#_plan_prototype_cut_faults: ea5337e4283fa1ee8cba22968f9105c81985179d8f89b2c1b5f65062f1b93939
   bin/lib/plan.py#_require_plan_decomposition_ready: 8b215f0a3130d64a99ad0cab88b980b81682dfc160d05fad73150579819aa746
-  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
-  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2
-  bin/lib/plan.py#plan_change_check_packet: 7a6514cc3084dba8514dbc1f30a29ab1d3f4f3b63b3587a33c53918fb4994225
+  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd
+  bin/lib/plan.py#cmd_plan_stage: 04eedba70690a04f2e3fabd3b2dd4bfe9cff5a2f9603207dc7fcee69ce4b8b5f
+  bin/lib/plan.py#plan_change_check_packet: 614126c251cc54c8eb1714359b11bf05047cb18a67f173ab2ed483d009e4c316

@@ -696,9 +696,18 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ share an attempt. Nothing\nis released, marked or requeued by it — the queued\
   \ peers are recorded on the formation row under the\nexisting head-solo reason and\
   \ form the next batch. A credited land that owes no pinned leg runs no\nverify pass\
-  \ and forms nothing.\n\nSo on that ONE decline reason the land RELEASES its peers\
-  \ and re-forms ALONE. Nobody lands on this\npass either — this de-escalates the\
-  \ batch, it does not rescue it — but the head then fails or passes\nON ITS OWN,\
+  \ and forms nothing.\n\n**A head whose own task card is OPEN forms a batch of ONE\
+  \ on this same seam (ADDITIVE).** The\nland-entry open-card refusal admits a `task/T-NNNN`\
+  \ branch whose card is not closed only when the\nbranch carries bookkeeping alone\
+  \ (a pause record); a batch merges its peers into the head's own\nbranch, and a\
+  \ land killed before its restoration leaves them there, so that branch's next land\n\
+  would read a peer's work as its own and be refused. Such a head therefore forms\
+  \ ALONE through the\nsame head short-circuit, on the fact that refusal's own reading\
+  \ hands to the land; its queued peers\nare recorded under the existing head-solo\
+  \ reason and form the next batch. As a PEER it batches as\nbefore: a batch never\
+  \ writes a peer's own branch.\n\nSo on that ONE decline reason the land RELEASES\
+  \ its peers and re-forms ALONE. Nobody lands on this\npass either — this de-escalates\
+  \ the batch, it does not rescue it — but the head then fails or passes\nON ITS OWN,\
   \ which makes its next verdict unambiguously its own, and the released peers form\
   \ the NEXT\nbatch without it. This is deliberately NOT the deferred carry-the-survivors\
   \ design (landing the peers\nPAST a red head), which would need a different ff target\
@@ -2224,31 +2233,43 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ (doubled verify) (pinned-verdict cache, keyed on the whole candidate tree so it\n\
   only hits on a repeated attempt of the SAME branch — it does not amortise across\
   \ different changes).\nIndustry precedent for this exact shape: Bors / GitHub merge\
-  \ queue (batch then bisect), Zuul\n(speculative chains).\n\n### History moved from\
-  \ the rule body\n\nFrom «4. One pass, then all-or-nothing — and a red batch NEVER\
-  \ reforms itself»:\n\nRate, so the rule is sized rather than guessed: 6 of 48 branches\
-  \ that landed on 2026-08-17 carried a\nrebaseline (~12.5%), giving a batch of N\
-  \ a superseder with probability ≈ 1 − 0.875^N — 23% at N=2,\n41% at N=4. BOTH formations\
-  \ that day contained one and BOTH died red; under this rule neither would\nhave\
-  \ formed, costing zero successful batches and saving two combined passes. The second\
-  \ occurrence\nlanded the cost entirely on a bystander: a filing land of two YAML\
-  \ cards (an inert diff) was batched\nwith a superseding peer and reddened by it,\
-  \ `paying_members` 1 of 2.\n\nFrom «9. A slot holder YIELDS to a strictly cheaper\
-  \ unmarked queued class»:\n\n**THE OBSERVATION THAT MADE IT CONCRETE.** On 2026-08-27\
-  \ the mark fired repeatedly for task/\n— a branch whose own land had ABORTED on\
-  \ a pinned verify failure at 11:19:22Z — while the admission\nqueue grew to 10 and\
-  \ the oldest waiter sat at 3629 s. A mark that outranks EVERYTHING hands a\nfailing\
-  \ branch repeated priority over branches that would have cleared, including ones\
-  \ that would\nhave cleared for free.\n\nFrom «11. A candidate whose WORKTREE IS\
-  \ DIRTY does not consume a batch place»:\n\n**THE MEASURED COST OF COUNTING IT**\
-  \ (2026-08-27): 9 `uncommitted-worktree-dirt` exclusions\nacross 45 formations in\
-  \ one day, and task/ dropped from two consecutive formations\n(09:40:25Z, 09:51:30Z)\
-  \ with `events.jsonl` as its ONLY dirty path. The burden fell on PEERS alone,\n\
-  and asymmetrically: a HEAD reaches formation ALREADY folded clean by `cmd_land`s\
-  \ two\n`_fold_trailing_bookkeeping` calls, while a peer`s tree is folded by nobody.\
-  \ So the two candidate\npositions were being judged by different standards — not\
-  \ by design, but as a side effect of where\nthe fold runs.\n\n## Verification\n\n\
-  - **Rule 15 (the queued pre-merge — four differentials, `tests/test_t12150_queued_land_branch_freshness.py`):**\n\
+  \ queue (batch then bisect), Zuul\n(speculative chains).\n\nRule 4's open-card head\
+  \ was added by (cross item X-2415, 2026-11-17): a consumer's pause\nland headed\
+  \ a batch with a controller work branch, was ended by an external SIGTERM after\
+  \ the peer\nmerge, and its next land was refused by the open-card refusal naming\
+  \ the peer's card as\nits authored work. In place, as an additive extension (SPEC-1037\
+  \ §7): no head that formed a batch\nbefore forms differently, except one whose card\
+  \ is open.\n\n### History moved from the rule body\n\nFrom «4. One pass, then all-or-nothing\
+  \ — and a red batch NEVER reforms itself»:\n\nRate, so the rule is sized rather\
+  \ than guessed: 6 of 48 branches that landed on 2026-08-17 carried a\nrebaseline\
+  \ (~12.5%), giving a batch of N a superseder with probability ≈ 1 − 0.875^N — 23%\
+  \ at N=2,\n41% at N=4. BOTH formations that day contained one and BOTH died red;\
+  \ under this rule neither would\nhave formed, costing zero successful batches and\
+  \ saving two combined passes. The second occurrence\nlanded the cost entirely on\
+  \ a bystander: a filing land of two YAML cards (an inert diff) was batched\nwith\
+  \ a superseding peer and reddened by it, `paying_members` 1 of 2.\n\nFrom «9. A\
+  \ slot holder YIELDS to a strictly cheaper unmarked queued class»:\n\n**THE OBSERVATION\
+  \ THAT MADE IT CONCRETE.** On 2026-08-27 the mark fired repeatedly for task/\n—\
+  \ a branch whose own land had ABORTED on a pinned verify failure at 11:19:22Z —\
+  \ while the admission\nqueue grew to 10 and the oldest waiter sat at 3629 s. A mark\
+  \ that outranks EVERYTHING hands a\nfailing branch repeated priority over branches\
+  \ that would have cleared, including ones that would\nhave cleared for free.\n\n\
+  From «11. A candidate whose WORKTREE IS DIRTY does not consume a batch place»:\n\
+  \n**THE MEASURED COST OF COUNTING IT** (2026-08-27): 9 `uncommitted-worktree-dirt`\
+  \ exclusions\nacross 45 formations in one day, and task/ dropped from two consecutive\
+  \ formations\n(09:40:25Z, 09:51:30Z) with `events.jsonl` as its ONLY dirty path.\
+  \ The burden fell on PEERS alone,\nand asymmetrically: a HEAD reaches formation\
+  \ ALREADY folded clean by `cmd_land`s two\n`_fold_trailing_bookkeeping` calls, while\
+  \ a peer`s tree is folded by nobody. So the two candidate\npositions were being\
+  \ judged by different standards — not by design, but as a side effect of where\n\
+  the fold runs.\n\n## Verification\n\n- **Rule 4 (an open-card head forms alone —\
+  \ `tests/test_t14681_open_card_head_forms_alone.py`):** the\n  real land of an in-progress\
+  \ card's bookkeeping-only branch, with a queued peer that edits another\n  card,\
+  \ forms the head alone with the peer under the head-solo reason; at verify time\
+  \ the head carries\n  no peer merge and the open-card refusal admits it. On the\
+  \ pre-change code the peer is merged and the\n  refusal names its card. A closed-card\
+  \ head with a queued pause-branch peer still forms both, and the\n  peer's own branch\
+  \ is untouched.\n- **Rule 15 (the queued pre-merge — four differentials, `tests/test_t12150_queued_land_branch_freshness.py`):**\n\
   \  (a) FRESHNESS — a branch parked on a real held reservation gains main's commit\
   \ WHILE STILL\n  PARKED and the merge path is invoked exactly ONCE across the whole\
   \ land; with\n  `YITC_LAND_QUEUED_PREMERGE=0` the same fixture leaves the branch\
@@ -2453,5 +2474,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800
-  bin/lib/worktree.py#cmd_land: 71dcd626a4e9a4c43fee2ef1458e4ebc734edbc673fe5ced04231ab843da8e01
+  bin/lib/worktree.py#_land_integrate: 7ae56210b64072a7184f4dd8047963b1dc0e9bb5b81a95e3167fc679a2a40898
+  bin/lib/worktree.py#cmd_land: 386f7edf5b15e086dbf94a282d871739d0cc9db843a307939536627f0c2fe0a0

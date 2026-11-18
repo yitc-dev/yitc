@@ -1081,4 +1081,4 @@ implements_signature:
   bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: d247024ea24281d2e0a632d36c53055c7b4b73c7ea557ed5dfe0168b98093800
+  bin/lib/worktree.py#_land_integrate: 7ae56210b64072a7184f4dd8047963b1dc0e9bb5b81a95e3167fc679a2a40898

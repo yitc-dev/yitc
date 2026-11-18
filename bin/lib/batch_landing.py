@@ -6913,8 +6913,10 @@ def _land_prequeue_uncatalogued_type_refusal(branch: str, main_wt: Path, *, _run
                                       main_wt)
         main_uncommitted_rows = (graph_mod.journal_diff_added_rows(main_dirty_diff.stdout or "")
                                  if main_dirty_diff.returncode == 0 else {})   # {} exempts nothing
+        from lib import events as _events_x   # noqa: PLC0415 — T-14670 (the segment-set exclude)
         branch_source_diff = _run_git_cap(["diff", "--no-color", base_sha, branch, "--",
-                                           ".", ":(exclude)events.jsonl"], main_wt)
+                                           ".", *_events_x.journal_exclude_pathspecs(
+                                               "events.jsonl", ".")], main_wt)   # T-14670
         residue = graph_mod.main_checkout_residue_types(
             candidates, main_uncommitted_rows=main_uncommitted_rows,
             branch_added_rows=branch_added_rows,

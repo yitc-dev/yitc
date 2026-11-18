@@ -475,63 +475,79 @@ body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-af
   \ function of the filed cards plus the plan's\n    proposed specs, and the decide\
   \ side calls the SAME helper the gate itself calls to recompute\n    the cut (no\
   \ second signature scheme — INV-2 holds). The rule-3 admission at this gate takes\n\
-  \    the RECOMPUTED cut fingerprint as the current subject WHEN the decision set\
-  \ carries a `fix`\n    (it is the value the pass will record); an all-`accept`/`defer`\
-  \ set, which names no revision\n    of its own, keeps the RECORDED-signature read-back\
-  \ unchanged.\n  - `corpus_signature` (`finalization`): STILL REFUSED BY NAME. Its\
+  \    the RECOMPUTED cut fingerprint as the current subject for EVERY decision set\
+  \ (it is the value\n    the pass will record); a cut that cannot be recomputed is\
+  \ an unknown subject and the pass is\n    refused, never read back from the RECORDED\
+  \ signature.\n  - `corpus_signature` (`finalization`): STILL REFUSED BY NAME. Its\
   \ subject is the plan's SPEC\n    CORPUS, a different subject this amendment does\
-  \ not touch; `accept` and `defer` remain there.\nFAIL-CLOSED ON A DEGRADED READ.\
-  \ The card-set helper is TELEMETRY-GRADE — it never raises,\ndegrading to a stable\
-  \ sentinel hash when the cut cannot be read. A sentinel is a CONSTANT, so it\ncould\
-  \ be typed as `--evidence` and satisfy the equality with no repaired cut behind\
-  \ it. The\nsentinel is therefore NOT a signature: a degraded read — the sentinel,\
-  \ an unwired collaborator, or\none that raises — takes the SAME uncomputable refusal\
-  \ this clause already had, which is exactly\nwhat the state is.\n\n### A test-found\
-  \ fix after a spent GREEN\n\nWhen a card's latest audit-post verdict is a GREEN\
-  \ rule-3 pass — the one `--on-decisions` pass, or its\none absorption re-audit —\
-  \ and the NEWEST runner-marked governed Tests run recorded after it, in\njournal\
-  \ order, is RED, the card has no residual to decide and no bounded pass left, yet\
-  \ its Tests\nstage hands it back to Commit. For that state ONE further pass exists.\
-  \ TRIGGER: the governed\n`tests_failed` row after the newest GREEN rule-3 audit-post\
-  \ (a quick-first screen RED records one, SPEC-1045\nrule 2 (d)). THE PASS: `task\
-  \ commit --reship` is\nadmitted past the ceiling on that same fact (the superseded\
-  \ record pinned to that GREEN commit), and\nthe ordinary `audit post` that follows\
-  \ runs ONCE, recorded `basis: test-found-fix` with a marker\nnaming the GREEN commit,\
-  \ the fix and the red run. It is admitted only on a subject that STRICTLY\ndescends\
-  \ from the GREEN commit and is recorded by `commit_landed`, counting only the governed\
-  \ runs\nrecorded before that `commit_landed` (a run on the unaudited fix neither\
-  \ opens nor closes the window);\nthe authored-content guard judges the subject as\
-  \ on every pass, and the pass COUNTS. THE TERMINAL: a\nRED on it ENDS audit-post\
-  \ (SPEC-1039 rule 4, the same refusal as a rule-3 RED); on any verdict it is\nFINAL\
-  \ for the stage — no `--on-decisions` pass, no absorption re-audit, no post-GREEN\n\
-  merge-integration pass and no `audit decide` follows it, and its own allowance is\
-  \ spent — so a second\nred Tests run after it ends at the existing terminals. One\
-  \ exception: after a GREEN test-found-fix\npass, a chain of admission merges takes\
-  \ the one pass of SPEC-1018 «Post-GREEN merge integration»\nat or past the ceiling.\
-  \ The freshness re-audits of the ledger-skip axes\n(SPEC-1034 / SPEC-1018: lens\
-  \ version, audit currency, ship-custody re-pin) read it as they read every\nother\
-  \ final or terminal pass, unchanged. A GREEN ordinary ceiling row takes the empty-set\n\
-  `--on-decisions` route («Rule 3» above), never this pass; when a red governed run\
-  \ follows that row\npast ceiling+1, `task commit --reship` is admitted on the same\
-  \ red-run fact so the fix is that\npass's subject. A GREEN newest run, a non-descendant\
-  \ subject or an unreadable journal\nadmits nothing. Nothing in SPEC-1039 rule 6\
-  \ moves: no owner reset, no consult, no decision is\nwritten for it.\nEvery exit\
-  \ from a spent GREEN, this pass among them, is one row of the table in SPEC-1018\
-  \ «Exits\nfrom a spent GREEN» (`graph query SPEC-1018`).\n\n## Parameters\n\nNone\
-  \ consumed.\n\n## Rationale\n\nA minority of cards reach the audit-loop ceiling,\
-  \ and each case above arises for a minority of those.\nRendered inside <workshop-spec>\
-  \ this detail reached every session entering Audit-pre or Audit-post; as a\nreference\
-  \ behind one index line and the head of the deciding verb's help it is met by the\
-  \ session\nthat is at a ceiling (<workshop-spec> §6, the rare-case option).\n\n\
-  «A test-found fix after a spent GREEN» is ADDITIVE (public intake #168 — cryptochart\
-  \ card\n on engine v2.19.0): after its GREEN `--on-decisions` pass a governed Tests\
-  \ run went red, and\nno commit or audit route admitted the in-scope fix. It sits\
-  \ in its own section because\n§At-ceiling edge cases holds the blocks moved there\
-  \ whole (VP1). (<project> X-2249, card\n) added, in place, the `--reship` admission\
-  \ after a GREEN ORDINARY ceiling row: an ordinary\nGREEN pass 3 was followed by\
-  \ a red governed run and no door could commit the fix.\n\n## Verification\n\n- VP1\
-  \ (one home): every block of §At-ceiling edge cases is present in this spec and\
-  \ absent from\n  SPEC-1039, and SPEC-1039 carries exactly one index line naming\
+  \ not touch; `accept` and `defer` remain there.\nA PLAN-GATE `fix` IS BOUND AT THE\
+  \ PASS (the plan-gate twin of rule 3's pre `fix` clause). At a\n`content_hash` or\
+  \ `card_set_fingerprint` gate, when EVERY decision bound to the ceiling row is a\n\
+  `fix`, the one bounded `--on-decisions` pass runs at the signature CURRENT when\
+  \ it runs, admitted\nonly when that signature differs from the gate's recorded one;\
+  \ an unchanged or unknown signature is\nrefused `decisions-not-for-this-revision`\
+  \ (nothing was applied for the pass to judge). So a subject\nmoved again after the\
+  \ decisions were recorded needs no second decision: re-run\n`plan stage <NEXT> <slug>\
+  \ --on-decisions`. The pass still verifies every `fix` residual — one\nechoed open\
+  \ is RED — and stays the one bounded pass. A set holding an `accept` or a `defer`\
+  \ never\ncarries to a subject it did not name: when the current signature is not\
+  \ the one the set names, the\npass is refused `decisions-not-for-this-revision`,\
+  \ naming that cause.\nFAIL-CLOSED ON A DEGRADED READ. The card-set helper is TELEMETRY-GRADE\
+  \ — it never raises,\ndegrading to a stable sentinel hash when the cut cannot be\
+  \ read. A sentinel is a CONSTANT, so it\ncould be typed as `--evidence` and satisfy\
+  \ the equality with no repaired cut behind it. The\nsentinel is therefore NOT a\
+  \ signature: a degraded read — the sentinel, an unwired collaborator, or\none that\
+  \ raises — takes the SAME uncomputable refusal this clause already had, which is\
+  \ exactly\nwhat the state is.\n\n### A test-found fix after a spent GREEN\n\nWhen\
+  \ a card's latest audit-post verdict is a GREEN rule-3 pass — the one `--on-decisions`\
+  \ pass, or its\none absorption re-audit — and the NEWEST runner-marked governed\
+  \ Tests run recorded after it, in\njournal order, is RED, the card has no residual\
+  \ to decide and no bounded pass left, yet its Tests\nstage hands it back to Commit.\
+  \ For that state ONE further pass exists. TRIGGER: the governed\n`tests_failed`\
+  \ row after the newest GREEN rule-3 audit-post (a quick-first screen RED records\
+  \ one, SPEC-1045\nrule 2 (d)). THE PASS: `task commit --reship` is\nadmitted past\
+  \ the ceiling on that same fact (the superseded record pinned to that GREEN commit),\
+  \ and\nthe ordinary `audit post` that follows runs ONCE, recorded `basis: test-found-fix`\
+  \ with a marker\nnaming the GREEN commit, the fix and the red run. It is admitted\
+  \ only on a subject that STRICTLY\ndescends from the GREEN commit and is recorded\
+  \ by `commit_landed`, counting only the governed runs\nrecorded before that `commit_landed`\
+  \ (a run on the unaudited fix neither opens nor closes the window);\nthe authored-content\
+  \ guard judges the subject as on every pass, and the pass COUNTS. THE TERMINAL:\
+  \ a\nRED on it ENDS audit-post (SPEC-1039 rule 4, the same refusal as a rule-3 RED);\
+  \ on any verdict it is\nFINAL for the stage — no `--on-decisions` pass, no absorption\
+  \ re-audit, no post-GREEN\nmerge-integration pass and no `audit decide` follows\
+  \ it, and its own allowance is spent — so a second\nred Tests run after it ends\
+  \ at the existing terminals. One exception: after a GREEN test-found-fix\npass,\
+  \ a chain of admission merges takes the one pass of SPEC-1018 «Post-GREEN merge\
+  \ integration»\nat or past the ceiling. The freshness re-audits of the ledger-skip\
+  \ axes\n(SPEC-1034 / SPEC-1018: lens version, audit currency, ship-custody re-pin)\
+  \ read it as they read every\nother final or terminal pass, unchanged. A GREEN ordinary\
+  \ ceiling row takes the empty-set\n`--on-decisions` route («Rule 3» above), never\
+  \ this pass; when a red governed run follows that row\npast ceiling+1, `task commit\
+  \ --reship` is admitted on the same red-run fact so the fix is that\npass's subject.\
+  \ A GREEN newest run, a non-descendant subject or an unreadable journal\nadmits\
+  \ nothing. Nothing in SPEC-1039 rule 6 moves: no owner reset, no consult, no decision\
+  \ is\nwritten for it.\nEvery exit from a spent GREEN, this pass among them, is one\
+  \ row of the table in SPEC-1018 «Exits\nfrom a spent GREEN» (`graph query SPEC-1018`).\n\
+  \n## Parameters\n\nNone consumed.\n\n## Rationale\n\nA minority of cards reach the\
+  \ audit-loop ceiling, and each case above arises for a minority of those.\nRendered\
+  \ inside <workshop-spec> this detail reached every session entering Audit-pre or\
+  \ Audit-post; as a\nreference behind one index line and the head of the deciding\
+  \ verb's help it is met by the session\nthat is at a ceiling (<workshop-spec> §6,\
+  \ the rare-case option).\n\n«A test-found fix after a spent GREEN» is ADDITIVE (public\
+  \ intake #168 — cryptochart card\n on engine v2.19.0): after its GREEN `--on-decisions`\
+  \ pass a governed Tests run went red, and\nno commit or audit route admitted the\
+  \ in-scope fix. It sits in its own section because\n§At-ceiling edge cases holds\
+  \ the blocks moved there whole (VP1). (<project> X-2249, card\n) added, in place,\
+  \ the `--reship` admission after a GREEN ORDINARY ceiling row: an ordinary\nGREEN\
+  \ pass 3 was followed by a red governed run and no door could commit the fix.\n\n\
+  The plan-gate `fix` bound at the pass came from (<project> X-2447, owner go\nevents.jsonl#ts=):\
+  \ a `decomposition-executing` gate at its ceiling held five\n`fix` decisions typed\
+  \ against one cut, the owner rewrote the cut before the pass, and every entry\n\
+  point refused — the wedge on the plan axis. The same card closed the read-back that\
+  \ let an\nall-`accept` set at that gate carry to a moved cut.\n\n## Verification\n\
+  \n- VP1 (one home): every block of §At-ceiling edge cases is present in this spec\
+  \ and absent from\n  SPEC-1039, and SPEC-1039 carries exactly one index line naming\
   \ this spec and the heading to search.\n- VP2 (reachable from the verb): the first\
   \ lines of the `audit decide` help name this spec.\n- VP3 (no stage render): no\
   \ stage entry delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n\

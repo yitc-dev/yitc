@@ -185,5 +185,5 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 5d540ec2113d51fb48ec6da186c1b2d7e198baa6b264b136c509c73648981f63
-  bin/lib/plan.py#_plan_accept_freshness_hash: c01e877b6b37a1fb06071553132c2d0cc9df847a4473e295b0b1929d614003e6
-  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
+  bin/lib/plan.py#_plan_accept_freshness_hash: 2eec1e614aeaf254ed76b5d7d0a2a6ad6ddb2ba517f18250b0752620a7f5eaa7
+  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd

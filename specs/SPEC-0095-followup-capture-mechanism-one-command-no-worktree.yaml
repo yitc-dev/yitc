@@ -746,7 +746,7 @@ implements_signature:
   bin/lib/cli.py#_nonterminal_cross_ids: 0518f78ed087e269d115a50304559f8b2cfe0dab7870c86507c1fe71106799a3
   bin/lib/cli.py#_open_awaited_refs: 6c30c057169e1011b2a08055ebe860480bb532cbcbb54511c1829b8542ac1715
   bin/lib/cli.py#_terminal_cross_ids: 957341dc2ae48e28f424fb41edbce0b7c030eb404d640a927dda1cef8335ce79
-  bin/lib/cross.py#_cross_items: 5e68763441948c5e48a196892b2a0d9cbdeab90ce06ab5a9026e1175c7bbcd14
+  bin/lib/cross.py#_cross_items: 39306d268ff66d7202bebd575d379d79d142a56348d4aa0169613ded249c6e98
   bin/lib/followup.py#_clean_awaits: 07edb202d142a4229eb3b72fef3b20ff534032c793b6649ff1eb6afeda749f50
   bin/lib/followup.py#_clean_trigger: 416aa884c7741302bb8a38a2b0c601648c7fc849ebced634ddc96b3e0ee8512a
   bin/lib/followup.py#_fold: a7c82793ad02fd5a88bc01dadff21576de6d12ec97a80bc0c4eac41a4bc84e72

@@ -5733,13 +5733,20 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
                  abort_detail={"preflight": True})
         # ── P0: THE OPEN-CARD SHIP REFUSAL (T-14407, X-2155) — closure precedes land. Same placement
         # and posture as the wont-do arm above; predicate in `_unclosed_card_ship_refusal`.
+        _admitted_open: list = []
         _unclosed_why = _unclosed_card_ship_refusal(
-            branch, W, _run_git_cap=_run_git_cap, _lifecycle_record_path=_lifecycle_record_path)
+            branch, W, _run_git_cap=_run_git_cap, _lifecycle_record_path=_lifecycle_record_path,
+            admitted_open_out=_admitted_open)
         if _unclosed_why:
             _die(f"land: REFUSED — the task card on this branch is not closed; close it first with "
                  f"`bin/yitc-v2 task close <T-NNNN>`, then re-run land — {_unclosed_why}",
                  abort_class=_UNCLOSED_CARD_SHIP_ABORT_CLASS,
                  abort_detail={"preflight": True})
+        # T-14681 (SPEC-0184 rule 4, X-2415): that admit rests on the branch staying bookkeeping-only, and
+        # a batch merges its peers into the HEAD's own branch (left there if this land is killed). Hand the
+        # fact to `_land_integrate` on the existing `_batch_state` handshake, which forms such a head ALONE.
+        if _admitted_open:
+            _batch_state["open_card_head"] = _admitted_open[0]
         # T-11226: route the restoration receipt to MAIN's journal, like every other batch row. A
         # land that ends without landing leaves its abort row in the LANDING checkout's journal
         # (fu_85d590649c50), which is precisely why the T-11098 contamination was invisible on main.
@@ -10115,6 +10122,47 @@ def _run_wont_do_rationale_guard(W: Path, base: str, *, _run_git_cap, head: str 
     return bad
 
 
+def _run_project_identity_guard(W: Path, base: str, *, _run_git_cap, head: str = "HEAD") -> list:
+    """T-14660 (SPEC-0074 rule 4b, asked at land) — a branch whose changed ENGINE CODE adds a
+    registered host project name or domain is REJECTED here, naming file, line and name, instead of
+    reaching main and being refused only by `work publish` (three such names did, each costing a fix
+    card and a paused release). The judgement is the publish one, reused whole —
+    `release.landed_project_identity` over `release.project_identity_operands`; no second name list.
+
+    Engine-only: the checkout's main working tree must hold `bin/yitc-v2` (a consumer's `bin/` does not
+    travel in a kernel release). No changed engine-code path → [] without reading the registry. An
+    ABSENT registry → [] (the host declares no projects; publish keeps its own fail-closed refusal).
+    An unreadable one raises, which the corpus runner reports as `error`, never as a verdict."""
+    from lib import engine_route, release
+    changed = [q for q in (textutil.git_unquote_path(ln).strip()
+                           for ln in _run_git_cap(["diff", "--name-only", base, head], W).stdout.splitlines()) if q]
+    code = [f for f in changed if release._is_engine_code(f)]
+    if not code:
+        return []
+    common = _run_git_cap(["rev-parse", "--path-format=absolute", "--git-common-dir"], W).stdout.strip()
+    main = Path(common).parent if common else Path(W)
+    if not (main / "bin" / "yitc-v2").is_file():
+        return []
+    registry = engine_route.registry_path(main)
+    if not registry.is_file():
+        return []
+    identity = release.project_identity_operands(registry, main)
+
+    def _show(ref, code_path):         # an engine-code path only (filtered above), never the journal
+        r = _run_git_cap(["show", f"{ref}:{code_path}"], W)
+        return r.stdout if r.returncode == 0 else None
+
+    changes = {}
+    for code_path in code:
+        tip = _show(head, code_path)
+        if tip is not None:            # deleted on the branch — nothing travels
+            changes[code_path] = (_show(base, code_path), tip)
+    return [f"project-identity guard (T-14660, SPEC-0074 rule 4b): land REJECTED — engine code names a "
+            f"registered host project: {row}. Rewrite it at the source to a role word (\"a consumer\") or "
+            f"`<project>`; a comment or docstring is abstracted at publish, a VALUE is refused."
+            for row in release.landed_project_identity(changes, identity)]
+
+
 # ── T-11365 — the corpus-integrity guards as a TRI-STATE runner ───────────────────────────────────
 # The three guards above (`_run_decision_rule_body_guard` SPEC-0054, `_run_spec_hand_edit_guard`
 # SPEC-0005, `_run_wont_do_rationale_guard` SPEC-0165) are cheap diff-vs-journal checks — none is a
@@ -10160,7 +10208,7 @@ _CORPUS_VERDICT_ERROR = "error"
 def _corpus_integrity_verdict(W: Path, base: str, *, _run_git_cap,
                               _decision_governed_field_tokens=None, head: str = "HEAD",
                               _decision_guard=None, _guards=None) -> dict:
-    """Run the three corpus-integrity guards over `base..head` in checkout `W`. TRI-STATE.
+    """Run the four corpus-integrity guards over `base..head` in checkout `W`. TRI-STATE.
 
     Returns `{"status", "bad", "warn", "error_reason"}` where `status` is exactly one of
     `clean` / `violation` / `error` (the module constants above):
@@ -10172,7 +10220,7 @@ def _corpus_integrity_verdict(W: Path, base: str, *, _run_git_cap,
       * `error`     — the checker could not do its job. `bad` is EMPTY (an error is never a claim
                       about anyone's changes) and `error_reason` names what failed.
 
-    `_guards` injects the three callables for the hermetic tests; production passes none and gets
+    `_guards` injects the guard callables for the hermetic tests; production passes none and gets
     the module-level guards. Kept as ONE seam rather than three so a fixture cannot accidentally
     replace a subset and prove a shape the real caller never sees.
 
@@ -10212,6 +10260,8 @@ def _corpus_integrity_verdict(W: Path, base: str, *, _run_git_cap,
             lambda: _dg(W, base=base, head=head) if _decision_guard is not None else _dg(W),
             lambda: _run_spec_hand_edit_guard(W, base, _run_git_cap=_run_git_cap, head=head),
             lambda: _run_wont_do_rationale_guard(W, base, _run_git_cap=_run_git_cap, head=head),
+            # T-14660 — the fourth: engine code naming a registered host project (SPEC-0074 rule 4b).
+            lambda: _run_project_identity_guard(W, base, _run_git_cap=_run_git_cap, head=head),
         )
     for _g in _guards:
         try:
@@ -14595,6 +14645,80 @@ def _layer_failing_files(stdout, exit_code) -> list:
     return names if names and counts == [len(names)] else []
 
 
+# T-14679 (SPEC-1046 rule 4) — a layer whose bound ran out while its tests ran. Every pattern below is
+# a line that SHOWS a failed test; the list leans toward finding one, because a false hit only keeps the
+# layer red, as before this rule, while a miss could re-run a layer that had already failed.
+_TIMEOUT_FAILED_TEST_RES = (
+    re.compile(r"\b(?:FAIL|FAILED|FAILURE|FAILURES|ERROR|ERRORS)\b"),        # pytest/unittest/go/vitest/any
+    re.compile(r"\b[1-9]\d*\s+(?:failed|failing|errors?)\b", re.IGNORECASE),  # «1 failed», «2 failing»
+    re.compile("[✕✖✗✘×]"),                          # ✕ ✖ ✗ ✘ × marks
+    re.compile(r"^\s*not ok\b"),                                             # TAP
+    re.compile(r"^\S+\.py\s+[.sxXpFE]*[FE]"),                               # pytest progress, named file
+    re.compile(r"^[.sxXpFE]*[FE][.sxXpFE]*(?:\s+\[\s*\d+%\])?\s*$"),        # bare progress (-q, unittest)
+    re.compile(r"●\s.+\s›\s"),                                     # jest / vitest `● a › b`
+)
+# The report profiles whose runner names a failed test in a form the kernel reads (pytest, vitest and
+# Playwright print their own failure lines); `script/1` qualifies only where its adapter declares
+# `names_tests: true` (patterns/verify-layer-adapter-protocol.md). Any other layer is not eligible.
+_TIMEOUT_RERUN_PROFILES = ("pytest/1", "vitest/1", "playwright/1")
+
+
+def _layer_timeout_rerun_eligible(decl) -> bool:
+    """PURE — T-14679 (SPEC-1046 rule 4): may a timed-out first attempt of this layer take its one
+    re-run at all? Only on a POSITIVE declaration: the layer's adapter names a report profile whose
+    runner prints its failed tests in a form the kernel reads, or a `script/1` adapter declaring
+    `names_tests: true`. A layer with no adapter, a `junit/1` adapter, or a `script/1` adapter without
+    the declaration answers False — its output cannot show that no test failed, so a timeout of it
+    stays red. Anything that is not a parsed declaration answers False."""
+    if not isinstance(decl, dict):
+        return False
+    profile = decl.get("report_profile")
+    if profile in _TIMEOUT_RERUN_PROFILES:
+        return True
+    return profile == "script/1" and decl.get("names_tests") is True
+
+
+def _timeout_invocation_reading(invocations) -> tuple:
+    """PURE — T-14679 (SPEC-1046 rule 4): from an adapter pass's invocations (`sink["invocations"]`),
+    `(text, ended)` for a timed-out first attempt: `text` is what every `run` invocation and every
+    invocation that did not pass wrote (only a `required:` check that PASSED cannot hold a failed
+    test), and `ended` names each invocation that ENDED with a nonzero exit — evidence by itself. An
+    exit of 0 is never evidence (audit-post fp1:5faa5ce06aa35eb3), and one killed by the bound (no
+    exit) is read through its text."""
+    rows = [inv for inv in (invocations or []) if isinstance(inv, dict)
+            and (inv.get("exit") != 0 or str(inv.get("label") or "").startswith("run"))]
+    text = "".join(str(inv.get("output") or "") for inv in rows)
+    ended = [f"`{inv.get('label')}` exited {inv['exit']}" for inv in rows
+             if isinstance(inv.get("exit"), int) and not isinstance(inv.get("exit"), bool) and inv["exit"] != 0]
+    return text, ended
+
+
+def _timed_out_layer_failing_tests(text, rec=None) -> list:
+    """PURE — T-14679 (SPEC-1046 rule 4): the evidence that a layer attempt killed on its bound had
+    already seen a failed test — at most five entries (enough to name the cause), [] when it shows none.
+    Read from (1) the adapter record's `timeout_kill` (a finished batch's failed units) and (2) what
+    the attempt wrote before the kill, line by line, gutter stripped: the land's own failure-line
+    readers (`_VERIFY_FAIL_RUNNER_RE`, `_PYTEST_SHORT_SUMMARY_RE`) and `_TIMEOUT_FAILED_TEST_RES`.
+    The caller treats an EMPTY text as no answer (never as «no failure»); this function only reads."""
+    out: list = []
+    kill = rec.get("timeout_kill") if isinstance(rec, dict) else None
+    if isinstance(kill, dict) and isinstance(kill.get("failed_count"), int) and kill["failed_count"] > 0:
+        named = [str(n) for n in (kill.get("failed") or []) if n][:3]
+        out.append(f"the adapter report names {kill['failed_count']} failed unit(s)"
+                   + (f": {', '.join(named)}" if named else ""))
+    for raw in (text.splitlines() if isinstance(text, str) else ()):
+        if len(out) >= 5:
+            break
+        ln = raw.strip()
+        if not ln:
+            continue
+        flat = _degutter_verify_line(ln)
+        if any(p.search(c) for c in (ln, flat) for p in _TIMEOUT_FAILED_TEST_RES) \
+                or _VERIFY_FAIL_RUNNER_RE.match(flat) or _PYTEST_SHORT_SUMMARY_RE.match(flat):
+            out.append(flat[:200])
+    return out
+
+
 _LAYER_SUBSET_ACK_RE = re.compile(r"^suite: re-running only the (\d+) named file\(s\): (.*)$")
 
 
@@ -15539,7 +15663,9 @@ def _any_author_land_floor(worktree: Path, base_ref, *, _read_yaml=None,
 _LAYER_RETRY_FAILING_OUTCOMES = ("failed", "timed-out", "prep-failed")
 # Why each decline is a decline — printed beside the reason, so the line explains itself.
 _LAYER_RETRY_DECLINE_WHY = {
-    "timeout-class": "a layer timed out — a verify timeout is not retried, and a re-run costs another full bound",
+    "timeout-class": "a layer timed out — a timeout is evidence about the RUN, so no OTHER layer is "
+                     "re-run by this rule; a timed-out layer whose output shows no failed test takes its "
+                     "own one re-run (SPEC-1046 rule 4)",
     "prep-failed": "a layer's dependency prep failed — a setup fault, not a flaky check",
     # T-14376 (SPEC-1046 rule 3): the decided-lists file could not be written — a setup fault.
     "decide-first": "the decide-first lists file could not be written — a setup fault, not a flaky check",
@@ -15553,6 +15679,16 @@ _LAYER_RETRY_DECLINE_WHY = {
     # `run` exited nonzero while every requested unit read passed.
     "nonzero-exit-all-passed": "the layer's adapter `run` exited nonzero while every requested unit "
                                "read passed — the runner contradicts itself, and a re-run would hide it",
+}
+# T-14679 (SPEC-1046 rule 4) — why a timed-out layer takes NO re-run of its own, printed beside the reason.
+_TIMEOUT_NO_RERUN_WHY = {
+    "not-declared": "its adapter declares no runner whose failed tests the kernel reads (pytest/1, "
+                    "vitest/1, playwright/1, or script/1 with `names_tests: true`), so its output "
+                    "cannot show that no test failed",
+    "no-output": "it wrote nothing before its bound — no answer is not «no failure»",
+    "failing-test": "its output already shows a failed test",
+    "required-check": "its bound ran out in a `required:` check, which no re-run ever proves (SPEC-1046 rule 5)",
+    "decide-first": "its bound ran out waiting for its group to decide (SPEC-1046 rule 3)",
 }
 # T-13607 (SPEC-1006 rule 10) — why a layer's failed units were NOT re-run, printed beside the reason.
 _UNIT_RETRY_DECLINE_WHY = {
@@ -15573,9 +15709,10 @@ def _layer_flaky_retry_plan(rows, bound: int) -> "dict | None":
       * `{"retry": <slot index>}` — exactly ONE layer did not pass and its outcome is `failed`
         (its command exited non-zero). Admitted on that positive shape only;
       * `{"skipped": <reason>, "layers": [names], ...}` — declined, first match wins:
-          - `timeout-class` — some layer timed out. SPEC-0071 makes a verify timeout a distinct
-            non-retriable class, and re-running one costs another full bound; the whole set is
-            declined because a timeout is evidence about the RUN, not about one layer;
+          - `timeout-class` — some layer timed out. Re-running one costs another full bound, and
+            the whole set is declined because a timeout is evidence about the RUN, not about one
+            layer (a timed-out layer whose output shows no failed test may still take its OWN one
+            re-run after every layer — T-14679, SPEC-1046 rule 4; this plan never takes it);
           - `prep-failed` — some layer's dependency prep failed. That is a setup fault, and the
             prep's own fail-closed stance forbids running a command against wrong dependencies;
           - `over-bound` (+ `bound`) — more non-passing layers than the bound admits. The bound is
@@ -15669,9 +15806,11 @@ def _layer_retry_abort_lines(verify_metrics) -> list:
         _second = ("timed out" if r.get("retry_outcome") == "timed-out"
                    else f"failed (exit {r.get('retry_exit')})")
         _load = f", host load1 {r['load1']}" if "load1" in r else ""
-        out.append(f"verify layer {str(r['layer'])!r} [{_leg} leg]: attempt 1 failed "
-                   f"(exit {r.get('first_exit')}); attempt 2 — the isolated re-run, alone in this "
-                   f"verify{_load} — {_second}")
+        # T-14679: a first attempt that ran out of its bound with no failed test in its output
+        _first = ("timed out with no failed test in its output" if r.get("first_outcome") == "timed-out"
+                  else f"failed (exit {r.get('first_exit')})")
+        out.append(f"verify layer {str(r['layer'])!r} [{_leg} leg]: attempt 1 {_first}; attempt 2 — the "
+                   f"isolated re-run, alone in this verify{_load} — {_second}")
     return out
 
 
@@ -15866,7 +16005,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     (`retry_files`, `_layer_failing_files`). Declined
     shapes (`_layer_flaky_retry_plan`: a timeout, a prep failure, more than one non-passing layer, or
     the bound `YITC_VERIFY_RETRY_MAX_FILES` at 0) record `flaky_retry: {layers_skipped: [{reason,
-    layers, bound?}]}` and run nothing. The key is ABSENT when no layer's run failed. The `only_layers`
+    layers, bound?}]}` and run nothing by this plan (a void-failed or timed-out layer may still take its
+    own re-run, below). The key is ABSENT when no layer's run failed. The `only_layers`
     attribution re-run never retries. The guard judges only its own layers: a caller that already
     holds another failure (a failed kernel sweep, the land floor) still fails on it.
 
@@ -15932,6 +16072,16 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     layer whose ONLY void reason is `nonzero-exit-all-passed` (the runner contradicts itself) takes
     NO re-run on either path: where the plan admits it, it is declined (`layers_skipped` reason
     `nonzero-exit-all-passed`), as a failed `required:` check is.
+
+    A TIMED-OUT LAYER'S OWN WHOLE RE-RUN (T-14679 — SPEC-1046 rule 4). A first attempt that ran out
+    of the layer's bound where its tests run (the `command:`, the adapter's `run`, or the reading of
+    its report) takes the SAME own whole re-run as a void-failed layer — once, after every layer,
+    alone, same invocation and bound — only when the layer's adapter declares a runner whose failed
+    tests the kernel reads (`_layer_timeout_rerun_eligible`), the attempt wrote output, and none of it
+    shows a failed test (`_timed_out_layer_failing_tests`). Its row carries `first_outcome:
+    "timed-out"`; a pass rescues it under its `rescue:` setting and is recorded as load; a second
+    timeout or failure leaves it red. Every other timed-out layer stays red, the reason printed. Not
+    with the retry bound at 0, on the attribution re-run, or for the re-run's own timeout.
 
     THE SHADOW SELECTION OF AN ADAPTER-BACKED LAYER (T-13610 — SPEC-1006 rules 3, 6-9). Two things,
     and only the first changes what runs — toward MORE:
@@ -16607,6 +16757,29 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _after = (None if outer else
                       land_verify_legs._adapter_sources_snapshot(worktree, _adapter, _run_git_cap=_run_git_cap))
             return land_verify_legs._adapter_stamp_identity(_rec, _adapter, _before, _after)
+
+        def _timeout_mark(text, rec, outer_at, ended=()) -> dict:
+            """T-14679 (SPEC-1046 rule 4) — the SLOT-INTERNAL mark of a first attempt that ran out of its
+            bound, read only by the own whole re-run after every layer: `{"timeout_rerun": True}` when
+            every condition holds — the layer's adapter declares a runner whose failed tests the kernel
+            reads (`_layer_timeout_rerun_eligible`), the bound ran out where tests run (the `command:`,
+            the adapter's `run`, or the reading of its report), the attempt wrote something, and none of
+            it shows a failed test — else `{"no_rerun_timeout": <why>}` (plus the evidence lines). A
+            re-run's own timeout is never marked: one re-run, no loop."""
+            if retry:
+                return {}
+            if outer_at == "required":
+                return {"no_rerun_timeout": "required-check"}
+            if outer_at not in ("command", "run", "report"):
+                return {"no_rerun_timeout": f"bound-ran-out-at-{outer_at}"}
+            if not _layer_timeout_rerun_eligible(adapters.get(id(ly))):
+                return {"no_rerun_timeout": "not-declared"}
+            if not (isinstance(text, str) and text.strip()):
+                return {"no_rerun_timeout": "no-output"}
+            evidence = list(ended) + _timed_out_layer_failing_tests(text, rec)
+            if evidence:
+                return {"no_rerun_timeout": "failing-test", "timeout_evidence": evidence[:5]}
+            return {"timeout_rerun": True}
         # SPEC-0152 rule 16 (T-10021): a DECLARED layer MAY carry a `prep:` dependency-prep step run
         # INSIDE this worktree BEFORE its command. Checked-if-present — a layer with NO `prep:` prepares
         # nothing (the backward-compat default). Fail-closed: a failed prep does NOT run the command
@@ -16810,7 +16983,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                              f"{_fail[1]} — no layer of the group runs without every list "
                              f"(`verify.decide_first`, SPEC-1046 rule 3).")
                 return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share,
-                                              **_bound, **_row_tail}, "prep": prep_record}
+                                              **_bound, **_row_tail}, "prep": prep_record,
+                        **_timeout_mark(None, None, "decide")}
             e_bad.append(f"land(consumer): verify layer {name!r} FAILED before its run step: the decided-"
                          f"lists file could not be written ({_fail[1]}) — no layer of the group runs "
                          f"without it (`verify.decide_first`, SPEC-1046 rule 3).")
@@ -16855,6 +17029,9 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                         "prep": prep_record, "exit": 0}
             _log = _write_layer_output_log(_log_ctx, name, _printed)
             if _first == "timed-out":
+                # T-14679 (SPEC-1046 rule 4): what the attempt wrote, and which invocations ENDED nonzero.
+                _ttext, _tended = _timeout_invocation_reading(_sink.get("invocations"))
+                _tmark = _timeout_mark(_ttext, _rec, _rec.get("outer_at"), _tended)
                 _cc = _verify_contention_context(_live_land_frontier=_live_land_frontier, _load_avg=_load_avg,
                                                  _cpu_count=_cpu_count,
                                                  _land_verifies_running=_land_verifies_running)
@@ -16868,7 +17045,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share,
                                               **_bound, **({"output_log": _log} if _log else {}),
                                               **_term_grace[1], **_row_tail},
-                        "prep": prep_record}
+                        "prep": prep_record, **_tmark}
             _extra: dict = {}
             if _first == "units-failed":
                 _failed = [u for u in _rec["units"] if u.get("status") != "passed"]
@@ -16924,7 +17101,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                                           **({"output_log": _log} if _log else {}), **_term_grace[1],
                                           **_layer_duration_ms(_layer_t0, _prep_end, _sel_at), **_cpu_fields,
                                           **_adapter_fields(outer="timed-out", outer_at="command")},
-                    "prep": prep_record}
+                    "prep": prep_record, **_timeout_mark(_captured, None, "command")}
         if r.returncode != 0:
             # T-12384 (X-1373): SIGNAL-keyed excerpt, not the blind `[-500:]` tail — a docker-backed
             # layer prints its teardown (one container/db name per line) AFTER pytest's short summary,
@@ -17247,7 +17424,13 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         _files = list(_first.get("failing_files") or [])
         _what = (f"re-running ONLY its {len(_files)} failing file(s) ({', '.join(_files)}) ONCE"
                  if _files else "re-running it ONCE")
-        print(f"land(consumer): verify layer {_rname!r} FAILED on its first run (exit {_first.get('exit')}) "
+        # T-14679 (SPEC-1046 rule 4): a first attempt that ran out of its bound with no failed test in
+        # its output is read as host LOAD, not as a failure — said so, and recorded on its row.
+        _timed_out_first = _first["row"].get("outcome") == "timed-out"
+        _how_first = (f"TIMED OUT on its first run after {_first['row'].get('timeout_s')}s with no failed "
+                      f"test in its output — read as host LOAD, not as a failure"
+                      if _timed_out_first else f"FAILED on its first run (exit {_first.get('exit')})")
+        print(f"land(consumer): verify layer {_rname!r} {_how_first} "
               f"{_why}— {_what}, alone in this verify (no other layer of this verify runs "
               f"beside it; other sessions on this host are NOT excluded — {_l1_txt}) — {_rule}.")
         # The re-run is the SAME invocation as the first attempt: for a layer that ran overlapped with
@@ -17289,6 +17472,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _rrow["rescue"] = _layer_rescue
         if _first_void:
             _rrow["first_void"] = _first_void     # a void first attempt: its reasons stay on record
+        if _timed_out_first:
+            _rrow["first_outcome"] = "timed-out"  # T-14679: the first attempt ran out of its bound — load
         _retry_record = {**(_retry_record or {}), "rows": [*(_retry_record or {}).get("rows", []), _rrow]}
         if _passed and _layer_rescue != "on":
             # DIAGNOSTIC ONLY (SPEC-1006 rule 3): the layer declares `rescue: off`, so the pass is
@@ -17301,7 +17486,10 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             # FIRST run's. The failure itself is not dropped from the record — the row above keeps
             # its exit code and excerpt, so a real race that passed alone stays visible.
             results[_ri] = {**_first, "bad": [], "row": {**_first["row"], "outcome": "passed", "retried": True}}
-            print(f"land(consumer): verify layer {_rname!r} is recorded as a FLAKY RETRY "
+            print(f"land(consumer): verify layer {_rname!r} is recorded as LOAD, not as a failure "
+                  f"(`flaky_retry`, first_outcome timed-out) — this verify stays green on it."
+                  if _timed_out_first else
+                  f"land(consumer): verify layer {_rname!r} is recorded as a FLAKY RETRY "
                   f"(`flaky_retry`, with its first-run failure excerpt) — this verify stays green on it.")
         else:
             # A SECOND FAILURE FAILS EXACTLY AS BEFORE: the slot's `bad` and row are the first run's,
@@ -17324,6 +17512,10 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         # T-14201: a void-failed layer this decline names still takes its own whole re-run below.
         _void_own = [runnable[_i][2] for _i, _r in enumerate(results)
                      if isinstance(_r, dict) and _r.get("void_rerun")] if _retry_bound > 0 else []
+        # T-14679: likewise a timed-out layer whose output showed no failed test (`timeout_rerun`).
+        _timeout_own = [runnable[_i][2] for _i, _r in enumerate(results)
+                        if isinstance(_r, dict) and _r.get("timeout_rerun")] \
+            if _retry_bound > 0 and only_layers is None else []
         print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
               f"{', '.join(repr(n) for n in _plan['layers'])} — {_plan['skipped']} "
               f"({_LAYER_RETRY_DECLINE_WHY.get(_plan['skipped'], 'declined')}; SPEC-0152 rule 16)."
@@ -17331,7 +17523,23 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                  f"failed units on a usable report, which the per-unit re-run answers "
                  f"(SPEC-1035 rules 4, 10)." if _per_unit else "")
               + (f" {', '.join(repr(n) for n in _void_own)} failed on a void report and take their own "
-                 f"whole re-run below (SPEC-1046 rule 4)." if _void_own else ""))
+                 f"whole re-run below (SPEC-1046 rule 4)." if _void_own else "")
+              + (f" {', '.join(repr(n) for n in _timeout_own)} ran out of time with no failed test in "
+                 f"their output and take their own whole re-run below (SPEC-1046 rule 4)."
+                 if _timeout_own else ""))
+        # T-14679 (SPEC-1046 rule 4): each timed-out layer that takes NO re-run, with why.
+        for _ti, _tr in enumerate(results):
+            if isinstance(_tr, dict) and _tr.get("timeout_rerun") and _retry_bound <= 0:
+                print(f"land(consumer): verify layer {runnable[_ti][2]!r} TIMED OUT and is NOT re-run — "
+                      f"retry-off ({_UNIT_RETRY_DECLINE_WHY['retry-off']}; SPEC-1046 rule 4) — the "
+                      f"failure stands.")
+            if isinstance(_tr, dict) and _tr.get("no_rerun_timeout") and only_layers is None:
+                _ev = _tr.get("timeout_evidence") or []
+                print(f"land(consumer): verify layer {runnable[_ti][2]!r} TIMED OUT and is NOT re-run — "
+                      f"{_tr['no_rerun_timeout']} ("
+                      + _TIMEOUT_NO_RERUN_WHY.get(_tr["no_rerun_timeout"], "its bound did not run out "
+                                                  "where its tests run")
+                      + (f": {'; '.join(_ev)}" if _ev else "") + "; SPEC-1046 rule 4) — the failure stands.")
     elif _ri is not None and _ri in _unit_rerun_layers:
         pass    # T-13607: failed units on a usable report took the per-unit path, never this one
     elif _no_rerun:
@@ -17351,11 +17559,17 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # did not take it — beside another non-passing layer, a timed-out layer or a failed `prep:`. The
     # one switch is shared (the retry bound at 0 re-runs nothing), and the merge-base attribution
     # re-run re-runs nothing. Each such layer runs alone, in declaration order, after rule 16's.
+    # T-14679 — the SAME own whole re-run takes a layer whose first attempt ran out of its bound with
+    # no failed test in its output (`timeout_rerun`, set by `_execute` only on an eligible declaration);
+    # rule 16 always declines a verify with a timed-out layer, so it never re-ran this one already.
     if only_layers is None and _retry_bound > 0:
         for _vi, _vres in enumerate(results):
             if isinstance(_vres, dict) and _vres.get("void_rerun") \
                     and not (_ri == _vi and _plan is not None and "retry" in _plan):
                 _rerun_layer_whole(_vi, _why="on a void report ", _rule="SPEC-1046 rule 4")
+            elif isinstance(_vres, dict) and _vres.get("timeout_rerun") \
+                    and not (_ri == _vi and _plan is not None and "retry" in _plan):
+                _rerun_layer_whole(_vi, _rule="SPEC-1046 rule 4")
     if _credit_run is not None:
         # T-13612 (SPEC-1006 rule 13): the run every `credit: shadow` record belongs to, named
         # once every layer has finished — the tree is recorded only when the run left it as it was.
@@ -25986,8 +26200,28 @@ def _old_shape_cause(live_path: Path, main_journal=None) -> "tuple[str, str]":
       * not cut while main's is: the branch forked before the cut; the land seam converts it in-land.
       * neither cut (or main unknown): the rotation-era case; the land seam rotates in-land.
     Never raises: `is_cut_journal` answers False on an unreadable path, and the engine line falls back
-    to `unknown`."""
+    to `unknown`.
+
+    T-14678 — a fourth case, asked FIRST: the branch's journal is cut and the repository's declared engine
+    cannot be shown to read a cut journal (`journal.cut_drain_withheld`), so every engine withholds the
+    drain. The overlap is rows that engine wrote to the root which another engine had already moved into
+    a partition; the route is the re-pin, never a re-land as is."""
     if events.is_cut_journal(live_path):
+        try:
+            withheld = journal_mod.cut_drain_withheld(live_path.parent)
+        except Exception:  # noqa: BLE001 — a refusal message never fails its refusal
+            withheld = None
+        if withheld is not None:
+            return (f"this branch's journal is CUT into day partitions, but this repository's declared "
+                    f"engine cannot be shown to read a cut journal — {withheld['why']} — so no engine "
+                    f"drains its root (SPEC-0190 rule 3, T-14678). The overlap is rows that engine wrote "
+                    f"to the root after another engine had already moved them into a partition. This is "
+                    f"not caused by anything you edited.",
+                    f"re-pin this repository to a release that carries the journal cut "
+                    f"({journal_mod.JOURNAL_CUT_FIRST_RELEASE} or newer): `bin/yitc-v2 release check` "
+                    f"names the newest, and its release notes' update steps run `release update`. Then "
+                    f"land again — the pinned engine's land drains the root in-land and the overlap "
+                    f"empties.")
         try:
             from lib import release as _release
             engine = _release.engine_version_line()
@@ -26079,8 +26313,14 @@ def rotate_branch_journal(W: Path, *, dedup, run_git, write_text_atomic, window_
         # T-14570 (SPEC-0190 rules 1+3) — a CUT journal has no window to rotate: the seam DRAINS the
         # root into the ts-day partitions instead, so rows a pre-cut branch, a union or a fold left in
         # the root reach their partitions here, at the seam that already rewrites the journal.
-        res = events.rotate_journal(live, dedup=dedup, write_text_atomic=write_text_atomic, _at=_at,
-                                    drain=True)
+        # T-14678 — unless the repository's declared engine cannot be shown to read a cut journal: then
+        # the drain is WITHHELD (fail-closed), so rows that engine wrote to the root stay where its own
+        # land expects them, instead of moving into a partition and stranding its lands OLD-SHAPE.
+        if journal_mod.cut_drain_withheld(W) is not None:
+            res = None
+        else:
+            res = events.rotate_journal(live, dedup=dedup, write_text_atomic=write_text_atomic, _at=_at,
+                                        drain=True)
     else:
         days = window_days if window_days is not None else journal_live_window_days()
         if days is None:
@@ -28366,6 +28606,10 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # peers' commits. The next `_die` added to this 1900-line function would reopen the hole the same
     # way; a catch-all cannot be forgotten by a later edit.
     _bstate = batch_state if batch_state is not None else {}
+    # T-14681 (SPEC-0184 rule 4): a head whose card is OPEN was admitted at land entry only as a
+    # bookkeeping-only branch (cmd_land's open-card refusal set this key); it forms a batch of ONE so no
+    # peer is ever merged into it. Bound ONCE, outside the attempt loop: every re-formation reads it.
+    _open_card_solo = bool(_bstate.get("open_card_head"))
 
     # T-11218 — THE PRE-QUEUE CONFLICT REFUSAL. Deliberately HERE, above the attempt loop: the land
     # reservation (`_acquire_land_reservation`), the verify-admission slot, the repo lock and batch
@@ -30966,8 +31210,8 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 superseding_events_path=W / "events.jsonl",
                 excluded_out=_queue_excluded,
                 main_wt=main_wt, repo_root=W, events_path=main_wt / "events.jsonl",
-                solo_head=_solo_head_retry or _s6_solo,              # T-11387: RELEASED its peers on a
-                                                 # head-is-culprit red re-forms ALONE (rule 4).
+                solo_head=_solo_head_retry or _s6_solo or _open_card_solo,  # T-11387 released
+                                                 # peers / T-14681 open card: ALONE (rule 4)
                 snapshot_out=_queue_snapshot,   # T-11312: the read clock + the enumerated candidates
                 truncated_out=_horizon_truncated,   # T-11904: what the formation reads could not see
                 merge_invalid_acceptance=declares_merge_invalid,   # T-11939: the SECOND ground —

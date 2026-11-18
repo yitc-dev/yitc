@@ -578,53 +578,53 @@ body: "**The tests-sweep DELEGATION (X-0297; a SUB-rule of `verify.layers[]`).**
   \ allotment and,\nfor a layer that ran overlapped with its declared-independent\
   \ peers, the same run-issued compose\nproject name (§independent_layers) — both\
   \ attempts address one container namespace.\nDECLINED — nothing is re-run, the verify\
-  \ fails as before, and the reason is recorded: any layer\nTIMED OUT (SPEC-0071 makes\
-  \ a verify timeout a distinct non-retriable class, and a re-run would cost\nanother\
-  \ full bound); any layer's `prep:` FAILED (a setup fault — the prep's fail-closed\
-  \ stance\nstands); or MORE THAN ONE layer did not pass, a malformed layer counting\
-  \ (the bound is ONE layer: a\nre-run is cheaper than the abort it replaces only\
-  \ while it repeats a fraction of the verify, and\nseveral layers failing at once\
-  \ is evidence about the change or the host, not about one flaky\ncheck). Setting\
-  \ the engine suite's machine-level retry bound to 0 turns the layer re-run off as\n\
-  well — one switch, no second knob. The merge-base attribution re-run of failing\
-  \ layers never\nre-runs: it is a diagnostic over the base tree, not a verdict.\n\
-  A RESCUE IS RECORDED, NEVER A CLEAN PASS. A pass on the re-run does not prove the\
-  \ first failure\nharmless — a real race can fail under load and pass alone — so\
-  \ the first failure stays on record:\nthe retried layer is NAMED on stdout, the\
-  \ verify metrics of the land (and the Stage-6 pass or fail\nrow) carry the re-run's\
-  \ record WITH the first attempt's exit code and failure excerpt, and the\nlayer's\
-  \ outcome row is marked as retried (field shapes: SPEC-0025 `flaky_retry`). A verify\
-  \ on which\nno layer's run failed records nothing, so a clean land never reports\
-  \ a retry it did not do.\nOUT OF THIS RULE, deliberately: an automatic load-sensitive\
-  \ lane for layers, a quarantine that\nstops a failing check from blocking, and per-test\
-  \ re-runs.\nUNCHANGED: every layer still runs; a deterministic failure still fails\
-  \ the land, with the same\nfailing-assertion text; waivers, the `subject_globs`\
-  \ skip, `independent_layers`, the any-author\nfloor and what a project declares\
-  \ are all as they were. A nightly health run (`verify.health`,\nabove) executes\
-  \ its named layers through its own runner, not this guard, and takes no re-run.\n\
-  Reader: `bin/lib/worktree.py#_consumer_zero_probe_guard`.\n\n**The `verify.infra_globs:`\
-  \ key — a project WIDENS the kernel verify-infrastructure floor, never\nnarrows\
-  \ it (X-0938 / SPEC-0185 §3(a)).** The verify-infrastructure set that forces a FULL\n\
-  run (the SPEC-0077 pinned set above) is a kernel constant of ROOT-relative globs,\
-  \ so a project whose\nverify implementation sits elsewhere (tests at `backend/tests/`,\
-  \ reached by a layer whose `command:`\nreveals no path) had NO way to place it under\
-  \ the floor: the pinned re-run never armed and its\nabsence was invisible. A project\
-  \ MAY therefore declare an OPTIONAL `verify.infra_globs:` — a flat\nlist of repo-relative\
-  \ glob strings, beside the kernel-owned `verify.floor` sub-tree (rule 27 in\nSPEC-0093)\
-  \ — and every declared glob is UNIONED with the kernel set wherever that set is\
-  \ read (the\npinned TRIGGER and the `subject_globs` would-skip alike, through the\
-  \ ONE declaration-aware reader\nSPEC-0077 §1 names). WIDEN-ONLY, by construction:\
-  \ the kernel globs are ALWAYS applied and are never\nremovable; the declaration\
-  \ can only ADD coverage, so it can only make MORE lands run full. Every\nsubtractive\
-  \ or replacing SHAPE — a mapping under the key, a negation-prefixed entry naming\
-  \ a glob for\nremoval, an absolute or upward-escaping entry — is REFUSED BY NAME\
-  \ at the declaration read, on the\nsame seam as a `verify.floor` waiver, and the\
-  \ kernel set stays applied whatever was declared. The\nnarrowing direction is NOT\
-  \ a future extension of this key: it was refused on the merits (X-0884 —\nthe hardcoded\
-  \ floor is what makes the pinned re-run fire on a verify-implementation touch, so\
-  \ a\nconsumer must never hold the power to shrink the surface that guards it) and\
-  \ the ask was retracted\n(X-0893). The kernel set this key widens is the set of\
-  \ a PROJECT repository (the paragraph\n«Which members of that verify-infrastructure\
+  \ fails as before, and the reason is recorded: any layer\nTIMED OUT (a timeout is\
+  \ evidence about the RUN, not about one layer, and a re-run would cost another\n\
+  full bound — the timed-out layer ITSELF may still take one re-run of its own, SPEC-1046\
+  \ rule 4); any\nlayer's `prep:` FAILED (a setup fault — the prep's fail-closed stance\n\
+  stands); or MORE THAN ONE layer did not pass, a malformed layer counting (the bound\
+  \ is ONE layer: a\nre-run is cheaper than the abort it replaces only while it repeats\
+  \ a fraction of the verify, and\nseveral layers failing at once is evidence about\
+  \ the change or the host, not about one flaky\ncheck). Setting the engine suite's\
+  \ machine-level retry bound to 0 turns the layer re-run off as\nwell — one switch,\
+  \ no second knob. The merge-base attribution re-run of failing layers never\nre-runs:\
+  \ it is a diagnostic over the base tree, not a verdict.\nA RESCUE IS RECORDED, NEVER\
+  \ A CLEAN PASS. A pass on the re-run does not prove the first failure\nharmless\
+  \ — a real race can fail under load and pass alone — so the first failure stays\
+  \ on record:\nthe retried layer is NAMED on stdout, the verify metrics of the land\
+  \ (and the Stage-6 pass or fail\nrow) carry the re-run's record WITH the first attempt's\
+  \ exit code and failure excerpt, and the\nlayer's outcome row is marked as retried\
+  \ (field shapes: SPEC-0025 `flaky_retry`). A verify on which\nno layer's run failed\
+  \ records nothing, so a clean land never reports a retry it did not do.\nOUT OF\
+  \ THIS RULE, deliberately: an automatic load-sensitive lane for layers, a quarantine\
+  \ that\nstops a failing check from blocking, and per-test re-runs.\nUNCHANGED: every\
+  \ layer still runs; a deterministic failure still fails the land, with the same\n\
+  failing-assertion text; waivers, the `subject_globs` skip, `independent_layers`,\
+  \ the any-author\nfloor and what a project declares are all as they were. A nightly\
+  \ health run (`verify.health`,\nabove) executes its named layers through its own\
+  \ runner, not this guard, and takes no re-run.\nReader: `bin/lib/worktree.py#_consumer_zero_probe_guard`.\n\
+  \n**The `verify.infra_globs:` key — a project WIDENS the kernel verify-infrastructure\
+  \ floor, never\nnarrows it (X-0938 / SPEC-0185 §3(a)).** The verify-infrastructure\
+  \ set that forces a FULL\nrun (the SPEC-0077 pinned set above) is a kernel constant\
+  \ of ROOT-relative globs, so a project whose\nverify implementation sits elsewhere\
+  \ (tests at `backend/tests/`, reached by a layer whose `command:`\nreveals no path)\
+  \ had NO way to place it under the floor: the pinned re-run never armed and its\n\
+  absence was invisible. A project MAY therefore declare an OPTIONAL `verify.infra_globs:`\
+  \ — a flat\nlist of repo-relative glob strings, beside the kernel-owned `verify.floor`\
+  \ sub-tree (rule 27 in\nSPEC-0093) — and every declared glob is UNIONED with the\
+  \ kernel set wherever that set is read (the\npinned TRIGGER and the `subject_globs`\
+  \ would-skip alike, through the ONE declaration-aware reader\nSPEC-0077 §1 names).\
+  \ WIDEN-ONLY, by construction: the kernel globs are ALWAYS applied and are never\n\
+  removable; the declaration can only ADD coverage, so it can only make MORE lands\
+  \ run full. Every\nsubtractive or replacing SHAPE — a mapping under the key, a negation-prefixed\
+  \ entry naming a glob for\nremoval, an absolute or upward-escaping entry — is REFUSED\
+  \ BY NAME at the declaration read, on the\nsame seam as a `verify.floor` waiver,\
+  \ and the kernel set stays applied whatever was declared. The\nnarrowing direction\
+  \ is NOT a future extension of this key: it was refused on the merits (X-0884 —\n\
+  the hardcoded floor is what makes the pinned re-run fire on a verify-implementation\
+  \ touch, so a\nconsumer must never hold the power to shrink the surface that guards\
+  \ it) and the ask was retracted\n(X-0893). The kernel set this key widens is the\
+  \ set of a PROJECT repository (the paragraph\n«Which members of that verify-infrastructure\
   \ set hold in which repository» above): it holds no\nroot `bin/` member, so a root\
   \ `bin/` helper a project wants on the full run is listed here.\nAbsent key → behaviour\
   \ unchanged. The reader is `bin/lib/land_verify_legs.py#_declared_verify_infra_globs`.\n"

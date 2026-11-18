@@ -368,6 +368,11 @@ _PLAN_TEMPLATE_TO_GATE_ID = {
     "gate-accepted": "trial-accepted", "gate-executing": "decomposition-executing",
 }
 
+# T-14673 (SPEC-0034 §Plan-stage obligations) — the stage whose work each gate template judges: its
+# packet lists the obligations due THROUGH that stage. The accept gate is `plan check` (through the
+# plan's status); the change check reads the plan's status too.
+PLAN_GATE_OBLIGATIONS_THROUGH = {"gate-specs": "draft", "gate-trial": "specs", "gate-executing": "decomposition"}
+
 _PLAN_CHECKLIST_KEY_RE = re.compile(r"^[ \t]*checklist_pass[ \t]*:(.*)$", re.IGNORECASE)
 
 _PLAN_CHECKLIST_INLINE_RE = re.compile(r"\{[^}]*\bP[1-9]\b")
@@ -475,7 +480,12 @@ def _plan_cut_rows(slug: str, *, TASKS_DIR, _plan_cut_cards, _read_yaml) -> list
     return rows
 
 
-def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, _read_yaml, PLANS_DIR=None, _carry=None) -> str:
+# T-14673 — the marker the fingerprint wrapper passes when the obligation view is UNAVAILABLE: the
+# fingerprint then degrades to its stable error-hash, never equal to a recorded real fingerprint.
+PLAN_OBLIGATIONS_UNAVAILABLE = object()
+
+
+def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, _read_yaml, PLANS_DIR=None, _carry=None, _obligations=None) -> str:
     """Canonical fingerprint of a plan's CUT — the task-card SET + the spec-activation linkage — for the
     decomposition-fidelity verdict freshness contract (SPEC-0070 §4). The direct analog of the accept-gate
     _plan_content_hash / _plan_corpus_signature: the decomposition-fidelity verdict RECORDS this, and
@@ -498,8 +508,13 @@ def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_car
         `prototype_lines` plus the registry text and the pinned prototype pair. Any other plan's basis is
         byte-identical, so its recorded verdicts stay fresh. `_carry` is the gate's (fm, body, rows) —
         its one read of the cut; without it the plan and the cards are read here.
+      - T-14673 (SPEC-0034 §Plan-stage obligations) — `_obligations`: the digest of the plan-stage
+        obligations due through `decomposition`, joined as `obligations` only when non-None (nothing
+        due = a byte-identical basis); `PLAN_OBLIGATIONS_UNAVAILABLE` yields the error-hash.
     Telemetry-grade: degrades to a stable error-hash on any read failure (must never crash the gate verb)."""
     try:
+        if _obligations is PLAN_OBLIGATIONS_UNAVAILABLE:
+            raise ValueError("the plan-stage obligation view is unavailable")
         if _carry is not None:
             fm, body, rows = _carry
         else:
@@ -535,6 +550,8 @@ def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_car
                 spec_activation.append([d.get("id") or sp.stem, d.get("activation_owner_task")])
         spec_activation.sort(key=lambda x: (x[0] or ""))
         fp_input = {"cards": cards, "spec_activation": spec_activation}
+        if _obligations is not None:
+            fp_input["obligations"] = _obligations
         if opted:
             fp_input["prototype"] = {"ref": str(fm.get("prototype_ref") or "").strip(),
                                      "tip": str(fm.get("prototype_tip") or "").strip(),
@@ -818,17 +835,522 @@ def plan_stage_read_scope(args, *, events_path, load_draft, plans_dir, session_r
                               if r and json.dumps(r)[1:-1] == r)
     keep = ({t: ("segment", audit_lib.AUDITOR_NO_ANSWER_WINDOW_DAYS) for t in audit_lib.BREAKER_READ_TYPES}
             if breaker else {})
+    global _PLAN_OBLIGATION_HOLDER
     prior = _PLAN_SCOPE_HORIZON
+    prior_holder = _PLAN_OBLIGATION_HOLDER
     with journal_mod.scan_scope(events_path, keep=keep, needles=needles, since=since,
                                 remainder=True) as scope:
         _PLAN_SCOPE_HORIZON = horizon
+        _PLAN_OBLIGATION_HOLDER = {}   # T-14673 — the obligation view, computed once inside this scope
         try:
             yield scope
         finally:
             _PLAN_SCOPE_HORIZON = prior
+            _PLAN_OBLIGATION_HOLDER = prior_holder
 
 
-def cmd_plan_draft(args: argparse.Namespace, *, PLANS_DIR, _append_event, _die, _emit_read_gate_refused, _load_draft, _plan_content_hash, _plan_draft_sections_filled, _postcheck_probe_block_declared, _require_reads, _require_writing_worktree, _resolve_session_ref) -> None:
+# ---------------------------------------------------------------------------------------------------
+# T-14673 (SPEC-0034 §Plan-stage obligations at the plan checkpoints) — ONE derived projection of the
+# plan-axis bindings: per plan stage the ACTIVE specs bound `plan-stage-entry:<stage>`, keyed
+# (realm, id), each with the content digest of its file chain and its source path. Three readers: the
+# catch-up delivery at the plan checkpoints, the plan-gate packet checklist and the verdict freshness
+# records. No store: it is recomputed from the corpus, once per invocation inside a plan read scope
+# (SPEC-0190 rule 10 — the scope is the request-scoped seam, no cache of its own).
+_PLAN_OBLIGATION_HOLDER = None   # the open plan read scope's one-slot holder (None outside one)
+
+
+def plan_scope_obligations(compute):
+    """The obligation view: computed ONCE inside an open plan read scope (held for its life), fresh
+    on every call outside one."""
+    holder = _PLAN_OBLIGATION_HOLDER
+    if holder is None:
+        return compute()
+    if "view" not in holder:
+        holder["view"] = compute()
+    return holder["view"]
+
+
+def _plan_obligation_chain_digest(path) -> str:
+    """sha256 over the spec's whole read chain (base + continuation parts) — any byte edit moves it.
+    The pre-T-14697 obligation digest, kept unchanged: a record written in that form is still read
+    by it (the cli comparison hosts), and an unparseable part falls back to it."""
+    h = hashlib.sha256()
+    for p in state.spec_part_paths(path):
+        h.update(Path(p).name.encode("utf-8") + b"\0" + Path(p).read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+# T-14697 — what a plan must meet of a due spec: its status and its rule text. The field set and the
+# section set are the ones a stage-entry contract view leaves out (cli.py#_CONTRACT_VIEW_DROPPED_FIELDS
+# / _CONTRACT_VIEW_OMITTED_SECTIONS), held equal by tests/test_t14697_obligation_normative_digest.py.
+_PLAN_OBLIGATION_BOOKKEEPING_FIELDS = frozenset({
+    "implements", "implements_signature", "concern", "init_concern",
+    "created_at", "consumed", "activation_owner_task", "proposed_by"})
+_PLAN_OBLIGATION_OMITTED_SECTIONS = ("Rationale", "Verification", "Implementation notes", "Drift review")
+_PLAN_OBLIGATION_DIGEST_FORM = "normative-v1"
+_PLAN_FENCE_OPEN = re.compile(r"[ ]{0,3}(`{3,}|~{3,})")
+_PLAN_SECTION = re.compile(r"##[ \t]")
+_PLAN_PARAGRAPH_END = re.compile(r"\n(?=[ \t]*(?:\n|$)|[ ]{0,3}#{1,6}(?:[ \t]|\n|$)|[ ]{0,3}(?:`{3,}|~{3,}))")
+
+
+def _plan_obligation_sections(body: str) -> list:
+    """ONE pass over a chain-joined spec body -> [(section name or None, kept text)]. Markdown read as a
+    reader sees it: a fenced block (an opening run of 3+ backticks or tildes, closed by a line holding a
+    run of the same character at least as long, or the body's end) is kept verbatim and never opens a
+    section; an inline code span (a backtick run closed by a run of the same length within its
+    paragraph) is kept verbatim; an HTML comment outside both is removed whole, its newlines included; a
+    column-0 `## ` line outside all three opens a section."""
+    sections, name, buf = [], None, []
+    i, n = 0, len(body)
+    while i < n:
+        bol = i == 0 or body[i - 1] == "\n"
+        if bol:
+            m = _PLAN_FENCE_OPEN.match(body, i)
+            if m:
+                run = m.group(1)
+                close = re.compile(r"\n[ ]{0,3}" + re.escape(run[0]) + "{" + str(len(run)) + r",}[ \t]*(?=\n|$)")
+                c = close.search(body, m.end())
+                j = c.end() if c else n
+                buf.append(body[i:j])
+                i = j
+                continue
+            if _PLAN_SECTION.match(body, i):
+                head, j = [], i + 3   # the heading's name, read comment-aware as the body is
+                while j < n and body[j] != "\n":
+                    if body.startswith("<!--", j):
+                        k = body.find("-->", j + 4)
+                        j = n if k < 0 else k + 3
+                        continue
+                    head.append(body[j])
+                    j += 1
+                sections.append((name, "".join(buf)))
+                name, buf = "".join(head).rstrip(" \t"), []
+        if body.startswith("<!--", i):
+            j = body.find("-->", i + 4)
+            i = n if j < 0 else j + 3
+            continue
+        if body[i] == "`":
+            k = i
+            while k < n and body[k] == "`":
+                k += 1
+            run = body[i:k]
+            pend = _PLAN_PARAGRAPH_END.search(body, k)
+            limit = pend.start() if pend else n
+            c = re.compile(r"(?<!`)" + run + r"(?!`)").search(body, k, limit)
+            if c:
+                buf.append(body[i:c.end()])
+                i = c.end()
+            else:
+                buf.append(run)
+                i = k
+            continue
+        buf.append(body[i])
+        i += 1
+    sections.append((name, "".join(buf)))
+    return sections
+
+
+def _plan_obligation_rule_text(body: str) -> str:
+    """The rule text of a chain-joined spec body: its sections (`_plan_obligation_sections`) minus the
+    ones a stage entry leaves out; the kept text is exact — only the blank lines at a section's edges
+    are dropped."""
+    kept = []
+    for name, text in _plan_obligation_sections(body):
+        if name in _PLAN_OBLIGATION_OMITTED_SECTIONS:
+            continue
+        lines = text.split("\n")
+        while lines and not lines[0].strip():
+            lines = lines[1:]
+        while lines and not lines[-1].strip():
+            lines = lines[:-1]
+        if lines:
+            kept.append("\n".join(lines))
+    return "\n\0\n".join(kept)
+
+
+def _plan_obligation_digest(path) -> str:
+    """T-14697 — the NORMATIVE digest of a due spec: its status and rule text across the read chain
+    (base + continuation parts) — every parsed top-level field but `body` and the bookkeeping fields,
+    plus the rule text of the chain-joined body. A prose, history or implementation-notes edit leaves it;
+    a status flip or a rule-text edit moves it. A part that does not parse to a mapping -> the whole-chain
+    digest (fail toward stale). An unreadable file raises OSError, as before."""
+    fields, bodies = [], []
+    for p in state.spec_part_paths(path):
+        raw = Path(p).read_text(encoding="utf-8")
+        try:
+            doc = state.load_str(raw)
+        except Exception:   # noqa: BLE001 — an unparseable part: the whole-chain digest
+            return _plan_obligation_chain_digest(path)
+        if not isinstance(doc, dict):
+            return _plan_obligation_chain_digest(path)
+        body = doc.get("body")
+        if isinstance(body, str):
+            bodies.append(body if body.endswith("\n") else body + "\n")
+        fields.append({str(k): v for k, v in doc.items()
+                       if str(k) not in _PLAN_OBLIGATION_BOOKKEEPING_FIELDS
+                       and not (k == "body" and isinstance(body, str))})
+    basis = json.dumps({"fields": fields, "rule_text": _plan_obligation_rule_text("".join(bodies))},
+                       sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(f"{_PLAN_OBLIGATION_DIGEST_FORM}\0{basis}".encode("utf-8")).hexdigest()
+
+
+def plan_obligation_view(maps, *, sequence, spec_source, map_errors=(), consumer=False) -> dict:
+    """The projection. `maps` = `(own, kernel)` plan-axis binding maps (`_plan_stage_maps`), or None
+    when the own corpus could not be read. Per stage the precedence of `_plan_stage_bundle_specs`: an id
+    the kernel binds at that stage is (kernel, id), an id only this repo binds is (own, id) — on the
+    engine's own session the kernel map is empty and every entry is own. `spec_source(realm, id)` ->
+    the base file Path or None. COMPLETE or UNAVAILABLE, never silently empty: an unreadable corpus, a
+    kernel read error (`map_errors`) or a bound entry whose file does not resolve or cannot be read is
+    named in `unavailable`, and no reader proceeds on such a view."""
+    view = {"stages": {}, "specs": {}, "unavailable": [str(e) for e in (map_errors or ())],
+            "consumer": bool(consumer)}
+    if maps is None:
+        view["unavailable"].append("this repository's spec corpus could not be read, so the plan-axis "
+                                   "bindings are unknown")
+        return view
+    own, kernel = maps
+    for st in sequence:
+        own_ids = [str(i) for i in (own.get(st) or [])]
+        k_ids = [str(i) for i in (kernel.get(st) or [])]
+        entries = ([("kernel" if i in k_ids else "own", i) for i in own_ids]
+                   + [("kernel", i) for i in k_ids if i not in own_ids])
+        if entries:
+            view["stages"][st] = entries
+        for key in entries:
+            if key in view["specs"]:
+                continue
+            realm, sid = key
+            try:
+                path = spec_source(realm, sid)
+            except Exception as exc:   # noqa: BLE001 — named, never swallowed
+                path, why = None, f"{type(exc).__name__}: {exc}"
+            else:
+                why = "no file resolves for it"
+            if path is None:
+                view["unavailable"].append(f"{sid} ({realm}) is bound at plan-stage-entry:{st} but {why}")
+                continue
+            try:
+                digest = _plan_obligation_digest(path)
+                raw = Path(path).read_text(encoding="utf-8")
+            except OSError as exc:
+                view["unavailable"].append(f"{sid} ({realm}) bound at plan-stage-entry:{st} cannot be read "
+                                           f"({exc})")
+                continue
+            m = re.search(r"(?m)^title:\s*(.+)$", raw)
+            title = m.group(1).strip().strip("'\"") if m else ""
+            view["specs"][key] = {"path": Path(path), "digest": digest, "title": title}
+    return view
+
+
+def plan_obligations_due(view: dict, through: str, *, sequence) -> tuple:
+    """(due, future) at a boundary: `due` = the entries bound at a stage up to and INCLUDING `through`
+    (the stage whose work the gate judges), each with its bound stage(s); `future` = the entries bound
+    only after it. An unknown `through` (a terminal) -> ([], every entry)."""
+    stages = (view or {}).get("stages") or {}
+    specs = (view or {}).get("specs") or {}
+
+    def _row(key, sts):
+        info = specs.get(key) or {}
+        return {"realm": key[0], "id": key[1], "stages": sts, "digest": info.get("digest"),
+                "path": info.get("path"), "title": info.get("title") or ""}
+    order, bound = [], {}
+    for st in sequence:
+        for key in stages.get(st) or []:
+            if key not in bound:
+                order.append(key)
+            bound.setdefault(key, []).append(st)
+    if through not in sequence:
+        return [], [_row(k, bound[k]) for k in order]
+    idx = list(sequence).index(through)
+    due, future = [], []
+    for key in order:
+        sts = bound[key]
+        due_sts = [s for s in sts if list(sequence).index(s) <= idx]
+        if due_sts:
+            due.append(_row(key, due_sts))
+        else:
+            future.append(_row(key, sts))
+    return due, future
+
+
+def plan_obligations_digest(due, digest_of=None) -> "str | None":
+    """The freshness input: None when nothing is due (the basis then stays byte-identical), else a
+    sha256 over the sorted `realm id digest` lines — an unrelated spec is absent from `due`.
+    T-14697: `digest_of(row)`, when given, replaces `row["digest"]` — with the whole-chain digest of
+    `row["path"]` it reproduces the pre-change due-set digest byte for byte."""
+    if not due:
+        return None
+    lines = sorted(f"{d['realm']} {d['id']} {digest_of(d) if digest_of is not None else d['digest']}"
+                   for d in due)
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+
+
+def _plan_obligation_source(d: dict, consumer: bool) -> str:
+    p = d.get("path")
+    name = Path(p).name if p is not None else f"{d['id']}-*.yaml"
+    return f"{'kernel ' if consumer and d['realm'] == 'kernel' else ''}specs/{name}"
+
+
+def plan_obligations_block(due, future, *, through: str, consumer: bool = False,
+                           change_check: bool = False) -> str:
+    """The packet checklist of the obligations DUE at the audited boundary, from the same projection
+    the session receives; "" when nothing is bound at any stage. `change_check` keeps the same data and
+    asks only the change check's question: does the cumulative change contradict a listed obligation."""
+    if not due and not future:
+        return ""
+    if change_check:
+        ask = (f"The rules below are bound to the plan stages up to and including `{through}` "
+               f"(`plan-stage-entry:<stage>`), listed from the ONE projection the session receives. "
+               f"This is a change check: do NOT re-audit them. Report a listed obligation only where "
+               f"the cumulative change shown above contradicts it or removes what met it — a "
+               f"regression under question (2).")
+    else:
+        ask = (f"The rules below are bound to the plan stages up to and including `{through}` "
+               f"(`plan-stage-entry:<stage>`); each is delivered to the session and listed here from ONE "
+               f"projection. For EACH listed rule, judge whether the plan meets every clause that is due "
+               f"by the end of stage `{through}`. A clause that is not yet due or does not apply to this "
+               f"plan (for example a trial clause on a plan that skipped `trial`) is STATED as such, with "
+               f"the reason — never passed over silently. A missed due clause is a finding.")
+    lines = [f"\n## Plan-stage obligations due at this boundary (through stage `{through}`) — SPEC-0034",
+             "", ask, ""]
+    if due:
+        for d in due:
+            realm = f" [{d['realm']}]" if consumer else ""
+            lines.append(f"- {d['id']}{realm} — {d['title']} — bound at: {', '.join(d['stages'])}; "
+                         f"digest {d['digest']}; source `{_plan_obligation_source(d, consumer)}`")
+    else:
+        lines.append("- (none due at this boundary)")
+    if future:
+        lines += ["", "Not due at this boundary — do NOT judge these (bound only to later stages):"]
+        for d in future:
+            realm = f" [{d['realm']}]" if consumer else ""
+            lines.append(f"- {d['id']}{realm} — bound at: {', '.join(d['stages'])}")
+    return "\n".join(lines) + "\n"
+
+
+def plan_obligation_catch_up(view: dict, rows, slug: str, status: str, *, sequence,
+                             spec_source=None) -> list:
+    """[(stage, [ids])] — the bound rules a plan has PASSED without receiving them. Passed stages =
+    the sequence up to and including `status`, minus `trial` only when a `plan_stage_entered` row
+    proves the specs->accepted skip. Per passed stage the proof of delivery is the union of the
+    `delivered` lists of this plan's rows entering it; NO row (history invisible — an older plan, a
+    worktree branched before the row, `rows` None) proves nothing, so every bound entry of that stage
+    is a candidate (conservative; no historical completion is asserted and nothing is written). A
+    recorded id carries no realm, so under -C it is proof only when UNAMBIGUOUS: an id that also
+    resolves in the other realm (`spec_source(other, id)`) stays a candidate. Pure."""
+    seq = list(sequence)
+    if status not in seq:
+        return []
+    passed = seq[:seq.index(status) + 1]
+    entered = [r.get("data") or {} for r in (rows or [])
+               if isinstance(r, dict) and r.get("type") == "plan_stage_entered"
+               and (r.get("data") or {}).get("slug") == slug]
+    if "trial" in passed and any(d.get("to") == "accepted" and d.get("from") == "specs" for d in entered):
+        passed.remove("trial")
+    consumer = bool((view or {}).get("consumer"))
+    out = []
+    for st in passed:
+        recorded = set()
+        for d in entered:
+            if d.get("to") == st:
+                recorded.update(str(x) for x in (d.get("delivered") or []))
+        late = []
+        for realm, sid in ((view or {}).get("stages") or {}).get(st) or []:
+            if sid in recorded:
+                other = "own" if realm == "kernel" else "kernel"
+                if not (consumer and spec_source is not None and spec_source(other, sid) is not None):
+                    continue
+            if sid not in late:
+                late.append(sid)
+        if late:
+            out.append((st, late))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------
+# T-14672 (SPEC-0034 §Project-declared plan check at the plan checkpoints) — ONE project command,
+# declared as `plan_checks: {command: ...}` in the project's yitc-ops.yaml, run at the plan
+# checkpoints BEFORE any auditor call, any stage write and any reuse of a prior verdict. The kernel
+# knows no project's duties: it passes the plan path, the acting checkout and a FIXED phase name, and
+# admits ONLY exit 0 — every other outcome refuses (closed vocabulary,
+# lessons/carving-an-exception-into-a-fail-closed-gate.md). An undeclared project runs nothing.
+PLAN_CHECK_SECTION = "plan_checks"
+PLAN_CHECK_PHASES = ("finalize", "plan-check", "change-check", "specs", "accepted", "decomposition",
+                     "executing")
+PLAN_CHECK_TIMEOUT_SECONDS = 300          # GATE — the bound on one checker run (machine_settings INVENTORY)
+_PLAN_CHECK_CAPTURE_BYTES = 8192          # the ring buffer: the last 8 KB of output, nothing on disk
+_PLAN_CHECK_TAIL_LINES = 40               # rendered tail: at most 40 lines AND 4000 bytes
+_PLAN_CHECK_TAIL_BYTES = 4000
+_PLAN_CHECK_KILL_WAIT_SECONDS = 10        # after killpg on timeout: the bounded wait on the direct child
+_PLAN_CHECK_READER_JOIN_SECONDS = 2       # the reader is joined this long, then abandoned (never drained)
+_PLAN_CHECK_REASONS = {0: "admitted", 1: "duties-missing", 2: "could-not-check"}
+
+
+class _PlanCheckCapture:
+    """A fixed-size ring buffer over the checker's combined output: keeps the LAST `cap` bytes and
+    discards older bytes as they arrive, so captured storage never exceeds `cap` whatever the checker
+    writes. `seen` counts every byte fed. Thread-safe: the reader thread feeds, the verb reads."""
+
+    def __init__(self, cap: int = _PLAN_CHECK_CAPTURE_BYTES):
+        import threading
+        self.cap = cap
+        self.seen = 0
+        self._buf = bytearray()
+        self._lock = threading.Lock()
+
+    def feed(self, chunk: bytes) -> None:
+        with self._lock:
+            self.seen += len(chunk)
+            if len(chunk) >= self.cap:
+                self._buf = bytearray(chunk[-self.cap:])
+                return
+            self._buf += chunk
+            over = len(self._buf) - self.cap
+            if over > 0:
+                del self._buf[:over]
+
+    def data(self) -> bytes:
+        with self._lock:
+            return bytes(self._buf)
+
+
+def _plan_check_drain(fd: int, capture: _PlanCheckCapture) -> None:
+    """The daemon reader: drain the pipe into the ring buffer until EOF (or a read error)."""
+    try:
+        while True:
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                return
+            capture.feed(chunk)
+    except (OSError, ValueError):
+        return
+
+
+def _plan_check_tail(raw: bytes) -> str:
+    """The rendered tail of the checker's output: decoded with replacement, the last 40 lines, then
+    cut to the last 4000 bytes (one enormous line is cut by the byte cap)."""
+    text = raw.decode("utf-8", "replace")
+    text = "\n".join(text.splitlines()[-_PLAN_CHECK_TAIL_LINES:])
+    enc = text.encode("utf-8")
+    if len(enc) > _PLAN_CHECK_TAIL_BYTES:
+        # the cut may start inside a multibyte character: drop that partial prefix (never replace it,
+        # a replacement character would push the tail past the byte cap)
+        text = enc[-_PLAN_CHECK_TAIL_BYTES:].decode("utf-8", "ignore")
+    return text.strip()
+
+
+def _plan_check_command(carrier_root, *, verb: str, _die) -> "str | None":
+    """The declared `plan_checks.command`, or None when the project declares none (no carrier, an
+    empty carrier, no section). An unreadable carrier and a malformed declaration REFUSE: whether a
+    check is declared, or what it is, cannot then be told (fail-closed)."""
+    from lib import host_apply as _host_apply
+    carrier_path = Path(carrier_root) / _host_apply.CONSUMER_OPS_CONTRACT
+    if not carrier_path.is_file():
+        return None
+    try:
+        carrier = state.load_ops(carrier_path)
+    except Exception as exc:                           # noqa: BLE001 — unreadable: cannot tell, say so
+        _die(f"{verb}: refused before any auditor call — unreadable-carrier: {carrier_path} could not be "
+             f"read ({exc}), so whether a `{PLAN_CHECK_SECTION}` check is declared cannot be told. Nothing "
+             f"was written. Fix the carrier, then re-run `yitc-v2 {verb}` (SPEC-0034 §Project-declared "
+             f"plan check).")
+    if carrier is None:
+        return None
+    if not isinstance(carrier, dict):
+        _die(f"{verb}: refused before any auditor call — unreadable-carrier: {carrier_path} is not a "
+             f"mapping, so whether a `{PLAN_CHECK_SECTION}` check is declared cannot be told. Nothing was "
+             f"written. Fix the carrier, then re-run `yitc-v2 {verb}`.")
+    if PLAN_CHECK_SECTION not in carrier:
+        return None
+    sec = carrier.get(PLAN_CHECK_SECTION)
+    cmd = sec.get("command") if isinstance(sec, dict) else None
+    if not isinstance(cmd, str) or not cmd.strip():
+        _die(f"{verb}: refused before any auditor call — malformed-declaration: `{PLAN_CHECK_SECTION}` in "
+             f"{carrier_path.name} must be a mapping with one non-empty shell-command string under "
+             f"`command`, got {type(sec).__name__ if not isinstance(sec, dict) else repr(sec)}. Nothing was "
+             f"written. Fix the declaration, then re-run `yitc-v2 {verb}` (SPEC-0034 §Project-declared "
+             f"plan check).")
+    return cmd
+
+
+def run_project_plan_check(plan_path, phase: str, *, slug: str, verb: str, carrier_root, checkout,
+                           _append_event, _die) -> "dict | None":
+    """Run the project's declared plan check at one checkpoint (SPEC-0034 §Project-declared plan check).
+
+    Returns None when the project declares no check (nothing runs, nothing is printed or journaled).
+    Otherwise runs the command ONCE — bounded in time (PLAN_CHECK_TIMEOUT_SECONDS, the group killed on
+    expiry) and in captured storage (a fixed ring buffer) — appends ONE `project_plan_check_ran` row,
+    and either returns the admitted outcome (exit 0) or refuses through `_die`, naming the command, the
+    phase, the exit or reason and the checker's output tail. No caching: every call runs the checker."""
+    import signal
+    import subprocess
+    import threading
+    if phase not in PLAN_CHECK_PHASES:
+        raise ValueError(f"run_project_plan_check: unknown phase {phase!r} (one of {PLAN_CHECK_PHASES})")
+    cmd = _plan_check_command(carrier_root, verb=verb, _die=_die)
+    if cmd is None:
+        return None
+    plan_abs = str(Path(plan_path).resolve())
+    checkout_abs = str(Path(checkout).resolve())
+    env = dict(os.environ)
+    env.update({"YITC_PLAN_CHECK_PLAN": plan_abs, "YITC_PLAN_CHECK_CHECKOUT": checkout_abs,
+                "YITC_PLAN_CHECK_PHASE": phase})
+    capture = _PlanCheckCapture()
+    t0 = time.monotonic()
+    rc = None
+    launch_error = None
+    try:
+        proc = subprocess.Popen(cmd, shell=True, cwd=checkout_abs, env=env, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+    except OSError as exc:
+        reason, launch_error = "launch-failure", str(exc)
+    else:
+        reader = threading.Thread(target=_plan_check_drain, args=(proc.stdout.fileno(), capture),
+                                  name="plan-check-reader", daemon=True)
+        reader.start()
+        try:
+            rc = proc.wait(timeout=PLAN_CHECK_TIMEOUT_SECONDS)
+            reason = _PLAN_CHECK_REASONS.get(rc, "unexpected-exit")
+        except subprocess.TimeoutExpired:
+            reason = "timeout"
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            try:
+                proc.wait(timeout=_PLAN_CHECK_KILL_WAIT_SECONDS)
+            except subprocess.TimeoutExpired:
+                pass
+        reader.join(_PLAN_CHECK_READER_JOIN_SECONDS)   # a descendant holding the pipe cannot block us
+    seconds = round(time.monotonic() - t0, 3)
+    admitted = reason == "admitted"
+    tail = _plan_check_tail(capture.data()) if launch_error is None else launch_error
+    _append_event("project_plan_check_ran", None,
+                  {"slug": slug, "plan": plan_abs, "phase": phase, "verb": verb, "command": cmd,
+                   "outcome": "admitted" if admitted else "refused", "exit": rc, "reason": reason,
+                   "seconds": seconds})
+    if admitted:
+        sys.stderr.write(f"# project plan check ({PLAN_CHECK_SECTION}, phase {phase}): admitted — "
+                         f"`{cmd}` exit 0 in {seconds}s\n")
+        if tail:
+            sys.stderr.write(tail + "\n")
+        return {"phase": phase, "command": cmd, "exit": rc, "reason": reason, "seconds": seconds}
+    if reason == "timeout":
+        what = f"timeout after {PLAN_CHECK_TIMEOUT_SECONDS}s (process group killed)"
+    elif reason == "launch-failure":
+        what = "launch-failure (the command could not be started)"
+    else:
+        what = f"exit {rc} ({reason})"
+    _die(f"{verb}: refused before any auditor call — the project's declared plan check "
+         f"(`{PLAN_CHECK_SECTION}` in yitc-ops.yaml) did not admit phase {phase!r}: command `{cmd}` — "
+         f"{what}. Only exit 0 admits; exit 1 = duties missing, exit 2 = could not check, anything "
+         f"else refuses too.\n--- checker output (tail) ---\n{tail or '(no output)'}\n--- end ---\n"
+         f"Fix what it names, then re-run `yitc-v2 {verb}`. No auditor ran, no verdict was reused and "
+         f"the plan was not changed (SPEC-0034 §Project-declared plan check).")
+    return None   # unreachable — _die exits
+
+
+def cmd_plan_draft(args: argparse.Namespace, *, PLANS_DIR, _append_event, _die, _emit_read_gate_refused, _load_draft, _plan_content_hash, _plan_draft_sections_filled, _postcheck_probe_block_declared, _require_reads, _require_writing_worktree, _resolve_session_ref, _run_plan_checks=None) -> None:
     """`plan draft --finalize <slug>` (T-0601, R7) — the DRAFT-stage check-carrier WORK-verb, the
     plan-axis realization of SPEC-0059 §First-stage-check-carrier-gap (mirror of the task-axis
     `task analyze --finalize`). It is the draft's END verb: the incident it closes is that the draft
@@ -876,6 +1398,10 @@ def cmd_plan_draft(args: argparse.Namespace, *, PLANS_DIR, _append_event, _die, 
             kind="stage-correspondence", reason="status_mismatch", task_id=None, session_ref=sref)
         _die(f"{slug}: status={status!r} — `plan draft --finalize` finalizes a plan still at "
              f"status=draft (the draft-stage END verb). A plan past draft has already been finalized.")
+    # T-14672 (SPEC-0034 §Project-declared plan check) — the project's declared check, phase `finalize`,
+    # before the read-check and the proof row: a refusal writes nothing. None = no runner (unchanged).
+    if _run_plan_checks is not None:
+        _run_plan_checks(path, "finalize", slug, verb=f"plan draft --finalize {slug}")
     # BLOCKING axis 2 — read-check: the draft bundle [SPEC-0043, SPEC-0034] fetched this session.
     # T-11885 — collect what the gate ACTUALLY credited, so the proof event below records the
     # verified read set instead of a hardcoded literal. Report-only: the gate's admit behaviour is
@@ -1589,6 +2115,12 @@ def _plan_card_set_context(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, 
 _CUT_CREATES_RE = re.compile(r"^\s*Creates \(declared new\):\s*(\S+)")
 _CUT_OWNS_RE = re.compile(r"^\s*Owns:\s*(.*)$", re.DOTALL)
 _CUT_SPEC_PATH_RE = re.compile(r"(?:^|/)(SPEC-\d{4})[-.]")
+# T-14682 (SPEC-0070 §3): a card marks its edit of a file append-only by `(append)` after the path in an
+# expected_touch entry (`tests/layers.yaml (append)`) or after the locator in its `Owns:` line.
+_CUT_APPEND_TOUCH_RE = re.compile(r"\s\(append\)\s*$")
+_CUT_APPEND_OWNS_RE = re.compile(r"`([^`\s]+)`\s*\(append\)")
+# T-14682 (SPEC-0070 §3): a non-append-only file named by this many cards draws the modularity hint.
+_CUT_SHARED_FILE_HINT_MIN = 3
 
 
 def _cut_set_precheck(rows: list) -> dict:
@@ -1599,7 +2131,13 @@ def _cut_set_precheck(rows: list) -> dict:
     a requires cycle; two writers of one spec not ordered by requires; a declared creation (the skeleton's
     `Creates (declared new):` line or a `(new)` locator in `Owns:`, T-14625) used by a card not ordered
     after its creator; a spec in `Owns:` missing from the same card's expected_touch. An EXISTING shared
-    file named by unordered cards is an overlap line — never a defect, never a defining card."""
+    file named by unordered cards is an overlap line — never a defect, never a defining card.
+
+    T-14682 adds {hints, append_only}. A non-spec file is APPEND-ONLY when it is union-merged at land (the
+    one carrier, `dispatch._touch_path_is_union_merged`) or when EVERY card naming it marks it `(append)`;
+    it is non-serialising — no overlap line, no hint — and is listed in `append_only`. Every other non-spec
+    file named by `_CUT_SHARED_FILE_HINT_MIN` or more cards, ordered by requires or not, draws one hint."""
+    from lib import dispatch as dispatch_lib   # noqa: PLC0415 — the union-merged carrier; lazy, no cycle
     ids = sorted(str(r.get("id") or "?") for r in rows)
     docs = {str(r.get("id") or "?"): (r.get("doc") if isinstance(r.get("doc"), dict) else {}) for r in rows}
     member = set(ids)
@@ -1656,11 +2194,15 @@ def _cut_set_precheck(rows: list) -> dict:
     owns = {}
     touch = {}
     creates = {}
+    marks_append = {}
     for t in ids:
         d = docs[t]
         owns_text = " ".join(m.group(1) for s in _lst(d.get("scope")) for m in [_CUT_OWNS_RE.match(s)] if m)
         owns[t] = owns_text
         touch[t] = {_surface_key(e) for e in _lst(d.get("expected_touch")) if _surface_key(e)}
+        marked = {_surface_key(e) for e in _lst(d.get("expected_touch")) if _CUT_APPEND_TOUCH_RE.search(e)}
+        marked |= {_surface_key(m.group(1)) for m in _CUT_APPEND_OWNS_RE.finditer(owns_text)}
+        marks_append[t] = {p for p in marked if p and not p.startswith("specs/")}
         made = {m.group(1) for s in _lst(d.get("scope")) for m in [_CUT_CREATES_RE.match(s)] if m}
         made |= {m.group(1).split("#", 1)[0] for m in _UNIT_LOCATOR_RE.finditer(owns_text) if m.group(2)}
         creates[t] = {p for p in made if p}
@@ -1696,17 +2238,34 @@ def _cut_set_precheck(rows: list) -> dict:
             for u in ids:
                 if u != c and p in touch[u] and c not in anc.get(u, set()):
                     defects.append(f"{p} is declared new by {c} but {u} uses it without requiring {c}")
-    # (5) overlap — an EXISTING non-spec file named by unordered cards: report-only, no defining card.
-    by_path = {}
+    # (5a) T-14682 — append-only files: union-merged, or marked `(append)` by every card naming them. A card
+    # names a file by its touch forecast, by ANY `Owns:` locator (marked or not) or by a declared creation —
+    # an unmarked writer on any of the three keeps the file serialising (audit-post fp1:ba07745788c92227).
+    named_by = {}
     for t in ids:
-        for p in touch[t]:
-            if not p.startswith("specs/") and p not in created_by:
-                by_path.setdefault(p, set()).add(t)
+        owns_locs = {_surface_key(m.group(1)) for m in _UNIT_LOCATOR_RE.finditer(owns[t])}
+        owns_locs = {p for p in owns_locs if "/" in p or re.search(r"\.[A-Za-z0-9]+$", p)}
+        for p in touch[t] | owns_locs | creates[t] | marks_append[t]:
+            if p and not p.startswith("specs/"):
+                named_by.setdefault(p, set()).add(t)
+    append_set = {p for p, hs in named_by.items()
+                  if dispatch_lib._touch_path_is_union_merged(p) or all(p in marks_append[h] for h in hs)}
+    append_only = sorted(append_set)
+    serialising = {p: hs for p, hs in named_by.items() if p not in append_set}
+    # (5) overlap — an EXISTING non-spec, non-append-only file named by unordered cards: report-only.
+    by_path = {p: hs for p, hs in serialising.items() if p not in created_by}
     for p in sorted(by_path):
         hs = sorted(by_path[p])
         if any(not _ordered(a, b) for i, a in enumerate(hs) for b in hs[i + 1:]):
             overlaps.append(f"{p} is edited by independent cards {', '.join(hs)} (overlap, report-only — "
                             f"not a defect)")
+    # (5b) T-14682 — the modularity hint: a non-append-only file many cards name, ordered or not.
+    hints = []
+    for p in sorted(serialising):
+        hs = sorted(serialising[p])
+        if len(hs) >= _CUT_SHARED_FILE_HINT_MIN:
+            hints.append(f"{p} is edited by {len(hs)} cards ({', '.join(hs)}) — check whether they touch "
+                         f"different concerns in it (SPEC-0046 §A)")
     # (6) the longest requires chain over the acyclic part (cycle members are skipped).
     cyc = {t for comp in sccs if len(comp) > 1 or comp[0] in req[comp[0]] for t in comp}
     best = {}
@@ -1718,7 +2277,8 @@ def _cut_set_precheck(rows: list) -> dict:
         return best[t]
 
     longest = max((_chain(t) for t in ids if t not in cyc), key=lambda c: (len(c), c), default=[])
-    return {"defects": defects, "overlaps": overlaps, "longest_chain": longest}
+    return {"defects": defects, "overlaps": overlaps, "hints": hints, "append_only": append_only,
+            "longest_chain": longest}
 
 
 def _print_cut_set_precheck(rows: list) -> dict:
@@ -1731,7 +2291,7 @@ def _print_cut_set_precheck(rows: list) -> dict:
         return {"error": type(exc).__name__}
     chain = pc["longest_chain"]
     chain_line = f"longest requires chain: {len(chain)}" + (f" ({' -> '.join(chain)})" if chain else "")
-    if not pc["defects"] and not pc["overlaps"]:
+    if not (pc["defects"] or pc["overlaps"] or pc["hints"] or pc["append_only"]):
         print(f"cut-set pre-check (report-only, SPEC-0070 §3): no defect, no overlap; {chain_line}")
     else:
         print("cut-set pre-check (report-only, SPEC-0070 §3 — the gate runs regardless):")
@@ -1739,6 +2299,10 @@ def _print_cut_set_precheck(rows: list) -> dict:
             print(f"  - DEFECT: {line}")
         for line in pc["overlaps"]:
             print(f"  - {line}")
+        for line in pc["hints"]:
+            print(f"  - MODULARITY HINT: {line}")
+        if pc["append_only"]:
+            print(f"  counted as append-only (non-serialising): {', '.join(pc['append_only'])}")
         print(f"  {chain_line}")
     return pc
 
@@ -2018,7 +2582,7 @@ def _plan_live_state(fm: dict, slug: str, _retire_on_proof_unresolved) -> list:
     return out
 
 
-def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_ROOT, PLAN_STAGE_SEQUENCE, PLAN_STATUSES, _append_event, _commit_worktree, _die, _emit_plan_stage_entered, _find_decision_yaml, _find_task_yaml, _in_writing_worktree, _load_draft, _plan_accept_core, _plan_close_core, _plan_draft_finalized_fresh, _plan_next_stage, _plan_stage_bundle_specs, _postcheck_probe_block_declared, _print_plan_stage_delivery, _read_yaml, _require_plan_decomposition_fidelity, _require_plan_decomposition_ready, _require_plan_postcheck_ready, _require_reads, _require_verification_artifact, _require_writing_worktree, _run_plan_gate_audit, _split_into, _write_draft, _withdraw_plan_draft_specs, _is_consumer_build=None, _retire_on_proof_unresolved=None, AUDIT_VERDICT_CLOSURE_OK=("GREEN", "YELLOW"), _plan_card_set_fingerprint=None) -> None:
+def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_ROOT, PLAN_STAGE_SEQUENCE, PLAN_STATUSES, _append_event, _commit_worktree, _die, _emit_plan_stage_entered, _find_decision_yaml, _find_task_yaml, _in_writing_worktree, _load_draft, _plan_accept_core, _plan_close_core, _plan_draft_finalized_fresh, _plan_next_stage, _plan_stage_bundle_specs, _postcheck_probe_block_declared, _print_plan_stage_delivery, _read_yaml, _require_plan_decomposition_fidelity, _require_plan_decomposition_ready, _require_plan_postcheck_ready, _require_reads, _require_verification_artifact, _require_writing_worktree, _run_plan_gate_audit, _split_into, _write_draft, _withdraw_plan_draft_specs, _is_consumer_build=None, _retire_on_proof_unresolved=None, AUDIT_VERDICT_CLOSURE_OK=("GREEN", "YELLOW"), _plan_card_set_fingerprint=None, _run_plan_checks=None) -> None:
     """`plan stage <NAME> <slug>` (T-0316) — the authoritative gated plan-lifecycle transition verb,
     mirroring `task stage` on ONE `status` field. On each call it (a) GATES the target stage's entry
     (= the prior stage's completion), (b) runs the stage's side-effects, (c) writes status=<NAME>,
@@ -2096,6 +2660,15 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                  f"plans — SPEC-0035 rules 1-2). The forward step from {cur!r} is {nxt!r}.")
     else:   # a terminal name not in the nonlinear set and not the linear `realized` successor path
         _die(f"{slug}: cannot enter {name!r} from {cur!r}.")
+    # T-14672 (SPEC-0034 §Project-declared plan check) — the project's declared check, phase = the stage
+    # being ENTERED (the gate at which the prior stage's work is complete), after the FSM edge check and
+    # BEFORE every per-target gate: no auditor call, no stage write and — for `--recut` — no read of the
+    # recorded verdict happens before it. trial / postcheck / realized / the terminals are not checkpoints.
+    # T-14673 — `trial` IS a plan checkpoint for the catch-up of late plan-stage rules (its gate is the
+    # gate-trial audit); the host's pre-pass runs no project check at a phase outside PLAN_CHECK_PHASES.
+    if _run_plan_checks is not None and name in ("specs", "trial", "accepted", "decomposition", "executing"):
+        _run_plan_checks(path, name, slug,
+                         verb=f"plan stage {name} {slug}" + (" --recut" if _recut else ""))
     # --- per-target gate + side-effects ---
     wrote = False
     withdrawn_specs = []   # T-13857 — [(spec id, path, text before)] a `cancelled`/`rejected` transition withdrew
@@ -3580,11 +4153,53 @@ def _plan_prototype_cut_faults(fm: dict, body: str, rows: list, accept: dict, *,
     return faults
 
 
+# T-14704 (X-2449) — the registry keys the fidelity gate judges (SPEC-1058 §3); every other key of an item
+# (its notes) is left out of the gate packet and LISTED there, the full text by reference to the plan file.
+_PROTO_GATE_JUDGED_KEYS = ("id", "kind", "surface", "what", "locators", "disposition", "owner_row", "owner_risk")
+
+
+def _plan_registry_judged_view(body: str) -> "tuple[str, list]":
+    """(the registry as the gate reads it, the left-out lines). A fixed key rule, never a judgement: each
+    item keeps `_PROTO_GATE_JUDGED_KEYS` and nothing else; every other key is named `R-n: key (N chars)`.
+    A registry that does not read (the cut checks refuse it first) falls back to its verbatim text."""
+    import yaml
+    _o, items, fault = _plan_prototype_registry(body)
+    if fault or not items:
+        return (_plan_prototype_registry_section(body) or "").strip(), []
+    kept, left = [], []
+    for it in items:
+        kept.append({k: it[k] for k in _PROTO_GATE_JUDGED_KEYS if k in it})
+        for k, v in it.items():
+            if k not in _PROTO_GATE_JUDGED_KEYS:
+                n = len(v if isinstance(v, str) else yaml.safe_dump(v, allow_unicode=True))
+                left.append(f"{it.get('id')}: {k} ({n} chars)")
+    return yaml.safe_dump(kept, sort_keys=False, allow_unicode=True, width=10_000).strip(), left
+
+
+def _plan_body_registry_by_reference(body: str) -> str:
+    """The plan body as the gate-executing prompt shows it: the `## Prototype registry` section's text
+    replaced by one pointer to the packet block, so the registry is sent once (T-14704)."""
+    out, inside = [], False
+    for ln in body.splitlines():
+        if ln.startswith("## "):
+            if inside:
+                inside = False
+            elif ln[3:].strip() == PROTOTYPE_REGISTRY_SECTION:
+                out += [ln, "", "(sent once, below: «Prototype carry registry» in the cut block — the judged "
+                        "fields of every item; the full text stays in this plan file)", ""]
+                inside = True
+                continue
+        if not inside:
+            out.append(ln)
+    return "\n".join(out) + ("\n" if body.endswith("\n") else "")
+
+
 def _plan_prototype_cut_packet(body: str, rows: list) -> str:
-    """The fidelity packet block of an opted-in plan: the registry verbatim, each card's declared lines
-    and SPEC-1058 §3's question about the verifier."""
+    """The fidelity packet block of an opted-in plan: the registry's judged fields (T-14704 — every
+    left-out key listed), each card's declared lines and SPEC-1058 §3's question about the verifier."""
     lines = "\n".join(f"- {r['id']} ({r['status']}): {r['doc'].get('prototype_lines')!r}" for r in rows)
     _o, items, _f = _plan_prototype_registry(body)
+    judged, left = _plan_registry_judged_view(body)
     by_plan = ", ".join(f"{it['id']} (plan {_proto_carried_by(it)})" for it in items
                         if _proto_carried_by(it)) or "none"
     return (
@@ -3596,7 +4211,10 @@ def _plan_prototype_cut_packet(body: str, rows: list) -> str:
         "rule 7 acceptance-finding route or an owner settlement on the item?\n\n"
         f"Not walked — `carried-by-plan` (the earlier plan's verifier walks them): {by_plan}\n\n"
         f"### prototype_lines per card\n\n{lines}\n\n"
-        f"### Registry (verbatim)\n\n{(_plan_prototype_registry_section(body) or '').strip()}\n")
+        f"### Registry (the judged fields of every item — {', '.join(_PROTO_GATE_JUDGED_KEYS)}; the full "
+        f"text by reference: the plan file's `## {PROTOTYPE_REGISTRY_SECTION}`)\n\n{judged}\n\n"
+        f"### Left out of this packet (by reference to the plan file)\n\n"
+        + ("\n".join(f"- {x}" for x in left) if left else "nothing") + "\n")
 
 
 def _plan_prototype_freshness_suffix(repo_root, fm) -> str:
@@ -3609,7 +4227,7 @@ def _plan_prototype_freshness_suffix(repo_root, fm) -> str:
     return f"|PROTO {tip or '-'} {base or '-'}" + (" unresolved" if fault else "")
 
 
-def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UNSET, *, SPECS_DIR, _plan_active_proposed_corpus, _plan_content_hash, _plan_scenario_fidelity, _read_yaml, _spec_content_sans_status, REPO_ROOT=None, parts_out: "dict | None" = None, own_paths_out: "dict | None" = None) -> str:
+def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UNSET, *, SPECS_DIR, _plan_active_proposed_corpus, _plan_content_hash, _plan_scenario_fidelity, _read_yaml, _spec_content_sans_status, REPO_ROOT=None, parts_out: "dict | None" = None, own_paths_out: "dict | None" = None, obligations: "str | None" = None, obligations_through: "str | None" = None) -> str:
     """T-0332 accept-gate freshness basis — sha256 over the plan body content_hash + the plan's
     OWN spec CONTENT + the EXTERNAL active+proposed corpus CONTENT. Mirrors `_plan_corpus_signature`
     (the close-gate basis) but binds the accept-relevant inputs so the draft→proposed BIRTH is
@@ -3638,7 +4256,15 @@ def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UN
     `scenario` and `prototype` (None when that slice is no input). The change check compares them to
     tell an eligible input from one that needs a fresh anchor. `own_paths_out`, when given, receives
     each plan-born spec's file path (id -> Path) from the same pass, so the change check reads no second
-    corpus pass."""
+    corpus pass.
+
+    T-14673 (SPEC-0034 §Plan-stage obligations) — `obligations` is the digest of the plan-stage
+    obligations due through the plan's status (`plan_obligations_digest`). None (nothing due) leaves
+    every basis below byte-identical; a digest is appended as `|OBL <digest>` to whichever basis
+    applies, so a relevant rule change or activation stales the verdict while an unrelated spec edit
+    does not. `parts_out["obligations"]` carries it for the change check's not-eligible test, and
+    `parts_out["obligations_through"]` the boundary it was computed through, so a change check made
+    after the plan moved on compares through the boundary its anchor judged."""
     # SPEC-0082 — the scenario-fidelity BASELINE slice (baseline list in authored order + each
     # baseline scenario's cites/covers/computed status). Folded into the basis ONLY when non-empty, so
     # a plan with no/empty scenario_roles hashes EXACTLY as before (byte-identical — no churn for the
@@ -3663,13 +4289,15 @@ def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UN
     if parts_out is not None:
         parts_out.update({"body": _plan_content_hash(body), "own_specs": own_digests, "corpus": None,
                           "scenario": hashlib.sha256(scen.encode("utf-8")).hexdigest() if scen else None,
-                          "prototype": proto or None})
+                          "prototype": proto or None, "obligations": obligations,
+                          "obligations_through": obligations_through})
+    obl = f"|OBL {obligations}" if obligations else ""   # T-14673 — '' keeps every basis byte-identical
     if not own_ids:
-        if not scen and not proto:
+        if not scen and not proto and not obl:
             return _plan_content_hash(body)   # NO plan-born specs + no scenario slice → legacy plan-body-only basis
         if not scen:
-            return hashlib.sha256(f"{_plan_content_hash(body)}{proto}".encode("utf-8")).hexdigest()
-        return hashlib.sha256(f"{_plan_content_hash(body)}|SCEN\n{scen}{proto}".encode("utf-8")).hexdigest()
+            return hashlib.sha256(f"{_plan_content_hash(body)}{proto}{obl}".encode("utf-8")).hexdigest()
+        return hashlib.sha256(f"{_plan_content_hash(body)}|SCEN\n{scen}{proto}{obl}".encode("utf-8")).hexdigest()
     own_s = "".join(sorted(own))
     corpus = "".join(f"CORPUS {sid}:{st}\n{raw}\n"
                      for sid, st, _t, raw in _plan_active_proposed_corpus() if sid not in own_ids)
@@ -3678,7 +4306,7 @@ def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UN
     basis = f"{_plan_content_hash(body)}|{own_s}|{corpus}"
     if scen:
         basis += f"|SCEN\n{scen}"
-    basis += proto
+    basis += proto + obl
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()
 
 
@@ -4118,7 +4746,11 @@ def _plan_gate_decision_route(slug, gate_id, template, keys=None) -> str:
             f"CURRENT signature; at the `decomposition-executing` gate it is a CUT edit whose "
             f"`--evidence` is the CURRENT card-set fingerprint (SPEC-0204 rule 9(d)); at the "
             f"`finalization` gate `fix` is refused by name and `accept`/`defer` are the "
-            f"dispositions available.")
+            f"dispositions available.\n"
+            f"SUBJECT MOVED AFTER THE DECISIONS WERE RECORDED? Run step 2 as it stands: when every "
+            f"residual carries a `fix`, the pass binds the plan's or cut's signature CURRENT when it "
+            f"runs; an `accept` or `defer` never carries to a subject it did not name (SPEC-1041 "
+            f"rule 9, T-14702).")
 
 
 def _plan_gate_engine_context(slug: str, audit_path, content_hash: str, od_packet,
@@ -4176,7 +4808,7 @@ def _auditor_guard_note(full: bool) -> str:
 
 def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_policy: str,
                          *, blocking: bool, card_set_fp: "str | None" = None,
-                         extra_context: "str | None" = None, owner_reset: bool = False, on_decisions: bool = False, gate_id: "str | None" = None, admission_only: bool = False, _folded_events=None, AUDIT_PASS_CEILING, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _die, _invoke_auditor, _parse_audit_verdict, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, finding_count_trend, is_trend_convergence_grant, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> str:
+                         extra_context: "str | None" = None, owner_reset: bool = False, on_decisions: bool = False, gate_id: "str | None" = None, admission_only: bool = False, _folded_events=None, AUDIT_PASS_CEILING, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _die, _invoke_auditor, _parse_audit_verdict, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, finding_count_trend, is_trend_convergence_grant, write_text_atomic, _iter_events=None, EVENTS_PATH=None, _plan_obligations=None) -> str:
     """T-0349 — the verb-asked plan-gate audit (SPEC-0083 §Plan-stage question templates, ex-SPEC-0036): `plan stage specs`
     asks P2 (auto-advisory), `plan stage trial` asks P3 (mandatory-blocking). FULL-capability
     auditor (SPEC-0034 plan-audit posture). Saves the canonical verdict (T-0348 schema +
@@ -4361,11 +4993,23 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
             # refused (additive, fail-safe — and `card_set_fp` absent falls back the same way).
             _od_has_fix = any(str((d or {}).get("disposition") or "").strip().lower() == "fix"
                               for d in _od_by_fp.values())
+            # T-14702 (<project> X-2447) — at `card_set_fingerprint` the RECOMPUTED cut is the current
+            # subject for EVERY decision set, not only a `fix` set: reading the gate's RECORDED
+            # signature for an all-`accept`/`defer` set let those decisions carry to a cut that moved
+            # after they were recorded. An unknown cut (no value handed in, or the helper's degraded
+            # sentinel) is an UNKNOWN subject — None, which the admission refuses fail-closed — and is
+            # never substituted by the recorded signature (audit-pre pass-1 fp1:7d96f0adb14b7513).
+            # `_od_has_fix` stays as read by the empty-set branch below and the T-12615 wording.
             if _sig_field == "content_hash":
                 _od_current = _plan_content_hash(body)
-            elif (_sig_field == "card_set_fingerprint" and _od_has_fix and card_set_fp):
-                _od_current = card_set_fp
+            elif _sig_field == "card_set_fingerprint":
+                _od_current = (card_set_fp if card_set_fp
+                               and card_set_fp != audit_lib.PLAN_CARD_SET_FINGERPRINT_ERROR else None)
             else:
+                _od_current = _plan_gate_recorded_signature(slug, gate_id)
+            if not _od_by_fp and _od_current is None:
+                # The EMPTY residual set keeps its own subject (T-13860): nothing is bound, so no
+                # decision can carry anywhere; the recorded signature is the row's own subject.
                 _od_current = _plan_gate_recorded_signature(slug, gate_id)
             if not _od_by_fp:
                 # T-13860 — A CEILING ROW WITH NO RESIDUAL ADMITS THE NEXT ROUND. Rule 9(f) admits a
@@ -4382,6 +5026,9 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                 current_subject=_od_current, reaudit_after_close=False,
                 unresolvable=bool(_od_res.get("unresolvable")),
                 unresolvable_reason=_od_res.get("unresolvable_reason"),
+                # T-14702 — an all-`fix` set binds the signature current at the pass where that
+                # signature is recomputable here; `corpus_signature` admits no `fix` (refused at decide).
+                plan_gate_fix_binds_at_pass=(_sig_field in ("content_hash", "card_set_fingerprint")),
                 # ARM 2 (ancestry) is POST-ONLY by that helper's own contract and `stage` here is a
                 # gate id, so it never runs; a content hash has no ancestry to answer about. The
                 # callable is still supplied so the helper is never handed None on a path it could
@@ -4575,21 +5222,39 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     # have meant the FALLBACK ran at the configured effort while the primary never did.
     effort = _resolve_audit_effort(True) if _resolve_audit_effort else None
     _auditor_row_fields.update(observe.auditor_triple(provider, model, effort))   # T-12857
+    # T-14673 (SPEC-0034 §Plan-stage obligations) — the checklist of the obligations DUE at the stage
+    # this gate judges, from the projection the session receives. An unavailable view refuses here,
+    # before the auditor (the checkpoint pre-pass normally refused already).
+    _obl_block = ""
+    _obl_through = PLAN_GATE_OBLIGATIONS_THROUGH.get(template)
+    if _plan_obligations is not None and _obl_through:
+        _obl = _plan_obligations(_obl_through)
+        if _obl.get("unavailable"):
+            _die(f"{slug}: the {template} gate refused before the auditor — the plan-stage obligation view "
+                 f"is unavailable: {'; '.join(_obl['unavailable'])}. No pass spent (SPEC-0034 "
+                 f"§Plan-stage obligations); repair the named read, then re-run `yitc-v2 plan stage` "
+                 f"for this plan.")
+        _obl_block = _obl.get("block") or ""
+    # T-14704 — an opted-in plan's registry rides the cut block (judged fields, left-out keys listed), so
+    # the body shown at gate-executing points at it instead of repeating it. `body` stays the hash input.
+    _shown_body = (_plan_body_registry_by_reference(body)
+                   if template == "gate-executing" and _plan_is_prototype_opted_in(fm) else body)
+    _engine_ctx = _plan_gate_engine_context(slug, audit_path.relative_to(REPO_ROOT), _plan_content_hash(body),
+                                            _od["packet"] if _od is not None else None, bool(prior))
     prompt = (f"{_PLAN_AUDIT_LENS}"
               f"\n## Authoritative plan FSM\n{_plan_fsm_line()}\n"
               f"\n## Gate question template ({template} — {PLAN_GATE_TEMPLATE_SPEC}, "
               f"policy: {gate_policy})\n\nAnswer EACH question of the template against the plan "
               f"below; ground the verdict in them:\n\n{tmpl}\n"
-              f"\n## Plan {slug}\n\nfrontmatter: {fm}\n\n{body}\n"
+              f"\n## Plan {slug}\n\nfrontmatter: {fm}\n\n{_shown_body}\n"
               + (f"\n## Decomposition — the filed task CARD SET (audit the CUT against the plan)\n"
                  f"{extra_context}\n" if extra_context else "")
+              + _obl_block
               # C-C (T-12335) — on the rule-3 pass the auditor sees each residual, its fingerprint and
               # its recorded disposition, and is asked to VERIFY `fix`, treat `accept`/`defer` as
               # settled, and put `echo_of: <fp>` on any re-raise. Rendered by the SAME
               # `on_decisions_packet_block` the task packet uses — one block, one wording.
-              + _plan_gate_engine_context(slug, audit_path.relative_to(REPO_ROOT), _plan_content_hash(body),
-                                          _od["packet"] if _od is not None else None,
-                                          bool(prior)))
+              + _engine_ctx)
     # T-14624 — the gate-executing RE-RUN after a RED carries the prior findings and asks for the
     # absorption sweep (SPEC-1040 §Absorption sweep). `prior` is the record read at entry; a no-data
     # ABORT never replaces a RED record (T-12739), so a RED -> ABORT -> re-run still shows the RED's
@@ -4609,7 +5274,23 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                      "activation owner and closure probe — and fixed or recorded wherever it occurs, not "
                      "only at the card the finding named? Report each further instance of a prior "
                      "finding's class the cut still carries.\n")
-    _prompt_size.update(_prompt_size_fields(prompt, plan_body=body, cut_cards=extra_context or ""))
+    _prompt_size.update(_prompt_size_fields(prompt, plan_body=_shown_body, cut_cards=extra_context or ""))
+    # T-14704 (X-2449) — the T-14528 budget, applied before the auditor: an input it cannot take is refused
+    # here naming its parts largest-first; no record is written and no pass is spent (SPEC-1058 §3).
+    if len(prompt) > _AUDITOR_INPUT_BUDGET:
+        _parts = {"plan body": len(_shown_body), "cut cards and packet": len(extra_context or ""),
+                  "plan-stage obligations": len(_obl_block), "engine context": len(_engine_ctx)}
+        _parts["lens, template and the rest"] = len(prompt) - sum(_parts.values())
+        _ranked = sorted(_parts.items(), key=lambda kv: -kv[1])
+        _append_event("read_gate_refused", None, {
+            "verb": "plan stage", "action": f"audit the {template} gate", "target_kind": "plan",
+            "plan_slug": slug, "reason": "plan-gate-packet-exceeds-auditor-budget",
+            "budget": _AUDITOR_INPUT_BUDGET, "prompt_chars": len(prompt), "parts": dict(_ranked)})
+        _largest = ", ".join(f"{k} {n} chars" for k, n in _ranked)
+        _die(f"{slug}: the {template} gate REFUSED before the auditor — its packet is {len(prompt)} chars "
+             f"against the {_AUDITOR_INPUT_BUDGET}-char auditor budget; largest parts: {_largest}. No audit "
+             f"pass was spent and the prior record is kept. Route: shrink the largest part (the plan body or "
+             f"the cut cards), then re-run `yitc-v2 plan stage <next> {slug}` (T-14704 / SPEC-1058 §3).")
     print(f"# Invoking external auditor: {provider}/{model} (full) — {template} gate "
           f"({gate_policy}) on plan {slug}; {_auditor_guard_note(True)}...", file=sys.stderr)
     _answered_pair: dict = {}      # T-12606 — INVOCATION-scoped: which pair answered THIS gate audit
@@ -4943,7 +5624,7 @@ def _plan_missing_checklist_pass_finding(large: bool, body: str, *, _plan_has_ch
                "format before the pre-`executing` gate (SPEC-0012 structural pre-pass; report-not-block)"}]
 
 
-def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_ROOT, _PLAN_CONSULT_GATE_AUDIT, _append_event, _build_draft_check_prompt, _die, _governing_contract_for, _invoke_auditor, _load_draft, _parse_audit_verdict, _plan_accept_freshness_hash, _plan_content_hash, _plan_gate_template_text, _plan_missing_checklist_pass_finding, _plan_scenario_fidelity, _plan_structural_findings, _read_yaml, _require_reads, _require_writing_worktree, _resolve_audit_effort=None, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, write_text_atomic, _iter_events=None, EVENTS_PATH=None, _is_consumer_build=None) -> None:
+def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_ROOT, _PLAN_CONSULT_GATE_AUDIT, _append_event, _build_draft_check_prompt, _die, _governing_contract_for, _invoke_auditor, _load_draft, _parse_audit_verdict, _plan_accept_freshness_hash, _plan_content_hash, _plan_gate_template_text, _plan_missing_checklist_pass_finding, _plan_scenario_fidelity, _plan_structural_findings, _read_yaml, _require_reads, _require_writing_worktree, _resolve_audit_effort=None, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, write_text_atomic, _iter_events=None, EVENTS_PATH=None, _is_consumer_build=None, _run_plan_checks=None, _plan_obligations=None) -> None:
     """Promote-gate verification (D-0034): run the external auditor on the draft, record the
     verdict to decisions/<slug>-audit.yaml. Does NOT change status (verification is an action,
     not а persisted state — it decays; take-into-work re-checks currency). No autosync/rebuild."""
@@ -5042,6 +5723,11 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         # was recorded. This route prints no `AUDIT:` token (that grammar is `audit pre|post`'s).
         return (f"plan check {slug}: RECORDED {len(absorb_texts)} absorption(s) in "
                 f"decisions/{audit_path.name} — the call succeeded; no check ran, no verdict this call.")
+    # T-14672 (SPEC-0034 §Project-declared plan check) — phase `plan-check`, after the `--absorb`
+    # field-edit branch (it runs no auditor and judges nothing) and BEFORE the provider, the template
+    # and the auditor: the draft check, the accept gate, the trial gate and `--round` alike.
+    if _run_plan_checks is not None:
+        _run_plan_checks(path, "plan-check", slug, verb=f"plan check {slug}" + (" --round" if rnd else ""))
     n_lines = len([ln for ln in body.splitlines() if ln.strip()])
     large = _plan_is_large(body)   # the SHARED big-plan predicate (T-9350 — agrees with the finalize pre-pass)
     # T-0386 — `plan check` is a plan-lifecycle-transition audit, so the model posture is FULL,
@@ -5106,6 +5792,16 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     prompt = _build_draft_check_prompt(slug, fm, body, large,
                                        template_name=stage_template, template_text=template_text,
                                        focus=focus, sf=sf, coverage_out=coverage)
+    # T-14673 (SPEC-0034 §Plan-stage obligations) — every form of the check (draft check, accept gate,
+    # trial gate, --round) lists the obligations due THROUGH the plan's current status, from the
+    # projection the session receives; refused before the auditor on an unavailable view.
+    if _plan_obligations is not None:
+        _obl = _plan_obligations(status)
+        if _obl.get("unavailable"):
+            _die(f"{slug}: plan check refused before the auditor — the plan-stage obligation view is "
+                 f"unavailable: {'; '.join(_obl['unavailable'])}. No pass spent (SPEC-0034 §Plan-stage "
+                 f"obligations); repair the named read, then re-run `yitc-v2 plan check {slug}`.")
+        prompt += _obl.get("block") or ""
     # T-14456 (SPEC-1058 §2-§3) — an opted-in plan's accept packet carries the base diff beside the
     # registry; a bad ref or a malformed list refuses HERE, before the auditor (no pass spent). A plan
     # without prototype_ref takes no branch: prompt and record stay byte-identical.
@@ -5203,28 +5899,10 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         slice_records, _outs, _notes = [], [], []
         _rank = {"GREEN": 0, "YELLOW": 1, "RED": 2, "ABORT": 3}
 
-        def _run_part(_p):
-            import datetime as _dt   # noqa: PLC0415 — the module's local-import convention
-            _ans: dict = {}
-            _at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="milliseconds")
-            _t0 = time.monotonic()
-            _res = _ask(_p, _ans)
-            return _res, _ans, _at.replace("+00:00", "Z"), round(time.monotonic() - _t0, 3)
-        try:
-            from lib import machine_settings
-            _workers = int(machine_settings.resolve("lib.plan.PLAN_CHECK_SLICE_WORKERS",
-                                                    PLAN_CHECK_SLICE_WORKERS))
-        except Exception:   # noqa: BLE001 — the settings stack is never a prerequisite (SPEC-0193 rule 6)
-            _workers = PLAN_CHECK_SLICE_WORKERS
-        if _workers <= 0 or _workers > len(proto_split):
-            _workers = len(proto_split)
-        if _workers == 1:
-            _results = [_run_part(_p) for _lab, _p, _paths, _ids in proto_split]
-        else:
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=_workers) as _pool:
-                _futs = [_pool.submit(_run_part, _p) for _lab, _p, _paths, _ids in proto_split]
-                _results = [_f.result() for _f in _futs]
+        # T-14675 — the bounded fan-out is ONE helper shared with the split aggregate `audit post --plan`
+        # (`audit.run_auditor_parts`), fed this module's LIVE constant as its default.
+        _results = audit_lib.run_auditor_parts([_p for _lab, _p, _paths, _ids in proto_split], _ask,
+                                               PLAN_CHECK_SLICE_WORKERS)
         _primary_ans = _reserve_ans = None
         for (_lab, _p, _paths, _ids), ((_rc, _out, _err), _ans, _at, _dur) in zip(proto_split, _results):
             _outs.append(f"### check part {_lab}\n{_out}")
@@ -5648,12 +6326,30 @@ _PLAN_NOT_ELIGIBLE = (
     ("corpus", "an active or proposed spec of the corpus outside the plan changed"),
     ("prototype", "the prototype pair (prototype_tip) changed"),
     ("scenario", "the scenario-fidelity slice changed"),
+    # T-14673 (SPEC-0034 §Plan-stage obligations) — a plan-stage rule due at this boundary was added,
+    # changed or activated: the anchor never judged it.
+    ("obligations", "a plan-stage obligation due at this boundary changed (a bound rule was added, "
+                    "edited or activated)"),
 )
 
 
 def _plan_not_eligible_changes(anchor_parts: dict, cur_parts: dict) -> list:
-    return [why for key, why in _PLAN_NOT_ELIGIBLE
-            if (anchor_parts or {}).get(key) != (cur_parts or {}).get(key)]
+    a, c = anchor_parts or {}, cur_parts or {}
+    out = []
+    for key, why in _PLAN_NOT_ELIGIBLE:
+        if a.get(key) == c.get(key):
+            continue
+        a_specs, c_specs = a.get("obligation_specs"), c.get("obligation_specs")
+        if key == "obligations" and isinstance(a_specs, dict) and isinstance(c_specs, dict):
+            # T-14697 — name each due spec whose normative digest moved (or that became / stopped being due)
+            moved = sorted(k for k in set(a_specs) | set(c_specs) if a_specs.get(k) != c_specs.get(k))
+            if moved:
+                out += [f"the normative part (status or rule text) of {k.split(' ', 1)[-1]} "
+                        f"({k.split(' ', 1)[0]}), a plan-stage obligation due at this boundary, changed "
+                        f"(it was added, edited or activated)" for k in moved]
+                continue
+        out.append(why)
+    return out
 
 
 def _plan_change_check_admission(slug: str, av: dict, *, current: dict, cur_parts: "dict | None" = None,
@@ -5771,7 +6467,7 @@ def _plan_closed_ids(stdout: str, valid: list) -> list:
 
 def plan_change_check_packet(slug: str, *, DECISIONS_DIR, PLANS_DIR, SPECS_DIR, _die, _load_draft,
                              _plan_accept_freshness_hash, _plan_content_hash, _read_yaml,
-                             _spec_content_sans_status) -> dict:
+                             _spec_content_sans_status, _run_plan_checks=None, _plan_obligations=None) -> dict:
     """SPEC-1061 §2 — the change check of `audit adhoc --plan <slug>`, built from the anchor and the
     plan as it stands. Refuses BEFORE any auditor call: no canonical anchor, an anchor without its
     per-input digests, a not-eligible input changed since the anchor, nothing changed, or a changed
@@ -5779,6 +6475,10 @@ def plan_change_check_packet(slug: str, *, DECISIONS_DIR, PLANS_DIR, SPECS_DIR, 
     record path, the packet text and `finalize(stdout, verdict, findings) -> (verdict, block)`."""
     import difflib
     path, fm, body = _load_draft(slug, dirs=(PLANS_DIR,))
+    # T-14672 (SPEC-0034 §Project-declared plan check) — phase `change-check`, before the anchor reads,
+    # so before any `audit adhoc --plan` auditor call.
+    if _run_plan_checks is not None:
+        _run_plan_checks(path, "change-check", fm.get("id") or slug, verb=f"audit adhoc --plan {slug}")
     anchor_path = Path(DECISIONS_DIR) / f"{slug}-audit.yaml"
     anchor_ref = f"decisions/{anchor_path.name}"
     if not anchor_path.exists():
@@ -5797,7 +6497,13 @@ def plan_change_check_packet(slug: str, *, DECISIONS_DIR, PLANS_DIR, SPECS_DIR, 
              f"{slug}` for an anchor (SPEC-1061 §1).")
     cur_parts: dict = {}
     spec_paths: dict = {}
-    cur_accept = _plan_accept_freshness_hash(slug, body, fm, parts_out=cur_parts, own_paths_out=spec_paths)
+    # T-14673 — the obligations are compared, and listed, through the boundary the anchor judged (its
+    # recorded `obligations_through`), not the plan's status now: a plan accepted since the anchor keeps it.
+    obl_through = a_parts.get("obligations_through") or str(fm.get("status") or "draft")
+    cur_accept = (_plan_accept_freshness_hash(slug, body, fm, parts_out=cur_parts, own_paths_out=spec_paths,
+                                              obligations_through=obl_through)
+                  if _plan_obligations is not None else
+                  _plan_accept_freshness_hash(slug, body, fm, parts_out=cur_parts, own_paths_out=spec_paths))
     cur_hash = _plan_content_hash(body)
     bad = _plan_not_eligible_changes(a_parts, cur_parts)
     if bad:
@@ -5846,6 +6552,17 @@ def plan_change_check_packet(slug: str, *, DECISIONS_DIR, PLANS_DIR, SPECS_DIR, 
     if not changed:
         _die(f"{slug}: the freshness hashes moved since the anchor but no eligible input shows a change — "
              f"run `yitc-v2 plan check {slug}` for a fresh anchor (SPEC-1061 §2).")
+    # T-14673 (SPEC-0034 §Plan-stage obligations) — the obligations due through the plan's status NOW,
+    # from the projection the session receives, asked in the change check's own terms (contradictions the
+    # change introduces); the freshness comparison above stays on the anchor's boundary.
+    obl_block = ""
+    if _plan_obligations is not None:
+        _obl = _plan_obligations(str(fm.get("status") or "draft"), change_check=True)
+        if _obl.get("unavailable"):
+            _die(f"{slug}: no change check — the plan-stage obligation view is unavailable: "
+                 f"{'; '.join(_obl['unavailable'])} (SPEC-0034 §Plan-stage obligations); repair the named "
+                 f"read, then re-run `yitc-v2 audit adhoc --plan {slug}`.")
+        obl_block = _obl.get("block") or ""
     findings = [f for f in (av.get("findings") or []) if isinstance(f, dict)]
     closure = [{"id": f"A{i}", "severity": str(f.get("severity") or "").strip().lower(),
                 "what": str(f.get("what") or "").strip()} for i, f in enumerate(av.get("findings") or [], 1)
@@ -5856,11 +6573,14 @@ def plan_change_check_packet(slug: str, *, DECISIONS_DIR, PLANS_DIR, SPECS_DIR, 
              f"the author fixed them in one batch. Judge exactly two things over the CUMULATIVE change from "
              f"the anchor to now:",
              "(1) for each listed finding: is it CLOSED by the plan as it stands now?",
-             "(2) does the change introduce a contradiction or a regression (a new defect)?", "",
-             "### Closure list — the anchor's findings"]
+             "(2) does the change introduce a contradiction or a regression (a new defect)"
+             + (" — including a contradiction of a plan-stage obligation listed below?" if obl_block else "?"),
+             "", "### Closure list — the anchor's findings"]
     for c, f in zip(closure, findings):
         where = str(f.get("where") or "").strip()
         lines.append(f"- {c['id']} [{c['severity'] or 'unrated'}] {c['what']}" + (f" — where: {where}" if where else ""))
+    if obl_block:   # T-14673 — reference for question (2); the cumulative-change focus is unchanged
+        lines += obl_block.rstrip("\n").split("\n")
     lines += ["", "### Cumulative diff from the anchor to now"]
     for c in changed:
         lines += [f"#### {c['input']} — `{c['path']}`", "```diff", c["diff"], "```"]

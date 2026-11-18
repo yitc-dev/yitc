@@ -255,6 +255,28 @@ def audit_packet_ceiling() -> dict:
     return {"key": PACKET_CEILING_KEY, "value": int(rec["value"]), "source": rec["source"]}
 
 
+def merge_integration_context_cap() -> dict:
+    """T-14683 (X-2417) — the bound on a merge-integration CONTEXT (the ordered resolution diffs + the final
+    task delta, `audit_ceiling.merge_integration_admission`'s PACKET guard), as `{"key", "value", "source"}`.
+    When the project sets the whole-packet ceiling in its yitc-ops.yaml `thresholds:`, that value bounds the
+    context too: the context is part of the packet the same value bounds whole, so one setting opens both.
+    With no project value the built-in `AUDIT_MAX_DIFF_BYTES` stands — the LIVE module constant, never the
+    packet default, so the default bound is not raised. Never raises (`audit_packet_ceiling` reads any fault
+    as built-in); the refusal stays complete-or-refuse either way (T-14544)."""
+    ceiling = audit_packet_ceiling()
+    if ceiling.get("source") == "yitc-ops.yaml":
+        return ceiling
+    return {"key": "lib.audit.AUDIT_MAX_DIFF_BYTES", "value": AUDIT_MAX_DIFF_BYTES, "source": "built-in"}
+
+
+def _mi_context_cap_label(cap: dict) -> str:
+    """T-14683 — the bracket the context refusal names: value source and, on the built-in arm, the route."""
+    if cap.get("source") == "yitc-ops.yaml":
+        return f"yitc-ops.yaml — {PACKET_CEILING_KEY}"
+    return (f"built-in; a project admits a larger context by setting {PACKET_CEILING_KEY} in its "
+            f"yitc-ops.yaml thresholds: — `config set --project`, SPEC-1031")
+
+
 @functools.wraps(audit_consult.consult_packet_max_bytes)
 def consult_packet_max_bytes(*a, **kw):
     """T-12696 host residue — the body now lives in `bin/lib/audit_consult.py#consult_packet_max_bytes`."""
@@ -1724,6 +1746,51 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
         rc, stdout, stderr = _call(model, kw)
         if not is_auditor_non_answer(rc, stdout, stderr):
             return rc, stdout, stderr
+
+
+PLAN_PART_WORKERS_KEY = "lib.plan.PLAN_CHECK_SLICE_WORKERS"
+
+
+def _plan_part_default_workers() -> int:
+    """The LIVE `lib.plan.PLAN_CHECK_SLICE_WORKERS` constant — the default `run_auditor_parts` resolves
+    the machine setting against (T-14675 shares the T-14612 knob). Never raises."""
+    try:
+        from lib import plan as _plan_mod   # noqa: PLC0415 — lib.plan imports this module at load time
+        return int(_plan_mod.PLAN_CHECK_SLICE_WORKERS)
+    except Exception:   # noqa: BLE001
+        return int(machine_settings.BY_NAME[PLAN_PART_WORKERS_KEY].default)
+
+
+def run_auditor_parts(prompts: list, ask, default_workers: int = 0) -> list:
+    """T-14612, moved here by T-14675 so a split `plan check` and a split aggregate `audit post --plan`
+    run their parts through ONE bounded fan-out. `ask(prompt, answered)` makes one auditor call and
+    fills its OWN `answered` dict (SPEC-0202 rule 6 is per invocation). The parts run concurrently,
+    bounded by the machine setting `lib.plan.PLAN_CHECK_SLICE_WORKERS` (0 = every part at once, 1 = one
+    after another in part order) — PERFORMANCE only: results come back in PART order whatever the
+    completion order, so no verdict depends on it. Returns [(result, answered, started_at, duration_s)].
+    `default_workers` is the caller's LIVE module constant (`lib.plan.PLAN_CHECK_SLICE_WORKERS`), the
+    value `machine_settings.resolve` falls back to. An exception raised by `ask` propagates, as the
+    inline loop it replaces did."""
+    import datetime as _dt   # noqa: PLC0415 — the module's local-import convention
+
+    def _one(_p):
+        _ans: dict = {}
+        _at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        _t0 = time.monotonic()
+        _res = ask(_p, _ans)
+        return _res, _ans, _at, round(time.monotonic() - _t0, 3)
+    try:
+        workers = int(machine_settings.resolve(PLAN_PART_WORKERS_KEY, default_workers))
+    except Exception:   # noqa: BLE001 — the settings stack is never a prerequisite (SPEC-0193 rule 6)
+        workers = default_workers
+    if workers <= 0 or workers > len(prompts):
+        workers = len(prompts)
+    if workers <= 1:
+        return [_one(p) for p in prompts]
+    import concurrent.futures   # noqa: PLC0415
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        futs = [pool.submit(_one, p) for p in prompts]
+        return [f.result() for f in futs]
 
 
 def resolve_model_for_provider(resolve, full: bool, provider: "str | None") -> "str | None":
@@ -8941,7 +9008,9 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
     # Empty string when there are no recorded residual findings.
     _residual_suffix = _residual_escalation_suffix(residual_findings)
     fingerprints = [str(k) for k in (residual_fingerprints or []) if k]
-    data = {"task": tid, "dispatch": tid, "stage": stage, "passes": prior_passes,
+    # T-14676 — `kind` names this halt as the ceiling one, so a count of halts by kind no longer reads it
+    # as an unlabelled halt beside the worker's `task pause --reason audit-ceiling` (SPEC-0103 §3-ceiling).
+    data = {"task": tid, "dispatch": tid, "kind": "audit-ceiling", "stage": stage, "passes": prior_passes,
             "residual_fingerprints": fingerprints}
     if residual_findings:
         data["residual_findings_summary"] = residual_findings_summary(residual_findings)
@@ -9155,7 +9224,8 @@ def ceiling_terminal_halt_disposition(tid, stage, passes, worker_ref, emit_fn, *
     if not (worker_ref and emit_fn is not None):
         return lines
     emit_fn("bg_dispatch_halted", tid, {
-        "task": tid, "dispatch": tid, "blocked_on_land": True, "stage": stage, "passes": passes,
+        "task": tid, "dispatch": tid, "kind": "audit-ceiling",   # T-14676 — the same kind as the ceiling halt
+        "blocked_on_land": True, "stage": stage, "passes": passes,
         "worktree_intact": True,
         "reason": (
             f"audit-{stage} TERMINAL — the {label}{ref} came back RED (SPEC-0204 rules 3-4): no "
@@ -10824,7 +10894,9 @@ _AUDIT_POST_DIFF_EXCL = ["--", ".",
                          # 'audit'-slugged decision is unaffected (T-0220).
                          ":(exclude)decisions/archive/*/*-audit-pre.yaml",
                          ":(exclude)decisions/archive/*/*-audit-post.yaml",
-                         ":(exclude)events.jsonl",
+                         # T-14670: the journal is the SEGMENT SET (SPEC-0190 rule 1) — the live
+                         # file AND its archive day partitions, named by the one segment-naming home.
+                         *events_mod.journal_exclude_pathspecs("events.jsonl", "."),
                          ":(exclude)graph/index.json"]
 
 
@@ -12303,6 +12375,235 @@ def _plan_subject_text_lines(slug: str, specs, tasks, *, _find_draft, _find_spec
         lines.extend(_file_section("Card text", tid, st, _find_task_yaml(tid),
                                    "no single card file resolves for this id"))
     return lines
+
+
+# ── T-14675 (X-2406) — the aggregate PLAN audit graded in SHOWN parts merged into ONE verdict ────────
+# After T-14643 a plan whose aggregate corpus is over the packet ceiling had no route to `realized`: the
+# refusal is right (a packet that cuts the texts it grades gives a vacuous verdict), but nothing else
+# assembled a packet that fits. `plan_aggregate_parts` cuts the ONE rendered realization block into
+# parts that each show their texts WHOLE; `cmd_audit` verifies every part it builds, sends each, and
+# folds the part verdicts into the one record `plan stage realized` reads (worst part wins).
+_PLAN_PART_SUBJECT_HEAD = "### Subject texts —"
+_PLAN_PART_INDENT = "    "
+# T-14686 — the plan body's SECTION boundary is the plan lifecycle's own: a column-0 `##` line followed
+# by whitespace or the line end — what `lib.plan._plan_section_text` cuts at (`(?=^##\s|\Z)`), with NO
+# fence, HTML or tag awareness. No classifier decides that such a line "is not a heading", so none can
+# hide a real one (the T-14675 masking rounds fp1:426e4f198335351f, fp1:c445fcc30351927b,
+# fp1:1b87fddd16671338 are the class this removes).
+_PLAN_PART_HEAD_RE = re.compile(r"##(?:\s|$)")
+
+
+def _plan_grading_heading_names():
+    """The plan's own HEADING names for its intent and its criteria sections — read from `lib.plan`,
+    never copied: the skeleton's `Problem / intent` and `Done criterion`, the canonical
+    realization-exit section and its legacy section names. Headings only: a phrase in prose (the legacy
+    inline probe-block markers) can sit in any section, so reading it would OVER-detect criteria; a plan
+    marking its criteria only that way gets the whole body as its anchor (T-14675 audit-post finding 2)."""
+    from lib import plan as _plan_mod   # noqa: PLC0415 — lib.plan imports this module at load time
+    intent = (_plan_mod._PLAN_DRAFT_FRONT_LOAD_SECTIONS[0],)
+    criteria = (_plan_mod._PLAN_DRAFT_FRONT_LOAD_SECTIONS[1], _plan_mod.REALIZATION_EXIT_SECTION,
+                *_plan_mod._PROBE_BLOCK_LEGACY_SECTIONS)
+    return intent, criteria
+
+
+def _plan_part_sections(lines: list) -> list:
+    """Cut lines into `### ` sections: [(label, text)], text = the heading line and its body with the
+    trailing blank lines dropped. Every text line of the block is indented (T-13824), so a line that
+    starts with `### ` is always a section start."""
+    out, cur = [], None
+    for ln in lines:
+        if ln.startswith("### "):
+            if cur:
+                out.append(cur)
+            cur = [ln]
+        elif cur is not None:
+            cur.append(ln)
+    if cur:
+        out.append(cur)
+    res = []
+    for sec in out:
+        while len(sec) > 1 and not sec[-1].strip():
+            sec.pop()
+        res.append((sec[0], "\n".join(sec)))
+    return res
+
+
+def plan_aggregate_parts(block: str, slug: str, budget: int, measure, *, ceiling: dict) -> tuple:
+    """T-14675 — cut the rendered aggregate corpus `block` (`_plan_realization_block`) into parts whose
+    BUILT prompt fits `budget` bytes, each showing its texts WHOLE. Returns (parts, fault): parts =
+    [{"label", "block", "units", "unit_sections", "anchor_sections"}] in corpus order, or ([], why).
+
+    Every part carries the member lists (the status sections before the subject texts), a `### Part`
+    note, and the plan's GRADING ANCHOR; every other text is a UNIT shown whole in exactly one part. The
+    body is cut into sections at EVERY `_PLAN_PART_HEAD_RE` line — the plan lifecycle's own section
+    boundary, inside a code fence or an HTML block or not (T-14686: no masking). The anchor is the
+    body's lead plus EVERY section whose start the lifecycle's own heading matcher reads as an intent
+    or a criteria name (`^##\\s+<name>`, widened to a name prefix in any case; names from
+    `_plan_grading_heading_names`), so every such heading-shaped line rides every part — used when the
+    body has at least one of each, else the WHOLE body. Over-inclusion is the accepted cost: a
+    heading-shaped example makes its section anchor, and an anchor too big for the frame refuses (fail
+    closed, never a part graded without it). A unit is never cut: one that cannot fit beside the frame is the fault, as is an empty or
+    unavailable body (nothing to grade against). `measure(block)` returns the bytes of the prompt built
+    from `block`; the frame is measured with the widest part numbers, so every real part is no larger
+    than the packing assumed — the caller still measures and checks every prompt it builds. Pure."""
+    lines = block.split("\n")
+    at = next((i for i, ln in enumerate(lines) if ln.startswith(_PLAN_PART_SUBJECT_HEAD)), None)
+    if at is None:
+        return [], "the corpus carries no subject-texts section to split"
+    head = "\n".join(lines[:at]).rstrip("\n")
+    first = next((i for i in range(at + 1, len(lines)) if lines[i].startswith("### ")), len(lines))
+    subject_head = "\n".join(lines[at:first]).rstrip("\n")
+    sections = _plan_part_sections(lines[first:])
+    body_label = f"### Plan body — {slug}"
+    if not sections or sections[0][0] != body_label:
+        return [], f"the corpus has no `{body_label}` section"
+    _body_label, body_text = sections[0]
+    members = sections[1:]
+    body_lines = body_text.split("\n")[1:]
+    available = any(ln.startswith(_PLAN_PART_INDENT) for ln in body_lines)
+    if not available:
+        return [], ("the plan body is empty or could not be read, so a part would grade the corpus "
+                    "against no intent and no criteria")
+    plain = [ln[len(_PLAN_PART_INDENT):] if ln.startswith(_PLAN_PART_INDENT) else ln for ln in body_lines]
+    heads = [i for i, ln in enumerate(plain) if _PLAN_PART_HEAD_RE.match(ln)]
+    intent_names, criteria_names = _plan_grading_heading_names()
+
+    def _trim(ls):
+        ls = list(ls)
+        while ls and not ls[-1].strip():
+            ls.pop()
+        return ls
+    lead = _trim(body_lines[:heads[0]] if heads else body_lines)
+
+    def _reads_as(text, names):
+        # the lifecycle's own heading matcher (`lib.plan._plan_section_text`: `^##\s+<name>`), applied at
+        # the section start — so its `\s+` spans a line end exactly as there — widened, never narrowed:
+        # a name PREFIX (no `\s*$`) and any letter case (T-14686, audit-post fp1:268de2a08f0d18ba)
+        return any(re.match(r"##\s+" + re.escape(x), text, re.IGNORECASE) for x in names)
+    chunks = []          # (index 1..M, heading text, kind, lines)
+    for n, h in enumerate(heads):
+        end = heads[n + 1] if n + 1 < len(heads) else len(body_lines)
+        text = "\n".join(plain[h:end])
+        title = (text[2:].strip().split("\n", 1)[0].strip()) if text[2:].strip() else ""
+        kind = None
+        if _reads_as(text, intent_names):
+            kind = "intent"
+        elif _reads_as(text, criteria_names):
+            kind = "criteria"
+        chunks.append((n + 1, title, kind, _trim(body_lines[h:end])))
+    m_total = len(chunks)
+    sectioned = (any(c[2] == "intent" for c in chunks) and any(c[2] == "criteria" for c in chunks))
+    anchor_sections, body_units = [], []
+    if sectioned:
+        if any(ln.strip() for ln in lead):
+            anchor_sections.append("\n".join([f"{body_label} — lead before its first ## heading "
+                                              f"(grading anchor, shown in every part)", *lead]))
+        for i, title, kind, ls in chunks:
+            if kind:
+                anchor_sections.append("\n".join([f"{body_label} — section {i}/{m_total} «{title}» "
+                                                  f"(grading anchor, shown in every part)", *ls]))
+            else:
+                body_units.append((f"{body_label} — section {i}/{m_total} «{title}»",
+                                   "\n".join([f"{body_label} — section {i}/{m_total} «{title}»", *ls])))
+        anchor_desc = ("the plan body's lead, its `## Problem / intent` section(s) and its criteria "
+                       "section(s), shown whole in every part")
+        other_desc = "each other plan-body section, each spec text and each card text"
+    else:
+        anchor_sections.append(body_text)
+        anchor_desc = ("the WHOLE plan body (the body does not mark both a `## Problem / intent` and a "
+                       "criteria section), shown whole in every part")
+        other_desc = "each spec text and each card text"
+    units = body_units + list(members)
+    labels = [lab for lab, _t in units]
+    if len(set(labels)) != len(labels):
+        dup = sorted({x for x in labels if labels.count(x) > 1})
+        return [], f"two corpus texts carry the same label ({dup[0][4:]}), so a part could not name what it shows"
+
+    def _note(k, n, shown):
+        return "\n".join([
+            f"### Part {k}/{n} of this aggregate audit — what this part shows",
+            f"The plan's corpus is over the packet ceiling ({ceiling['value']} bytes, {PACKET_CEILING_KEY}), "
+            f"so this aggregate audit is graded in {n} parts, one auditor call each; the part verdicts merge "
+            f"into ONE aggregate verdict and the worst part verdict wins (T-14675).",
+            f"EVERY part carries the member lists above (every spec and implementing card with its status) "
+            f"and the plan's grading anchor: {anchor_desc}. Every other text — {other_desc} — is shown "
+            f"WHOLE in exactly ONE part.",
+            "THIS part shows these texts, each whole:",
+            *[f"- {lab[4:]}" for lab in shown],
+            "GRADE ONLY the texts this part shows, against the member lists and the grading anchor. A member "
+            "whose text is not shown here is graded in its own part: its absence from THIS part is NOT a "
+            "finding. A contradiction between two texts shown in different parts cannot be seen from one "
+            "part — do not report one you cannot see."])
+
+    def _render(k, n, us):
+        return "\n\n".join([head, _note(k, n, [lab for lab, _t in us]), subject_head,
+                            *anchor_sections, *[t for _l, t in us]])
+    frame = measure(_render(9999, 9999, []))
+    room = budget - frame
+    if room <= 0:
+        return [], (f"the frame every part carries (the overlay, the member lists and the grading anchor) "
+                    f"is {frame} bytes, leaving no room under the {budget}-byte budget")
+    cost = lambda lab, t: len(("\n\n" + t).encode("utf-8", "replace")) + len(("\n- " + lab[4:]).encode("utf-8", "replace"))
+    packs, cur, used = [], [], 0
+    for lab, t in units:
+        c = cost(lab, t)
+        if c > room:
+            return [], (f"`{lab[4:]}` alone needs {c} bytes, but a part has {room} bytes of room beside its "
+                        f"{frame}-byte frame under the {budget}-byte budget — a text is never cut")
+        if cur and used + c > room:
+            packs.append(cur)
+            cur, used = [], 0
+        cur.append((lab, t))
+        used += c
+    if cur:
+        packs.append(cur)
+    if not packs:
+        return [], "no part would show any text"
+    n = len(packs)
+    return [{"label": f"{k}/{n}", "block": _render(k, n, us), "units": [lab for lab, _t in us],
+             "unit_sections": [t for _l, t in us], "anchor_sections": list(anchor_sections)}
+            for k, us in enumerate(packs, 1)], None
+
+
+def plan_parts_verified(parts: list, block: str, slug: str, budget: int, assemble) -> tuple:
+    """T-14675 — FAIL-CLOSED check of the parts `plan_aggregate_parts` cut, made on the prompts actually
+    BUILT (never on the packing estimate) and against the ORIGINAL block, not against the partitioner's
+    own bookkeeping: each prompt is <= `budget` bytes and carries its grading anchor and every text it
+    names whole; every spec and card text of the corpus is shown in EXACTLY ONE part; and the plan body
+    is shown entire — every line of it in the anchor or in exactly one part. Returns (parts + their
+    `prompt` / `bytes`, None) or ([], why). Pure but for `assemble`."""
+    sections = _plan_part_sections(block.split("\n")[next(
+        (i for i, ln in enumerate(block.split("\n")) if ln.startswith(_PLAN_PART_SUBJECT_HEAD)), 0):])
+    body_label = f"### Plan body — {slug}"
+    members = [(lab, t) for lab, t in sections if lab.startswith(("### Spec text —", "### Card text —"))]
+    body = next((t for lab, t in sections if lab == body_label), None)
+    out = []
+    for pp in parts:
+        if not pp.get("units"):
+            return [], f"part {pp.get('label')} would show no text"
+        pr = assemble(pp["block"])
+        nb = len(pr.encode("utf-8", "replace"))
+        if nb > budget:
+            return [], f"part {pp['label']} is {nb} bytes, over the {budget}-byte budget"
+        for t in [*pp["anchor_sections"], *pp["unit_sections"]]:
+            if t not in pr:
+                return [], f"part {pp['label']} does not carry `{t.splitlines()[0][4:]}` whole"
+        out.append({**pp, "prompt": pr, "bytes": nb})
+    for lab, t in members:
+        n = sum(1 for pp in out if t in pp["unit_sections"])
+        if n != 1:
+            return [], f"`{lab[4:]}` is shown in {n} parts, not exactly one"
+    if body is not None:
+        def _lines(texts):
+            got = []
+            for t in texts:
+                got += [ln for ln in t.split("\n")[1:] if ln.strip()]
+            return sorted(got)
+        anchor = out[0]["anchor_sections"] if out else []
+        body_units = [t for pp in out for t in pp["unit_sections"] if t.startswith(body_label)]
+        if _lines(anchor + body_units) != _lines([body]):
+            return [], "the plan body is not shown entire (anchor plus its parts differ from the body)"
+    return out, None
 
 
 def plan_target_scenario_lines(slug: str, *, _find_draft=None, _plan_scenario_roles=None, SCENARIOS_DIR=None,
@@ -15071,6 +15372,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 _mi_view = _decide_journal_view(   # T-13332: the scope's task rows when held
                     tid, "post", _iter_events=_scoped_task_iter(EVENTS_PATH, tid, _iter_events),
                     events_path=EVENTS_PATH)
+                _mi_cap = merge_integration_context_cap()   # T-14683: read once, both asks below use it
                 _mi_admit = lambda: (   # noqa: E731 — asked again below (T-14534) on the widened rows
                     audit_ceiling.merge_integration_admission(
                         tid, prior_record=_prior_audit_record(tid, "post"), custody_sha=sha,
@@ -15078,7 +15380,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                         stage_rows=[r for r in _mi_view["stage_rows"]
                                     if _on_decisions_row_is_real(r, _mi_view["stage_rows"],
                                                                  _mi_view["rows"], tid, "post")],
-                        git=_mi_git, resolve=_git_resolve_sha, diff_cap=AUDIT_MAX_DIFF_BYTES,
+                        git=_mi_git, resolve=_git_resolve_sha, diff_cap=_mi_cap["value"],
+                        diff_cap_source=_mi_context_cap_label(_mi_cap),
                         spec_parts=_mi_spec_parts, sign_at=_mi_sign_at,
                         # T-14301 — cross record-only sync bookkeeping commits (T-12436 predicate)
                         transparent=lambda _c, _t: _card_repair_chain_transparent(
@@ -16865,6 +17168,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # T-13512 — the packet handed to the auditor on THIS run; "" on the two carry-forward paths below,
     # which invoke none. The outage classifier's two readers pass it so the echo is never matched.
     sent_packet = ""
+    plan_part_records = None   # T-14675 — the per-part rows of a split aggregate plan audit
+    plan_floor_subjects = []   # T-14675 — the answered parts the response floors judge one by one
     if preview and short_circuit_no_auditor:
         _governing = ("consult-governed carry-forward (T-0522)" if consult_adjudication is not None
                       else "unchanged-fingerprint carry-forward (T-0544)")
@@ -17069,33 +17374,37 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                               _iter_events))
             if _proto_refusal:
                 _die(_proto_refusal)
-        prompt = _build_audit_prompt(artifact, stage, diff, extra, target_kind, focus=focus,
-                                     prototype_diff=_proto_diff, prototype_identity=_proto_identity,
-                                     prototype_carry_block=_carry_block,   # T-14458
-                                     merge_integration_block=_mi_block,   # T-14554
-                                     shipped_diff_summary=_mi_summary,     # T-14554
-                                     event_emit_only=event_emit_only, serve_deploy=serve_deploy,
-                                     reaudit_after_close=reaudit_after_close_flag,
-                                     external_action=external_action, host_config=host_config,
-                                     land_emitted_event=land_emitted_event,
-                                     post_ship_observation=post_ship_observation_decl,
-                                     activation_gated_radius=activation_gated_partition,
-                                     preshipped_deliverable=preshipped_deliverable,
-                                     settlement_sweep=settlement_sweep,
-                                     settlement_commits=settlement_commits,
-                                     preshipped_commit=preshipped_commit,
-                                     zero_ship_diff=zero_ship_diff,   # T-12730: a re-lens overlay
-                                     evidence_locator=evidence_locator,   # again, never a short-circuit
-                                     foreign_subject=foreign_subject,   # T-12737 (X-1487)
-                                     prior_record=monotonic_prior,
-                                     prior_passes=prior_passes,   # T-12288: the rule-8 round fork
-                                     on_decisions=on_decisions_packet,   # T-12289: the rule-3 projection
-                                     churn_tie=churn_tie,   # T-12718: the churn-only merge tie (H, M)
-                                     evidence_sink=packet_evidence_sink,
-                                     cross_section_sink=cross_section_sink,
-                                     optin_excluded_sink=optin_excluded_sink,
-                                     readiness_sink=packet_readiness_sink,
-                                     readiness_journal_silent=bool(_silence))
+        # T-14675 — ONE assembly call site for the single packet and for each part of a split
+        # aggregate plan audit (`_d` is the corpus/diff the packet carries; every other input is fixed).
+        def _assemble(_d):
+            return _build_audit_prompt(artifact, stage, _d, extra, target_kind, focus=focus,
+                                         prototype_diff=_proto_diff, prototype_identity=_proto_identity,
+                                         prototype_carry_block=_carry_block,   # T-14458
+                                         merge_integration_block=_mi_block,   # T-14554
+                                         shipped_diff_summary=_mi_summary,     # T-14554
+                                         event_emit_only=event_emit_only, serve_deploy=serve_deploy,
+                                         reaudit_after_close=reaudit_after_close_flag,
+                                         external_action=external_action, host_config=host_config,
+                                         land_emitted_event=land_emitted_event,
+                                         post_ship_observation=post_ship_observation_decl,
+                                         activation_gated_radius=activation_gated_partition,
+                                         preshipped_deliverable=preshipped_deliverable,
+                                         settlement_sweep=settlement_sweep,
+                                         settlement_commits=settlement_commits,
+                                         preshipped_commit=preshipped_commit,
+                                         zero_ship_diff=zero_ship_diff,   # T-12730: a re-lens overlay
+                                         evidence_locator=evidence_locator,   # again, never a short-circuit
+                                         foreign_subject=foreign_subject,   # T-12737 (X-1487)
+                                         prior_record=monotonic_prior,
+                                         prior_passes=prior_passes,   # T-12288: the rule-8 round fork
+                                         on_decisions=on_decisions_packet,   # T-12289: the rule-3 projection
+                                         churn_tie=churn_tie,   # T-12718: the churn-only merge tie (H, M)
+                                         evidence_sink=packet_evidence_sink,
+                                         cross_section_sink=cross_section_sink,
+                                         optin_excluded_sink=optin_excluded_sink,
+                                         readiness_sink=packet_readiness_sink,
+                                         readiness_journal_silent=bool(_silence))
+        prompt = _assemble(diff)
         prompt_excerpt = prompt[:200]   # opens at the fixed lens — the focus block is unreachable (T-0350 F3)
         sent_packet = prompt
 
@@ -17146,32 +17455,72 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # bound ran over its floor (the packet is still over the ceiling) or kept 0 bytes of EVERY spec
         # and card text. A GREEN on such a packet is vacuous. Plan targets only: measured over the kernel
         # journal, no task packet ever ran over the ceiling or cut a section to 0 B (the card's Analysis).
+        # T-14675 (X-2406) — the PART ROUTE: before refusing, try to grade the corpus in parts that each
+        # show their texts WHOLE (`plan_aggregate_parts`), every prompt built measured and checked here.
+        # Only when no such split exists is the packet refused, by the SAME reason, row and message (+ the
+        # split's own fault) — the T-14643 guarantee is unchanged: no part grades a text it does not show.
+        plan_parts = None
         if target_kind == "plan":
             _texts = [r["label"] for r in packet_sections
                       if r["label"].startswith(("### Spec text —", "### Card text —"))]
             _zero = {e["label"] for e in packet_elisions if e["kept_bytes"] == 0}
-            if packet_bytes > _ceiling["value"] or (_texts and all(t in _zero for t in _texts)):
+            _unshown = packet_bytes > _ceiling["value"] or bool(_texts and all(t in _zero for t in _texts))
+            # T-14675 audit-post finding 1 — the split is tried whenever the bound CUT any subject text,
+            # not only when it cut them all: a part shows its texts whole, a cut packet does not.
+            _cut_texts = [e["label"] for e in packet_elisions
+                          if e["label"].startswith(("### Spec text —", "### Card text —", "### Plan body"))]
+            if _unshown or _cut_texts:
                 _needed = packet_bytes + sum(e["total_bytes"] - e["kept_bytes"] for e in packet_elisions)
-                _pl_line = (f"plan_packet_subject_unshown: the assembled packet ({packet_bytes} bytes; "
-                            f"{_needed} bytes needed to show the whole corpus) is over the ceiling "
-                            f"{_ceiling['value']} [{_ceiling['source']}] — {PACKET_CEILING_KEY} — or keeps "
-                            f"none of its {len(_texts)} spec/card text(s), so a verdict on it would grade "
-                            f"a corpus it does not show — nothing is sent and no pass is spent")
-                if preview:
-                    print(f"# {_pl_line}", file=sys.stderr)
+                # the budget a part may fill: the ceiling in force, and never above the bound the
+                # assembler itself applies (a part over it would be cut, which the check below refuses)
+                _pbudget = min(int(_ceiling["value"]), int(AUDIT_MAX_PACKET_BYTES))
+                plan_parts, _split_fault = plan_aggregate_parts(
+                    diff or "", tid, _pbudget, lambda _b: len(_assemble(_b).encode("utf-8", "replace")),
+                    ceiling=_ceiling)
+                if not _split_fault:
+                    plan_parts, _split_fault = plan_parts_verified(plan_parts, diff or "", tid, _pbudget,
+                                                                   _assemble)
+                if _split_fault and not _unshown:
+                    # Some texts are cut but not all, and no split shows every text whole (a text alone
+                    # is bigger than any part): the single packet goes as before, its cuts named in it
+                    # (T-13824). Refusing here would leave a plan that has a route today with none — the
+                    # X-2406 defect this route removes.
+                    plan_parts = None
+                    print(f"# plan_packet_parts: {len(_cut_texts)} subject text(s) are cut to fit the ceiling "
+                          f"{_ceiling['value']} [{_ceiling['source']}] and the corpus cannot be graded in parts "
+                          f"that show every text whole ({_split_fault}) — the single packet is sent with its "
+                          f"cuts named in it (T-13824)", file=sys.stderr)
+                elif _split_fault:
+                    plan_parts = None
+                    _pl_line = (f"plan_packet_subject_unshown: the assembled packet ({packet_bytes} bytes; "
+                                f"{_needed} bytes needed to show the whole corpus) is over the ceiling "
+                                f"{_ceiling['value']} [{_ceiling['source']}] — {PACKET_CEILING_KEY} — or keeps "
+                                f"none of its {len(_texts)} spec/card text(s), so a verdict on it would grade "
+                                f"a corpus it does not show, and it cannot be graded in parts that show every "
+                                f"text whole ({_split_fault}) — nothing is sent and no pass is spent")
+                    if preview:
+                        print(f"# {_pl_line}", file=sys.stderr)
+                    else:
+                        try:
+                            _append_event("read_gate_refused", None, {
+                                "verb": f"audit {stage}", "action": "send the aggregate plan packet",
+                                "kind": "plan-packet", "stage": stage, "plan": tid,
+                                "reason": "plan_packet_subject_unshown",
+                                "packet_bytes": packet_bytes, "bytes_needed": _needed,
+                                "packet_ceiling": dict(_ceiling), "split_fault": _split_fault})
+                        except (Exception, SystemExit):     # noqa: BLE001 — never mask the refusal
+                            pass
+                        _die(f"audit {stage}: {tid}: {_pl_line}. Read the packet with `yitc-v2 audit "
+                             f"{stage} --plan {tid} --preview`; shorten the plan body or the text the "
+                             f"split names, or raise {PACKET_CEILING_KEY} in the project's yitc-ops.yaml "
+                             f"`thresholds:`.")
                 else:
-                    try:
-                        _append_event("read_gate_refused", None, {
-                            "verb": f"audit {stage}", "action": "send the aggregate plan packet",
-                            "kind": "plan-packet", "stage": stage, "plan": tid,
-                            "reason": "plan_packet_subject_unshown",
-                            "packet_bytes": packet_bytes, "bytes_needed": _needed,
-                            "packet_ceiling": dict(_ceiling)})
-                    except (Exception, SystemExit):     # noqa: BLE001 — never mask the refusal
-                        pass
-                    _die(f"audit {stage}: {tid}: {_pl_line}. Read the packet with `yitc-v2 audit "
-                         f"{stage} --plan {tid} --preview`; shorten the plan body or raise "
-                         f"{PACKET_CEILING_KEY} in the project's yitc-ops.yaml `thresholds:`.")
+                    print(f"# plan_packet_parts: the corpus ({_needed} bytes) is over the ceiling "
+                          f"{_ceiling['value']} [{_ceiling['source']}], so it is graded in "
+                          f"{len(plan_parts)} part(s), each showing its texts whole, merged into ONE "
+                          f"verdict (worst part wins; T-14675): "
+                          + "; ".join(f"part {pp['label']} = {pp['bytes']} bytes, {len(pp['units'])} text(s)"
+                                      for pp in plan_parts), file=sys.stderr)
         # T-13508 — NAME the task-tied event types the packet excluded by the card opt-in, in ONE
         # line. Above the preview return on purpose: a preview and the real run both say it, and the
         # preview is where it is still free to act on. STDERR, like the report lines above — stdout
@@ -17185,25 +17534,56 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # this returns BEFORE the `audit_prompt_sent` emit and `_invoke_auditor` below. That
         # placement is the AC2 guarantee — it is the same assembly, one step earlier, so what prints
         # IS what the next real invocation hands the auditor, not a description of it.
+        if preview and plan_parts:
+            # T-14675 — a split aggregate plan audit: EACH part's packet goes to its own file, exactly the
+            # bytes the real run hands the auditor for that part; no auditor, no pass, no verdict.
+            _pv_parts = []
+            for pp in plan_parts:
+                _pth, _psha = write_preview_packet(pp["prompt"], REPO_ROOT, stage=stage,
+                                                   target=f"{tid}.part{pp['label'].replace('/', 'of')}")
+                if _pth is None:
+                    _die(f"audit {stage} --preview: {tid}: part {pp['label']}'s packet ({pp['bytes']} bytes, "
+                         f"sha256 {_psha}) could not be written (warnings above) — nothing to open, so no "
+                         f"preview. Free the space or fix the permissions named above, then re-run `yitc-v2 audit "
+                         f"{stage} --plan {tid} --preview`.")
+                print(f"# audit packet preview: part {pp['label']}: packet {pp['bytes']} bytes sha256 {_psha} "
+                      f"written to {_pth} — it shows: " + "; ".join(u[4:] for u in pp["units"]))
+                _pv_parts.append({"part": pp["label"], "bytes": pp["bytes"], "packet_sha256": _psha,
+                                  "packet_path": str(_pth), "texts": [u[4:] for u in pp["units"]]})
+            print(f"# audit packet preview: {len(plan_parts)} part(s) assembled — NO auditor invoked, NO pass "
+                  f"consumed (passes={prior_passes}, ledger NOT advanced), NO verdict written, NO stage gate "
+                  f"satisfied. Re-run without --preview when the parts are right.", file=sys.stderr)
+            _append_event(AUDIT_PACKET_PREVIEW_EVENT, tid, {
+                "stage": stage, "target_kind": target_kind, "commit": sha,
+                "packet_assembled": True, "packet_bytes": sum(pp["bytes"] for pp in plan_parts),
+                "plan_parts": _pv_parts, "prior_passes": prior_passes,
+                "prior_pass": monotonic_prior_pass_label(monotonic_prior),
+                "packet_path": _pv_parts[0]["packet_path"], "packet_sha256": _pv_parts[0]["packet_sha256"],
+            })
+            return
         if preview:
-            # VERBATIM — `sys.stdout.write`, never `print` (audit-post F1). `print` appends a
-            # newline the real invocation does not, so the previewed bytes would differ from the
-            # bytes handed to `_invoke_auditor` by exactly that newline. AC2 is a BYTE claim, so a
-            # one-byte divergence is a real one: a preview that is off by anything is not the packet.
-            sys.stdout.write(prompt)
+            # T-14655 — the packet goes to a FILE, read on demand; stdout carries only what the
+            # readiness decision needs (the readiness block + the packet's path). Measured: workers
+            # diverted the 88-92 kB packet to a file and read the readiness block anyway. The file
+            # holds the packet VERBATIM (`write_preview_packet` writes the exact bytes; T-11407 AC2:
+            # what it holds IS what the next real invocation hands `_invoke_auditor`).
+            _packet_path, packet_sha256 = write_preview_packet(prompt, REPO_ROOT, stage=stage, target=tid)
+            if _packet_path is None:
+                _die(f"audit {stage} --preview: {tid}: the assembled packet ({packet_bytes} bytes, sha256 "
+                     f"{packet_sha256}) could not be written to the session scratch root nor to the "
+                     f"machine-local packet store (warnings above) — nothing to open, so no preview. "
+                     f"Free the space or fix the permissions named above, then re-run `yitc-v2 audit "
+                     f"{stage} --{'plan' if target_kind == 'plan' else 'task'} {tid} --preview`.")
             _touch_recon = packet_touch_reconciliation(
                 artifact.get("expected_touch") if target_kind == "task" else None, diff)
-            # T-11977 — ONE report surface, not three. The two ad-hoc advisory LINES (X-1060 D1
-            # declared-vs-audited touch; D2 no-journal-row-since-the-last-RED) no longer print on
-            # their own: their content is the `touch:` and `prior findings without response:` rows
-            # of the readiness block the ASSEMBLER rendered above, from the parts it had already
-            # computed. Their DATA is unchanged on the receipt below, so nothing durable is lost.
-            # STDERR, exactly like the lines it replaces — stdout carries the packet and nothing
-            # else, or the T-11407 AC2 byte-identity claim breaks.
+            # T-11977 — ONE report surface: the readiness block the ASSEMBLER rendered (its `touch:`
+            # and `prior findings without response:` rows fold the X-1060 D1/D2 diagnostics).
             _readiness = (packet_readiness_sink or [None])[0]
             if _readiness:
-                print(_readiness, file=sys.stderr)
-            print(f"# audit packet preview: assembled and printed — NO auditor invoked, NO pass "
+                print(_readiness)
+            print(f"# audit packet preview: packet {packet_bytes} bytes sha256 {packet_sha256} written "
+                  f"to {_packet_path} — open it to read what the auditor will receive")
+            print(f"# audit packet preview: assembled — NO auditor invoked, NO pass "
                   f"consumed (passes={prior_passes}, ledger NOT advanced), NO verdict written, NO "
                   f"stage gate satisfied. Re-run without --preview when the packet is right.",
                   file=sys.stderr)
@@ -17220,75 +17600,152 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 # T-11977 — the rendered readiness block, recorded so "what did the worker actually
                 # see before spending the pass?" is answerable off the journal alone.
                 "packet_readiness": _readiness,
+                # T-14655 — where the packet was written and its hash (the T-13110 store key).
+                "packet_path": str(_packet_path) if _packet_path else None,
+                "packet_sha256": packet_sha256,
             })
             return
-        print(f"# Invoking external auditor: {provider}/{model} ({'full' if audit_full else 'routine'})...",
-              file=sys.stderr)
-        # audit_prompt_sent (T-0054, per D-0030 capture_set): parent-CLI deterministic emit
-        # capturing the prompt sent to the auditor — the input к the external agent. Distinct
-        # from T-0051 session-log adapter (which captures owner/injection/slash). agent=main.
-        _audit_path_t0 = time.monotonic()   # T-12007 — re-anchor to this path's own prompt_sent
-        # T-13110 — persist the full packet (best-effort, machine-local) so a paired re-audit sample can
-        # re-run IDENTICAL input under a candidate auditor; only its hash rides the existing row.
-        packet_sha256 = persist_audit_packet(prompt, REPO_ROOT)
-        _append_event("audit_prompt_sent", tid, {
-            "stage": stage, "model": model, "provider": provider,
-            "tier": "full" if audit_full else "routine",
-            "prompt_excerpt": prompt_excerpt,
-            # T-11328 (AC2): the packet's own measurements, recorded on the EXISTING event rather than
-            # a new type — the durable per-section breakdown, and the named cuts when it was bounded.
-            "packet_bytes": packet_bytes,
-            "packet_ceiling_bytes": _ceiling["value"],
-            "packet_ceiling_source": _ceiling["source"],   # T-14616: SPEC-1031 rule 6
-            "packet_sections": packet_sections,
-            "packet_elisions": packet_elisions,
-            "packet_sha256": packet_sha256,   # T-13110: the key into the machine-local packet store
-        })
-        # T-0471 — invoke + classify, with a BOUNDED retry on the TRANSIENT no-read-tooling ABORT
-        # (fingerprint external-auditor-abort-no-read-tooling-flaky, N=3). The FIRST invocation is the
-        # read-tooling pre-flight: if the auditor ABORTs claiming it has no file-read tooling (and carries
-        # NO findings — _is_no_read_tooling_abort is fail-closed), it never actually audited, so we retry
-        # once (the flake clears on a fresh invocation) BEFORE recording anything. `tooling_absence_abort`
-        # stays True only if EVERY try was a tooling-absence ABORT — that drives the ledger-skip below
-        # (the pass is NOT consumed: there was no real audit outcome). A real verdict on the retry clears
-        # it and proceeds normally; a NON-tooling ABORT/RED is never retried and never ledger-skipped.
-        for _attempt in range(AUDIT_NO_READ_TOOLING_RETRIES + 1):   # 1 retry → 2 total tries; bounded
-            # read_only=True (T-9576): an auditor never writes — pin codex to `-s read-only` so it does
-            # not run under the workspace-write default (which, under concurrent dispatch, failed reading
-            # ~/.codex/config.toml → ABORT/0-findings). No-op when read_corpus supplies -s read-only.
-            # T-10121 (SPEC-0135 §4): time the auditor call's wall-clock (the timing source-fact for the
-            # external_audit_completed pair rollup); on a retry the last invocation's wall wins.
-            _audit_invoke_t0 = time.monotonic()
-            rc, stdout, stderr = invoke_auditor_tiered(_invoke_auditor, provider, prompt, model,
-                                                       effort=effort, read_only=True, full=audit_full,
-                                                       # T-12606: the tier's reserve pair + the
-                                                       # invocation-scoped record of who answered
-                                                       _resolve_audit_reserve=_resolve_audit_reserve,
-                                                       append_event=_append_event,
-                                                       answered_out=_answered_pair,
-                                                       # T-13109: the breaker's journal reader
-                                                       iter_events=_iter_events, events_path=EVENTS_PATH,
-                                                       # T-13293: its windowed state read, scope-served
-                                                       breaker_rows=_scope_breaker_rows(EVENTS_PATH, _iter_events))
-            audit_duration_ms = int((time.monotonic() - _audit_invoke_t0) * 1000)
+        # T-14675 — ONE packet's invoke + classify (the single packet, or one part of a split aggregate
+        # plan audit); the body is the inline loop it replaces, returning what that loop assigned.
+        def _invoke_once(_p, _answered):
+            # T-0471 — invoke + classify, with a BOUNDED retry on the TRANSIENT no-read-tooling ABORT
+            # (fingerprint external-auditor-abort-no-read-tooling-flaky, N=3). The FIRST invocation is the
+            # read-tooling pre-flight: if the auditor ABORTs claiming it has no file-read tooling (and carries
+            # NO findings — _is_no_read_tooling_abort is fail-closed), it never actually audited, so we retry
+            # once (the flake clears on a fresh invocation) BEFORE recording anything. `tooling_absence_abort`
+            # stays True only if EVERY try was a tooling-absence ABORT — that drives the ledger-skip below
+            # (the pass is NOT consumed: there was no real audit outcome). A real verdict on the retry clears
+            # it and proceeds normally; a NON-tooling ABORT/RED is never retried and never ledger-skipped.
+            tooling_absence_abort = False
+            for _attempt in range(AUDIT_NO_READ_TOOLING_RETRIES + 1):   # 1 retry → 2 total tries; bounded
+                # read_only=True (T-9576): an auditor never writes — pin codex to `-s read-only`. T-10121
+                # (SPEC-0135 §4): time the auditor call's wall-clock; on a retry the last invocation's wins.
+                _t0 = time.monotonic()
+                _rc, _out, _err = invoke_auditor_tiered(_invoke_auditor, provider, _p, model,
+                                                        effort=effort, read_only=True, full=audit_full,
+                                                        # T-12606: the tier's reserve pair + the
+                                                        # invocation-scoped record of who answered
+                                                        _resolve_audit_reserve=_resolve_audit_reserve,
+                                                        append_event=_append_event,
+                                                        answered_out=_answered,
+                                                        # T-13109: the breaker's journal reader
+                                                        iter_events=_iter_events, events_path=EVENTS_PATH,
+                                                        # T-13293: its windowed state read, scope-served
+                                                        breaker_rows=_scope_breaker_rows(EVENTS_PATH, _iter_events))
+                _ms = int((time.monotonic() - _t0) * 1000)
+                if _rc != 0:
+                    # Force ABORT on codex failure — don't trust partial stdout verdict claims
+                    # (audit-post F1 absorbed — a non-zero rc may still carry a parseable verdict, but
+                    # timeout/auth/network failures produce confusing partials)
+                    _n = auditor_failure_cause(_rc, _err, label="codex",   # T-12582
+                                               capacity_hint=_capacity_hint_via(_capacity_retry_hint, model, provider))   # T-12603
+                    print(f"# {_n}", file=sys.stderr)
+                    _v, _f = "ABORT", []
+                else:
+                    _v, _f, _n = _parse_audit_verdict(_out)
+                tooling_absence_abort = _is_no_read_tooling_abort(_v, _f, _out, _err)
+                if not tooling_absence_abort:
+                    break   # a real verdict (or a substantive ABORT) — done, no retry
+                if _attempt < AUDIT_NO_READ_TOOLING_RETRIES:
+                    print(f"# {tid} audit-{stage}: auditor ABORTed with no read-tooling (transient flake, "
+                          f"T-0471) — retrying ({_attempt + 1}/{AUDIT_NO_READ_TOOLING_RETRIES})...",
+                          file=sys.stderr)
+            return _rc, _out, _err, _v, _f, _n, tooling_absence_abort, _ms
+
+        if plan_parts:
+            print(f"# Invoking external auditor: {provider}/{model} ({'full' if audit_full else 'routine'}) "
+                  f"on {len(plan_parts)} part(s) of the aggregate plan corpus (T-14675)...", file=sys.stderr)
+            _audit_path_t0 = time.monotonic()   # T-12007 — re-anchor to this path's own prompt_sent
+            prompt_excerpt = plan_parts[0]["prompt"][:200]
+            sent_packet = "\n\n".join(pp["prompt"] for pp in plan_parts)
+            # audit_prompt_sent (T-0054) — ONE row per part, the existing type with the part named, written
+            # IMMEDIATELY BEFORE that part's auditor call (never for a part still queued — T-14686,
+            # audit-post fp1:39c82be74eac4eae); each part's packet persisted like the single packet (T-13110).
+            def _ask_part(pp, _answered):
+                _append_event("audit_prompt_sent", tid, {
+                    "stage": stage, "model": model, "provider": provider,
+                    "tier": "full" if audit_full else "routine",
+                    "prompt_excerpt": pp["prompt"][:200],
+                    "packet_bytes": pp["bytes"],
+                    "packet_ceiling_bytes": _ceiling["value"],
+                    "packet_ceiling_source": _ceiling["source"],
+                    "packet_sections": _packet_section_breakdown(pp["prompt"]),
+                    "packet_elisions": _packet_bound_elisions(pp["prompt"]),
+                    "packet_sha256": persist_audit_packet(pp["prompt"], REPO_ROOT),
+                    "part": pp["label"], "parts": len(plan_parts),
+                })
+                return _invoke_once(pp["prompt"], _answered)
+            _part_results = run_auditor_parts(list(plan_parts), _ask_part, _plan_part_default_workers())
+            # Each ANSWERED part is judged ALONE by the response floors below (T-14675, audit-pre finding
+            # 2) before the merged response is: a valid part can never mask an unparsable/unactionable one.
+            plan_floor_subjects = [(_v, list(_f or []), _n, _out, pp["label"])
+                                   for pp, ((_rc, _out, _err, _v, _f, _n, _tabs, _ms), _a, _t, _d)
+                                   in zip(plan_parts, _part_results) if _rc == 0]
+            # The fold — T-14612's rule: part order whatever the completion order; the worst verdict wins
+            # (an auditor failure on ANY part is the run's ABORT, the FIRST failing part naming the cause);
+            # every part is recorded, a failed one with its cause.
+            _rank = {"GREEN": 0, "YELLOW": 1, "RED": 2, "ABORT": 3}
+            rc, stdout, stderr, verdict, findings, parse_notes = 0, "", "", "GREEN", [], ""
+            _outs, _notes, plan_part_records = [], [], []
+            tooling_absence_abort, audit_duration_ms = True, 0
+            _primary_ans = _reserve_ans = None
+            for pp, ((_rc, _out, _err, _v, _f, _n, _tabs, _ms), _ans, _at, _dur) in zip(plan_parts, _part_results):
+                audit_duration_ms += _ms
+                tooling_absence_abort = tooling_absence_abort and _tabs
+                _outs.append(f"### aggregate part {pp['label']}\n{_out}")
+                _answered = ({k: _ans.get(k) for k in ("pair", "model", "effort")} if _ans.get("pair") else None)
+                if _ans.get("pair") == "reserve" and _reserve_ans is None:
+                    _reserve_ans = _ans
+                elif _ans.get("pair") and _primary_ans is None:
+                    _primary_ans = _ans
+                _rec = {"part": pp["label"], "texts": [u[4:] for u in pp["units"]], "bytes": pp["bytes"],
+                        "started_at": _at, "duration_s": _dur, "answered": _answered}
+                if _rc != 0:
+                    if rc == 0:
+                        rc, stderr, parse_notes = _rc, _err, _n
+                    plan_part_records.append({**_rec, "verdict": "ABORT", "cause": _n})
+                    continue
+                for _fi in _f or []:
+                    if isinstance(_fi, dict):
+                        _fi.setdefault("part", pp["label"])
+                findings += list(_f or [])
+                if _n:
+                    _notes.append(f"[part {pp['label']}] {_n}")
+                plan_part_records.append({**_rec, "verdict": _v, "findings": len(_f or [])})
+                if _rank.get(_v, 3) > _rank.get(verdict, 3):
+                    verdict = _v if _v in _rank else "ABORT"
+            _answered_pair.clear()
+            _answered_pair.update(_reserve_ans or _primary_ans or {})
+            stdout = "\n\n".join(_outs)
             if rc != 0:
-                # Force ABORT on codex failure — don't trust partial stdout verdict claims
-                # (audit-post F1 absorbed — non-zero rc may still have parseable verdict but
-                # that's untrustworthy: timeout/auth-fail/network-fail могут produce confusing partials)
-                parse_notes = auditor_failure_cause(rc, stderr, label="codex",   # T-12582
-                                                    capacity_hint=_capacity_hint_via(_capacity_retry_hint, model, provider))   # T-12603
-                print(f"# {parse_notes}", file=sys.stderr)
-                verdict = "ABORT"
-                findings = []
+                verdict, findings = "ABORT", []
             else:
-                verdict, findings, parse_notes = _parse_audit_verdict(stdout)
-            tooling_absence_abort = _is_no_read_tooling_abort(verdict, findings, stdout, stderr)
-            if not tooling_absence_abort:
-                break   # a real verdict (or a substantive ABORT) — done, no retry
-            if _attempt < AUDIT_NO_READ_TOOLING_RETRIES:
-                print(f"# {tid} audit-{stage}: auditor ABORTed with no read-tooling (transient flake, "
-                      f"T-0471) — retrying ({_attempt + 1}/{AUDIT_NO_READ_TOOLING_RETRIES})...",
-                      file=sys.stderr)
+                parse_notes = "\n".join(_notes)
+        else:
+            print(f"# Invoking external auditor: {provider}/{model} ({'full' if audit_full else 'routine'})...",
+                  file=sys.stderr)
+            # audit_prompt_sent (T-0054, per D-0030 capture_set): parent-CLI deterministic emit
+            # capturing the prompt sent to the auditor — the input к the external agent. Distinct
+            # from T-0051 session-log adapter (which captures owner/injection/slash). agent=main.
+            _audit_path_t0 = time.monotonic()   # T-12007 — re-anchor to this path's own prompt_sent
+            # T-13110 — persist the full packet (best-effort, machine-local) so a paired re-audit sample can
+            # re-run IDENTICAL input under a candidate auditor; only its hash rides the existing row.
+            packet_sha256 = persist_audit_packet(prompt, REPO_ROOT)
+            _append_event("audit_prompt_sent", tid, {
+                "stage": stage, "model": model, "provider": provider,
+                "tier": "full" if audit_full else "routine",
+                "prompt_excerpt": prompt_excerpt,
+                # T-11328 (AC2): the packet's own measurements, recorded on the EXISTING event rather than
+                # a new type — the durable per-section breakdown, and the named cuts when it was bounded.
+                "packet_bytes": packet_bytes,
+                "packet_ceiling_bytes": _ceiling["value"],
+                "packet_ceiling_source": _ceiling["source"],   # T-14616: SPEC-1031 rule 6
+                "packet_sections": packet_sections,
+                "packet_elisions": packet_elisions,
+                "packet_sha256": packet_sha256,   # T-13110: the key into the machine-local packet store
+            })
+            (rc, stdout, stderr, verdict, findings, parse_notes,
+             tooling_absence_abort, audit_duration_ms) = _invoke_once(prompt, _answered_pair)
 
 
     # ── T-12730 (X-1488) — WHO PRODUCED THIS VERDICT, derived ONCE for every path ─────────────────
@@ -17363,34 +17820,40 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # Refused BEFORE every write and BEFORE the prior-record read, so "no pass spent, no record
     # written" is true by construction, exactly as for the rule-1 floor beneath.
     if not short_circuit_no_auditor:
-        _ua_rows = unactionable_findings(findings, parse_notes)
-        if _ua_rows:
-            _ua_payload, _ua_msg = unactionable_findings_refusal(
-                _ua_rows, findings_count=len(findings or ()), verb=f"{tid} audit-{stage}",
-                stdout=stdout)
-            try:
-                _append_event("read_gate_refused", tid if target_kind == "task" else None, {
-                    "verb": f"audit {stage}",
-                    "action": "record an audit verdict",
-                    "target_kind": target_kind, "target_id": tid,
-                    "stage": stage, "verdict_parsed": verdict, **_ua_payload,
-                })
-            except (Exception, SystemExit):   # noqa: BLE001 — journaling never masks the refusal
-                pass
-            _die(_ua_msg)
-        # T-13158 — a non-GREEN whose findings block did not parse (zero or partial recovery) is
-        # refused here too, before any write/prior read: no record, passes unchanged.
-        _uf = findings_block_parse_failure(verdict, findings, parse_notes, stdout)
-        if _uf:
-            _uf_payload, _uf_msg = unparsed_findings_refusal(
-                verdict, _uf, stdout=stdout, verb=f"{tid} audit-{stage}")
-            try:
-                _append_event("read_gate_refused", tid if target_kind == "task" else None, {
-                    "verb": f"audit {stage}", "action": "record an audit verdict",
-                    "target_kind": target_kind, "target_id": tid, "stage": stage, **_uf_payload})
-            except (Exception, SystemExit):   # noqa: BLE001 — journaling never masks the refusal
-                pass
-            _die(f"{_uf_msg} Route: re-run `bin/yitc-v2 audit {stage}` for {tid}.")
+        # T-14675 — a split aggregate plan audit puts each ANSWERED part through these two floors ALONE,
+        # before the merged response: a valid part can never mask an unparsable/unactionable one. An
+        # unsplit run judges the one response, exactly as before.
+        for _fv, _ff, _fn, _fo, _fpart in [*plan_floor_subjects, (verdict, findings, parse_notes, stdout, None)]:
+            _fverb = f"{tid} audit-{stage}" + (f" part {_fpart}" if _fpart else "")
+            _fextra = {"part": _fpart} if _fpart else {}
+            _ua_rows = unactionable_findings(_ff, _fn)
+            if _ua_rows:
+                _ua_payload, _ua_msg = unactionable_findings_refusal(
+                    _ua_rows, findings_count=len(_ff or ()), verb=_fverb,
+                    stdout=_fo)
+                try:
+                    _append_event("read_gate_refused", tid if target_kind == "task" else None, {
+                        "verb": f"audit {stage}",
+                        "action": "record an audit verdict",
+                        "target_kind": target_kind, "target_id": tid,
+                        "stage": stage, "verdict_parsed": _fv, **_fextra, **_ua_payload,
+                    })
+                except (Exception, SystemExit):   # noqa: BLE001 — journaling never masks the refusal
+                    pass
+                _die(_ua_msg)
+            # T-13158 — a non-GREEN whose findings block did not parse (zero or partial recovery) is
+            # refused here too, before any write/prior read: no record, passes unchanged.
+            _uf = findings_block_parse_failure(_fv, _ff, _fn, _fo)
+            if _uf:
+                _uf_payload, _uf_msg = unparsed_findings_refusal(
+                    _fv, _uf, stdout=_fo, verb=_fverb)
+                try:
+                    _append_event("read_gate_refused", tid if target_kind == "task" else None, {
+                        "verb": f"audit {stage}", "action": "record an audit verdict",
+                        "target_kind": target_kind, "target_id": tid, "stage": stage, **_fextra, **_uf_payload})
+                except (Exception, SystemExit):   # noqa: BLE001 — journaling never masks the refusal
+                    pass
+                _die(f"{_uf_msg} Route: re-run `bin/yitc-v2 audit {stage}` for {tid}.")
     if target_kind == "task" and not short_circuit_no_auditor:
         # ── T-12312 — the DECLARED-DEFERRED-PROBE refusal, checked FIRST of the three ─────────────
         # A RED whose ONLY findings are P8-ADOPTION complaints against criteria THIS CARD DECLARED,
@@ -18968,6 +19431,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # NOT a second authority (P5). `plan close --resolution realized` re-derives + compares this for
         # task-side freshness (membership + status regression).
         audit["tasks"] = _plan_task_carrier(tid)
+        if plan_part_records is not None:
+            audit["parts"] = plan_part_records   # T-14675 — the split aggregate audit's parts: what each
+                                      # showed, its verdict and timing; the record-level `verdict` is
+                                      # their worst. Absent on an unsplit run (AC3 — byte-identical).
     # T-13513 — the note a nonzero auditor exit leaves, bound ONCE for its two homes: the record's
     # `notes` below and the completion row's `abort_cause_text`. None when the auditor exited 0.
     _cause = None
@@ -21239,6 +21706,45 @@ def shared_store_modes(d: Path, repo_root) -> tuple:
         file_mode = None
     file_mode = file_mode or 0o600
     return file_mode | ((file_mode & 0o444) >> 2), file_mode, False
+
+
+def write_preview_packet(prompt: str, repo_root, *, stage, target, env=None):
+    """T-14655 — write a `--preview` packet to a file read on demand; returns (path|None, sha256).
+
+    Home: the session scratch root (`<tmp>/yitc-scratch-<ref>/`, T-13203) of the carried
+    YITC_SESSION_REF (else YITC_EXPECTED_SESSION_REF), as `audit-<stage>-<target>-packet.txt` —
+    rewritten each preview, so it always holds the latest. No resolvable session -> the T-13110
+    machine-local packet store (`<sha256>.txt`). Exact bytes, no added newline. A failed scratch
+    write is LOUD on stderr and falls back to that store; the path is None only when the store write
+    failed too (the caller then refuses the preview — a look whose packet cannot be opened is no look)."""
+    env = os.environ if env is None else env
+    data = prompt.encode("utf-8", "replace")
+    sha = hashlib.sha256(data).hexdigest()
+    from lib import dispatch as _dispatch   # noqa: PLC0415
+    ref = env.get("YITC_SESSION_REF") or env.get("YITC_EXPECTED_SESSION_REF")
+    root = _dispatch.ensure_session_scratch_root(ref) if ref else None
+    if root is not None:
+        safe = re.sub(r"[^A-Za-z0-9._-]", "_", str(target))
+        path = root / f"audit-{stage}-{safe}-packet.txt"
+        tmp = root / f".{path.name}.{os.getpid()}.tmp"
+        try:
+            tmp.write_bytes(data)
+            os.replace(tmp, path)
+            return path, sha
+        except OSError as e:
+            print(f"yitc-v2: WARNING: audit packet preview: could not write {path}: {e} — "
+                  f"writing it to the machine-local packet store instead", file=sys.stderr)
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+    persist_audit_packet(prompt, repo_root)
+    path = audit_packet_store_dir(repo_root) / f"{sha}.txt"
+    try:
+        ok = path.is_file() and path.read_bytes() == data
+    except OSError:
+        ok = False
+    return (path if ok else None), sha
 
 
 def persist_audit_packet(prompt: str, repo_root, *, store_dir=None) -> str:

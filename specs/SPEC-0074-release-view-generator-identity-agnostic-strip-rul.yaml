@@ -265,7 +265,7 @@ implements_signature:
   bin/lib/graph.py#_release_view_floor_kernel_explicit: 078b3383123e072d847bd11736a240e9b72ba044f3b2eecbbf7cec3fd2a4ddeb
   bin/lib/graph.py#_release_view_strip: ac8a2e6250989ee0797a0bfa7e21d8d5da540f7d2ed819680603cd9d6baa26dc
   bin/lib/graph.py#cmd_graph_release_view: a3db5be5267519ad7e9f484bf5ea99d6423e9cc19a2e5764449b08b906058119
-  bin/lib/host_paths.py#host_home: 3029bb1be8e3c1227b06a4c0e8489056bba383ec7c922afc27c0ff1ba5af55be
+  bin/lib/host_paths.py#host_home: 9d5096f05863089f08263583b98b4854a9d56e7755ba2c238b8dca3281e98fd3
   bin/lib/release.py#abstract_project_identity: d7fd86fffe82d3526bf4363f2f09213a03bfe85bc2616c58ce40f3728854f985
   bin/lib/release.py#build_manifest: 107c52480dcb2305aa4a8c8bdee85d687b9742bf8f138ed449a965f2a68189ac
   bin/lib/release.py#cmd_work_publish: a696b98ace57bd02bac309c89f63a9b01270eb44c0123f4886155c24593949d8
@@ -275,6 +275,6 @@ implements_signature:
   bin/lib/release.py#publish_metadata: 4883ec7b823b52d90a1c387649ef17ed6c492da1fbad53854cde3874e87a646d
   bin/lib/release.py#published_metadata_identity: a02e90b898af0e5fcd1a52aafbdaf1f98455abaedc919a1d013bdd42e7d77a1c
   bin/lib/release.py#published_project_identity: a87ff50067d40df63a639c0f06c8156f8e3591d434444dbd4f38122b3ac38519
-  bin/lib/release.py#reword_unpublished_spec_refs: 884f916899fac96f0462ff8fd763ae2e01835e4da5f95ba49c0da7fbef886b26
-  bin/lib/release.py#strip_published_text: 767efeb43f30090790b9f06639c7e900e44ea1a9fd43a9b4bef54993317e2a8c
+  bin/lib/release.py#reword_unpublished_spec_refs: 8f22beb65e092ead681b3571ce43ca26a3f39488488a0cc6e392483bc83a1fda
+  bin/lib/release.py#strip_published_text: eb7ddbf8404e02a6788d63838956facadcd0061c9f467da9d348b3bab2c9a6ef
   bin/lib/release.py#written_metadata_mismatches: dc6892a4bdd0ccae686827b8472eeb62dd61db32777618cbc4ebd71761275a7f

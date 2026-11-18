@@ -69,6 +69,9 @@ CONTRACT_DELIVERY_VERBS = (
     ("task file", "_deliver_filing_contracts"),
     ("plan stage", "_print_plan_stage_delivery"),
     ("plan file", "_print_plan_stage_delivery"),
+    ("plan check", "_deliver_plan_obligation_catch_up"),             # T-14673 — catch-up of late plan-stage rules
+    ("plan draft --finalize", "_deliver_plan_obligation_catch_up"),  # (`plan stage` keeps its own row)
+    ("audit adhoc --plan", "_deliver_plan_obligation_catch_up"),
     ("triage run", "cmd_triage_run"),
     ("--help", "_HelpInventoryAction"),
 )
@@ -1652,11 +1655,26 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
             "deviation for it at once.",
         ])
     newest = epochs[-1] if epochs else None
+    # T-14664: name WHOSE receipt was read. "your" only when the ref the gate keyed on is the one this
+    # caller carries (or it carries none); a carried ref the keyer could not back falls through to
+    # another selector, and that session's receipt is then named as another session's, never as yours.
+    _carried = (os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip()
+                or os.environ.get("YITC_SESSION_REF", "").strip())
+    if _carried and _carried != sref:
+        return _refuse("seed_read_stale_epoch", [
+            f"{verb}: the seed_read receipt is from an earlier context epoch — refusing (T-10082 / SPEC-0050 §8).",
+            f"That receipt is ANOTHER session's ({sref}), not the one you carry ({_carried}): your carry is",
+            "not backed in this checkout's journal, so the session identity fell through to that session",
+            "(SPEC-0137). The newest compaction marker your transcript holds is "
+            f"{mark_label(current_epoch)}; that receipt recorded {mark_label(newest)}. Recover — start your own",
+            "session in the checkout you run this verb from, keeping your carry:",
+            *_recover,
+        ])
     return _refuse("seed_read_stale_epoch", [
         f"{verb}: your seed_read receipt is from an earlier context epoch — refusing (T-10082 / SPEC-0050 §8).",
         f"The newest compaction marker the transcript holds is {mark_label(current_epoch)}; your receipt",
-        f"recorded {mark_label(newest)} (SPEC-1023 rule 6 — compared by identity). The seed it attests may",
-        "be gone from context. Recover:",
+        f"(session {sref}) recorded {mark_label(newest)} (SPEC-1023 rule 6 — compared by identity). The seed",
+        "it attests may be gone from context. Recover:",
         *_recover,
     ])
 

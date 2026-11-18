@@ -176,16 +176,18 @@ body: "## Scenario\nA project has moved costly checks out of its lands: it decla
   \ globs match a path the card's diff changes (matched as `never_move:` globs\nare),\
   \ named kept `returns-on` with `returned_on` — the first such path in sorted order\
   \ — and the glob\nit matched; a unit with no `returns_on:` is treated as before\
-  \ whatever the diff; and EMPTY while the last between-deploys\nresult is absent,\
-  \ unreadable, incomplete for the current list, or older than the uncovered bound.\
-  \ An\nindivisible group is listed, skipped, kept and removed only WHOLE: a change\
-  \ or a failure of one member\nacts on the group.\nEach run reads the class `units:`\
-  \ from the tree it tests, and reads the final failures, the open\nknown-broken records\
-  \ and the last between-deploys result from the MAIN checkout's journal through the\n\
-  existing segment-aware reader — so a Stage-6 run in an older worktree sees a failure\
-  \ recorded since its\nbranch was cut; when it cannot read them it skips nothing.\
-  \ A change of `units:` on main between a Stage-6\nrun and the land voids the Stage-6\
-  \ credit (SPEC-0065), so the land runs its own candidate leg, and so\ndoes a DIFFERENT\
+  \ whatever the diff; MINUS every\nunit the last between-deploys run holds no result\
+  \ for in every context it records (a unit listed\nsince that run), named kept `uncovered`;\
+  \ and EMPTY while the last between-deploys result is absent,\nunreadable, holds\
+  \ a result for no listed unit, or is older than the uncovered bound. An\nindivisible\
+  \ group is listed, skipped, kept and removed only WHOLE: a change or a failure of\
+  \ one member\nacts on the group.\nEach run reads the class `units:` from the tree\
+  \ it tests, and reads the final failures, the open\nknown-broken records and the\
+  \ last between-deploys result from the MAIN checkout's journal through the\nexisting\
+  \ segment-aware reader — so a Stage-6 run in an older worktree sees a failure recorded\
+  \ since its\nbranch was cut; when it cannot read them it skips nothing. A change\
+  \ of `units:` on main between a Stage-6\nrun and the land voids the Stage-6 credit\
+  \ (SPEC-0065), so the land runs its own candidate leg, and so\ndoes a DIFFERENT\
   \ SKIP SET: a land credits a Stage-6 run only when the skip set it computes equals\
   \ the one\nthat run recorded, so a return or an uncovered state arriving between\
   \ them is never bypassed. Two skip\nsets are equal when their versioned identity\
@@ -464,32 +466,35 @@ body: "## Scenario\nA project has moved costly checks out of its lands: it decla
   \ between-deploys run on\n  main. No commit is made:\n  the run never changes main\
   \ (SPEC-1047), and the next review's recompute leaves the unit out, since it\n \
   \ failed inside the silent window. Automation writes nothing to the list.\n  While\
-  \ the last COMPLETE between-deploys run (a result for every listed unit) is older\
-  \ than\n  `pre_deploy_class_max_uncovered_hours`, land and Stage-6 runs skip nothing,\
-  \ named `uncovered`.\n- THE WINDOWS ARE SHOWN, NOT RECOMPUTED. The weekly reading\
-  \ prints, for the values in force, the units\n  listed, the final failures of listed\
-  \ units the between-deploys and pre-deploy runs found (per day), and the serial\n\
-  \  time saved — an outcome the run could not observe (a unit not run at a place)\
-  \ is printed «not\n  observed», never a pass; changing a value is a person's `config\
-  \ set --project`.\n- An inspection theme reads the weekly reading and records it;\
-  \ a theme record with no reading is\n  refused as incomplete.\n\n### 8. Scope\n\
-  - Opt-in: a project with no `moment: pre-deploy` class runs, lands and deploys exactly\
-  \ as before.\n- Not here (the project's own): release batching, the stand-then-production\
-  \ order, live checks on\n  the served site, rollback policy.\n- The run between\
-  \ deploys is SPEC-1047's; rule 7 reads its rows.\n\n## Parameters\n| key | class\
-  \ (SPEC-1031) | proposed default | read by |\n|---|---|---|---|\n| `pre_deploy_move_min_task_lands`\
-  \ | THRESHOLD (project) | inventory default | rule 7: task lands since the unit's\
-  \ last content change — opened by its card |\n| `pre_deploy_move_min_window_days`\
-  \ | THRESHOLD (project) | inventory default (its card moves 14 → 28) | rule 7: the\
-  \ silent window |\n| `pre_deploy_class_max_uncovered_hours` | THRESHOLD (project)\
-  \ | inventory default | rule 7: no complete between-deploys run this long → skip\
-  \ nothing — opened by its card |\n| `pre_deploy_reuse_max_age_minutes` | THRESHOLD\
-  \ (project) | inventory default | rule 3 opt-in reuse: the oldest run a deploy stands\
-  \ on |\nThe run's start wait is the SPEC-0094 §9 load window (its machine keys,\
-  \ unchanged); rescue attempts\nare the land's own; the contended re-run is once,\
-  \ a fixed rule, not a key. None is `consumed:` while\ndraft.\n\n## Rationale\nSuccessor\
-  \ of <workshop-spec> (plan `silent-tests-leave-every-land-for-the-release-run-`;\
-  \ owner rows\nevents.jsonl#ts=, 18:03:15Z, 18:14:57Z; external consult\ndecisions/kernel-as-project-consult-audit-adhoc.yaml).\
+  \ the last between-deploys run is older than `pre_deploy_class_max_uncovered_hours`,\
+  \ or holds\n  a result for no listed unit, land and Stage-6 runs skip nothing, named\
+  \ `uncovered`; a listed unit\n  it holds no result for is run by every land and\
+  \ Stage-6 run until a between-deploys run records\n  it, named `uncovered` (rule\
+  \ 2), and `pre-deploy list --write` prints those units after it writes.\n- THE WINDOWS\
+  \ ARE SHOWN, NOT RECOMPUTED. The weekly reading prints, for the values in force,\
+  \ the units\n  listed, the final failures of listed units the between-deploys and\
+  \ pre-deploy runs found (per day), and the serial\n  time saved — an outcome the\
+  \ run could not observe (a unit not run at a place) is printed «not\n  observed»,\
+  \ never a pass; changing a value is a person's `config set --project`.\n- An inspection\
+  \ theme reads the weekly reading and records it; a theme record with no reading\
+  \ is\n  refused as incomplete.\n\n### 8. Scope\n- Opt-in: a project with no `moment:\
+  \ pre-deploy` class runs, lands and deploys exactly as before.\n- Not here (the\
+  \ project's own): release batching, the stand-then-production order, live checks\
+  \ on\n  the served site, rollback policy.\n- The run between deploys is SPEC-1047's;\
+  \ rule 7 reads its rows.\n\n## Parameters\n| key | class (SPEC-1031) | proposed\
+  \ default | read by |\n|---|---|---|---|\n| `pre_deploy_move_min_task_lands` | THRESHOLD\
+  \ (project) | inventory default | rule 7: task lands since the unit's last content\
+  \ change — opened by its card |\n| `pre_deploy_move_min_window_days` | THRESHOLD\
+  \ (project) | inventory default (its card moves 14 → 28) | rule 7: the silent window\
+  \ |\n| `pre_deploy_class_max_uncovered_hours` | THRESHOLD (project) | inventory\
+  \ default | rule 7: no complete between-deploys run this long → skip nothing — opened\
+  \ by its card |\n| `pre_deploy_reuse_max_age_minutes` | THRESHOLD (project) | inventory\
+  \ default | rule 3 opt-in reuse: the oldest run a deploy stands on |\nThe run's\
+  \ start wait is the SPEC-0094 §9 load window (its machine keys, unchanged); rescue\
+  \ attempts\nare the land's own; the contended re-run is once, a fixed rule, not\
+  \ a key. None is `consumed:` while\ndraft.\n\n## Rationale\nSuccessor of <workshop-spec>\
+  \ (plan `silent-tests-leave-every-land-for-the-release-run-`; owner rows\nevents.jsonl#ts=,\
+  \ 18:03:15Z, 18:14:57Z; external consult\ndecisions/kernel-as-project-consult-audit-adhoc.yaml).\
   \ One mechanism for every repository, the kernel\nincluded as a deployer: membership\
   \ moves from adapter `classes:` to one committed list written by one verb\nat the\
   \ weekly review (the adapter path had no common write operation); units leave lands\
@@ -547,25 +552,32 @@ body: "## Scenario\nA project has moved costly checks out of its lands: it decla
   \ scheduled pre-deploy run about 7 h and 6 cards later. The kernel ships the form\n\
   only; which tests return on which paths is each project's declaration. In place,\
   \ as an additive\nextension (SPEC-1037 §7): a new case, every entry without the\
-  \ key unchanged.\n (owner decision events.jsonl#ts=, option C; cross item X-2145):\
-  \ a\ndeploy that found a land already holding the reservation waited for it — twice\
-  \ ~10-12 min on\n<project> — and then refused HEAD-moved, shipping nothing; rule\
-  \ 3 now refuses it at once instead.\nRe-targeting to the new head (SPEC-0094 §6)\
-  \ and a land yielding to a deploy were not chosen.\n\n## Verification\nCARRIED REGRESSION\
-  \ CHECKS (V1-V14, carried from <workshop-spec> — they hold on the pre-change code,\
-  \ and a\nchange here must keep them green; the plan's probe letters in brackets):\n\
-  - V1 [a, m, g, t] a gated deploy's run executes every layer whole plus every pre-deploy\
-  \ unit of the\n  one inventory, in a fresh checkout of the candidate; an ordinary\
-  \ land on the same tree (a fallback\n  class) removes the\n  pre-deploy unit after\
-  \ selection and names it; a `verify`-section change, an `infra_globs` change\n \
-  \ and an adapter `sources:` change each run every other unit and still remove and\
-  \ name it, a\n  `layers:`-declared layer staying skipped; a layer whose `list` failed\
-  \ runs whole and says so; a\n  `deciding`-selected layer still drops the pre-deploy\
-  \ unit from the selected set; a `shadow` layer\n  runs it on its full side, and\
-  \ the pinned last-green leg under a policy that runs it still runs it.\n- V2 [b,\
-  \ j, q, s] a deploy to a gated target without `--expect-revision` is refused before\
-  \ anything\n  runs; with it, the run goes before the command and a red run launches\
-  \ no command — on a\n  production target, a `production: false` target, with `--owner-approved`,\
+  \ key unchanged.\n (deviation pre-deploy-list-write-disables-skip-until-next-scheduled-run,\
+  \ 2026-11-16): after\na weekly `--write` added units, the last scheduled run held\
+  \ no result for them, so every land ran\nthe whole list until the next scheduled\
+  \ run (3 runs skipped 0 units). An uncovered unit is now kept\nalone and the covered\
+  \ ones stay skipped; a run covering no listed unit still skips nothing. Edited\n\
+  in place on the card's owner go; the in-place-vs-supersede reading of SPEC-1037\
+  \ §7 is recorded as\ndeviation fix-card-behaviour-change-in-covered-case-in-place-vs-supersede.\n\
+  \ (owner decision events.jsonl#ts=, option C; cross item X-2145): a\ndeploy that\
+  \ found a land already holding the reservation waited for it — twice ~10-12 min\
+  \ on\n<project> — and then refused HEAD-moved, shipping nothing; rule 3 now refuses\
+  \ it at once instead.\nRe-targeting to the new head (SPEC-0094 §6) and a land yielding\
+  \ to a deploy were not chosen.\n\n## Verification\nCARRIED REGRESSION CHECKS (V1-V14,\
+  \ carried from <workshop-spec> — they hold on the pre-change code, and a\nchange\
+  \ here must keep them green; the plan's probe letters in brackets):\n- V1 [a, m,\
+  \ g, t] a gated deploy's run executes every layer whole plus every pre-deploy unit\
+  \ of the\n  one inventory, in a fresh checkout of the candidate; an ordinary land\
+  \ on the same tree (a fallback\n  class) removes the\n  pre-deploy unit after selection\
+  \ and names it; a `verify`-section change, an `infra_globs` change\n  and an adapter\
+  \ `sources:` change each run every other unit and still remove and name it, a\n\
+  \  `layers:`-declared layer staying skipped; a layer whose `list` failed runs whole\
+  \ and says so; a\n  `deciding`-selected layer still drops the pre-deploy unit from\
+  \ the selected set; a `shadow` layer\n  runs it on its full side, and the pinned\
+  \ last-green leg under a policy that runs it still runs it.\n- V2 [b, j, q, s] a\
+  \ deploy to a gated target without `--expect-revision` is refused before anything\n\
+  \  runs; with it, the run goes before the command and a red run launches no command\
+  \ — on a\n  production target, a `production: false` target, with `--owner-approved`,\
   \ under a waived policy and\n  with `--now` alike; a plain `deploy` with no `--target`\
   \ is gated when a class gates a\n  `production: true` target; `deploy --rollback`\
   \ runs no run and is not refused.\n- V3 [c, e, r] a project with no pre-deploy class\
@@ -696,7 +708,7 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#_deploy_release_order: 4a2054ba0edea5599aafb83a5b58887dd9ad4ca73e401b4d8dde7e0cf64cca67
   bin/lib/cli.py#_pre_deploy_print_held: 06b2cf305b06f033b87edf0a2580f7c40d7b0f8b993f75c908a7d2dcec40ef81
-  bin/lib/cli.py#cmd_pre_deploy_list: 9c3402dc1e6ee63c54b62a3b1823f072bb0ea91a8c6e33af18f8fd59ba093892
+  bin/lib/cli.py#cmd_pre_deploy_list: 230d97a8741d4315c804f8a9032f10b1517931c007a94d5df3287a7ec27a0e32
   bin/lib/deploy.py#_pre_deploy_beside: 60c3d24f5bf601e5ba023f9b3a47c35c88a6fdef108bb25217c63b3c52a64b2c
   bin/lib/deploy.py#_pre_deploy_guarding: 566f590a79fdf20e463b9b3d10e0f8ab55e4a7b8eb78218894bd22d457858592
   bin/lib/deploy.py#_pre_deploy_kernel_units: b2d8abd0b42ec00566b410673e99ec57749f9b4ed3c2a176b2f75f05d9871e51
@@ -724,7 +736,7 @@ implements_signature:
   bin/lib/land_verify_legs.py#_pre_deploy_run_skip: d12749327e36906081c3e63184171093633cdb34ce9c1b6bc4f52c0218dee85b
   bin/lib/land_verify_legs.py#_pre_deploy_skip_key: 5c347439899638cfadf7559a14c9f1d4ef71ead57bb1cf08d20c92b2fcc15aa8
   bin/lib/land_verify_legs.py#_pre_deploy_skip_read: 6331774138e641e6581ae978b22f7762da0b7816918c7d47714bfdd0eec4a782
-  bin/lib/land_verify_legs.py#_pre_deploy_skip_set: a461a7ffc63658ca9e8ab0dfaa6cd84cc4b510633e0349e3abaa24d59db7d924
+  bin/lib/land_verify_legs.py#_pre_deploy_skip_set: 90a1b8104dc64c093f5052a0586a15c7da13ab6dc9da5adac0c951e571bc5f26
   bin/lib/land_verify_legs.py#_pre_deploy_skip_units: 9ddf27b7bc2a2fe8c1076d30135f65fdf7910762db65ef9871fce6e089ddfda8
   bin/lib/state.py#materialize_ops_units: b27e1ebcb2811e768b714d09c26813cdd4b9b2f576bb801a687ba52763ac196d
   bin/lib/task.py#_pre_deploy_stand_probes: 39ddd73e12b81e43de7ed788b02272f6fe5b1bcab3f9a38b39ba17a82583fc5f

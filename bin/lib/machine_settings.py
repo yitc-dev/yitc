@@ -656,8 +656,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        "coded cap»), so by its own governing rule it can decide nothing — the printers echo it as a "
        "SUGGESTED bound the controller judges against. It is per-server by definition, which is "
        "exactly what the machine file is for"),
-    _p("lib.plan.PLAN_CHECK_SLICE_WORKERS", "int", 0, "bin/lib/plan.py#cmd_plan_check",
-       "T-14612 — how many parts of a split `plan check` (SPEC-1058 §3) run at once: 0 = every part "
+    _p("lib.plan.PLAN_CHECK_SLICE_WORKERS", "int", 0, "bin/lib/audit.py#run_auditor_parts",
+       "T-14612 — how many parts of a split `plan check` (SPEC-1058 §3), and since T-14675 of a split "
+       "aggregate `audit post --plan`, run at once (one runner serves both): 0 = every part "
        "at once, 1 = one after another in part order. PERFORMANCE: it changes only the round's wall "
        "clock — each part sends the same packet to the same auditor seam and the recorded verdict is "
        "the worst part's either way, folded in part order. Measured need: a consumer, X-2376, 76-77 min "
@@ -1097,6 +1098,18 @@ INVENTORY: "tuple[Knob, ...]" = (
        "journal-write guard root — a refusal reads it"),
     _g("YITC_EVENTS_PATH_DEFAULT", "str", None, "bin/lib/events.py", "WHICH journal is written"),
     _g("YITC_EVENTS_SINK", "str", None, "bin/lib/events.py", "the journal quarantine target"),
+    _g("YITC_PLAN_CHECK_CHECKOUT", "str", None, "bin/lib/plan.py#run_project_plan_check",
+       "NOT an input the kernel reads: the acting checkout's absolute path, WRITTEN into the env of the project's declared "
+       "`plan_checks.command` at a plan checkpoint (T-14672, SPEC-0034 §Project-declared plan check) and "
+       "never read back. GATE by the fail-closed default"),
+    _g("YITC_PLAN_CHECK_PHASE", "str", None, "bin/lib/plan.py#run_project_plan_check",
+       "NOT an input the kernel reads: the fixed checkpoint phase name, WRITTEN into the env of the project's declared "
+       "`plan_checks.command` at a plan checkpoint (T-14672, SPEC-0034 §Project-declared plan check) and "
+       "never read back. GATE by the fail-closed default"),
+    _g("YITC_PLAN_CHECK_PLAN", "str", None, "bin/lib/plan.py#run_project_plan_check",
+       "NOT an input the kernel reads: the absolute path of the plan being checked, WRITTEN into the env of the project's declared "
+       "`plan_checks.command` at a plan checkpoint (T-14672, SPEC-0034 §Project-declared plan check) and "
+       "never read back. GATE by the fail-closed default"),
     _g("YITC_SPIKE_FROM_WORKTREE", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
        "NOT an input the kernel reads: the served round's worktree path, WRITTEN into the env of the project's declared "
        "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "
@@ -1292,6 +1305,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        "it only through the BINDING key auditor.full.timeout"),
     _g("lib.audit.AUDIT_TIMEOUT_SECONDS", "int", 300, "bin/lib/audit.py",
        "the built-in default behind YITC_AUDIT_TIMEOUT_SECONDS — a verdict input"),
+    _g("lib.plan.PLAN_CHECK_TIMEOUT_SECONDS", "int", 300, "bin/lib/plan.py#run_project_plan_check",
+       "T-14672 — the bound on one run of a project's declared plan check; on expiry the run REFUSES "
+       "the checkpoint, so the value participates in an admission verdict (fail-closed)"),
     _g("lib.worktree._LAND_RESERVATION_PARK_WALLS", "float", 20.0, "bin/lib/worktree.py",
        "the park bound in units of a verify wall — a SAFETY bound, so a verdict input"),
     _g("lib.worktree._VERIFY_WALL_SECONDS", "float", 448.4, "bin/lib/worktree.py",

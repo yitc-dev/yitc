@@ -5059,6 +5059,26 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                     print(f"note: --old matched the parsed card, not the raw file — the value is "
                           f"stored in {path.name} as a LITERAL block scalar whose lines carry the "
                           f"block indent, so the block was re-emitted at its own indent (T-12920).")
+        elif replace_all:
+            # T-14667 — a raw hit can hide a SECOND, wrapped occurrence: the parsed card holds more
+            # than the raw count, so a raw --replace-all would leave some and report success. The
+            # same parsed-vs-replaced comparison as quoted_field_reencode: replace every occurrence
+            # through the stored-form fallback, or refuse naming both counts.
+            n_parsed = _leaf_occurrences(state.load_str(text), old)
+            if n_parsed > n:
+                updated, n_wrapped = wrapped_field_edit(text, state.load_str(text), old, new,
+                                                        replace_all=True)
+                if updated is None:
+                    _die(f"--old matches {n} time(s) in the raw text of {path.name} but the parsed "
+                         f"card holds it {n_parsed} times (the rest stored wrapped or re-encoded), and "
+                         f"no stored form maps onto every occurrence — --replace-all would leave "
+                         f"{n_parsed - n} unreplaced (the file is untouched; T-14667). Edit each "
+                         f"occurrence by a longer, unique --old: `bin/yitc-v2 task update {tid} "
+                         f"--old <unique span> --new <text>`.")
+                print(f"note: --old occurs {n_parsed} times in the parsed card but {n} time(s) in the "
+                      f"raw text of {path.name} — replaced through its folded stored form so every "
+                      f"occurrence changed (T-14667).")
+                n = n_wrapped
         if n == 0:
             # The diagnostic is COMPUTED from the file in hand (the T-11109 defect-(2) lesson): a
             # refusal that names the wrong cause still costs the next reader a pass.
@@ -7134,7 +7154,8 @@ def _bookkeeping_only_custody_shift(tid: str, *, _recorded_commit_sha, _worktree
 
 def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_yaml, _audited_custody_sha,
                               _worktree_dirty_paths, _path_tracked_at_head, _last_audit_post_event,
-                              _record_fold_commit, _commit_landed_kind, _repin_ship_admissible=None):
+                              _record_fold_commit, _commit_landed_kind, _repin_ship_admissible=None,
+                              _sync_merge_custody=None):
     """T-12719 — the FOLDED shape of the T-0275 hazard state, read for the three Stage-8 cycle doors
     ONLY (`--fix-red` / `--absorb`; `--reship` since T-13870). Return the SAME
     `(rel, audited_full_sha)` tuple `_audit_commit_shift_hazard` returns
@@ -7211,7 +7232,18 @@ def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_ya
     re-pin arm (no marker) both answer None. So a dirty record that does NOT declare the re-pin, whose
     `commit:` resolves to `_audited_custody_sha` and which is the standing verdict is admitted — the
     SAME custody equality and standing-verdict check the clean-fold branch asks. The host still confines
-    a dirty hazard to `--fix-red`."""
+    a dirty hazard to `--fix-red`.
+
+    T-14696 — the DIRTY SYNC-MERGE arm (<project> T-1453, X-2431). After a GREEN, `worktree sync --resolved`
+    merges main into the card's branch and the next audit-post pass audits AT that merge (T-14181 below
+    the ceiling, T-13260 at it): the fresh, DIRTY record's `commit:` is the merge M and it names the GREEN
+    commit as `sync_merge_ship`, while custody stays on that GREEN commit (the sync records no
+    commit_landed). When that pass is RED, both readers answered None and `--fix-red` refused. Admitted
+    ONLY when the record's verdict is exactly RED (so `--reship`, which also keeps a dirty hazard, gains
+    nothing here), `_sync_merge_custody(record, custody)` — the host wires `sync_merge_closure_custody`,
+    the SAME predicate `task close` moves closure custody with, which re-derives from git that M is a
+    merge strictly descending from custody and that the marker names custody — answers M itself, and the
+    standing-verdict check below holds. An unwired predicate answers None (fail-closed)."""
     rel = f"decisions/{tid}-audit-post.yaml"
     try:
         if rel in (_worktree_dirty_paths(pathspecs=[rel]) or []):
@@ -7225,8 +7257,16 @@ def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_ya
             ac = str(ad.get("commit") or "").strip()
             ac_full = _git_resolve_sha(ac) if ac else None
             custody = _audited_custody_sha(tid)
-            if not ac_full or not custody or _git_resolve_sha(custody) != ac_full:
+            custody_full = _git_resolve_sha(custody) if custody else None
+            if not ac_full or not custody_full:
                 return None
+            if custody_full != ac_full:
+                # T-14696 — the sync-merge arm: RED only, and only when the record's merge is the
+                # one the closure-custody predicate itself derives from custody.
+                if (_sync_merge_custody is None
+                        or str(ad.get("verdict") or "").strip().upper() != "RED"
+                        or _sync_merge_custody(ad, custody_full) != ac_full):
+                    return None
             last_verdict, last_commit = (_last_audit_post_event(tid) or (None, None))[:2]
             if not last_verdict or not last_commit or _git_resolve_sha(str(last_commit)) != ac_full:
                 return None
@@ -10294,7 +10334,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                    _case_gate_spec_dirs=None, _main_worktree=None, _run_git_cap=None,
                    _BOOKKEEPING_ALLOWLIST=None, _worktree_dirty_paths=None,
                    _is_consumer_build=None, _main_events_path=None,
-                   _registry_peers=None, _pre_deploy_stand=None, _task_shipped=None) -> None:
+                   _registry_peers=None, _pre_deploy_stand=None, _task_shipped=None,
+                   _manifest_path=None) -> None:
     """Atomic Stage 9 closure. Per LIFECYCLE.md §Stage 9 + D-0015 + D-0019 + D-0082.
 
     `_governance_surface_globs_arg` (T-11156, SPEC-0178 rule 3) is OPTIONAL on the same precedent: the
@@ -13143,7 +13184,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
         _closure_specs = sorted({*reverified_specs, *(activated_specs or []), *(superseded_specs or [])})
         _closure_pathspecs = _closure_record_pathspecs(
             _task_rel, _foldable_audit_records(tid, REPO_ROOT), _closure_specs,
-            repo_root=REPO_ROOT, bookkeeping_allowlist=(_BOOKKEEPING_ALLOWLIST or ()))
+            repo_root=REPO_ROOT, bookkeeping_allowlist=(*(_BOOKKEEPING_ALLOWLIST or ()), *_closure_manifest_pathspec(
+                activated_specs, _manifest_path() if _manifest_path is not None else None, REPO_ROOT)))
         # Report-only (AC3). Fail-SOFT on an un-injected reader (the hermetic in-process close tests):
         # an unreadable dirty set must never manufacture a message, and never blocks the closure.
         if _worktree_dirty_paths is not None:
@@ -13739,20 +13781,30 @@ def _stage6_layer_retry_lines(tid, metrics) -> list:
         if not isinstance(r, dict) or not r.get("layer") or "attempts" in r:
             continue                       # T-13607: a per-UNIT row is rendered below, by its own reader
         _load = f"host load1 {r['load1']}" if "load1" in r else "host load not measurable"
+        # T-14679 (SPEC-1046 rule 4): a first run that ran out of its bound with no failed test in its
+        # output is read as host LOAD — never named «FAILED (exit None)» nor called a flaky retry.
+        _timed = r.get("first_outcome") == "timed-out"
+        _first = ("TIMED OUT on its first run with no failed test in its output" if _timed
+                  else f"FAILED its first run (exit {r.get('first_exit')})")
         if r.get("isolated") == "pass" and r.get("rescue") == "off":
             # T-13607 (SPEC-1006 rule 3): the layer declares `rescue: off` — the pass is diagnostic.
-            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
-                       f"(exit {r.get('first_exit')}) and PASSED its isolated re-run (alone in this "
-                       f"verify, {_load}), but the layer declares `rescue: off` — the first failure blocks.")
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} {_first} and PASSED its "
+                       f"isolated re-run (alone in this verify, {_load}), but the layer declares "
+                       f"`rescue: off` — the first failure blocks.")
+        elif r.get("isolated") == "pass" and _timed:
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} {_first} and PASSED its "
+                       f"isolated re-run (alone in this verify, {_load}) — recorded as LOAD, not as a "
+                       f"failure: the run stays green on that layer (verify_metrics.flaky_retry, "
+                       f"first_outcome timed-out).")
         elif r.get("isolated") == "pass":
-            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
-                       f"(exit {r.get('first_exit')}) and PASSED its isolated re-run (alone in this "
-                       f"verify, {_load}) — a FLAKY RETRY: the run stays green on that layer and the "
-                       f"first-run failure excerpt is recorded under verify_metrics.flaky_retry.")
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} {_first} and PASSED its "
+                       f"isolated re-run (alone in this verify, {_load}) — a FLAKY RETRY: the run stays "
+                       f"green on that layer and the first-run failure excerpt is recorded under "
+                       f"verify_metrics.flaky_retry.")
         else:
-            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
-                       f"(exit {r.get('first_exit')}) AND its isolated re-run (attempt 2 of 2, alone "
-                       f"in this verify, {_load}) — the failure stands.")
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} {_first} AND its "
+                       f"isolated re-run (attempt 2 of 2, alone in this verify, {_load}) — the failure "
+                       f"stands.")
     for d in rec.get("layers_skipped") or []:
         if isinstance(d, dict):
             out.append(f"{tid} task test --run: isolated re-run NOT attempted for failed verify "
@@ -18173,7 +18225,14 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
 
     T-14452 — a script file marked failed keeps what the runner said after the entry's first line (a
     zero-collect verdict, an assertion excerpt, a launch error, a timeout) as the entry's `reason`; an
-    entry with no such text has no `reason` key."""
+    entry with no such text has no `reason` key.
+
+    T-14698 — a project that DELEGATES its sweep to a layer skips (1), so its declared always-run set
+    is read here from the same sweep dirs and its members the diff does not change run through the
+    DELEGATED layer — the layer that owns the tests dir — in the same `rerun=` pass (2) uses for
+    changed units, each listed `always: true` with that layer's verdict. A set that cannot be read is
+    one not-determined `always` entry per dir, naming why; a member the layer does not list or does not
+    settle is a not-determined `always` entry, never an empty green."""
     from lib import land_verify_legs as _lv, worktree as _wt
     root = Path(root)
     left = sorted(set(changed))
@@ -18182,6 +18241,29 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
     if _selection_always_set is None:
         from lib import verify_runner as _vr
         _selection_always_set = _vr._selection_always_set
+    pending: set = set()                                   # T-14698: always-run members for the delegated layer
+    for d in ([Path(p) for p in _declared_test_sweep_paths(root)] if delegated else []):
+        if not d.is_dir():
+            continue
+        try:
+            members = sorted(_selection_always_set(d)[0])
+        except Exception as exc:                           # noqa: BLE001 — an unread set is never an empty green
+            try:
+                drel = d.resolve().relative_to(root.resolve()).as_posix()
+            except ValueError:
+                drel = str(d)
+            out.append({"file": drel, "runner": f"layer:{delegated}", "always": True,
+                        "result": "not-determined",
+                        "reason": f"the declared always-run set could not be read: {exc}"})
+            continue
+        for n in members:
+            f = d / n
+            try:
+                rel = f.resolve().relative_to(root.resolve()).as_posix()
+            except ValueError:
+                continue
+            if f.is_file() and rel not in left:
+                pending.add(rel)
     for d in ([] if delegated else [Path(p) for p in _declared_test_sweep_paths(root)]):
         if not d.is_dir():
             continue
@@ -18243,7 +18325,7 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                 out.append({"file": rel, "runner": "script", **res})
                 left.remove(rel)
     seen: list = []
-    engaged = _wt._land_batch_engagement(root, ops_out=seen) if left else (True, "")
+    engaged = _wt._land_batch_engagement(root, ops_out=seen) if (left or pending) else (True, "")
     ops = seen[0] if seen else {}
     ver = ops.get("verify") if isinstance(ops.get("verify"), dict) else {}
     layers = [ly if isinstance(ly, dict) else {} for ly in (ver.get("layers") or [])] \
@@ -18283,6 +18365,7 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
         return ""
 
     unlisted: list = []                                    # T-14084: (name, subject_globs, reason)
+    pending_why = ""                                       # T-14698: why the delegated layer settled no member
     consulted = bool(left) and bool(layers)                # T-14084: the layers were read for a changed file
     # T-14564: a layer whose subject_globs no changed file left here reaches is not listed and gets no
     # install hint — the SPEC-0152 rule-16 judge the land skips it by, HANDED IN by the host: this module
@@ -18293,15 +18376,19 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
     reached = {i for i, ly in enumerate(layers) if judge(left, ly.get("subject_globs"))}
 
     for idx, decl in sorted(adapters.items()):
-        if not left or not decl.get("list") or idx not in reached:
-            continue
         name = str(layers[idx].get("layer") or "").strip() or f"layer-{idx}"
+        mine_always = set(pending) if pending and name == delegated else set()   # T-14698
+        want = set(left) if idx in reached else set()
+        if not (want or mine_always) or not decl.get("list"):
+            continue
         try:
             own_t = _lv._declared_verify_timeout(layers[idx], "timeout")
             timeout = _verify_test_timeout_seconds(
                 _lv._declared_verify_timeout(ver, "timeout_seconds") if own_t is None else own_t)
         except Exception as exc:                           # noqa: BLE001 — a malformed bound maps nothing
             why = why or f"layer {name!r}: its declared timeout could not be read: {exc}"
+            if mine_always:
+                pending_why = f"layer {name!r}: its declared timeout could not be read: {exc}"
             continue
         sink: dict = {}
         listed.clear()
@@ -18317,10 +18404,13 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
             sg = layers[idx].get("subject_globs")
             unlisted.append((name, [g for g in sg if isinstance(g, str) and g.strip()]
                              if isinstance(sg, list) else [], reason))
+            if mine_always:
+                pending_why = reason
             if notes_out is not None:
                 notes_out.append(f"own-tests: {reason}")
             continue
-        units = [u for u in inventory if isinstance(u, dict) and u.get("file") in left]
+        units = [u for u in inventory if isinstance(u, dict)
+                 and (u.get("file") in want or u.get("file") in mine_always)]
         if not units:
             continue
         run_sink: dict = {}
@@ -18351,8 +18441,12 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                 res = {"result": "not-determined",
                        "reason": start or ("the layer's run report is not usable" if not usable
                                            else "the layer's report holds no passed/failed row for this file")}
-            out.append({"file": f, "runner": f"layer:{name}", **res})
-            left.remove(f)
+            if f in want:
+                out.append({"file": f, "runner": f"layer:{name}", **res})
+                left.remove(f)
+            else:                                          # T-14698: a declared always-run member
+                out.append({"file": f, "runner": f"layer:{name}", "always": True, **res})
+                pending.discard(f)
         if failed_here and failures_out is not None:
             # T-14340: the land's units-failed renderer, on this pass's own sink — nothing re-runs.
             printed = _lv._adapter_invocations_output(run_sink.get("invocations"))[0]
@@ -18367,6 +18461,10 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                 _wt._layer_output_log_path(root, "own-tests", name, "own").unlink(missing_ok=True)
             except OSError:
                 pass
+    for f in sorted(pending):                              # T-14698: never an empty green
+        out.append({"file": f, "runner": f"layer:{delegated}", "always": True, "result": "not-determined",
+                    "reason": why or pending_why
+                    or f"the delegated layer {delegated} does not list this always-run test"})
     globs =[g for g in declared_test_globs(root, ops) if isinstance(g, str) and g.strip()]
     for f in left:
         shaped = (any(fnmatch.fnmatchcase(f, g) for g in globs) if globs
@@ -21502,7 +21600,20 @@ def _declared_surface_preview(*args, **kw):
     kw = {**{"_requires_ordered": _requires_ordered}, **kw}
     return closure_evidence._declared_surface_preview(*args, **kw)
 
-def _activate_task_proposed_specs(tid: str, *, SPECS_DIR, _append_event, _decision_apply_field_edits, _die, _find_spec_path, _read_yaml) -> tuple:
+def _closure_manifest_pathspec(activated, manifest_path, repo_root) -> list:
+    """T-14663 — the manifest's repo-relative path when THIS close activated a spec (the activation writer
+    regenerated its GEN regions, SPEC-0073 rule 5), so the closure-record commit carries it; else []. A
+    manifest outside the repo or absent adds nothing (a consumer has none)."""
+    if not activated or manifest_path is None:
+        return []
+    try:
+        rel = Path(manifest_path).resolve().relative_to(Path(repo_root).resolve()).as_posix()
+    except (ValueError, OSError):
+        return []
+    return [rel] if Path(manifest_path).is_file() else []
+
+
+def _activate_task_proposed_specs(tid: str, *, SPECS_DIR, _append_event, _decision_apply_field_edits, _die, _find_spec_path, _read_yaml, _regen_manifest=None) -> tuple:
     """T-0199 (Part C) + T-0239 — at task closure, flip every PROPOSED spec the closing task
     ACTIVATES → status: active (sorted-id order), AND atomically flip each activated spec's
     `supersedes:` target (D-0047: an active target → superseded; a still-proposed target → withdrawn).
@@ -21653,6 +21764,12 @@ def _activate_task_proposed_specs(tid: str, *, SPECS_DIR, _append_event, _decisi
             if flipped_target:
                 data["supersedes"], data["supersedes_status"] = flipped_target
             _append_event("spec_activated", tid, data)
+    # T-14663 — a flip moves the manifest's §3 SPEC<->CODE map (it lists ACTIVE specs' implements), so
+    # the same write regenerates the manifest GEN regions (SPEC-0073 rule 5, the T-14608 seam). The hook
+    # is the host's; unbound (a direct caller) keeps the old behaviour. Close and the Stage-6 window
+    # both reach here, so the tested tree and the closed tree carry the same manifest bytes.
+    if activated and _regen_manifest is not None:
+        _regen_manifest()
     return sorted(activated), sorted(superseded)
 
 
@@ -21832,7 +21949,7 @@ def _head_bytes(root, rel):
 
 
 @contextlib.contextmanager
-def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_path, read_yaml):
+def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_path, read_yaml, manifest_path=None):
     """Hold the close-time activation of `tid`'s proposed spec(s) on disk for one Stage-6 run; yields
     the activated ids ([] when there is nothing to activate or the writer refused).
 
@@ -21852,6 +21969,10 @@ def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_p
                 tp = find_spec_path(tgt) if tgt else None
                 if tp is not None and Path(tp) not in snap:
                     snap[Path(tp)] = _read_exact(tp)
+        # T-14663 — the activation writer regenerates the manifest GEN regions, so the window holds the
+        # manifest too: snapshotted, recorded, healed and restored by the same record as the specs.
+        if snap and manifest_path is not None and Path(manifest_path).is_file():
+            snap[Path(manifest_path)] = _read_exact(manifest_path)
         if not snap:
             stack.close()                                   # nothing to hold: release before the run
             yield []

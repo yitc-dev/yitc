@@ -626,6 +626,26 @@ def journal_pathspecs(journal_path, root) -> list:
     return [seg.relative_to(base).as_posix() for seg in segment_paths(live)]
 
 
+
+def journal_exclude_pathspecs(journal_path, root) -> list:
+    """The `git diff` / `git show` EXCLUDE pathspecs for EVERY segment of the ONE logical journal at
+    `journal_path`, relative to `root` — the READING half beside `journal_pathspecs` (T-14670).
+
+    A reader that hides "the journal" from a diff (the audit-post packet, T-0219; the residue guard's
+    branch source diff, T-11491) must hide the segment SET, not the live path alone (SPEC-0190 rule 1):
+    after the cut every land commits rows into `archive/events-<day>.jsonl`, and a live-only exclude
+    lets those rows through as diff hunks. Returned as a PATTERN built from `archive_dir` +
+    `archive_glob` (the one naming home, rule 3), never as the present-file list `journal_pathspecs`
+    gives: a diff reads a REVISION, and a segment present in that revision need not be on disk now.
+    The live segment comes first; with no archive directory the archive pattern simply matches
+    nothing, which git admits for an exclude pathspec."""
+    live = Path(journal_path)
+    base = Path(root)
+    live_rel = (live if not live.is_absolute() else live.relative_to(base)).as_posix()
+    adir = archive_dir(live)
+    adir_rel = (adir if not adir.is_absolute() else adir.relative_to(base)).as_posix()
+    return [f":(exclude){live_rel}", f":(exclude){adir_rel}/{archive_glob(live)}"]
+
 # ── SPEC-0190 rules 2+3 — ROTATION: the crash-safe transaction, and its rehearsed undo (T-11448) ──
 #
 # This is the WRITER half of the segment surface T-11444 defined above. Rules 2 and 3 govern it:
@@ -2452,7 +2472,9 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                  f"{' and '.join('`'+k+'`' for k in _p8_missing)}. The contract (SPEC-0015, T-10282) "
                  f"requires BOTH `failing_input` (non-empty string: the input that must make the "
                  f"criterion FAIL) and `evidence_events` (non-empty list of refs to real machine "
-                 f"events, e.g. `<event_type>@<iso-ts>`); a row without them appends, exits 0, and "
+                 f"events, e.g. `<event_type>@<iso-ts>` where the type is one the MECHANISM emitted — "
+                 f"never a closure-bookkeeping type such as `land_completed`/`tests_passed`, which "
+                 f"never resolves in that spelling); a row without them appends, exits 0, and "
                  f"then silently does NOT count at `task close`.{_hint} e.g. --data "
                  f"'{{\"failing_input\":\"<what, if broken, makes this fail>\","
                  f"\"evidence_events\":[\"<event_type>@<iso-ts>\"]}}'. Nothing was appended.")
@@ -2471,7 +2493,24 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                  f"come: `task close` would not count a row written with it. Emit again with "
                  f"the refs respelled: `bin/yitc-v2 event {event_type} --data "
                  f"'{{\"failing_input\":\"<what, if broken, makes this fail>\","
-                 f"\"evidence_events\":[\"<event_type>@<iso-ts>\"]}}'`. Nothing was appended.")
+                 f"\"evidence_events\":[\"<event_type>@<iso-ts>\"]}}'` (a type the MECHANISM "
+                 f"emitted, not a closure-bookkeeping one). Nothing was appended.")
+        # T-14695 (X-2427): the SPELLING of a non-evidential type, refused at the same chokepoint. A
+        # bare or `@<ts>`-pinned `land_completed` / `tests_passed` / … never resolves on any journal —
+        # the reader returns False before reading a row — so the row would carry a ref that only LOOKS
+        # like evidence. Pure string test (the reader's own recogniser); `#` selector forms, whose
+        # resolution depends on rows, are written exactly as before.
+        _p8_bare = _tce.p8_non_evidential_bare_refs(data)
+        if _p8_bare:
+            _first = _p8_bare[0].strip()
+            _die(f"{event_type}: {len(_p8_bare)} `evidence_events` ref(s) can never resolve (first: "
+                 f"`{_first[:120]}`): {_tce.non_evidential_ref_clause(_tce._non_evidential_bare_type(_first))}. "
+                 f"This is the spelling, not a row still to come: `task close` and `followup drop` "
+                 f"would not count it. Emit again without it, citing the mechanism's own row: "
+                 f"`bin/yitc-v2 event {event_type} --data "
+                 f"'{{\"failing_input\":\"<what, if broken, makes this fail>\","
+                 f"\"evidence_events\":[\"<mechanism_event_type>@<iso-ts>\"]}}'`. "
+                 f"Nothing was appended.")
 
     # T-10121 (SPEC-0135 §5, SPEC-0025 §wait_reason): the BLOCK-side chokepoint. bg_dispatch_halted is
     # HAND-emitted by dispatched workers via this generic verb (there is no dedicated code emit), and a
@@ -3189,7 +3228,11 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
     # None for --type/--projected/--recurring, so the key is absent there (bounded, id-only).
     if verb_label == "graph query" and args is not None:
         nid = getattr(args, "id", None)
-        if nid:
+        if nid and getattr(args, "held_pointer", None) == nid:
+            # T-14656 (SPEC-0050 §4): a pointer line writes no read receipt — the earlier crediting
+            # receipt in this checkout is what credits; the row names the contract it pointed at.
+            data["held_pointer"] = nid
+        elif nid:
             data["node_id"] = nid
         # T-11077 (X-0865): the receipt ALSO records WHICH REALM answered — "kernel" or "own"
         # (`cmd_graph_query` stamps `args.resolved_realm` off the branch that resolved). ADDITIVE key,

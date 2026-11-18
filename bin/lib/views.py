@@ -22,7 +22,9 @@ from lib import transcript_digest  # T-12490: token-rollup reads the SPEC-0206 d
 
 # --- module-local view-domain constants (moved from host) ---
 _CURRENCY_PROBLEM_FLAGS = frozenset({"stale", "dangling", "multi-proposer-unordered"})
-_DISCIPLINE_RATIO_KINDS = ("read-check", "stage-correspondence", "verification-exists")
+# T-14646: the four kinds SPEC-0059 enumerates (its Evidence paragraph is the home; a test pins equality).
+_DISCIPLINE_RATIO_KINDS = ("read-check", "stage-correspondence", "verification-exists",
+                           "post-verification-fill")
 _READ_GATE_KIND_ALIASES = {"stage": "read-check"}
 # The events.jsonl rotation trigger (D-0030 `> 10 MB` rotation_policy — authoritative home there /
 # SPEC-0190 §Rotation policy, re-homed out of SPEC-0002 by T-11447; value mirrored here ONCE).
@@ -2728,8 +2730,8 @@ def _view_discipline_ratio(events_path: "Path", since=None, until=None, *,
     """discipline-ratio lens (T-0603 / SPEC-0059): the kind-AWARE read-gate discipline metric — the
     `read_gate_refused` NUMERATOR split BY `kind` over the `cli_invoked` DENOMINATOR. NEVER one mixed
     ratio (plan-check F3): a SEPARATE ratio per canonical kind — a MAIN read-check ratio + sibling
-    ratios for stage-correspondence + verification-exists — so the three legs of the universal stage
-    contract (SPEC-0059) stay analyzable independently, never conflated. Pure f over the journal,
+    ratios for stage-correspondence + verification-exists + post-verification-fill (T-14646) — so the kinds
+    SPEC-0059 enumerates stay analyzable independently, never conflated. Pure f over the journal,
     recomputed fresh, writes nothing (D-0053 view family); reuses the line-by-line json.loads journal
     scan (Principle 1 — one reader, no new parse path). NO new store/hook/flag/event.
 
@@ -2740,8 +2742,12 @@ def _view_discipline_ratio(events_path: "Path", since=None, until=None, *,
     denominator. Numerator = `read_gate_refused` events bucketed by `data.kind`, where the legacy T-0531
     interim "stage" literal is folded into read-check (the `_emit_read_gate_refused` reconciliation). Each
     canonical kind ALWAYS appears (even at zero — fail-visible); a non-canonical kind surfaces in `other`.
-    No attempts, or in-window refusals from a verb with no receipt → that kind's ratio is null with a
-    `ratio_null_reason` (every journal written before the receipts existed reads null, not a rate).
+    No attempts → that kind's ratio is null with a `ratio_null_reason` (T-0358: nothing to divide by is
+    not a rate). In-window refusals from a verb with no attempt receipt (T-14646) no longer null the ratio:
+    it divides the RECEIPTED refusals by the attempts, and `unreceipted_refusals` + `unreceipted_verbs`
+    state the excluded ones beside it — the exclusion is reported, never silent, and a handful of
+    historic rows can no longer blank the headline. A refusal verb maps to a receipt label with '-' and
+    ' ' read alike (`frontend errors` -> `frontend-errors`).
 
     WINDOW (T-10361): the optional `[since, until)` pair bounds the journal scan to a time window, so the
     metric reads CURRENT discipline instead of an all-time average in which a fixed historical backlog of
@@ -2794,8 +2800,13 @@ def _view_discipline_ratio(events_path: "Path", since=None, until=None, *,
     def _label(verb):
         # A refusal's `data.verb` may carry more than the receipt label (`stage Plan`, `spec edit
         # --bless`): it maps to the LONGEST receipt label it equals or extends at a word boundary.
-        hits = [l for l in receipts if isinstance(l, str) and verb
-                and (verb == l or verb.startswith(l + " "))]
+        # T-14646: '-' and ' ' read alike (`frontend errors` -> `frontend-errors`, the seed gate's old
+        # function-name label against the parser's receipt label).
+        if not isinstance(verb, str) or not verb:
+            return None
+        nv = verb.replace("-", " ")
+        hits = [l for l in receipts if isinstance(l, str)
+                and (nv == l.replace("-", " ") or nv.startswith(l.replace("-", " ") + " "))]
         return max(hits, key=len) if hits else None
 
     # Every receipt label some refusal (of ANY kind) names — the gated verbs this journal can see.
@@ -2811,19 +2822,19 @@ def _view_discipline_ratio(events_path: "Path", since=None, until=None, *,
         outside = {l: receipts[l] for l in sorted(gated - set(labels)) if receipts.get(l)}
         row = {"refusals": numer[k], "verbs": labels, "attempts": attempts,
                "ratio": None, "per_1k_attempts": None, "gated_attempts_outside_verbs": outside}
+        excluded = sum(unreceipted.values())
         if unreceipted:
+            # T-14646: stated beside the ratio, never silently dropped (the T-13071 concern).
+            row["unreceipted_refusals"] = excluded
             row["unreceipted_verbs"] = dict(sorted(unreceipted.items()))
-        # null, NEVER a fabricated or partial number (the T-0358 precedent): no attempts to divide by,
-        # or refusals whose verb left no attempt receipt, which a numeric rate would silently drop.
+        # null, NEVER a fabricated number (the T-0358 precedent): no attempts to divide by.
         if not attempts:
             row["ratio_null_reason"] = ("no attempt receipts for the refusing verbs in the window — "
                                         "never divided by read-verb receipts")
-        elif unreceipted:
-            row["ratio_null_reason"] = ("refusals in the window from verbs with no attempt receipts: "
-                                        + ", ".join(sorted(unreceipted)))
         else:
-            row["ratio"] = round(numer[k] / attempts, 6)
-            row["per_1k_attempts"] = round(numer[k] / attempts * 1000, 3)
+            # Numerator and denominator over the same population: the receipted verbs' refusals.
+            row["ratio"] = round((numer[k] - excluded) / attempts, 6)
+            row["per_1k_attempts"] = round((numer[k] - excluded) / attempts * 1000, 3)
         return row
 
     ratios = {k: _kind_ratio(k) for k in _DISCIPLINE_RATIO_KINDS}
@@ -2837,15 +2848,16 @@ def _view_discipline_ratio(events_path: "Path", since=None, until=None, *,
         # (it is dominated by read verbs whose population never overlaps the refusing verbs').
         "activity_baseline": {"cli_invoked": denom},
         "invariant": "ONE ratio PER canonical kind (read-check / stage-correspondence / "
-                     "verification-exists) — NEVER a single mixed ratio summing the kinds (plan-check "
+                     "verification-exists / post-verification-fill) — NEVER a single mixed ratio summing the kinds (plan-check "
                      "F3). Each ratio = read_gate_refused[kind] / cli_invoked receipts of that kind's "
                      "`verbs` — the verbs this journal has OBSERVED refusing for the kind, NOT every verb "
                      "the gate guards: a gated verb never seen refusing for it is outside the set and its "
                      "attempts are listed in gated_attempts_outside_verbs, so the ratio is refusals per "
                      "attempt of the observed refusers, never a claimed kind-wide rate. Lower = better "
                      "discipline. Every kind is reported even at zero (fail-visible); null carries "
-                     "ratio_null_reason.",
-        # The three canonical kinds, each its OWN ratio (the F3-honoring split) — the MAIN read-check
+                     "ratio_null_reason; refusals from verbs with no attempt receipt are excluded from "
+                     "the ratio and stated as unreceipted_refusals / unreceipted_verbs.",
+        # The four canonical kinds, each its OWN ratio (the F3-honoring split) — the MAIN read-check
         # ratio + the two sibling ratios. Never reduced to a single aggregate figure.
         "ratios": ratios,
         # Provenance: how many refusals were folded from the legacy "stage" literal into read-check.

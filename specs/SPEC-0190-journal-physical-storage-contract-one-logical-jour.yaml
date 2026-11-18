@@ -25,6 +25,7 @@ implements:
 - bin/lib/events.py#partition_for
 - bin/lib/journal.py#cmd_journal_cut
 - bin/lib/journal.py#_pinned_engine_refusal
+- bin/lib/journal.py#cut_drain_withheld
 - bin/lib/events.py#split_shape
 - bin/lib/events.py#is_appendable_segment
 - bin/lib/events.py#dated_since
@@ -203,17 +204,26 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \ by any other engine, or with\na declared pin that does not resolve, refuses before\
   \ it writes anything and names `release update`\nas the remedy: update the repository\
   \ to a release that carries the cut, then cut with that engine.\nA repository that\
-  \ declares no pin is cut as before.\n**The drain also follows every committed merge\
-  \ INTO a writing worktree.** When a worktree whose\njournal was opened before the\
-  \ cut merges a cut journal — `worktree sync` (its `--resolved` and\n`--from` forms\
-  \ included) or the update-from-main step of `land` — the same drain runs on that\n\
-  worktree's journal right after the merge commit, under the logical journal's lock,\
-  \ and its result\nis committed on the branch; a drain whose commit failed stays\
-  \ staged and the next merge commits\nit. So a worktree never holds root rows beside\
-  \ day partitions, which the segment reader would fold\nout of order.\n\n**MIGRATION\
-  \ ORDER — the archive path must be ADMITTED before the first rotation writes it,\
-  \ or the\nfirst rotation wedges every land in the repo.** `land` refuses on any\
-  \ main dirt outside a\nhand-maintained allowlist (`bin/lib/cli.py#_BOOKKEEPING_ALLOWLIST`,\
+  \ declares no pin is cut as before.\n**And no engine drains a cut journal its declared\
+  \ engine cannot be shown to read.** Every drain of a\ncut journal — at the land\
+  \ seam and after a merge into a writing worktree — runs only when the\nrepository\
+  \ declares no engine pin, or its pin resolves to a release whose engine carries\
+  \ the cut.\nIn every other case — a pinned release without the cut, a pinned tree\
+  \ that cannot be read to tell,\na pin that does not resolve, an unreadable carrier\
+  \ — the drain is withheld and the root keeps its\nrows, so the declared engine keeps\
+  \ landing on the journal shape it writes. `session start` and\n`release check` then\
+  \ name the mismatch and the remedy: re-pin to a release that carries the cut,\n\
+  then land again. A journal is never hand-edited to clear it.\n**The drain also follows\
+  \ every committed merge INTO a writing worktree.** When a worktree whose\njournal\
+  \ was opened before the cut merges a cut journal — `worktree sync` (its `--resolved`\
+  \ and\n`--from` forms included) or the update-from-main step of `land` — the same\
+  \ drain runs on that\nworktree's journal right after the merge commit, under the\
+  \ logical journal's lock, and its result\nis committed on the branch; a drain whose\
+  \ commit failed stays staged and the next merge commits\nit. So a worktree never\
+  \ holds root rows beside day partitions, which the segment reader would fold\nout\
+  \ of order.\n\n**MIGRATION ORDER — the archive path must be ADMITTED before the\
+  \ first rotation writes it, or the\nfirst rotation wedges every land in the repo.**\
+  \ `land` refuses on any main dirt outside a\nhand-maintained allowlist (`bin/lib/cli.py#_BOOKKEEPING_ALLOWLIST`,\
   \ an explicit frozenset of six\nliteral paths), and the archive segment is a NEW\
   \ path. So the first rotation leaves a file the next\nland refuses on — and so does\
   \ every land after it, until the allowlist is widened. The corpus has\nalready paid\
@@ -880,70 +890,78 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \ by on the owner decision\n  events.jsonl#ts=, in place as an additive case: a\
   \ consumer cut its journal\n  with a newer engine while its workers ran an older\
   \ pinned release that cannot land on a cut\n  journal, and its lands aborted until\
-  \ the pin was moved.\n- Rules 1-3 exist because the cost being removed is git-object\
-  \ churn, not parse time: a full parse\n  of the whole file measured 1.45s, while\
-  \ ~293 commits/day each wrote a fresh ~6 MB loose object,\n  and `.git` twice reached\
-  \ tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after a\n  clear).\
-  \ Read rule 2's age boundary against that: the ground for the change is UNBOUNDEDNESS,\n\
-  \  which is why a one-off cut cannot satisfy it and why the trigger cannot be a\
-  \ size.\n- Rule 5's phrasing is the one an earlier draft got wrong, and the correction\
-  \ is the point: the\n  honest guarantee is multiset identity, and every downstream\
-  \ acceptance criterion must be phrased\n  against it rather than against \"identical\
-  \ output\".\n- Rule 8 names a real, live instance rather than a hypothetical: a\
-  \ bound whose whole purpose is to\n  expire a standing deferral by size, computed\
-  \ from a `.stat` of the journal file.\n- Rule 9 rests on measurement: two lands\
-  \ died the same day on journal-driven test timeouts (a 180s\n  subprocess cap, and\
-  \ a 300s per-file cap against a 286s measured runtime — a 5% margin), the\n  recorded\
-  \ suite total is 431.7 min across 879 files with 102 files at >=60s carrying 63%\
-  \ of it,\n  and nine files grew 55-63% in one window on tests whose diffs did not\
-  \ change. The startup anchor\n  pays it too: `session start` in a fresh worktree\
-  \ measured 2m27s and blocked a governed verb\n  behind it.\n\n## Verification\n\n\
-  - **Rule 10 + rule 4's horizon classes :** `tests/test_t13288_verb_read_contract.py`\
-  \ — the\n  tripwire rule 10 names, differential in every arm (a planted double fold,\
-  \ out-of-horizon open,\n  unprobed leaf, unmeasured leaf, unreached verb body and\
-  \ expired exemption each FAIL it).\n- **Rule 4, own footprint :** two `journal query\
-  \ --limit 1` probes both return the\n  pre-probe LATEST; with no own-ref they return\
-  \ the probe's receipt (`tests/test_t12882_*`).\n- **Rule 1 / rule 7 (no second journal,\
-  \ citations survive) — phrased as a DIFFERENTIAL, because the\n  absolute is already\
-  \ false.** Measured before any segmentation: of 201 well-formed historical\n  `#ts=`\
-  \ citations sampled from the corpus, **176 resolve and 25 (12%) do not** — and every\
-  \ miss is\n  in-range, so it is genuinely absent rather than older than the journal.\
-  \ The criterion is therefore\n  **no citation that resolves TODAY may stop resolving\
-  \ after segmentation**, never \"all citations\n  resolve\": a probe written against\
-  \ the absolute fails on a pre-existing condition this change\n  neither caused nor\
-  \ promises to repair, which would make it unrunnable and eventually ignored.\n \
-  \ Differential: a citation pointing at a row now in the ARCHIVE half must resolve;\
-  \ if every sampled\n  citation happens to sit in the live window, the probe proves\
-  \ nothing (122 of the resolving 176 sit\n  in the archive half at a 7-day boundary,\
-  \ so a real sample is available).\n  **The 12% is a SEPARATE finding, not this rule's\
-  \ business** — it means some `from:` citations\n  already point at rows the journal\
-  \ does not carry. Recorded here because a reader of this rule must\n  not mistake\
-  \ the differential for a claim that the chain is whole.\n- **Rule 4 / rule 5 (identity):**\
-  \ for each reader in the census, compare pre- and post-change\n  output as MULTISETS\
-  \ over the real corpus. The differential needs BOTH directions: a deliberately\n\
-  \  DROPPED row must make the comparison fail, AND a deliberately DUPLICATED one\
-  \ must too. The second\n  half is not symmetry for its own sake — measured on the\
-  \ real corpus, the journal contains **zero\n  exact-duplicate lines**, so set-identity\
-  \ and multiset-identity coincide there today. A comparison\n  written against SETS\
-  \ therefore passes on this corpus while being blind to duplication, and no\n  natural\
-  \ input exists to catch the confusion. Plant it, or the probe cannot witness rule\
-  \ 5.\n- **Rule 6 (order-sensitive readers):** each such reader carries its own probe;\
-  \ the tail-window and\n  latest-wins readers are the named instances.\n- **Rule\
-  \ 8 (the bound reads what its action moves, and the aggregate stays visible):**\
-  \ compute the\n  governance bound after rotation and show it reads the LIVE SEGMENT,\
-  \ while the logical size is\n  still REPORTED beside it as a trajectory carrying\
-  \ no trigger. Differential: two fixtures\n  differing ONLY in live-segment size\
-  \ across the recorded bound must produce DIFFERENT verdicts\n  (a probe that only\
-  \ checks the aggregate is present cannot witness this), and an aggregate over\n\
-  \  every threshold must contribute NO flagged action — the unsatisfiable-bound failure\
-  \ is what this\n  probe exists to catch, alongside the vanished-aggregate one.\n\
-  - **Rule 9 (verify cost decoupled):** re-measure `tests/verify-durations.json` and\
-  \ show the named\n  journal-driven files flat against a journal grown by a KNOWN\
-  \ amount. This is a differential, not\n  an absolute: \"the suite got faster\" does\
-  \ not satisfy it, and an unchanged-but-decoupled suite\n  does.\n- **Rules 2-3 (bounded\
-  \ growth, no manual intervention):** one week of ordinary concurrent operation\n\
-  \  with bounded `.git` growth and no manual gc, including at least one abandoned\
-  \ branch to exercise\n  the unreachable-object path.\n"
+  \ the pin was moved.\n- Rule 3's withheld drain was added, in place as an additive\
+  \ case like : a\n  consumer pinned to a release without the cut (<project>, v2.29.0)\
+  \ held a journal cut before\n; lands run by a newer engine drained the rows the\
+  \ pinned engine had written to the root,\n  the pinned workers' branches still held\
+  \ them, and every pinned land refused OLD-SHAPE with no\n  route of its own (X-2410,\
+  \ X-2411, X-2412, X-2416). The first release carrying the cut is v2.30.0\n. The\
+  \ state the rule addresses — a cut journal under a pinned engine without the cut\
+  \ —\n  is one rule 3 had not covered: keeps new repositories out of it.\n- Rules\
+  \ 1-3 exist because the cost being removed is git-object churn, not parse time:\
+  \ a full parse\n  of the whole file measured 1.45s, while ~293 commits/day each\
+  \ wrote a fresh ~6 MB loose object,\n  and `.git` twice reached tens of gigabytes\
+  \ (42 GB over 34 blocked days; 16 GB one day after a\n  clear). Read rule 2's age\
+  \ boundary against that: the ground for the change is UNBOUNDEDNESS,\n  which is\
+  \ why a one-off cut cannot satisfy it and why the trigger cannot be a size.\n- Rule\
+  \ 5's phrasing is the one an earlier draft got wrong, and the correction is the\
+  \ point: the\n  honest guarantee is multiset identity, and every downstream acceptance\
+  \ criterion must be phrased\n  against it rather than against \"identical output\"\
+  .\n- Rule 8 names a real, live instance rather than a hypothetical: a bound whose\
+  \ whole purpose is to\n  expire a standing deferral by size, computed from a `.stat`\
+  \ of the journal file.\n- Rule 9 rests on measurement: two lands died the same day\
+  \ on journal-driven test timeouts (a 180s\n  subprocess cap, and a 300s per-file\
+  \ cap against a 286s measured runtime — a 5% margin), the\n  recorded suite total\
+  \ is 431.7 min across 879 files with 102 files at >=60s carrying 63% of it,\n  and\
+  \ nine files grew 55-63% in one window on tests whose diffs did not change. The\
+  \ startup anchor\n  pays it too: `session start` in a fresh worktree measured 2m27s\
+  \ and blocked a governed verb\n  behind it.\n\n## Verification\n\n- **Rule 10 +\
+  \ rule 4's horizon classes :** `tests/test_t13288_verb_read_contract.py` — the\n\
+  \  tripwire rule 10 names, differential in every arm (a planted double fold, out-of-horizon\
+  \ open,\n  unprobed leaf, unmeasured leaf, unreached verb body and expired exemption\
+  \ each FAIL it).\n- **Rule 4, own footprint :** two `journal query --limit 1` probes\
+  \ both return the\n  pre-probe LATEST; with no own-ref they return the probe's receipt\
+  \ (`tests/test_t12882_*`).\n- **Rule 1 / rule 7 (no second journal, citations survive)\
+  \ — phrased as a DIFFERENTIAL, because the\n  absolute is already false.** Measured\
+  \ before any segmentation: of 201 well-formed historical\n  `#ts=` citations sampled\
+  \ from the corpus, **176 resolve and 25 (12%) do not** — and every miss is\n  in-range,\
+  \ so it is genuinely absent rather than older than the journal. The criterion is\
+  \ therefore\n  **no citation that resolves TODAY may stop resolving after segmentation**,\
+  \ never \"all citations\n  resolve\": a probe written against the absolute fails\
+  \ on a pre-existing condition this change\n  neither caused nor promises to repair,\
+  \ which would make it unrunnable and eventually ignored.\n  Differential: a citation\
+  \ pointing at a row now in the ARCHIVE half must resolve; if every sampled\n  citation\
+  \ happens to sit in the live window, the probe proves nothing (122 of the resolving\
+  \ 176 sit\n  in the archive half at a 7-day boundary, so a real sample is available).\n\
+  \  **The 12% is a SEPARATE finding, not this rule's business** — it means some `from:`\
+  \ citations\n  already point at rows the journal does not carry. Recorded here because\
+  \ a reader of this rule must\n  not mistake the differential for a claim that the\
+  \ chain is whole.\n- **Rule 4 / rule 5 (identity):** for each reader in the census,\
+  \ compare pre- and post-change\n  output as MULTISETS over the real corpus. The\
+  \ differential needs BOTH directions: a deliberately\n  DROPPED row must make the\
+  \ comparison fail, AND a deliberately DUPLICATED one must too. The second\n  half\
+  \ is not symmetry for its own sake — measured on the real corpus, the journal contains\
+  \ **zero\n  exact-duplicate lines**, so set-identity and multiset-identity coincide\
+  \ there today. A comparison\n  written against SETS therefore passes on this corpus\
+  \ while being blind to duplication, and no\n  natural input exists to catch the\
+  \ confusion. Plant it, or the probe cannot witness rule 5.\n- **Rule 6 (order-sensitive\
+  \ readers):** each such reader carries its own probe; the tail-window and\n  latest-wins\
+  \ readers are the named instances.\n- **Rule 8 (the bound reads what its action\
+  \ moves, and the aggregate stays visible):** compute the\n  governance bound after\
+  \ rotation and show it reads the LIVE SEGMENT, while the logical size is\n  still\
+  \ REPORTED beside it as a trajectory carrying no trigger. Differential: two fixtures\n\
+  \  differing ONLY in live-segment size across the recorded bound must produce DIFFERENT\
+  \ verdicts\n  (a probe that only checks the aggregate is present cannot witness\
+  \ this), and an aggregate over\n  every threshold must contribute NO flagged action\
+  \ — the unsatisfiable-bound failure is what this\n  probe exists to catch, alongside\
+  \ the vanished-aggregate one.\n- **Rule 9 (verify cost decoupled):** re-measure\
+  \ `tests/verify-durations.json` and show the named\n  journal-driven files flat\
+  \ against a journal grown by a KNOWN amount. This is a differential, not\n  an absolute:\
+  \ \"the suite got faster\" does not satisfy it, and an unchanged-but-decoupled suite\n\
+  \  does.\n- **Rules 2-3 (bounded growth, no manual intervention):** one week of\
+  \ ordinary concurrent operation\n  with bounded `.git` growth and no manual gc,\
+  \ including at least one abandoned branch to exercise\n  the unreachable-object\
+  \ path.\n"
 cites:
 - CHARTER.md#principle-N
 requires: []
@@ -1005,10 +1023,11 @@ implements_signature:
   bin/lib/journal.py#_pinned_engine_refusal: 84cc8fa8e940e767b1c4d7bb27c82546b40d450f988ed382702293f796c3cd59
   bin/lib/journal.py#archive_scan_events_covering: 301b22bb41b095f3049a2e2ea545bd29f35c964a4b5893aae67b83947ea21191
   bin/lib/journal.py#cmd_journal_cut: 44dace6d27423d54ab5bb3215b1e59d9f12dc778ce05c2a082b8c44729a56a8e
+  bin/lib/journal.py#cut_drain_withheld: eb91b0e1c9b6c33b15d67c12c6b58818ec8190801fc7887c2ec4e0eec4177c09
   bin/lib/journal.py#lanes_newest_first: e16b7735ed42021650b831aad06c121fc2e7f90a0558f1607108d8684f388a4c
   bin/lib/journal.py#revision_segment_paths: 263c40d7a984e97c79c643224cd9df7cba8324488f2ffb4459aee6046afa03b1
   bin/lib/journal.py#revision_segment_show_argvs: 4d531d3f6b1d75d89f22410fa83bb2a362d691e54c3fb040afe8f4d1e09b48f2
   bin/lib/journal.py#tail_scan_events_covering: e88e7a5761aaf7744bba0a92b81c0cefd7876304f94b1403212d379bccb86326
   bin/lib/views.py#_standing_rotation_defer: 6b8e10f47876508037a39ddfb9b8c81f3a9fe3ece6143f9cb43f632b2217d86a
   bin/lib/worktree.py#_drain_cut_branch_root: b6eb9502bfac4e317df36b4986b6424ebfb1de69f8eb214e4474aa26f26a5e93
-  bin/lib/worktree.py#rotate_branch_journal: 73520a5152b39c369c67bc3f4063a081a79953d5f0cf40fe4c2b9ed566c66b3d
+  bin/lib/worktree.py#rotate_branch_journal: 6762fe229fd590fe6fca6fab425b6675c81b5cc86f4b6dfe33613ef883d7e337

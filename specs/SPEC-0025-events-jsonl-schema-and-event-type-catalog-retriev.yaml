@@ -1463,60 +1463,63 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ rule 16 §THE ISOLATED RE-RUN) = the same field on a\nCONSUMER verify whose layer\
   \ guard re-ran a sole failed verify layer. A row in `rows[]` then names a\n`layer`\
   \ INSTEAD OF a `file`: `{layer, leg, isolated, load1?, first_exit, first_duration_ms?,\n\
-  first_failure_excerpt, first_output_log?, retry_files?, retry_outcome, retry_exit?,\
-  \ retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`. `retry_files`\
-  \ (`tests/<file>` names) is present only\nwhen the re-run was handed the files the\
-  \ first run named failing AND confirmed on its own output\nthat it ran exactly those\
-  \ (SPEC-0152 rule 16 §THE ISOLATED RE-RUN); absent, the re-run was the whole\nlayer.\
-  \ `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`; `load1` is the host\
-  \ 1-minute load read just before the re-run (ABSENT when unmeasurable,\nnever a\
-  \ fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
-  \ and is\npresent on a RESCUED row too, which is its purpose; `retry_outcome` is\
-  \ the re-run's own outcome\n(`passed` / `failed` / `timed-out`). A DECLINED layer\
-  \ plan records `layers_skipped: [{leg, reason,\nlayers, bound?}]`, `reason` being\
-  \ `timeout-class` / `prep-failed` / `over-bound` — on its OWN key,\nbecause a consumer\
-  \ with kernel-swept test files may carry the runner's FILE record (`skipped` +\n\
-  `files`) on this same field. Layer rows and `layers_skipped` are MERGED beside the\
-  \ runner's record,\nnever over it. The rescued layer's `consumer_verify_layers[]`\
-  \ row reads `outcome: passed` plus\n`retried: true`, its measurements staying the\
-  \ first run's; a layer that failed both runs keeps its\nrow unchanged. A Stage-6\
-  \ run carries the same record on `tests_passed.verify_metrics.flaky_retry`\n(and\
-  \ on `tests_failed.verify_metrics.flaky_retry` when both attempts failed). ABSENT\
-  \ on a verify\nwhere no layer's run failed. Report-only: the rescue is decided by\
-  \ the re-run's exit code, and\nthis key records it.\n`flaky_retry` UNIT ROWS (<workshop-spec>\
-  \ rule 10) = the same field on a CONSUMER verify whose\nadapter-backed layer had\
-  \ failed units on a usable first attempt. A row in `rows[]` then names a\n`layer`\
-  \ AND a `unit` (the repo-relative test file) — or a declared `group`, re-run and\
-  \ counted\nwhole — plus `project` where the runner has several, and carries `attempts`,\
-  \ which is what tells\nit from a layer row: `{layer, leg, unit | group, project?,\
-  \ isolated, lane?, rescue, rescued,\nfirst_failed_cases?, first_failed_cases_more?,\
-  \ first_excerpt?, first_output_log?, retry_output_log?, attempts:\n[{status, load1?,\
-  \ duration_ms?, failed_cases?, failed_cases_more?, excerpt?, void?}]}`.\n`isolated`\
-  \ is `pass` when a re-run attempt read every unit of the row passed, else `fail`;\n\
-  `rescue` is the layer's setting (`on` / `off`) and `rescued` is true only for `isolated:\
-  \ pass`\nunder `rescue: on`; the `first_*` keys are the FIRST attempt's failed cases\
-  \ (`id`, `excerpt`) and\nare present on a rescued row too; `first_output_log` names\
-  \ the kept file holding the first attempt's WHOLE failure text, on a row whose re-run\
-  \ passed, where the run keeps layer output logs; an attempt's `status` is `passed`\
-  \ / `failed` / `void` /\n`timed-out` / `error`, the last three ending that layer's\
-  \ re-runs. A layer whose failed units\nwere NOT re-run records `units_skipped: [{leg,\
-  \ layer, reason, failed, bound?}]`, `reason` being\n`retry-off` / `over-unit-bound`.\
-  \ On an adapter-backed layer a LAYER row above may also carry\n`rescue` (`off`:\
-  \ the pass on the re-run is diagnostic and the first failure blocks) and\n`first_void`\
-  \ (the first attempt's void reasons), and `layers_skipped` may carry the reason\n\
-  `required-check` or `nonzero-exit-all-passed` ( — SPEC-1046 rule 4: the layer's\
-  \ report is void\nonly for a nonzero exit over all-passed units). Such a LAYER row\
-  \ is also written for a void-failed\nlayer the layer plan declined — its own whole\
-  \ re-run after every layer — with the plan's decline\nkept on `layers_skipped` beside\
-  \ it. A unit row carries no `file` key, so the engine suite's load-sensitive entry\n\
-  fold counts none. `lane` ( — <workshop-spec> rule 11) is true on the row of a unit\
-  \ that ran in\nits layer's load-sensitive lane on the first attempt; the per-unit\
-  \ entry fold\n(`bin/lib/land_verify_legs.py#_unit_rescue_passes`) counts the unit\
-  \ rows whose `rescued` is true\nand that carry no `lane`. `run_heads` ( — <workshop-spec>\
-  \ rule 11) = `{<leg>: <commit>}` beside `rows`: the\ncommit a leg's units ran on,\
-  \ written by the guard as `run_head` on its own record on a land when that leg\n\
-  recorded a unit row and its tracked files on disk were that commit, and absent otherwise;\
-  \ only the lane\nentry reads it.\nShape and semantics are homed at the writers (`bin/lib/land_verify_legs.py#_layer_unit_reruns`,\n\
+  first_failure_excerpt, first_output_log?, first_outcome?, retry_files?, retry_outcome,\
+  \ retry_exit?,\nretry_duration_ms?, retry_failure_excerpt?, retry_output_log?}`.\
+  \ `first_outcome` is `timed-out` on the row of\na layer whose first attempt ran\
+  \ out of its bound with no failed test in its output — the re-run of a load,\nnot\
+  \ of a failure (SPEC-1046 rule 4); ABSENT otherwise. `retry_files` (`tests/<file>`\
+  \ names) is present only\nwhen the re-run was handed the files the first run named\
+  \ failing AND confirmed on its own output\nthat it ran exactly those (SPEC-0152\
+  \ rule 16 §THE ISOLATED RE-RUN); absent, the re-run was the whole\nlayer. `leg`\
+  \ is `cand` or `pinned`; `isolated` is `pass` /\n`fail`; `load1` is the host 1-minute\
+  \ load read just before the re-run (ABSENT when unmeasurable,\nnever a fabricated\
+  \ 0); `first_failure_excerpt` is the first attempt's failure excerpt and is\npresent\
+  \ on a RESCUED row too, which is its purpose; `retry_outcome` is the re-run's own\
+  \ outcome\n(`passed` / `failed` / `timed-out`). A DECLINED layer plan records `layers_skipped:\
+  \ [{leg, reason,\nlayers, bound?}]`, `reason` being `timeout-class` / `prep-failed`\
+  \ / `over-bound` — on its OWN key,\nbecause a consumer with kernel-swept test files\
+  \ may carry the runner's FILE record (`skipped` +\n`files`) on this same field.\
+  \ Layer rows and `layers_skipped` are MERGED beside the runner's record,\nnever\
+  \ over it. The rescued layer's `consumer_verify_layers[]` row reads `outcome: passed`\
+  \ plus\n`retried: true`, its measurements staying the first run's; a layer that\
+  \ failed both runs keeps its\nrow unchanged. A Stage-6 run carries the same record\
+  \ on `tests_passed.verify_metrics.flaky_retry`\n(and on `tests_failed.verify_metrics.flaky_retry`\
+  \ when both attempts failed). ABSENT on a verify\nwhere no layer's run failed. Report-only:\
+  \ the rescue is decided by the re-run's exit code, and\nthis key records it.\n`flaky_retry`\
+  \ UNIT ROWS (<workshop-spec> rule 10) = the same field on a CONSUMER verify whose\n\
+  adapter-backed layer had failed units on a usable first attempt. A row in `rows[]`\
+  \ then names a\n`layer` AND a `unit` (the repo-relative test file) — or a declared\
+  \ `group`, re-run and counted\nwhole — plus `project` where the runner has several,\
+  \ and carries `attempts`, which is what tells\nit from a layer row: `{layer, leg,\
+  \ unit | group, project?, isolated, lane?, rescue, rescued,\nfirst_failed_cases?,\
+  \ first_failed_cases_more?, first_excerpt?, first_output_log?, retry_output_log?,\
+  \ attempts:\n[{status, load1?, duration_ms?, failed_cases?, failed_cases_more?,\
+  \ excerpt?, void?}]}`.\n`isolated` is `pass` when a re-run attempt read every unit\
+  \ of the row passed, else `fail`;\n`rescue` is the layer's setting (`on` / `off`)\
+  \ and `rescued` is true only for `isolated: pass`\nunder `rescue: on`; the `first_*`\
+  \ keys are the FIRST attempt's failed cases (`id`, `excerpt`) and\nare present on\
+  \ a rescued row too; `first_output_log` names the kept file holding the first attempt's\
+  \ WHOLE failure text, on a row whose re-run passed, where the run keeps layer output\
+  \ logs; an attempt's `status` is `passed` / `failed` / `void` /\n`timed-out` / `error`,\
+  \ the last three ending that layer's re-runs. A layer whose failed units\nwere NOT\
+  \ re-run records `units_skipped: [{leg, layer, reason, failed, bound?}]`, `reason`\
+  \ being\n`retry-off` / `over-unit-bound`. On an adapter-backed layer a LAYER row\
+  \ above may also carry\n`rescue` (`off`: the pass on the re-run is diagnostic and\
+  \ the first failure blocks) and\n`first_void` (the first attempt's void reasons),\
+  \ and `layers_skipped` may carry the reason\n`required-check` or `nonzero-exit-all-passed`\
+  \ ( — SPEC-1046 rule 4: the layer's report is void\nonly for a nonzero exit over\
+  \ all-passed units). Such a LAYER row is also written for a void-failed\nlayer the\
+  \ layer plan declined — its own whole re-run after every layer — with the plan's\
+  \ decline\nkept on `layers_skipped` beside it. A unit row carries no `file` key,\
+  \ so the engine suite's load-sensitive entry\nfold counts none. `lane` ( — <workshop-spec>\
+  \ rule 11) is true on the row of a unit that ran in\nits layer's load-sensitive\
+  \ lane on the first attempt; the per-unit entry fold\n(`bin/lib/land_verify_legs.py#_unit_rescue_passes`)\
+  \ counts the unit rows whose `rescued` is true\nand that carry no `lane`. `run_heads`\
+  \ ( — <workshop-spec> rule 11) = `{<leg>: <commit>}` beside `rows`: the\ncommit\
+  \ a leg's units ran on, written by the guard as `run_head` on its own record on\
+  \ a land when that leg\nrecorded a unit row and its tracked files on disk were that\
+  \ commit, and absent otherwise; only the lane\nentry reads it.\nShape and semantics\
+  \ are homed at the writers (`bin/lib/land_verify_legs.py#_layer_unit_reruns`,\n\
   `bin/lib/worktree.py#_consumer_zero_probe_guard`) and not restated. Report-only:\
   \ a unit is cleared\nonly by passing alone on a usable report, and this key records\
   \ that it did.\n`failed_output_tail` (dict) = THE LAST OUTPUT OF EVERY FILE THE\

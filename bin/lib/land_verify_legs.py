@@ -8459,6 +8459,48 @@ def _pre_deploy_parse_ts(ts) -> "float | None":
         return None
 
 
+def _pre_deploy_ordered_rows(rows) -> list:
+    """`(index, ts, data, _pre_deploy_row_results(data))` of every mapping row of `rows` in journal
+    order, a `run_outcome: contended` attempt left out — its re-run is the run's result (SPEC-1051
+    rules 3 and 7). PURE."""
+    ordered = [(i, ts, data, _pre_deploy_row_results(data)) for i, (ts, data) in enumerate(rows)
+               if isinstance(data, dict)]
+    return [o for o in ordered if o[2].get("run_outcome") != "contended"]
+
+
+def _pre_deploy_last_scheduled(ordered) -> "dict | None":
+    """The LAST between-deploys run (`run_kind: scheduled`) of `ordered` (`_pre_deploy_ordered_rows`):
+    one run = one `(run_ref, attempt)`, the last = the one whose last row comes last; returned as
+    `{last, ts, results: {file: [complete per row]}}`, None when there is none. PURE."""
+    runs: dict = {}
+    for i, ts, data, res in ordered:
+        if not (data.get("run_kind") == "scheduled" and isinstance(data.get("run_ref"), str)
+                and data["run_ref"].strip()):
+            continue
+        attempt = data.get("attempt") if isinstance(data.get("attempt"), int) and not isinstance(
+            data.get("attempt"), bool) else 0
+        run = runs.setdefault((data["run_ref"].strip(), attempt), {"last": i, "ts": ts, "results": {}})
+        run["last"], run["ts"] = i, ts
+        for f, (_verdict, complete) in res.items():
+            run["results"].setdefault(f, []).append(complete)
+    return max(runs.values(), key=lambda r: r["last"]) if runs else None
+
+
+def _pre_deploy_uncovered_in(last, listed) -> set:
+    """T-14662 (SPEC-1051 rule 2) — the files of `listed` the run `last` (`_pre_deploy_last_scheduled`)
+    holds no complete result for (a listed file without a result in every context it records). PURE."""
+    return {f for f in listed if not last["results"].get(f) or not all(last["results"][f])}
+
+
+def pre_deploy_uncovered_files(rows, listed) -> "set | None":
+    """T-14662 — the files of `listed` that stay run by every land until the next between-deploys run:
+    those the LAST such run among `rows` (`(ts, data)` of `test_class_executed` rows, journal order)
+    holds no complete result for; None when `rows` holds no between-deploys run (every file stays run).
+    The one fold `_pre_deploy_skip_set` reads, for `pre-deploy list --write`'s output. PURE."""
+    last = _pre_deploy_last_scheduled(_pre_deploy_ordered_rows(rows or ()))
+    return None if last is None else _pre_deploy_uncovered_in(last, listed)
+
+
 def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, bound_hours, is_ancestor,
                          readers=None) -> "dict | None":
     """T-14211 (SPEC-1051 rule 2) — THE SKIP SET of one run, or None where no pre-deploy class declares
@@ -8486,13 +8528,14 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                 names a path the card's diff changes — T-14370; its entry's `reads` lists those paths),
                 `returns-on` (a glob of the file's `returns_on:` matches a path the card's diff changes —
                 T-14623; its entry's `returned_on` names the first such path in sorted order and
-                `returns_on_glob` the glob it matched);
+                `returns_on_glob` the glob it matched), `uncovered` (T-14662: the LAST between-deploys
+                run holds no result for the file in every context it records — a unit listed since);
       `state` — `skipping`; or `uncovered` (every listed file runs, `units` empty) while the LAST
                 between-deploys run (`run_kind: scheduled`; one run = one `(run_ref, attempt)`, the last
-                = the one whose last row comes last) is absent, unreadable, incomplete for the current
-                list (a listed file without a result in every context it records) or older than the
-                bound — `reason` names which; or `not-applied` (every listed file runs) when `changed`
-                is unknown — the card exception cannot be decided.
+                = the one whose last row comes last) is absent, unreadable, holds a complete result for
+                NO listed file (`incomplete`) or is older than the bound — `reason` names which; or
+                `not-applied` (every listed file runs) when `changed` is unknown — the card exception
+                cannot be decided.
     A row with `run_outcome: contended` (an attempt the contended re-run replaces) is read by neither
     the coverage nor the return: its re-run's row is the run's result (SPEC-1051 rule 3).
     A group is the adapter inventory's and is kept whole where the units are taken out
@@ -8507,25 +8550,14 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
 
     if rows is None:
         return _all_run("uncovered", "unreadable")
-    ordered = [(i, ts, data, _pre_deploy_row_results(data)) for i, (ts, data) in enumerate(rows)
-               if isinstance(data, dict)]
-    # a contended attempt is not a run's result — its re-run is (SPEC-1051 rules 3 and 7)
-    ordered = [o for o in ordered if o[2].get("run_outcome") != "contended"]
-    runs: dict = {}
-    for i, ts, data, res in ordered:
-        if not (data.get("run_kind") == "scheduled" and isinstance(data.get("run_ref"), str)
-                and data["run_ref"].strip()):
-            continue
-        attempt = data.get("attempt") if isinstance(data.get("attempt"), int) and not isinstance(
-            data.get("attempt"), bool) else 0
-        run = runs.setdefault((data["run_ref"].strip(), attempt), {"last": i, "ts": ts, "results": {}})
-        run["last"], run["ts"] = i, ts
-        for f, (_verdict, complete) in res.items():
-            run["results"].setdefault(f, []).append(complete)
-    if not runs:
+    ordered = _pre_deploy_ordered_rows(rows)
+    last = _pre_deploy_last_scheduled(ordered)
+    if last is None:
         return _all_run("uncovered", "absent")
-    last = max(runs.values(), key=lambda r: r["last"])
-    if any(not last["results"].get(f) or not all(last["results"][f]) for f in listed):
+    # T-14662: a listed file the last run holds no complete result for is kept, named `uncovered`;
+    # only a run that covers NO listed file leaves the whole list to run
+    uncovered = _pre_deploy_uncovered_in(last, listed)
+    if uncovered >= set(listed):
         return _all_run("uncovered", "incomplete")
     stamp = _pre_deploy_parse_ts(last["ts"])
     if stamp is None or stamp > now:
@@ -8557,6 +8589,7 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                "always" if f in (always or ()) else
                "known-broken" if f in broken or os.path.basename(f) in broken else
                "final-failure" if f in standing else
+               "uncovered" if f in uncovered else
                "card-changed" if f in changed_set else
                "reads-changed" if os.path.basename(f) in (readers or {}) else
                "returns-on" if ret else None)
@@ -9316,7 +9349,8 @@ def _adapter_first_attempt(rec) -> str:
                        unusable for this run, the report is VOID with a ZERO exit, or the profile
                        names a void condition its reports cannot reveal (rule 4 LIMIT);
       timed-out        an invocation (`required:`, `run`) or the reading of its report hit the
-                       layer's bound — an OUTER failure: no fallback, no re-run, no rescue;
+                       layer's bound — an OUTER failure: no fallback, no per-unit re-run, no
+                       rescue by a report (its one possible whole re-run is the guard's, T-14679);
       required-failed  a `required:` check exited nonzero (rule 5) — the layer fails and nothing
                        re-runs it;
       void-failed      the report is VOID and `run` exited NONZERO: the first attempt failed by its

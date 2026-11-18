@@ -1,43 +1,111 @@
-id: SPEC-XXXX
-title: <short statement>
-status: proposed
-created_at: YYYY-MM-DDTHH:MM:SSZ
-travels: null
-consumed: false
-extension: null
-implements:
-- <file>#<symbol>
-body: '## Scenario
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030). Spec lifecycle FSM: GRAPH.md.
 
-  <outside-in: how the user/owner sees the process + result, human language. Omit
-  if pure infra.>
+id: SPEC-XXXX                  # Sequential — next available from specs/ directory
+title: <short statement>       # one line — what this spec asserts
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
 
+status: proposed               # proposed | active | superseded | retired (+ terminal
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at: 'YYYY-MM-DDTHH:MM:SSZ'   # ISO 8601 UTC
+
+travels: ~                     # placement realm (the corpus-wide placement contract, T-0888; catalog
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false                # per D-0044 — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~                   # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements:                    # = Anchors. durable anchors (D-0036): PREFER <file>#<symbol> over a
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+  - <file>#<symbol>            # e.g. bin/yitc-v2#_append_event  (def/class/const/heading name)
+
+body: |                        # fixed minimal section shape per D-0044 (split by stable boundary):
+  ## Scenario
+  <outside-in: how the user/owner sees the process + result, human language. Omit if pure infra.>
 
   ## Internal
-
   <inside-out: the rule/invariant/contract an editor must know before safe change.>
 
-
   ## Parameters
-
   <optional — governing param table; note which are `consumed`.>
 
-
   ## Rationale
-
   <why — cite the real incident / prior-art.>
 
-
   ## Verification
-
   <probe — command / state check.>
 
-  '
-cites:
-- CHARTER.md#principle-N
-requires: []
-supersedes: null
-activation_owner_task: null
-proposed_by: null
-binding: []
-init_concern: null
+cites:                         # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-N      # (D-0047 B2). Non-blocking, suppressed in default views.
+
+requires: []                   # spec-level BLOCKING ordering (D-0047 B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~                  # spec-level replacement (D-0047 B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: ~       # THE SINGLE ACTIVATION CARRIER (<workshop-spec> §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: ~                 # PROVENANCE / corpus carrier — who BIRTHED this proposed spec; NOT the
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: []                    # T-0230 (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. A list of tokens; this
+                               # comment enumerates none - the valid set is the code's: a verb surface
+                               # from bin/lib/cli.py#BINDING_VERB_SURFACES, a residency token from
+                               # #BINDING_RESIDENCY_TOKENS, or a `stage-entry:` / `plan-stage-entry:`
+                               # axis token, with SPEC-0013 the authority (a spec MAY bind several; a
+                               # surface MAY have several specs). Empty = unbound. `graph build`
+                               # inverts this into the verb→section map + the floor trigger-map + the
+                               # bidirectional completeness report. Declare how this spec reaches the
+                               # AI (<workshop-spec> §7); the dangling predicate and the residency tokens
+                               # live in the binding-contract spec SPEC-0013.
+init_concern: ~                # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

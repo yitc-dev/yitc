@@ -1142,7 +1142,10 @@ def _folded_audit_post_hazard(tid: str):
         _last_audit_post_event=lambda t: worktree_mod._last_audit_post_for_task(t, EVENTS_PATH),
         # T-13147 — the dirty re-pinned arm re-derives the re-pin through the SAME pure core
         # `task close` re-verifies the `custody_repin` marker with (never the marker itself).
-        _repin_ship_admissible=lambda t, ship: not _ship_custody_repin_check(t, ship)[2])
+        _repin_ship_admissible=lambda t, ship: not _ship_custody_repin_check(t, ship)[2],
+        # T-14696 — the dirty sync-merge arm asks the SAME predicate `task close` moves custody with.
+        _sync_merge_custody=lambda rec, sha: task_mod.sync_merge_closure_custody(
+            rec, sha, _git_resolve_sha=_git_resolve_sha, repo_root=REPO_ROOT))
 
 
 def _bookkeeping_only_custody_shift(tid: str):
@@ -1939,7 +1942,7 @@ def _warn_unanswered_issue_refs_after_close(tid) -> None:
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
     with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
-        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _cross_next_step_missing=_cross_next_step_missing, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped)
+        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _cross_next_step_missing=_cross_next_step_missing, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped, _manifest_path=_manifest_path)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -1997,7 +2000,8 @@ def _stage6_close_activation_writer():
     monkeypatch of these host names hold)."""
     return functools.partial(task_mod._activate_task_proposed_specs, SPECS_DIR=SPECS_DIR,
                              _decision_apply_field_edits=_decision_apply_field_edits,
-                             _find_spec_path=_find_spec_path, _read_yaml=_read_yaml)
+                             _find_spec_path=_find_spec_path, _read_yaml=_read_yaml,
+                             _regen_manifest=_regen_manifest_after_activation)   # T-14663
 
 
 def _cmd_task_test_then_land(args: argparse.Namespace) -> None:
@@ -2152,7 +2156,8 @@ def cmd_task_test(args: argparse.Namespace) -> None:
                 main=adm["main"], root=REPO_ROOT, task=args.task, form="own" if own else "run",
                 kernel=not _is_consumer_build(), append_event=_append_event, sweep=_admission_sweep_runs(),
                 exclusive=bool(getattr(args, "exclusive", False)), full=bool(getattr(args, "full", False)),
-                args=args, eligible=None if own else functools.partial(_admission_eligible, adm["main"], args.task)
+                args=args, eligible=None if own else functools.partial(_admission_eligible, adm["main"], args.task),
+                stage_check=None if own else functools.partial(_stage6_stage_decision, args.task)
                 ) as admitted:
             # T-14197 (SPEC-1045 rule 2 (a), (d), (m)) — THE ADMISSION STEPS, after the pass and BEFORE
             # `_admitted`, so the temporary activation's snapshot is taken after the sync; a stop code ends
@@ -2205,7 +2210,8 @@ def _stage6_prepared_tree(tid):
     try:
         with task_mod._stage6_close_activation(REPO_ROOT, tid, specs_dir=SPECS_DIR,
                                                activate=_stage6_close_activation_writer(),
-                                               find_spec_path=_find_spec_path, read_yaml=_read_yaml) as flipped:
+                                               find_spec_path=_find_spec_path, read_yaml=_read_yaml,
+                                               manifest_path=_manifest_path()) as flipped:   # T-14663
             def prepare(trigger="task-test-run"):
                 return _auto_rebuild_graph(trigger)
             prepare.flipped = flipped          # T-14255: which specs the window holds activated
@@ -2569,7 +2575,24 @@ def _unflippable_supersedes_targets(tid: str) -> list:
 
 
 def _activate_task_proposed_specs(tid: str) -> tuple:
-    return task_mod._activate_task_proposed_specs(tid, SPECS_DIR=SPECS_DIR, _append_event=_append_event, _decision_apply_field_edits=_decision_apply_field_edits, _die=_die, _find_spec_path=_find_spec_path, _read_yaml=_read_yaml)
+    return task_mod._activate_task_proposed_specs(tid, SPECS_DIR=SPECS_DIR, _append_event=_append_event, _decision_apply_field_edits=_decision_apply_field_edits, _die=_die, _find_spec_path=_find_spec_path, _read_yaml=_read_yaml, _regen_manifest=_regen_manifest_after_activation)
+
+
+def _regen_manifest_after_activation() -> str:
+    """T-14663 — regenerate the kernel-vs-self manifest's GEN regions after a spec activation (rule home
+    SPEC-0073 rule 5; the T-14608 `spec edit` seam reused). Builds the index IN MEMORY (no index write —
+    the callers rebuild it themselves) and renders through the single T-12236 regen function. Returns
+    `no-manifest` (a consumer / sandbox: nothing built), `regenerated`, `current` or `failed`. FAIL-SOFT:
+    the activation is already written when this runs, so a failure only WARNs — land step 3 regenerates."""
+    if not _manifest_path().exists():
+        return "no-manifest"
+    try:
+        return "regenerated" if _regen_manifest_managed_regions(graph_build_index()) else "current"
+    except Exception as exc:                  # noqa: BLE001 — never undo a written activation
+        print(f"WARN: the spec activation is written, but regenerating kernel-vs-self-manifest.md failed "
+              f"({type(exc).__name__}: {exc}) — run `bin/yitc-v2 graph build` (SPEC-0073 rule 5); land "
+              f"regenerates it too", file=sys.stderr)
+        return "failed"
 
 views = _LazyLib("views")  # deferred (T-11320)  # _view_* reporting family (T-9378) — host residue below
 # moved-const re-export aliases (none externally read; kept module-local in views.py)
@@ -3285,7 +3308,9 @@ PROVIDER_TRANSCRIPT_DESCRIPTORS = (
      "log_root_var": "SESSION_LOG_GLOB_ROOT", "log_glob": "*/{ref}.jsonl",
      "marker": {"fields": {"type": "system", "subtype": "compact_boundary"},
                 "prefilter": '"compact_boundary"', "identity": ("uuid",),
-                "version": (None, ("version",)), "versions_observed": ("2.1.283", "2.1.306")},
+                "version": (None, ("version",)), "versions_observed": ("2.1.283", "2.1.306"),
+                "versions_observed_each": ("2.1.309", "2.1.312", "2.1.316", "2.1.318", "2.1.319",
+                                           "2.1.321", "2.1.322", "2.1.323", "2.1.325")},
      "start_row_tool": "AI_AGENT=claude-code_"},
     {"kind": "codex", "env": "CODEX_THREAD_ID",
      "log_root_var": "CODEX_SESSION_LOG_ROOT", "log_glob": "**/rollout-*{ref}.jsonl",
@@ -5438,7 +5463,7 @@ def _filing_read_gate_hint_lines(checkout) -> list:
     if not specs:
         return []
     is_consumer = _is_consumer_build()
-    prefix = (f"{ENGINE_ROOT}/bin/yitc-v2 -C {checkout}" if is_consumer
+    prefix = (f"{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C {checkout}" if is_consumer
               else "bin/yitc-v2")
     return ([f"{prefix} session start"]
             + [graph.spec_query_hint(sid, is_consumer=is_consumer, cli=prefix) for sid in specs])
@@ -5996,7 +6021,7 @@ def cmd_session_start(args: argparse.Namespace) -> None:
                     consumer=_is_consumer_build(), receipt_only=_receipt_only, cli=_rf_cli,
                     help_cmd=f"YITC_SESSION_REF={_resolved_ref} {_rf_cli} --help",
                     task=_rf_task, stage_bundle=_rf_bundle, plans=_rf_plans,
-                    main_cli=session.main_checkout_cli(ENGINE_ROOT, _rf_root, _is_consumer_build()),
+                    main_cli=session.main_checkout_cli(host_paths.stable_engine_root(ENGINE_ROOT), _rf_root, _is_consumer_build()),
                     own_floor_map=(session.consumer_own_floor_map(REPO_ROOT)
                                    if _is_consumer_build() else None))):
                 print(session.mark(_rf_ln, session.ON_DEMAND_REFOLD) if _rf_i == 0 else _rf_ln)
@@ -6071,6 +6096,15 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         # on the old code). Report-only, engine and -C alike; post-/compact re-fold: `release check`.
         try:
             print(session.mark(release_mod.engine_version_line(), session.REPORT_ONLY))
+        except Exception:  # noqa: BLE001 — a report-only line never fails the start
+            pass
+        # T-14678 (SPEC-0190 rule 3): a CUT journal whose declared engine cannot be shown to read it — the
+        # mismatch, the withheld drain and the re-pin remedy. Silent otherwise; post-/compact re-fold:
+        # `release check`, as for the engine line. A stat first; the pin is resolved only on a cut journal.
+        try:
+            _js_ln = journal_mod.journal_shape_mismatch_line(REPO_ROOT / "events.jsonl", REPO_ROOT)
+            if _js_ln:
+                print(session.mark(_js_ln, session.REPORT_ONLY))
         except Exception:  # noqa: BLE001 — a report-only line never fails the start
             pass
         # T-14185 (SPEC-0014 §Trailer): a commit identity that will misattribute — report-only, silent when clean.
@@ -6175,12 +6209,14 @@ def _record_unobserved_version_deviation(kind, version) -> bool:
     try:
         if fp in _capture_fingerprint_counts(EVENTS_PATH):   # the existing capture-fingerprint reader
             return False
-        _append_event("deviation_captured", None, {
+        # T-14648 — the ENGINE's own self-telemetry (T-13020): stamped `subject_realm: kernel`, so under `-C`
+        # a consumer's triage lists it on the kernel-self-telemetry line, never in its own routing window.
+        _append_event("deviation_captured", None, journal_mod.kernel_self_telemetry({
             "fingerprint": fp, "relates_to": "SPEC-1023",
             "impact": (f"compaction detection is unverified for {kind} {version}: the marker was admitted "
                        "on other versions — observe a live compaction under it and admit the version "
                        "(SPEC-1023 rule 3)"),
-            "captured_via": "session-start"})
+            "captured_via": "session-start"}))
         return True
     except Exception:   # noqa: BLE001 — a report never breaks the start
         return False
@@ -6827,7 +6863,7 @@ def _restoration_brief(args, *, stream, delivery_point: str, reading=None) -> "t
         consumer=consumer, receipt_only=False, cli=cli,
         help_cmd=f"YITC_SESSION_REF={ref or '<your-session-ref>'} {cli} --help", task=task,
         stage_bundle=bool(task and task.get("current_stage")), plans=plans or [],
-        main_cli=session.main_checkout_cli(ENGINE_ROOT, _post_compact_root(), consumer),
+        main_cli=session.main_checkout_cli(host_paths.stable_engine_root(ENGINE_ROOT), _post_compact_root(), consumer),
         own_floor_map=(session.consumer_own_floor_map(REPO_ROOT) if consumer else None),
         seed_parts=parts, stamp_cmd=stamp_cmd if ref else None)[1:]
     rows = [_brief_compact_row(r) for r in rows] + s6_gaps
@@ -8542,7 +8578,7 @@ def _cli_invocation_form() -> str:
     engine (T-0952), so it gets the bare form its own checkout does. Extracted by T-11409: the same
     one-liner was already written twice (`_frontend_errors_cli_hint` / `_onboarding_cli`, both of
     which now delegate here) and the read-gate refusal needed a third — one home instead (P1 F1/F3)."""
-    return f"{ENGINE_ROOT}/bin/yitc-v2 -C {REPO_ROOT}" if _is_consumer_build() else "bin/yitc-v2"
+    return f"{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C {REPO_ROOT}" if _is_consumer_build() else "bin/yitc-v2"
 
 
 def _is_consumer_root(root) -> bool:
@@ -8564,7 +8600,7 @@ def _consumer_render(text: str, root=None, *, qualify_specs: bool = True) -> str
         root = REPO_ROOT if root is None else Path(root)
         is_consumer = _is_consumer_build() if root == REPO_ROOT else _is_consumer_root(root)
         return graph.consumer_render(text, is_consumer=is_consumer,
-                                     cli_form=f"{ENGINE_ROOT}/bin/yitc-v2 -C {root}",
+                                     cli_form=f"{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C {root}",
                                      engine_root=ENGINE_ROOT, repo_root=root,
                                      qualify_specs=qualify_specs)
     except Exception:   # noqa: BLE001 — advisory rendering only
@@ -8664,7 +8700,7 @@ def _surface_concern_drift() -> None:
         print(session.mark(f"concern-drift: {cd.get('count')} concern(s) drifted — adopt cues withheld (read-only)",
                            session.REPORT_ONLY))
         return
-    _eng_cli = f"{ENGINE_ROOT}/bin/yitc-v2 -C {REPO_ROOT}"
+    _eng_cli = f"{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C {REPO_ROOT}"
     for dr in cd.get("drifts", []):
         adopted = dr.get("adopted") or "none"
         print(f"concern-drift: {dr.get('concern')} adopted={adopted} current={dr.get('current')} "
@@ -11051,9 +11087,12 @@ def cmd_cross_pick(args: argparse.Namespace) -> None:
 
 
 def cmd_cross_done(args: argparse.Namespace) -> None:
+    # resolver_task (T-14680): the same DONE-resolver scan `cross pick` uses — admits a still-requested
+    # item that a done local task already resolves, naming that task.
     cross.cmd_cross_done(args, cross_log_path=_SELF.CROSS_LOG_PATH, self_name=_cross_self(),
                          cross_emit=_cross_emit, local_append=_append_event, die=_die,
-                         aliases=_cross_peer_aliases())
+                         aliases=_cross_peer_aliases(),
+                         resolver_task=_cross_resolver_task((getattr(args, "id", "") or "").strip()))
 
 
 def cmd_cross_reject(args: argparse.Namespace) -> None:
@@ -11657,6 +11696,16 @@ def cmd_pre_deploy_list(args: argparse.Namespace) -> None:
         "path": name, "moved": inline})
     print(f"{verb}: wrote {len(new)} unit(s) of class {cls!r} into {name} (+{len(added)} -{len(removed)})"
           + (f"; {rel} now points at it" if inline else ""))
+    # T-14662 (SPEC-1051 rule 7) — the units the last between-deploys run holds no result for: every
+    # land runs them until the next scheduled run records them; the rest stay skipped (rule 2)
+    uncov = lv.pre_deploy_uncovered_files(
+        [(e.get("ts"), e.get("data")) for e in rows
+         if isinstance(e, dict) and e.get("type") == lv._PRE_DEPLOY_RESULT_EVENT], new)
+    stay = sorted(new) if uncov is None else sorted(uncov)
+    print(f"  run by every land until the next scheduled run (no result in the last one"
+          + ("; none recorded yet" if uncov is None else "") + f"): {len(stay)} unit(s)")
+    for f in stay:
+        print(f"    {f}")
     if posture == "main":
         body = "\n".join([f"added: {f}" for f in added] + [f"removed: {f}" for f in removed])
         short = _scoped_selfcommit(verb, paths, (
@@ -13218,8 +13267,12 @@ def _delivered_weight_report(days: int = 30) -> dict:
                                             graph.spec_query_hint(sid, is_consumer=_is_consumer_build(), cli=""))
             elif kind == "stage" and trig != "stage:Filing":
                 full = _render(sid)
+                # T-14657: the stage's own slice; this reads REPO_ROOT/specs, a consumer's own
+                # corpus under -C, so there nothing is sliced (audit-pre F1).
+                omit3 = _stage_view_subsection_table(sid, kernel=not _is_consumer_build()).get(
+                    trig.split(":", 1)[1], frozenset())
                 texts[sid] = (_stage_view_without_maintainer_sections(
-                    _stage_contract_view(full), f"`yitc-v2 graph query {sid}`") if full else None)
+                    _stage_contract_view(full), f"`yitc-v2 graph query {sid}`", omit3) if full else None)
             else:
                 texts[sid] = _render(sid)
         form = ("full-render" if trig == "stage:Filing"
@@ -16700,7 +16753,8 @@ def _rendered_spec_title(rendered: str) -> str:
 # and these source fields — code anchors and their hashes, born concern, provenance and activation
 # bookkeeping — which tools and explicit lookups read, not the act. Every other field, every body and
 # every source line is delivered unchanged; a field not named here fails toward being delivered. An
-# explicit `graph query <SPEC>` stays the full render (this view is never applied there).
+# explicit `graph query <SPEC>` stays the full render (this view is never applied there; a repeat inside
+# one context epoch prints the held pointer unless `--full` is given, T-14656).
 _CONTRACT_VIEW_DROPPED_FIELDS = frozenset({
     "implements", "implements_signature", "concern", "init_concern",
     "created_at", "consumed", "activation_owner_task", "proposed_by"})
@@ -16844,9 +16898,39 @@ _CONTRACT_VIEW_HTML_TAG = re.compile(r"</?[A-Za-z]")
 _CONTRACT_VIEW_HTML_HEADING = re.compile(r"</?h[12](?:[ \t>/]|$)", re.I)
 _CONTRACT_VIEW_NESTED_HEADING = re.compile(
     r"(?:[ \t>]|[-+*][ \t]|[0-9]{1,9}[.)][ \t])+#{1,2}(?:[ \t]|$)")
+_CONTRACT_VIEW_NESTED_HEADING3 = re.compile(
+    r"(?:[ \t>]|[-+*][ \t]|[0-9]{1,9}[.)][ \t])+#{1,3}(?:[ \t]|$)")
+
+# T-14657 — the `###` subsections ONE stage's view of a KERNEL spec leaves out, beside the maintainer
+# sections above: what another stage, or an on-demand trigger, delivers instead (SPEC-0050 §4). Keyed
+# by spec id, then by stage; a heading is named whole, as the spec writes it. A stage not named here
+# leaves out nothing more, and a name the spec does not carry cuts nothing (the view fails toward
+# delivering). Applied only to the kernel's own text (`_stage_view_subsections`).
+_SPEC1038_REFERENCE_SUBSECTIONS = (
+    "Resume contract (per D-0009)",
+    "Hygiene Fast-Path",
+    "Stage FSM per class — current_stage semantic names (per D-0033)")
+_SPEC1038_PLAN_OMITS = frozenset(
+    ("Tests — the governed full run, AFTER audit-post (detail)",) + _SPEC1038_REFERENCE_SUBSECTIONS)
+_STAGE_VIEW_OMITTED_SUBSECTIONS = {
+    "SPEC-1038": {"Plan": _SPEC1038_PLAN_OMITS,
+                  "Execution": _SPEC1038_PLAN_OMITS,
+                  "Tests": frozenset(_SPEC1038_REFERENCE_SUBSECTIONS)},
+    "SPEC-1040": {"Audit-pre": frozenset((
+        "Task per-stage overlays — audit-post (Stage 7): the exemption case, the ship-quality lens "
+        "and the overlay table",
+        "Task per-stage overlays — audit-post: derived overlay selection, the closed family and the "
+        "carve-outs"))},
+}
 
 
-def _contract_view_body_cut(block: list):
+def _stage_view_subsection_table(sid: str, kernel: bool = True) -> dict:
+    """T-14657 — {stage: omitted `###` names} for `sid`, or {} when the text is not the kernel's: a
+    consumer's OWN spec at a kernel id is never sliced, whatever its headings say (audit-pre F1)."""
+    return dict(_STAGE_VIEW_OMITTED_SUBSECTIONS.get(sid) or {}) if kernel else {}
+
+
+def _contract_view_body_cut(block: list, omit3: frozenset = frozenset()):
     """T-13660 — one `body` literal block (the lines AFTER its `body: |` line, up to the next column-0
     line) with its omitted sections cut. Returns `(kept lines, [section names cut], index in kept
     where the first cut began, the block's indentation)`, or None when nothing is cut OR the block
@@ -16879,10 +16963,18 @@ def _contract_view_body_cut(block: list):
         whose first `#` run of one or two comes after non-ASCII characters only; and a line made
         only of `=` or only of `-`, quote markers aside (it may underline the line above into a
         heading);
-      - a fence still open at the end of the block."""
+      - a fence still open at the end of the block.
+
+    T-14657 — `omit3`: `###` headings to cut as well (a stage slice, `_STAGE_VIEW_OMITTED_SUBSECTIONS`).
+    With it non-empty, a column-0 line of exactly three `#` also ends a `###` cut in progress (inside a
+    `##` cut it stays text), and opens one when it is exactly `### <name>` for a name in `omit3`.
+    Inside a `###` cut the NOT-DECIDED readings above widen to one to three `#`. With it empty the
+    reading is the one above, unchanged."""
     indent = None
     fence = None                       # the opening run of the code fence we are inside, else None
     cutting = False
+    cut_level = 0                      # 2 inside a `##` cut, 3 inside a `###` cut (T-14657)
+    top = 3 if omit3 else 2
     tag_above = False                  # a tag-led line stands above, no blank line since
     kept: list = []
     names: list = []
@@ -16919,9 +17011,16 @@ def _contract_view_body_cut(block: list):
             tag_above = True
         else:
             hashes = len(content) - len(content.lstrip("#"))
-            if 1 <= hashes <= 2 and lead == indent:
-                name = content[3:].rstrip(" \t") if content.startswith("## ") else None
-                cutting = name in _CONTRACT_VIEW_OMITTED_SECTIONS
+            if (1 <= hashes <= top and lead == indent
+                    and not (hashes == 3 and cutting and cut_level == 2)):
+                if hashes <= 2:
+                    name = content[3:].rstrip(" \t") if content.startswith("## ") else None
+                    cutting = name in _CONTRACT_VIEW_OMITTED_SECTIONS
+                    cut_level = 2
+                else:                  # T-14657: a `###` line, read only when `omit3` names some
+                    name = content[4:].rstrip(" \t") if content.startswith("### ") else None
+                    cutting = name in omit3
+                    cut_level = 3
                 if cutting and tag_above:
                     return None
                 if cutting:
@@ -16931,9 +17030,11 @@ def _contract_view_body_cut(block: list):
                         names.append(name)
                     continue
             elif cutting:
+                deep = 3 if cut_level == 3 else 2
                 folded = content.encode("ascii", "ignore").decode("ascii").lstrip()
-                if (1 <= len(folded) - len(folded.lstrip("#")) <= 2   # incl. an indented `#` / `##`
-                        or _CONTRACT_VIEW_NESTED_HEADING.match(content)
+                if (1 <= len(folded) - len(folded.lstrip("#")) <= deep   # incl. an indented `#` / `##`
+                        or (_CONTRACT_VIEW_NESTED_HEADING3 if deep == 3
+                            else _CONTRACT_VIEW_NESTED_HEADING).match(content)
                         or set(content.lstrip("> \t").rstrip(" \t")) in ({"="}, {"-"})):
                     return None
         if not cutting:
@@ -16943,7 +17044,7 @@ def _contract_view_body_cut(block: list):
     return kept, names, first, " " * indent
 
 
-def _contract_view_part_cut(part: list):
+def _contract_view_part_cut(part: list, omit3: frozenset = frozenset()):
     """T-13660 — one source part of a contract view (its lines) with every plain-literal `body`
     block passed through `_contract_view_body_cut`. Returns `(lines, [section names cut], index in
     lines where the first cut began or None, that block's indentation)`."""
@@ -16955,7 +17056,7 @@ def _contract_view_part_cut(part: list):
 
     def _close() -> None:
         nonlocal block, first, first_indent
-        cut = _contract_view_body_cut(block) if block else None
+        cut = _contract_view_body_cut(block, omit3) if block else None
         if cut is None:
             out.extend(block or [])
         else:
@@ -16996,7 +17097,7 @@ def _contract_view_cut_is_body_only(before: str, after: str) -> bool:
             and all(a[k] == b[k] for k in a if k != "body"))
 
 
-def _stage_view_without_maintainer_sections(view: str, reread: str) -> str:
+def _stage_view_without_maintainer_sections(view: str, reread: str, omit3: frozenset = frozenset()) -> str:
     """T-13660 — a contract view (`_stage_contract_view`) without the body sections named in
     `_CONTRACT_VIEW_OMITTED_SECTIONS`. A function of its two arguments only.
 
@@ -17007,7 +17108,10 @@ def _stage_view_without_maintainer_sections(view: str, reread: str) -> str:
     is really text of another field fails that check, and the part is delivered as it was. Where
     anything was cut, ONE line per view is put at the first cut, at the body's own indentation,
     naming every section left out and `reread`, the command that prints the full text; a blank line
-    follows it. A view in which nothing is cut is returned as the SAME text."""
+    follows it. A view in which nothing is cut is returned as the SAME text.
+
+    T-14657 — `omit3`: the `###` subsections this stage's view also leaves out (`_contract_view_body_cut`);
+    they are named on the same one line. Empty: the view above, unchanged."""
     parts: list = []
     for line in view.splitlines(keepends=True):
         if not parts or _CONTRACT_VIEW_SOURCE_LINE.match(line):
@@ -17018,7 +17122,7 @@ def _stage_view_without_maintainer_sections(view: str, reread: str) -> str:
     notice_at = None
     notice_indent = ""
     for part in parts:
-        lines, cut_names, first, indent = _contract_view_part_cut(part)
+        lines, cut_names, first, indent = _contract_view_part_cut(part, omit3)
         if first is None or not _contract_view_cut_is_body_only("".join(part), "".join(lines)):
             out.extend(part)
             continue
@@ -17034,7 +17138,84 @@ def _stage_view_without_maintainer_sections(view: str, reread: str) -> str:
     return "".join(out)
 
 
-def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out: "list | None" = None) -> list:
+def _contract_view_sections_only(view: str, names, reread: str) -> "str | None":
+    """T-14657 — the part of a contract view a context ALREADY holding a narrower view of the same
+    spec still lacks: the `###` subsections `names`, each whole from its heading to the next heading of
+    one to three `#` at the body's column 0 (outside a code fence), under the source line of the part
+    that carries it, with ONE notice line after the first source line saying what this is and naming
+    `reread`. A function of its arguments only.
+
+    None — the caller then delivers its whole stage view — unless every name is found exactly once,
+    and when a body line is indented less than its block (the reading `_contract_view_body_cut` does
+    not decide either)."""
+    want = set(names)
+    if not want:
+        return None
+    seen: list = []
+    parts: list = []
+    for line in view.splitlines(keepends=True):
+        if not parts or _CONTRACT_VIEW_SOURCE_LINE.match(line):
+            parts.append([])
+        parts[-1].append(line)
+    out: list = []
+    indent_of_first = None
+    for part in parts:
+        if not _CONTRACT_VIEW_SOURCE_LINE.match(part[0]):
+            continue                   # the derived header before the first source line
+        captured: list = []
+        in_body = False
+        indent = None
+        fence = None
+        capturing = False
+        for line in part[1:]:
+            text = line.rstrip("\r\n")
+            if text.strip() and not line[0].isspace():     # a column-0 line ends any block scalar
+                in_body = bool(_CONTRACT_VIEW_BODY_OPEN.match(text))
+                indent, fence, capturing = None, None, False
+                continue
+            if not in_body:
+                continue
+            if not text.strip():
+                if capturing:
+                    captured.append(line)
+                continue
+            lead = len(text) - len(text.lstrip(" "))
+            if indent is None:
+                indent = lead
+            if lead < indent:
+                return None
+            content = text[lead:]
+            mark = _CONTRACT_VIEW_FENCE.match(content)
+            if fence is not None:
+                if mark and lead == indent and mark.group(1).startswith(fence) and not mark.group(2).strip():
+                    fence = None
+            elif mark and lead == indent and (mark.group(1)[0] == "~" or "`" not in mark.group(2)):
+                fence = mark.group(1)
+            elif lead == indent:
+                hashes = len(content) - len(content.lstrip("#"))
+                if 1 <= hashes <= 3:
+                    name = content[4:].rstrip(" \t") if content.startswith("### ") else None
+                    capturing = name in want
+                    if capturing:
+                        seen.append(name)
+                        if indent_of_first is None:
+                            indent_of_first = " " * indent
+            if capturing:
+                captured.append(line)
+        if captured:
+            out.append(part[0])
+            out.extend(captured)
+    if sorted(seen) != sorted(want):
+        return None
+    notice = (f"{indent_of_first}[the rest of this contract for this stage: the section(s) "
+              f"{', '.join(n for n in seen)} — the view of it already held in this context epoch left "
+              f"them out and is not repeated; the full text: {reread}]\n")
+    out[1:1] = [notice, "\n"]
+    return "".join(out)
+
+
+def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out: "list | None" = None,
+                                    doc_realms: "dict | None" = None) -> list:
     """T-11550 — RENDER this stage's bundle contracts, so `stage <NAME>` DELIVERS the bundle it has
     always only NAMED, and the session that received it is CREDITED by the SPEC-0042/0050 read-gate.
 
@@ -17109,8 +17290,9 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
     THE CONTRACT VIEW (T-13625). What reaches the reader is `_stage_contract_view` of the render — the
     body and routing fields, without the derived header and the machine-only source fields — and the
     receipt's byte count and fingerprint are taken over THOSE bytes. An explicit `graph query <SPEC>`
-    never passes through here, so it stays the full render; its receipt carries no fingerprint and
-    therefore neither suppresses nor forces a body here.
+    never passes through here, so it stays the full render (a repeat in the same epoch is answered by
+    its own pointer, `_held_point_lookup_line`, T-14656); its `view_sha` receipt lets this deliverer
+    hold the contract (T-14522).
 
     `bodies_out` (T-13934): when a list is passed, one `(spec id, bytes)` pair is appended per contract
     whose BODY was written in full — never for a pointer or a failed render — so the two seams can close
@@ -17124,8 +17306,13 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
         pass
     # The realm each doc REQUIRES — the SAME call shape the gate uses (`_require_reads`), so what is
     # fetched here is what is credited there. Consumer-only: on the engine own IS the kernel.
-    doc_realms: dict = {}
-    if _is_consumer_build():
+    # T-14673 — a caller already holding the realms (the plan-stage catch-up, from its one projection)
+    # passes them, and no binding map is derived here.
+    if doc_realms is not None:
+        doc_realms = dict(doc_realms)
+    elif not _is_consumer_build():
+        doc_realms = {}
+    else:
         try:
             if stage_name.startswith(PLAN_STAGE_ENTRY_PREFIX):
                 # T-14408 — a plan-axis bundle: its realms come from the plan-axis derivation, the
@@ -17174,19 +17361,52 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
         # T-14522: the fingerprint a HAND `graph query` of this contract records (`view_sha`) — the
         # contract view BEFORE the maintainer sections are cut; a reader holding it holds this view.
         hand_sha = hashlib.sha256(view.encode("utf-8")).hexdigest() if ok else ""
+        held_here = held.get(sid, ())
+        broader = ""               # T-14657: the sha of a held view that carries all this one does
         if ok:                     # T-13660: the maintainer sections stay one command away
-            view = _stage_view_without_maintainer_sections(view, _consumer_render(
-                f"`yitc-v2 {' '.join(argv)}`", qualify_specs=False))
+            reread = _consumer_render(f"`yitc-v2 {' '.join(argv)}`", qualify_specs=False)
+            contract = view
+            # T-14657 — this stage's slice of a KERNEL spec (audit-pre F1: never a consumer's own text).
+            table = _stage_view_subsection_table(
+                sid, kernel=not _is_consumer_build() or doc_realms.get(sid) == "kernel")
+            mine = table.get(stage_name, frozenset())
+
+            def _cut(omits, _c=contract, _r=reread):   # no slice: today's two-argument call, unchanged
+                return (_stage_view_without_maintainer_sections(_c, _r, omits) if omits
+                        else _stage_view_without_maintainer_sections(_c, _r))
+            view = _cut(mine)
+            if held_here and table:
+                # Every other view of this spec a stage delivers: one per omit set, plus the empty set.
+                # A held one leaving out no more than this stage does carries all of this view
+                # (audit-pre F2) -> the pointer; one leaving out more -> only what it left out.
+                wider = []
+                for omits in {frozenset()} | set(table.values()):
+                    if omits == mine:
+                        continue
+                    sha = hashlib.sha256(_cut(omits).encode("utf-8")).hexdigest()
+                    if sha not in held_here:
+                        continue
+                    if omits <= mine:
+                        broader = sha
+                        break
+                    if omits > mine:
+                        wider.append(omits - mine)
+                if not broader and wider:
+                    gap = min(wider, key=lambda g: (len(g), sorted(g)))
+                    part = _contract_view_sections_only(contract, sorted(gap), reread)
+                    if part is not None:
+                        view = part
         tee = _HashingTee(io.StringIO())   # counts + fingerprints the VIEW, the bytes delivered
         tee.write(view)
         if ok:
             try:
-                match = next((s for s in (tee.hexdigest(), hand_sha) if s in held.get(sid, ())), None)
+                match = next((s for s in (tee.hexdigest(), hand_sha, broader) if s and s in held_here),
+                             None)
                 if match:
                     r_ts, r_ref = held_receipts.get((sid, match)) or ("", "")
                     receipt = f"; receipt {r_ts} by session {r_ref}" if r_ts else ""
                     print(_consumer_render(
-                        f"{sid} — {_rendered_spec_title(view)} — already delivered in this "
+                        f"{sid} — {_rendered_spec_title(contract)} — already delivered in this "
                         f"context epoch (unchanged{receipt}); re-read: `yitc-v2 {' '.join(argv)}`",
                         qualify_specs=False))
                     done.append(sid)
@@ -17466,8 +17686,70 @@ def cmd_stage(args: argparse.Namespace) -> None:
                                     session_ref=_sref)
             _die(f"stage Tests: {tid} — {_gap}; run `yitc-v2 audit post --task {tid}` first; Tests "
                  f"follows the audit-post (SPEC-1038). current_stage not changed.")
+    # T-14676 (SPEC-1038 «Scope of the move rules») — a card's own governed run re-checks the stage after
+    # its admission wait, so moving the pointer under it loses the run (measured 2026-11-16: `stage
+    # Closure` run to read contracts while the run waited; the run then refused). A move is refused
+    # while that run is queued or running, read from the queue's own state under the queue's LOCK and
+    # written in the same hold: the run files its ticket under that LOCK after repeating its stage
+    # decision, so it is either seen here or refused before it takes a slot. An absent queue state (no
+    # checkout, nothing ever queued) admits the move; a state that exists and cannot be read refuses it.
     # 1. record the entered stage (idempotent — re-setting the same value is a no-op write).
-    _write_task_transition(yaml, path, task, name)
+    if name == task.get("current_stage"):
+        _write_task_transition(yaml, path, task, name)
+    else:
+        from lib import admission as _admission
+        try:
+            _adm_p = _admission.paths(REPO_ROOT)
+        except OSError:            # not a git checkout: no queue can hold a run of this card
+            _adm_p = None
+        _undetermined = None
+        _lock = None
+        if _adm_p is not None:
+            try:
+                _admission.ensure(_adm_p)
+            except OSError as e:
+                if Path(_adm_p["queue"]).exists():   # a queue exists, so a ticket may stand in it
+                    _undetermined = f"the queue's state directory cannot be written ({e})"
+                _adm_p = None      # no queue dir at all: no ticket of this card can exist (absent)
+        if _adm_p is not None:
+            try:
+                _lock = _admission.Locked(_adm_p["lock"])
+                _lock.__enter__()
+            except OSError as e:
+                _lock, _undetermined = None, f"the queue's lock cannot be taken ({e})"
+        try:
+            _run_pid = None
+            if _lock is not None:
+                try:
+                    _run_pid = _admission.card_stage6_pending(_adm_p, tid)
+                except OSError as e:
+                    _undetermined = f"the queue's state cannot be read ({e})"
+            if _run_pid is not None or _undetermined:
+                try:
+                    _sref = _resolve_session_ref()
+                except SystemExit:
+                    _sref = "session-unresolved"   # best-effort: the refusal row MUST journal (T-0561)
+                _emit_read_gate_refused(f"stage {name}", {"action": f"enter {name}", "stage": name,
+                                                          "current_stage": task.get("current_stage")},
+                                        kind="stage-correspondence",
+                                        reason="governed_run_pending" if _run_pid is not None
+                                        else "governed_run_undetermined",
+                                        task_id=tid, session_ref=_sref)
+                if _run_pid is not None:
+                    _die(f"stage {name}: {tid} — its governed run (`task test --run`, pid {_run_pid}) is "
+                         f"queued or running, and it re-checks the stage after its wait: moving the pointer "
+                         f"now would lose that run. Wait for its `TEST:` token; read a contract meanwhile "
+                         f"with `yitc-v2 graph query <SPEC>`; or stop the run (`kill -TERM {_run_pid}`, "
+                         f"SPEC-1038 «A stopped run») and re-run this `stage`. current_stage not changed.")
+                _die(f"stage {name}: {tid} — whether its governed run is queued cannot be determined: "
+                     f"{_undetermined}. Moving the pointer could lose that run, so the move is refused; "
+                     f"fix the queue state (its directory is `yitc/admission` under the path "
+                     f"`git rev-parse --git-common-dir` prints) and re-run `yitc-v2 stage {name} --task {tid}`. "
+                     f"current_stage not changed.")
+            _write_task_transition(yaml, path, task, name)
+        finally:
+            if _lock is not None:
+                _lock.__exit__(None, None, None)
     delivered_patterns = _stage_bundle_patterns(name, include_kernel=True)   # T-0293 (AU-5b) — the pattern half of the bundle
     delivered_verbs = list(STAGE_WORK_VERBS.get(name, []))
     # 3. emit the T-0286 content-delivery event (tid → task_id envelope; stage/delivered/delivered_patterns/
@@ -19030,8 +19312,37 @@ def _plan_corpus_signature(slug: str, plan_body: str, lines=None) -> str:
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()
 
 
-def _plan_card_set_fingerprint(slug: str, _carry=None) -> str:
-    return plan_mod._plan_card_set_fingerprint(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, PLANS_DIR=PLANS_DIR, _carry=_carry)
+def _plan_card_set_fingerprint(slug: str, _carry=None, recorded: "str | None" = None) -> str:
+    # T-14673 — the obligations due through `decomposition` join the cut fingerprint (SPEC-0070 §4); an
+    # unavailable view yields the stable error-hash (never equal to a recorded fingerprint).
+    _obl = _plan_obligations("decomposition")
+    _ob = plan_mod.PLAN_OBLIGATIONS_UNAVAILABLE if _obl["unavailable"] else _obl["digest"]
+    fp = plan_mod._plan_card_set_fingerprint(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, PLANS_DIR=PLANS_DIR, _carry=_carry, _obligations=_ob)
+    # T-14697 — a `recorded` fingerprint in the pre-change whole-chain obligations form that still matches
+    # today's whole-chain form is returned as is: the gate record stays fresh while the due files are unchanged.
+    if recorded and recorded != fp and _ob not in (None, plan_mod.PLAN_OBLIGATIONS_UNAVAILABLE):
+        try:
+            _chain = plan_mod.plan_obligations_digest(
+                _obl["due"], digest_of=lambda d: plan_mod._plan_obligation_chain_digest(d["path"]))
+        except OSError:
+            return fp
+        if _chain and _chain != _ob and plan_mod._plan_card_set_fingerprint(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, PLANS_DIR=PLANS_DIR, _carry=_carry, _obligations=_chain) == recorded:
+            return recorded
+    return fp
+
+
+def _plan_card_set_fingerprint_vs_record(slug: str, _carry=None) -> str:
+    """T-14697 — the cut fingerprint at a host that reuses the decomposition-fidelity record: its
+    recorded fingerprint is passed ONLY when that verdict is GREEN/YELLOW (the reuse case), so a fresh
+    gate audit always records the normative form."""
+    try:
+        av = _read_yaml(DECISIONS_DIR / f"{slug}-audit-gate-executing.yaml")
+    except Exception:   # noqa: BLE001 — no readable record: the normative form
+        av = None
+    rec = None
+    if isinstance(av, dict) and str(av.get("verdict") or "").upper() in AUDIT_VERDICT_CLOSURE_OK:
+        rec = av.get("card_set_fingerprint") or None
+    return _plan_card_set_fingerprint(slug, _carry=_carry, recorded=rec)
 
 
 def _decision_realization_block(decision: dict) -> str:
@@ -20094,7 +20405,8 @@ def cmd_audit(args: argparse.Namespace) -> None:
     # T-13151 (SPEC-0180 rule 9) — EVERY exit ends stdout with the terminal `AUDIT: <verdict>` token,
     # so a detached over-cap audit can be polled for terminality. BaseException, not Exception: a
     # KeyboardInterrupt/SIGINT exit must print it too (audit-pre fp1:148597d6610c3592). Under
-    # `--preview` stdout IS the packet (T-11407 byte-identity), so the token goes to STDERR there.
+    # `--preview` the token goes to STDERR, as the worker preamble's poll states (stdout carried the
+    # packet until T-14655; it now carries the readiness block and the packet's file line).
     _tok_stream = sys.stderr if getattr(args, "preview", False) else sys.stdout
     _cut = ""   # T-13864: becomes "\n" once the normal-return line below has started to be written
     try:
@@ -20199,12 +20511,48 @@ def _adhoc_ceiling_steer_route(slug: str, stage: str) -> str:
     return audit._adhoc_ceiling_steer_route(slug, stage, _find_task_yaml=_find_task_yaml, _read_yaml=_read_yaml)
 
 
+def _plan_check_carrier_root() -> Path:
+    # T-14672 (SPEC-0034 §Project-declared plan check) — the `plan_checks:` declaration is read from the
+    # MAIN checkout's yitc-ops.yaml (the declaration locus, SPEC-1031 rule 4; the spike-handover
+    # precedent), so a plan worktree branched before the declaration still obeys it.
+    return _main_worktree(REPO_ROOT) or REPO_ROOT
+
+
+def _plan_checkpoint_prepass(plan_path, phase: str, slug: str, *, verb: str):
+    # T-14673 — the pre-pass the plan checkpoints call: the catch-up delivery FIRST, so every late
+    # plan-stage rule reaches the session before the checkpoint (the project check, any gate, any reuse)
+    # is evaluated; then the T-14672 project plan check, when its runner is attached.
+    _deliver_plan_obligation_catch_up(plan_path, slug, verb=verb)
+    runner = _run_plan_checks
+    if runner is None or phase not in plan_mod.PLAN_CHECK_PHASES:   # `trial`: catch-up only (T-14672 phases)
+        return None
+    return runner(plan_path, phase, slug, verb=verb)
+
+
+def _run_plan_checks(plan_path, phase: str, slug: str, *, verb: str):
+    # T-14672 — the ONE runner seam the plan checkpoints call; the acting checkout is REPO_ROOT.
+    return plan_mod.run_project_plan_check(plan_path, phase, slug=slug, verb=verb,
+                                           carrier_root=_plan_check_carrier_root(), checkout=REPO_ROOT,
+                                           _append_event=_append_event, _die=_die)
+
+
 def _plan_change_check(slug: str) -> dict:
     # T-14627 (SPEC-1061 §2) — the plan change check `audit adhoc --plan` runs (built in lib.plan).
-    return plan_mod.plan_change_check_packet(slug, DECISIONS_DIR=DECISIONS_DIR, PLANS_DIR=PLANS_DIR, SPECS_DIR=SPECS_DIR, _die=_die, _load_draft=_load_draft, _plan_accept_freshness_hash=_plan_accept_freshness_hash, _plan_content_hash=_plan_content_hash, _read_yaml=_read_yaml, _spec_content_sans_status=_spec_content_sans_status)
+    return plan_mod.plan_change_check_packet(slug, DECISIONS_DIR=DECISIONS_DIR, PLANS_DIR=PLANS_DIR, SPECS_DIR=SPECS_DIR, _die=_die, _load_draft=_load_draft, _plan_accept_freshness_hash=_plan_accept_freshness_hash_vs_anchor, _plan_content_hash=_plan_content_hash, _read_yaml=_read_yaml, _spec_content_sans_status=_spec_content_sans_status, _run_plan_checks=_plan_checkpoint_prepass, _plan_obligations=_plan_obligations)
 
 
 def cmd_audit_adhoc(args: argparse.Namespace) -> None:
+    # T-14673 — the change check (`--plan`) runs inside the plan read scope, as `plan stage` does.
+    if getattr(args, "plan", None):
+        with plan_mod.plan_stage_read_scope(argparse.Namespace(slug=args.plan), events_path=EVENTS_PATH,
+                                            load_draft=_load_draft, plans_dir=PLANS_DIR,
+                                            session_refs=_plan_scope_session_refs(),
+                                            verb="audit adhoc --plan"):
+            return _cmd_audit_adhoc_body(args)
+    return _cmd_audit_adhoc_body(args)
+
+
+def _cmd_audit_adhoc_body(args: argparse.Namespace) -> None:
     return audit.cmd_audit_adhoc(args, _work_batch_next_hint=_work_batch_next_hint, _capacity_retry_hint=_capacity_retry_hint, ADHOC_SLUG_RE=ADHOC_SLUG_RE, REPO_ROOT=REPO_ROOT, _adhoc_ceiling_steer=_adhoc_ceiling_steer, _adhoc_ceiling_steer_route=_adhoc_ceiling_steer_route, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _build_audit_prompt=_build_audit_prompt, _count_audit_passes=_count_audit_passes, _die=_die, _inline_corpus_files=_inline_corpus_files, _inline_sweep_files=_inline_sweep_files, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _require_writing_worktree=_require_writing_worktree, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _resolve_prompt_file=_resolve_prompt_file, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, _verdict_exit_code=_SELF._verdict_exit_code, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH, _plan_change_check=_plan_change_check)   # T-14627: `--plan`
 
 
@@ -24568,7 +24916,8 @@ def _uncatalogued_type_warnings() -> dict:
         residue = set()
         if mb.returncode == 0 and mb.stdout.strip():
             _base = mb.stdout.strip()
-            bsd = _git("diff", "--no-color", _base, "HEAD", "--", ".", ":(exclude)events.jsonl")
+            bsd = _git("diff", "--no-color", _base, "HEAD", "--", ".",   # T-14670: every segment
+                       *events.journal_exclude_pathspecs("events.jsonl", "."))
             baj = _git("diff", "--no-color", "-U0", _base, "HEAD", "--", "events.jsonl")
             residue = set(graph.main_checkout_residue_types(
                 cur, main_uncommitted_rows=main_uncommitted_rows,
@@ -25032,7 +25381,7 @@ def _consumer_carrier_pair_advisory() -> str:
         "proves nothing about the other (T-11011 / X-0843):",
         "  1. -C <consumer-repo>            the corpus target (else the foreign-corpus guard refuses)",
         f"  2. {SELF_REF_ENV}=<your ref>   the session-identity carry (else the identity gate refuses)",
-        f"Fully-carried form:  {SELF_REF_ENV}=$REF {ENGINE_ROOT}/bin/yitc-v2 -C <consumer-repo> <verb>",
+        f"Fully-carried form:  {SELF_REF_ENV}=$REF {host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C <consumer-repo> <verb>",
         f"(`{SELF_REF_ENV}` is printed by `session start`; env does NOT cross the harness's per-call",
         "subprocesses, so it is re-supplied on EVERY call.)",
     ])
@@ -25127,7 +25476,7 @@ def _guard_bare_invocation_foreign_corpus(admit_explicit_target: bool = False) -
         # carrier-pair advisory always applies here — it names carrier 2 the operator has not hit YET.
         _die(f"bare yitc-v2 run from a FOREIGN yitc corpus ({root}) — without -C it resolves to the "
              f"KERNEL repo ({ENGINE_ROOT}) and would pollute its journal (X-0093). Target the corpus "
-             f"explicitly: `{ENGINE_ROOT}/bin/yitc-v2 -C {root} <verb>` (or cd into the engine)."
+             f"explicitly: `{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C {root} <verb>` (or cd into the engine)."
              + _consumer_carrier_pair_advisory())
 
 
@@ -26577,8 +26926,14 @@ def _seed_gate_keyer() -> str:
     preamble scope (with the context epoch it was taken under) so the receipt emit after the verb body
     reuses it (`_request_keyed_ref`) instead of asking the keyer again. A refusal `_die`s inside the
     keyer, so only a resolved ref is held. Nothing is held outside a preamble scope, nor for a
-    worker's frozen ref — the twin already answers that one with no read."""
-    ref = _resolve_session_ref()
+    worker's frozen ref — the twin already answers that one with no read.
+
+    T-14664: the worktree-stamp selector counts only when REPO_ROOT is the caller's own checkout
+    (`_repo_root_is_caller_locus`, the T-11911 / T-13952 scope). Under `-C <another session's worktree>`
+    the stamp names THAT worktree's owner, so the gate keyed on its receipt and refused this session's
+    verb with a foreign marker; scoped, the caller resolves from its own carry or runtime record and its
+    receipt in the main checkout credits."""
+    ref = _resolve_session_ref(allow_locus_stamp=_repo_root_is_caller_locus())
     if getattr(_SESSION_TAIL_TLS, "scope", None) is not None and _FROZEN_SESSION_REF is None:
         _SESSION_TAIL_TLS.keyed = (ref, _session_epoch())
     return ref
@@ -27447,7 +27802,77 @@ def cmd_graph_query(args: argparse.Namespace) -> None:
     _is_view = bool(_nid) and not getattr(args, "kernel", False) and \
         _kernel_content_file(f"views/{_nid}.yaml").exists()
     with _graph_query_read_scope(declare_journal=_is_view):
-        return graph.cmd_graph_query(args, GRAPH_PATH=GRAPH_PATH, REPO_ROOT=REPO_ROOT, _anchor_file=_anchor_file, _carve_out_selection=_carve_out_selection, _cross_self=_cross_self, _die=_die, _emit_node_list=_emit_node_list, _engine_index=_engine_index, _find_error_yaml=_find_error_yaml, _find_spec_path=_find_spec_path, _graph_query_projected=_graph_query_projected, _graph_query_recurring=_graph_query_recurring, _is_consumer_build=_is_consumer_build, _kernel_content_file=_kernel_content_file, _list_views=_list_views, _load_index_as_of=_load_index_as_of, _node_source_path=_node_source_path, _parse_iso_utc=_parse_iso_utc, _read_yaml=_read_yaml, _report_graft_parse_errors=_report_graft_parse_errors, _resolve_as_of_sha=_resolve_as_of_sha, _run_git_cap=_run_git_cap, _run_view=_run_view, _with_live_nodes=_with_live_nodes)
+        if _is_view or not _hand_spec_lookup(args):
+            return _graph_query_render(args)
+        # T-14656 (SPEC-0050 §4): a hand point lookup of a spec this session already holds in this
+        # context epoch and checkout prints the pointer line instead of the body — render first, so
+        # the fingerprint is compared before a byte reaches the reader.
+        real, buf = sys.stdout, io.StringIO()
+        sys.stdout = buf
+        try:
+            _graph_query_render(args)
+        except BaseException:
+            sys.stdout = real
+            sys.stdout.write(buf.getvalue())
+            raise
+        sys.stdout = real
+        text = buf.getvalue()
+        line = _held_point_lookup_line(args, text)
+        if line:
+            print(line)
+            args.held_pointer = args.id
+        else:
+            sys.stdout.write(text)
+
+
+_HAND_SPEC_ID_RE = re.compile(r"^SPEC-\d+$")
+
+
+def _hand_spec_lookup(args) -> bool:
+    """T-14656 — a plain `graph query <SPEC-NNNN>` point lookup without `--full`, run through the CLI
+    entry (`main` marks it `hand_lookup`): the one form a pointer may answer. Every other form (a list,
+    a projection, a past graph, a non-spec node, any in-process render — the stage deliverer, a test,
+    `_spec_full_render`) renders as before."""
+    return (getattr(args, "hand_lookup", False) and not getattr(args, "full", False) and bool(_HAND_SPEC_ID_RE.match(str(getattr(args, "id", "") or "")))
+            and not any(getattr(args, k, None) for k in ("type", "as_of", "projected", "carve_out",
+                                                          "recurring", "include_draft", "arg")))
+
+
+def _held_point_lookup_line(args, text: str) -> "str | None":
+    """T-14656 — the pointer line for a hand spec lookup whose render THIS session already holds in
+    the current context epoch and checkout, else None (print the body). The three SPEC-0050 §4
+    conditions, read by the stage deliverer's own reader `_stage_bundle_held_shas` (no second
+    reader, no cache): a ref from the session's own carry, a known epoch, and a crediting receipt of
+    that epoch carrying this render's contract-view fingerprint (and, under -C, the realm that
+    answered). Every doubt returns None."""
+    try:
+        sid = args.id
+        sha = _point_lookup_view_sha(text)
+        if not sha:
+            return None
+        ref, source = _try_resolve_session_ref_with_source()
+        if source not in _HELD_RECEIPT_REF_SOURCES:
+            return None
+        epoch = _session_epoch_known()
+        realm = getattr(args, "resolved_realm", None)
+        doc_realms = {sid: realm} if (_is_consumer_build() and realm) else {}
+        receipts: dict = {}
+        held = _stage_bundle_held_shas(ref, epoch, [sid], doc_realms, receipts_out=receipts)
+        if sha not in held.get(sid, ()):
+            return None
+        r_ts, r_ref = receipts.get((sid, sha)) or ("", "")
+        receipt = f"; receipt {r_ts} by session {r_ref}" if r_ts else ""
+        kernel = " --kernel" if getattr(args, "kernel", False) else ""
+        return _consumer_render(
+            f"{sid} — {_rendered_spec_title(text)} — already delivered in this context epoch "
+            f"(unchanged{receipt}); full body: `yitc-v2 graph query --full{kernel} {sid}`",
+            qualify_specs=False)
+    except Exception:   # noqa: BLE001 — a delivery helper never breaks its verb; full render instead
+        return None
+
+
+def _graph_query_render(args: argparse.Namespace) -> None:
+    return graph.cmd_graph_query(args, GRAPH_PATH=GRAPH_PATH, REPO_ROOT=REPO_ROOT, _anchor_file=_anchor_file, _carve_out_selection=_carve_out_selection, _cross_self=_cross_self, _die=_die, _emit_node_list=_emit_node_list, _engine_index=_engine_index, _find_error_yaml=_find_error_yaml, _find_spec_path=_find_spec_path, _graph_query_projected=_graph_query_projected, _graph_query_recurring=_graph_query_recurring, _is_consumer_build=_is_consumer_build, _kernel_content_file=_kernel_content_file, _list_views=_list_views, _load_index_as_of=_load_index_as_of, _node_source_path=_node_source_path, _parse_iso_utc=_parse_iso_utc, _read_yaml=_read_yaml, _report_graft_parse_errors=_report_graft_parse_errors, _resolve_as_of_sha=_resolve_as_of_sha, _run_git_cap=_run_git_cap, _run_view=_run_view, _with_live_nodes=_with_live_nodes)
 
 
 # ---------------------------------------------------------------------------
@@ -27552,7 +27977,7 @@ def cmd_plan_draft(args: argparse.Namespace) -> None:
 
 
 def _cmd_plan_draft_body(args: argparse.Namespace) -> None:
-    return plan_mod.cmd_plan_draft(args, PLANS_DIR=PLANS_DIR, _append_event=_append_event, _die=_die, _emit_read_gate_refused=_emit_read_gate_refused, _load_draft=_load_draft, _plan_content_hash=_plan_content_hash, _plan_draft_sections_filled=_plan_draft_sections_filled, _postcheck_probe_block_declared=_postcheck_probe_block_declared, _require_reads=_require_reads, _require_writing_worktree=_require_writing_worktree, _resolve_session_ref=_resolve_session_ref)
+    return plan_mod.cmd_plan_draft(args, PLANS_DIR=PLANS_DIR, _append_event=_append_event, _die=_die, _emit_read_gate_refused=_emit_read_gate_refused, _load_draft=_load_draft, _plan_content_hash=_plan_content_hash, _plan_draft_sections_filled=_plan_draft_sections_filled, _postcheck_probe_block_declared=_postcheck_probe_block_declared, _require_reads=_require_reads, _require_writing_worktree=_require_writing_worktree, _resolve_session_ref=_resolve_session_ref, _run_plan_checks=_plan_checkpoint_prepass)
 
 
 def cmd_plan_file(args: argparse.Namespace) -> None:
@@ -27620,7 +28045,7 @@ def _split_into(raw) -> list:
     return plan_mod._split_into(raw)
 
 
-def _plan_stage_maps() -> "tuple | None":
+def _plan_stage_maps(errors_out: "list | None" = None) -> "tuple | None":
     """The plan-axis binding maps `(own, kernel)` — each `{plan stage: [spec ids]}`, the derived
     `plan_stage_to_specs` view (`_build_binding_views` over the per-spec `binding:` field — the SINGLE
     canonical derivation, P5) of ONE corpus. `own` is this repo's specs/; `kernel` is the engine's
@@ -27628,7 +28053,9 @@ def _plan_stage_maps() -> "tuple | None":
     session, where own IS the kernel. The two corpora are derived SEPARATELY — the T-11077 shape of
     `_stage_bundle_corpus` on the task axis — so a consumer-owned id cannot shadow a kernel binding.
     None when the own corpus cannot be read (callers degrade to []); a kernel read failure leaves
-    `kernel` empty and the own side standing (T-14408)."""
+    `kernel` empty and the own side standing (T-14408). T-14673 — `errors_out`, when given, receives
+    a line naming that kernel read failure, so the obligation view can refuse rather than read an
+    incomplete binding set as complete."""
     def _map(paths):
         specs = {}
         for p in paths:
@@ -27649,9 +28076,92 @@ def _plan_stage_maps() -> "tuple | None":
         try:
             kernel = _map([p for p in _kernel_overlay_files("specs", "SPEC-*.yaml")
                            if not state.is_spec_part(p)])
-        except Exception:
+        except Exception as exc:
             kernel = {}
+            if errors_out is not None:
+                errors_out.append(f"the kernel spec corpus could not be read ({type(exc).__name__}: {exc})")
     return own, kernel
+
+
+# T-14673 (SPEC-0034 §Plan-stage obligations at the plan checkpoints) — the ONE obligation projection
+# (`plan_mod.plan_obligation_view`) and its readers' host side. Computed once per invocation inside a
+# plan read scope (`plan_mod.plan_scope_obligations`).
+def _plan_obligation_spec_source(realm: str, sid: str):
+    return _find_spec_path(sid, force_engine=(realm == "kernel"))
+
+
+def _plan_obligation_view() -> dict:
+    def _compute() -> dict:
+        errs: list = []
+        maps = _plan_stage_maps(errors_out=errs)
+        return plan_mod.plan_obligation_view(maps, sequence=PLAN_STAGE_SEQUENCE,
+                                             spec_source=_plan_obligation_spec_source, map_errors=errs,
+                                             consumer=_is_consumer_build())
+    return plan_mod.plan_scope_obligations(_compute)
+
+
+def _plan_obligations(through: str, change_check: bool = False) -> dict:
+    """The obligations due at a boundary: {due, future, digest, block, unavailable}."""
+    view = _plan_obligation_view()
+    if view.get("unavailable"):
+        return {"due": [], "future": [], "digest": None, "block": "", "unavailable": list(view["unavailable"])}
+    due, future = plan_mod.plan_obligations_due(view, through, sequence=PLAN_STAGE_SEQUENCE)
+    return {"due": due, "future": future, "digest": plan_mod.plan_obligations_digest(due),
+            "block": plan_mod.plan_obligations_block(due, future, through=through,
+                                                     consumer=bool(view.get("consumer")),
+                                                     change_check=change_check),
+            "unavailable": []}
+
+
+def _plan_obligations_unavailable_reasons(reasons: list) -> str:
+    return (f"the plan-stage obligation view is UNAVAILABLE: {'; '.join(reasons)}. A plan checkpoint never "
+            f"proceeds on an incomplete set of the rules bound to its stages (SPEC-0034 §Plan-stage "
+            f"obligations)")
+
+
+def _deliver_plan_obligation_catch_up(plan_path, slug: str, *, verb: str) -> list:
+    """The catch-up reader: before a plan checkpoint is evaluated, deliver each rule bound to a stage
+    the plan already PASSED that its recorded delivery of that stage does not prove it received (a
+    spec activated after the plan passed the stage). Rendered through the stage deliverer — in full,
+    or as the held pointer once this session holds the same content. Refuses the checkpoint on an
+    unavailable view or on any late rule not delivered. Returns [(stage, ids)] delivered."""
+    view = _plan_obligation_view()
+    if view.get("unavailable"):
+        _die(f"{verb}: refused before any auditor call — "
+             f"{_plan_obligations_unavailable_reasons(view['unavailable'])}. Repair the named read, then "
+             f"re-run `yitc-v2 {verb}`.")
+    try:
+        fm, _body = _split_frontmatter(Path(plan_path))
+    except Exception:   # noqa: BLE001 — the verb reads the plan itself and refuses on its own terms
+        fm = {}
+    status = str((fm or {}).get("status") or "draft")
+    # The plan read scope (installed by every checkpoint verb) serves the plan's rows from its one walk —
+    # no fold of its own (SPEC-0190 rule 10). With no scope the rows are unknown: None proves no delivery,
+    # so every bound rule of a passed stage is delivered (conservative).
+    rows = journal_mod.scope_needle_rows(EVENTS_PATH, slug)
+    late = plan_mod.plan_obligation_catch_up(view, rows, slug, status, sequence=PLAN_STAGE_SEQUENCE,
+                                             spec_source=_plan_obligation_spec_source)
+    missing = []
+    for stage, ids in late:
+        print(f"catch-up — plan {slug} passed plan-stage `{stage}` without receiving these bound rule(s): "
+              f"{', '.join(ids)}; delivered now, before `{verb}` is evaluated (SPEC-0034 §Plan-stage "
+              f"obligations):")
+        # the realm of each late id comes from the projection itself, so the deliverer derives no
+        # binding map of its own (one corpus derivation per verb, AC4)
+        realms = ({sid: realm for realm, sid in view["stages"].get(stage, []) if sid in ids}
+                  if view.get("consumer") else {})
+        try:
+            done = _deliver_stage_bundle_contracts(f"{PLAN_STAGE_ENTRY_PREFIX}{stage}", list(ids),
+                                                   doc_realms=realms)
+        except (Exception, SystemExit):   # noqa: BLE001 — refused below, naming each rule
+            done = []
+        missing += [(stage, i) for i in ids if i not in (done or [])]
+    if missing:
+        cmds = "; ".join(f"{i} (plan-stage {st}): `yitc-v2 graph query {i}`" for st, i in missing)
+        _die(f"{verb}: refused before any auditor call — a plan-stage rule this plan must receive was not "
+             f"delivered: {cmds}. Fetch each, then re-run `yitc-v2 {verb}` (SPEC-0034 §Plan-stage "
+             f"obligations).")
+    return late
 
 
 def _plan_stage_bundle_specs(stage: str, *, with_realms: bool = False):
@@ -27730,7 +28240,7 @@ def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool
 
 
 def _plan_accept_core(path: Path, fm: dict, body: str, slug: str):
-    return plan_mod._plan_accept_core(path, fm, body, slug, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, REPO_ROOT=REPO_ROOT, _birth_plan_draft_specs=_birth_plan_draft_specs, _die=_die, _plan_accept_freshness_hash=_plan_accept_freshness_hash, _plan_content_hash=_plan_content_hash, _read_yaml=_read_yaml)
+    return plan_mod._plan_accept_core(path, fm, body, slug, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, REPO_ROOT=REPO_ROOT, _birth_plan_draft_specs=_birth_plan_draft_specs, _die=_die, _plan_accept_freshness_hash=_plan_accept_freshness_hash_vs_anchor, _plan_content_hash=_plan_content_hash, _read_yaml=_read_yaml)
 
 
 def _plan_close_core(path: Path, fm: dict, body: str, slug: str, into: list,
@@ -27749,7 +28259,14 @@ def _plan_card_set_context(slug: str) -> str:
 def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
                                          *, owner_reset: bool = False,
                                          on_decisions: bool = False) -> None:
-    return plan_mod._require_plan_decomposition_fidelity(slug, fm, body, owner_reset=owner_reset, on_decisions=on_decisions, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, TASKS_DIR=TASKS_DIR, _die=_die, _plan_card_set_context=_plan_card_set_context, _plan_card_set_fingerprint=_plan_card_set_fingerprint, _plan_content_hash=_plan_content_hash, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _run_plan_gate_audit=_run_plan_gate_audit)
+    # T-14673 — an unavailable obligation view refuses BEFORE the fresh-verdict reuse read and before any
+    # auditor call (the fingerprint would only degrade to its error-hash and re-audit).
+    _obl = _plan_obligations("decomposition")
+    if _obl["unavailable"]:
+        _die(f"plan stage executing {slug}: refused before any auditor call — "
+             f"{_plan_obligations_unavailable_reasons(_obl['unavailable'])}. Repair the named read, then "
+             f"re-run `yitc-v2 plan stage executing {slug}`.")
+    return plan_mod._require_plan_decomposition_fidelity(slug, fm, body, owner_reset=owner_reset, on_decisions=on_decisions, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, TASKS_DIR=TASKS_DIR, _die=_die, _plan_card_set_context=_plan_card_set_context, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record, _plan_content_hash=_plan_content_hash, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _run_plan_gate_audit=_run_plan_gate_audit)
 
 
 def _plan_postcheck_exempt_specs(slug: str) -> frozenset:
@@ -27817,7 +28334,7 @@ def _plan_scope_session_refs() -> tuple:
 
 
 def _cmd_plan_stage_body(args: argparse.Namespace) -> None:
-    plan_mod.cmd_plan_stage(args, DECISIONS_DIR=DECISIONS_DIR, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, PLAN_STATUSES=PLAN_STATUSES, _append_event=_append_event, _commit_worktree=_commit_worktree, _die=_die, _emit_plan_stage_entered=_emit_plan_stage_entered, _find_decision_yaml=_find_decision_yaml, _find_task_yaml=_find_task_yaml, _in_writing_worktree=_in_writing_worktree, _load_draft=_load_draft, _plan_accept_core=_plan_accept_core, _plan_close_core=_plan_close_core, _plan_draft_finalized_fresh=_plan_draft_finalized_fresh, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _postcheck_probe_block_declared=_postcheck_probe_block_declared, _print_plan_stage_delivery=_print_plan_stage_delivery, _read_yaml=_read_yaml, _require_plan_decomposition_fidelity=_require_plan_decomposition_fidelity, _require_plan_decomposition_ready=_require_plan_decomposition_ready, _require_plan_postcheck_ready=_require_plan_postcheck_ready, _require_reads=_require_reads, _require_verification_artifact=_require_verification_artifact, _require_writing_worktree=_require_writing_worktree, _run_plan_gate_audit=_run_plan_gate_audit, _split_into=_split_into, _write_draft=_write_draft, _withdraw_plan_draft_specs=_withdraw_plan_draft_specs, _is_consumer_build=_is_consumer_build, _retire_on_proof_unresolved=_retire_on_proof_unresolved, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, _plan_card_set_fingerprint=_plan_card_set_fingerprint)
+    plan_mod.cmd_plan_stage(args, DECISIONS_DIR=DECISIONS_DIR, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, PLAN_STATUSES=PLAN_STATUSES, _append_event=_append_event, _commit_worktree=_commit_worktree, _die=_die, _emit_plan_stage_entered=_emit_plan_stage_entered, _find_decision_yaml=_find_decision_yaml, _find_task_yaml=_find_task_yaml, _in_writing_worktree=_in_writing_worktree, _load_draft=_load_draft, _plan_accept_core=_plan_accept_core, _plan_close_core=_plan_close_core, _plan_draft_finalized_fresh=_plan_draft_finalized_fresh, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _postcheck_probe_block_declared=_postcheck_probe_block_declared, _print_plan_stage_delivery=_print_plan_stage_delivery, _read_yaml=_read_yaml, _require_plan_decomposition_fidelity=_require_plan_decomposition_fidelity, _require_plan_decomposition_ready=_require_plan_decomposition_ready, _require_plan_postcheck_ready=_require_plan_postcheck_ready, _require_reads=_require_reads, _require_verification_artifact=_require_verification_artifact, _require_writing_worktree=_require_writing_worktree, _run_plan_gate_audit=_run_plan_gate_audit, _split_into=_split_into, _write_draft=_write_draft, _withdraw_plan_draft_specs=_withdraw_plan_draft_specs, _is_consumer_build=_is_consumer_build, _retire_on_proof_unresolved=_retire_on_proof_unresolved, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record, _run_plan_checks=_plan_checkpoint_prepass)
 
 
 # ---------------------------------------------------------------------------
@@ -27862,11 +28379,57 @@ def _plan_scenario_fidelity(fm: dict):
     return plan_mod._plan_scenario_fidelity(fm, _plan_scenario_roles=_plan_scenario_roles, _scenario_index_nodes=_scenario_index_nodes)
 
 
-def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=None, parts_out: "dict | None" = None, own_paths_out: "dict | None" = None) -> str:
+def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=None, parts_out: "dict | None" = None, own_paths_out: "dict | None" = None, obligations_through: "str | None" = None, anchor_parts: "dict | None" = None) -> str:
     # T-11320: `sf=None` stands for lib.plan's `_SF_UNSET` sentinel ("not precomputed by the caller"),
     # translated here — naming the sentinel in the signature would import lib.plan at def time.
     sf = plan_mod._SF_UNSET if sf is None else sf
-    return plan_mod._plan_accept_freshness_hash(slug, body, fm, sf, SPECS_DIR=SPECS_DIR, _plan_active_proposed_corpus=_plan_active_proposed_corpus, _plan_content_hash=_plan_content_hash, _plan_scenario_fidelity=_plan_scenario_fidelity, _read_yaml=_read_yaml, _spec_content_sans_status=_spec_content_sans_status, REPO_ROOT=REPO_ROOT, parts_out=parts_out, own_paths_out=own_paths_out)   # T-14456: the prototype pair; T-14627: the per-input digests
+    # T-14673 (SPEC-0034 §Plan-stage obligations) — the obligations due through the plan's status join
+    # the basis; the status changes only by `plan stage`, so record (plan check) and compare (accept,
+    # change check) read the same boundary; a change check made after the plan moved on passes the
+    # anchor's recorded boundary. An unavailable view refuses: nothing recorded, nothing reused.
+    _through = obligations_through or str((fm or {}).get("status") or "draft")
+    _obl = _plan_obligations(_through)
+    if _obl["unavailable"]:
+        _die(f"plan {slug}: refused — nothing recorded or reused — "
+             f"{_plan_obligations_unavailable_reasons(_obl['unavailable'])}. Repair the named read, then "
+             f"re-run the verb (`yitc-v2 plan check {slug}` records a fresh verdict).")
+    # T-14697 — the obligations digest is NORMATIVE (status + rule text of each due spec). A comparison
+    # host passes the anchor's recorded parts: an anchor recorded in the pre-change whole-chain form that
+    # still matches today's whole-chain digest is compared in that form, so it stays fresh while the due
+    # files are unchanged. The recorder (`plan check`) passes none, so it always records the normative form.
+    _digest = _obl["digest"]
+    _rec = (anchor_parts or {}).get("obligations") if isinstance(anchor_parts, dict) else None
+    if _rec and _digest and _rec != _digest:
+        try:
+            _chain = plan_mod.plan_obligations_digest(
+                _obl["due"], digest_of=lambda d: plan_mod._plan_obligation_chain_digest(d["path"]))
+        except OSError:
+            _chain = None
+        if _chain == _rec:
+            _digest = _rec
+    _h = plan_mod._plan_accept_freshness_hash(slug, body, fm, sf, SPECS_DIR=SPECS_DIR, _plan_active_proposed_corpus=_plan_active_proposed_corpus, _plan_content_hash=_plan_content_hash, _plan_scenario_fidelity=_plan_scenario_fidelity, _read_yaml=_read_yaml, _spec_content_sans_status=_spec_content_sans_status, REPO_ROOT=REPO_ROOT, parts_out=parts_out, own_paths_out=own_paths_out, obligations=_digest, obligations_through=_through)   # T-14456: the prototype pair; T-14627: the per-input digests
+    if parts_out is not None:   # T-14697 — per due spec its normative digest, so a stale names the spec
+        parts_out["obligation_specs"] = {f"{d['realm']} {d['id']}": d["digest"] for d in _obl["due"]}
+    return _h
+
+
+def _plan_anchor_record(slug: str) -> dict:
+    """T-14697 — the plan's recorded `plan check` anchor (decisions/<slug>-audit.yaml); {} when absent
+    or malformed."""
+    try:
+        av = _read_yaml(DECISIONS_DIR / f"{slug}-audit.yaml")
+    except Exception:   # noqa: BLE001 — an unreadable anchor compares in the normative form
+        return {}
+    return av if isinstance(av, dict) else {}
+
+
+def _plan_accept_freshness_hash_vs_anchor(slug: str, body: str, fm: dict = None, sf=None, parts_out: "dict | None" = None, own_paths_out: "dict | None" = None, obligations_through: "str | None" = None) -> str:
+    """T-14697 — the freshness hash at a COMPARISON host (accept, change check): the anchor's recorded
+    parts are passed, so an anchor in the pre-change obligations form is compared in its own form."""
+    parts = _plan_anchor_record(slug).get("accept_freshness_parts")
+    return _plan_accept_freshness_hash(slug, body, fm, sf, parts_out=parts_out, own_paths_out=own_paths_out,
+                                       obligations_through=obligations_through,
+                                       anchor_parts=parts if isinstance(parts, dict) else None)
 
 
 def _plan_draft_corpus_audit_block(slug: str, coverage_out: "dict | None" = None) -> str:
@@ -27983,7 +28546,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     # a worktree-only read would report every residual undecided and deadlock the very gates the route
     # exists to unblock. It REPLACES the `_iter_events`/`EVENTS_PATH` pair the retired auto-consult took,
     # along with the consult collaborators that retirement orphaned (CHARTER §P1 F3).
-    return plan_mod._run_plan_gate_audit(slug, fm, body, template, gate_policy, blocking=blocking, card_set_fp=card_set_fp, extra_context=extra_context, owner_reset=owner_reset, on_decisions=on_decisions, gate_id=gate_id, admission_only=admission_only, _folded_events=(lambda: task_mod._folded_journal_events(EVENTS_PATH=EVENTS_PATH, _event_dedup_key=_event_dedup_key, _main_events_path=_main_events_path(), needle=slug, since=plan_mod.plan_scope_horizon())), AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, DECISIONS_DIR=DECISIONS_DIR, REPO_ROOT=REPO_ROOT, _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _plan_content_hash=_plan_content_hash, _plan_fsm_line=_plan_fsm_line, _plan_gate_recorded_signature=_plan_gate_recorded_signature, _plan_gate_template_text=_plan_gate_template_text, _read_yaml=_read_yaml, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, finding_count_trend=_SELF._finding_count_trend, is_trend_convergence_grant=_SELF._is_trend_convergence_grant, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH)
+    return plan_mod._run_plan_gate_audit(slug, fm, body, template, gate_policy, blocking=blocking, card_set_fp=card_set_fp, extra_context=extra_context, owner_reset=owner_reset, on_decisions=on_decisions, gate_id=gate_id, admission_only=admission_only, _folded_events=(lambda: task_mod._folded_journal_events(EVENTS_PATH=EVENTS_PATH, _event_dedup_key=_event_dedup_key, _main_events_path=_main_events_path(), needle=slug, since=plan_mod.plan_scope_horizon())), AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, DECISIONS_DIR=DECISIONS_DIR, REPO_ROOT=REPO_ROOT, _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _plan_content_hash=_plan_content_hash, _plan_fsm_line=_plan_fsm_line, _plan_gate_recorded_signature=_plan_gate_recorded_signature, _plan_gate_template_text=_plan_gate_template_text, _read_yaml=_read_yaml, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, finding_count_trend=_SELF._finding_count_trend, is_trend_convergence_grant=_SELF._is_trend_convergence_grant, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH, _plan_obligations=_plan_obligations)
 
 
 def _build_draft_check_prompt(slug: str, fm: dict, body: str, large: bool,
@@ -28289,7 +28852,12 @@ def _plan_missing_checklist_pass_finding(large: bool, body: str) -> list:
 
 
 def cmd_plan_check(args: argparse.Namespace) -> None:
-    recorded = plan_mod.cmd_plan_check(args, DECISIONS_DIR=DECISIONS_DIR, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _build_draft_check_prompt=_build_draft_check_prompt, _die=_die, _governing_contract_for=_governing_contract_for, _invoke_auditor=_invoke_auditor, _load_draft=_load_draft, _parse_audit_verdict=_SELF._parse_audit_verdict, _plan_accept_freshness_hash=_plan_accept_freshness_hash, _plan_content_hash=_plan_content_hash, _plan_gate_template_text=_plan_gate_template_text, _plan_missing_checklist_pass_finding=_plan_missing_checklist_pass_finding, _plan_scenario_fidelity=_plan_scenario_fidelity, _plan_structural_findings=_plan_structural_findings, _read_yaml=_read_yaml, _require_reads=_require_reads, _require_writing_worktree=_require_writing_worktree, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH, _is_consumer_build=_is_consumer_build)
+    # T-14673 — plan check runs inside the plan read scope (the T-13298 seam `plan stage` installs), so
+    # the obligation view and the catch-up's journal rows are read once per invocation.
+    with plan_mod.plan_stage_read_scope(args, events_path=EVENTS_PATH, load_draft=_load_draft,
+                                        plans_dir=PLANS_DIR, session_refs=_plan_scope_session_refs(),
+                                        verb="plan check"):
+        recorded = plan_mod.cmd_plan_check(args, DECISIONS_DIR=DECISIONS_DIR, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _build_draft_check_prompt=_build_draft_check_prompt, _die=_die, _governing_contract_for=_governing_contract_for, _invoke_auditor=_invoke_auditor, _load_draft=_load_draft, _parse_audit_verdict=_SELF._parse_audit_verdict, _plan_accept_freshness_hash=_plan_accept_freshness_hash, _plan_content_hash=_plan_content_hash, _plan_gate_template_text=_plan_gate_template_text, _plan_missing_checklist_pass_finding=_plan_missing_checklist_pass_finding, _plan_scenario_fidelity=_plan_scenario_fidelity, _plan_structural_findings=_plan_structural_findings, _read_yaml=_read_yaml, _require_reads=_require_reads, _require_writing_worktree=_require_writing_worktree, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH, _is_consumer_build=_is_consumer_build, _run_plan_checks=_plan_checkpoint_prepass, _plan_obligations=_plan_obligations)
     _print_context_seam_tail()   # SPEC-0115 §7 seam tail (T-9707)
     # T-13864 — a completed `--absorb` hands its outcome line back; it is printed LAST, after the seam
     # tail, so the final stdout line of that call says the absorption was recorded.
@@ -28354,7 +28922,7 @@ def _plan_owner_words(slug, fm, body, earlier_tags=()) -> dict:
 
 
 def cmd_plan_show(args: argparse.Namespace) -> None:
-    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build, _owner_words=_plan_owner_words, DECISIONS_DIR=DECISIONS_DIR, _plan_card_set_fingerprint=_plan_card_set_fingerprint)
+    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build, _owner_words=_plan_owner_words, DECISIONS_DIR=DECISIONS_DIR, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record)
 
 
 def cmd_scenario_new(args: argparse.Namespace) -> None:
@@ -29225,9 +29793,16 @@ def _transcript_archive_dir() -> Path:
     THE one" answer already uses — D-0037), so the nightly writes the same place whether it was invoked
     from main or from a `task/` worktree. Resolved at the `nightly` dispatch, not at import, so the one
     `git worktree list` costs nothing on any other verb. Fail-safe like the duty it feeds: when no main
-    checkout resolves (a temp clone, a detached test repo) it falls back to ENGINE_ROOT rather than
-    refusing — a mirror fault must never abort the nightly."""
-    return (_main_worktree(ENGINE_ROOT) or ENGINE_ROOT) / ".yitc" / "transcript-archive"
+    checkout resolves (a temp clone, a detached test repo) it falls back to that root rather than
+    refusing — a mirror fault must never abort the nightly.
+
+    T-14703: anchored at `_engine_live_root()`, never ENGINE_ROOT. Under a `-C` pin ENGINE_ROOT is the
+    materialised release cache — an extracted tree with no `.git`, so no main checkout resolves there
+    and the fallback was the cache itself: the archive, its maintenance lock and `transcript-digests/`
+    landed INSIDE the pinned tree, whose next integrity check then failed (X-2441). The live root is the
+    T-13230 answer to "where runtime state goes"; outside a pin it IS ENGINE_ROOT, so nothing else moves."""
+    live = _engine_live_root()
+    return (_main_worktree(live) or live) / ".yitc" / "transcript-archive"
 
 
 def _journal_locus_main_worktree(repo: Path):
@@ -34179,6 +34754,55 @@ _warn_help_receipt_uncredited = cli_parser._warn_help_receipt_uncredited
 cli_parser.bind_host(lambda name: globals()[name])
 
 
+def _pin_differs_from_main_note(repo: Path) -> str:
+    """T-14703 (X-2441) — extra refusal lines when a LINKED worktree's `kernel.engine` pin differs from
+    the one `main` COMMITS, else "". A worktree opened from an old tag or branch carries that ref's
+    yitc-ops.yaml; when main has since moved or withdrawn the pin, the bare `pin-unresolved` read as a
+    broken pin and named nothing about the ref the worktree came from.
+
+    Both sides go through `init._kernel_declaration`, the ONE carrier reader: this checkout's working
+    file (what the resolver just refused) and main's COMMITTED file, written to a temp dir — never the
+    main checkout's working file, whose uncommitted edit could mask the difference. Fail-soft: off a
+    linked worktree, or when git cannot answer, the refusal stays as it was. Message only — nothing is
+    written to any yitc-ops.yaml."""
+    import tempfile
+    try:
+        if not init_mod._is_linked_worktree(repo):
+            return ""
+        shown = _run_git_cap(["show", f"refs/heads/main:{init_mod.CONSUMER_OPS_CONTRACT}"], repo)
+        if shown.returncode != 0:
+            # "main declares no pin" only on PROOF the carrier is absent from main's tree: ls-tree
+            # answering empty with exit 0. No `main`, an unreadable blob, any git fault -> no note.
+            listed = _run_git_cap(["ls-tree", "--name-only", "refs/heads/main", "--",
+                                   init_mod.CONSUMER_OPS_CONTRACT], repo)
+            if listed.returncode != 0 or listed.stdout.strip():
+                return ""
+            main_text = None       # main commits no carrier: it declares no pin
+        else:
+            main_text = shown.stdout
+        with tempfile.TemporaryDirectory(prefix="yitc-main-pin-") as td:
+            if main_text is not None:
+                (Path(td) / init_mod.CONSUMER_OPS_CONTRACT).write_text(main_text, encoding="utf-8")
+            main_pin = init_mod._kernel_declaration(td)
+        mine = init_mod._kernel_declaration(repo)
+    except Exception:  # noqa: BLE001 — a refusal's extra context never replaces the refusal
+        return ""
+    if mine == main_pin:
+        return ""
+
+    def _say(pin) -> str:
+        if pin is False:
+            return "an unreadable yitc-ops.yaml"
+        if not isinstance(pin, dict):
+            return "no pin (a waiver or no `kernel.engine`: it runs the invoking engine)"
+        return (f"release {pin.get('release') or '?'} from release_repo "
+                f"{pin.get('release_repo') or '?'}")
+    return (f"\n  this worktree's pin differs from main's — this worktree: {_say(mine)}; "
+            f"main commits: {_say(main_pin)}.\n"
+            f"  remedy: merge `main` into this branch (or take main's `kernel:` section into its "
+            f"yitc-ops.yaml and commit it), then re-run; or open the worktree from `main`.")
+
+
 def _rebind_repo_root(new_root: Path, *, report_only_pin: bool = False) -> None:
     """Re-point REPO_ROOT — and EVERY module global derived from it — at `new_root` (T-0334).
 
@@ -34292,7 +34916,8 @@ def _rebind_repo_root(new_root: Path, *, report_only_pin: bool = False) -> None:
                  f"  {_pin.get('detail') or ''}\n"
                  f"  fix: correct `kernel.engine` in {REPO_ROOT}/yitc-ops.yaml (an absolute "
                  f"`release_repo:` + the exact annotated release `release:` tag in it), or remove the "
-                 f"declaration to go back to running the invoking engine.")
+                 f"declaration to go back to running the invoking engine."
+                 f"{_pin_differs_from_main_note(REPO_ROOT)}")
     AUDIT_CONFIG_PATH = _kernel_content_file("bin/audit-config.yaml")
     EFFORT_ROUTING_CONFIG_PATH = _kernel_content_file("bin/effort-routing-config.yaml")   # T-0733 (SPEC-0072); T-9313 F-018
     SPECS_DIR = REPO_ROOT / "specs"
@@ -34537,7 +35162,10 @@ def _require_seed_read_chokepoint(args: argparse.Namespace) -> None:
         return
     if _zero_write_view(args):                                                  # (e)
         return
-    _require_seed_read(_verb_label_for(args))
+    # T-14646: the refusal names the verb by its attempt-receipt label (`audit pre`, `frontend-errors`),
+    # the label the discipline-ratio view divides by — not the function name (`audit`, `frontend errors`).
+    # The labels the gate keys on (`land`, the §8a tolerant set) are equal under both.
+    _require_seed_read(getattr(args, "cli_invoked_receipt", None) or _verb_label_for(args))
 
 
 def _adopter_release_verb(args: argparse.Namespace) -> bool:
@@ -34889,6 +35517,8 @@ def main(argv: list[str] | None = None) -> None:
         # T-14522: a `graph query` point lookup keeps what it printed, so its receipt can carry the
         # contract view's fingerprint (`view_sha`) the stage deliverer holds a contract by.
         _point_lookup = verb_label == "graph query" and bool(getattr(args, "id", None))
+        if _point_lookup:
+            args.hand_lookup = True   # T-14656: only THIS entry may answer a held spec with a pointer
         tee = (_CapturingTee if _point_lookup else _CountingTee)(real_stdout)
         exit_code = 0
         sys.stdout = tee

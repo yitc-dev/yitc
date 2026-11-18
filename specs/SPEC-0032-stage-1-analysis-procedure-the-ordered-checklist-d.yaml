@@ -209,4 +209,4 @@ implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 5d540ec2113d51fb48ec6da186c1b2d7e198baa6b264b136c509c73648981f63
   bin/lib/cli.py#_print_cross_territory_routing_hint: 3178b489c3bbc6306346b1d27fc90e49053be940a358e70190c6b00babbf5f13
   bin/lib/cli.py#_stage_sequence_skeleton: 33fc20ae86129776ad149388fd535ccd63e7da9b217b0485f626e0029cf4e848
-  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 34bc802ceb3dc6ef7a5335137bca4b6f3b5868a5fb6af868c1f96c5e7b5f4e98
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 08e6138d83d6df3f5d444f6f3b9b37620585475dceb878a84cb69b8643d53e24

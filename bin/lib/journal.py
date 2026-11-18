@@ -13744,7 +13744,9 @@ def land_cycle_timeline(rows, land):
       land_started -> land_completed in clock order — `land:startup` (land_started to the land's clock
         start), each `phase_timeline` stretch at its offset (`land:<phase>[/<sub>]`), `land:paused` for
         each stretch the clock did not run between two of them, then the post-attempt split
-        (`land:post_attempt/<part>`) and `land:unclocked` (what remains of `duration_ms`);
+        (`land:post_attempt/<part>`, its `rest` less the paused stretches — the clock pauses only
+        where the attempt parts stop, so those stretches ARE part of that rest and read once, at
+        their clock position, T-14637) and `land:unclocked` (what remains of `duration_ms`);
       `land_end:*` to the hold release.
     `residual_secs` = end-to-end wall minus the sum of spans — the explicit remainder (second-resolution
     row ts, clock rounding)."""
@@ -13850,11 +13852,13 @@ def land_cycle_timeline(rows, land):
         add("land:startup", (land_end_t - ls_t) - dur, "engine")
         tl = d.get("phase_timeline")
         pos = 0.0
+        paused = 0.0
         if isinstance(tl, list) and tl:
             for ph, sb, off, ms in sorted(tl, key=lambda x: (x[2], x[0], str(x[1]))):
                 off_s, ms_s = (off or 0) / 1000.0, (ms or 0) / 1000.0
                 if off_s > pos + 0.0005:
                     add("land:paused", off_s - pos, "engine")
+                    paused += off_s - pos
                 add(f"land:{ph}" + (f"/{sb}" if sb else ""), ms_s, "engine")
                 pos = max(pos, off_s + ms_s)
         elif isinstance(d.get("phase_ms"), dict):
@@ -13866,8 +13870,20 @@ def land_cycle_timeline(rows, land):
                     pos += ms / 1000.0
         if isinstance(d.get("post_attempt_split_ms"), dict):
             for k, ms in d["post_attempt_split_ms"].items():
-                add(f"land:post_attempt/{k}", ms / 1000.0, "engine")
-                pos += ms / 1000.0
+                secs = ms / 1000.0
+                if k == "rest":
+                    # T-14637: every paused stretch already read above IS part of this `rest` — the
+                    # clock pauses only where the attempt parts stop, so the gap sits in
+                    # `unattributed_ms` before the first post-attempt boundary. Charge it once, as
+                    # `land:paused` at its clock position; `rest` keeps only what is left.
+                    # each stretch is rounded to the ms on its own, so a 1 ms "pause" per stretch is
+                    # rounding, not a shortfall worth a note
+                    if paused > secs + 0.001 * (len(tl) + 1 if isinstance(tl, list) else 1):
+                        notes.append(f"land:paused {round(paused, 3)}s exceeds post_attempt rest "
+                                     f"{round(secs, 3)}s — the excess is not in rest")
+                    secs = max(0.0, secs - paused)
+                add(f"land:post_attempt/{k}", secs, "engine")
+                pos += secs
         elif isinstance(d.get("unattributed_ms"), (int, float)):
             add("land:post_attempt", d["unattributed_ms"] / 1000.0, "engine")
             pos += d["unattributed_ms"] / 1000.0
@@ -16256,6 +16272,77 @@ def _pinned_engine_refusal(repo_root):
            f"by the engine at {running}" if status == "resolved"
            else f"its declared pin does not resolve ({status}): {pin.get('detail') or ''}")
     return why
+
+
+#: T-14678 — the first published engine release that carries the journal cut (T-14649). Named in the
+#: re-pin remedy only; whether a pinned tree can read a cut journal is read off the tree itself.
+JOURNAL_CUT_FIRST_RELEASE = "v2.30.0"
+
+
+def engine_carries_journal_cut(engine_root) -> bool:
+    """T-14678 (SPEC-0190 rule 3) — True ONLY when the engine tree at `engine_root` is PROVEN to carry the
+    journal cut: its `bin/lib/events.py` reads and defines `is_cut_journal` (the cut fact's reader,
+    T-14570). Every other answer is False: no root, no such file, a directory at that path, a file this
+    process cannot read or decode. The caller treats False as "cannot be shown to read a cut journal"."""
+    if engine_root is None:
+        return False
+    try:
+        text = (Path(engine_root) / "bin" / "lib" / "events.py").read_text(encoding="utf-8")
+    except (OSError, ValueError, TypeError):
+        return False
+    return any(line.startswith("def is_cut_journal(") for line in text.splitlines())
+
+
+def cut_drain_withheld(repo_root, pin=None) -> "dict | None":
+    """T-14678 (SPEC-0190 rule 3) — None when an engine may DRAIN the cut journal of the repository at
+    `repo_root`; otherwise why it may not: `{"status", "ref", "root", "why"}`.
+
+    FAIL-CLOSED. A drain moves rows out of the root into day partitions, and an engine that cannot read a
+    cut journal keeps writing the root and later refuses OLD-SHAPE on the rows that moved (<project>,
+    X-2410..X-2416). So the drain is admitted only when (a) the repository declares no engine pin — it runs
+    whichever engine is invoked, which carries the cut since this code is running — or (b) its pin resolves
+    to a tree PROVEN to carry the cut (`engine_carries_journal_cut`). A pin that resolves to a tree without
+    it, a tree that cannot be read to tell, an unreadable carrier, a moving ref and an unresolved pin all
+    withhold: compatibility is not established, and not draining is always recoverable (the direction
+    SPEC-0190 rule 2 takes for rotation).
+
+    The pin is resolved from the repository being drained (`init.resolve_engine_pin`, the reader
+    `_pinned_engine_refusal` uses), never from a host global: a CLI module loaded under another name
+    would not share it. `pin` lets a caller that already resolved it pass the same dict."""
+    if pin is None:
+        from lib import init as _init        # leaf import, lazy — the module's existing idiom
+        pin = _init.resolve_engine_pin(repo_root)
+    status = pin.get("status")
+    if status == "not-declared":
+        return None
+    root = pin.get("root")
+    if status == "resolved" and engine_carries_journal_cut(root):
+        return None
+    ref = pin.get("ref") or ""
+    if status == "resolved":
+        why = (f"it pins engine release {ref!r} ({root}), which carries no journal cut or cannot be read to "
+               f"tell, so that engine cannot land on a cut journal")
+    else:
+        why = (f"its engine pin cannot be resolved ({status}), so whether its engine reads a cut journal "
+               f"cannot be established: {pin.get('detail') or ''}".rstrip(": "))
+    return {"status": status, "ref": ref, "root": root, "why": why}
+
+
+def journal_shape_mismatch_line(journal_path, repo_root, pin=None) -> "str | None":
+    """T-14678 — the ONE report line `session start` and `release check` print when the repository's
+    journal is CUT and `cut_drain_withheld` holds for it; None otherwise. The cut fact (a stat) is asked
+    first, so an uncut journal never resolves the pin; no journal segment is read."""
+    if not events.is_cut_journal(journal_path):
+        return None
+    withheld = cut_drain_withheld(repo_root, pin=pin)
+    if withheld is None:
+        return None
+    return (f"journal shape: this repository's journal is CUT into day partitions, but {withheld['why']}. "
+            f"The engine CLI named for it inherits the mismatch: its lands abort OLD-SHAPE once rows it "
+            f"wrote to the root are moved into a partition, so no engine drains this journal meanwhile "
+            f"(SPEC-0190 rule 3). Remedy: re-pin to a release that carries the journal cut "
+            f"({JOURNAL_CUT_FIRST_RELEASE} or newer) — `release check` names the newest, its release notes' "
+            f"update steps run `release update` — then land again; never hand-edit a journal.")
 
 
 def cmd_journal_cut(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _append_event, _die,

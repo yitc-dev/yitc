@@ -2819,6 +2819,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="read-only parallel-dispatch carve-out selection (SPEC-0044, T-0425): requires-ordered chains + singletons + waits (with release predicates) + a P7 clash report, computed from the projection + git worktree list + the ready set. Pure f(graph, queue, worktree-list). Mutually exclusive with --type / --recurring / id / --as-of (strictly current-state — it reads the live worktree frontier).")
     gq.add_argument("--kernel", action="store_true",
                     help="kernel-prefixed (realm-explicit) retrieval (SPEC-0092; T-9363 specs, T-10748 errors): force the KERNEL node + body for this SPEC or E id even when a -C consumer owns the same id (the X-0038 / X-0583 kernel/consumer collision). Composes ONLY with a spec-id or error-id point-lookup. Use when reading a handbook retrieved-tier pointer or a kernel-authored `cites: E-XXXX` under -C.")
+    gq.add_argument("--full", action="store_true",
+                    help="print the spec body even when this session already holds it in this context "
+                         "epoch and checkout; without it such a repeat lookup prints one pointer line "
+                         "(SPEC-0050 §4, T-14656)")
     gq.add_argument("--since", dest="since", metavar="ISO-DATE|TS",
                     help="window start (inclusive) for a windowed view-lens (trend-report, T-0396; discipline-ratio + outcome-ratio, T-10361) — ISO date or timestamp, UTC-normalized; ignored by non-windowed lenses")
     gq.add_argument("--until", dest="until", metavar="ISO-DATE|TS",
@@ -3094,6 +3098,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                                     "as ONE public-intake issue draft (SPEC-0197 fields; "
                                                     "read-only, NOT sent — T-12950)")
     cid.set_defaults(func=cmd_cross_intake_draft, cli_invoked_verb="cross intake-draft", read_only_admit=RO_READ)
+    cst = cross_sub.add_parser("stray", help="List a SECOND store's cross_requested items whose fingerprint "
+                                             "the shared store lacks (read-only report, writes nothing — T-14689)")
+    cst.add_argument("--store", required=True, help="path of the second coordination.jsonl to read")
+    cst.add_argument("--json", action="store_true", help="machine-readable output")
+    cst.set_defaults(func=lambda a: cross.cmd_cross_stray(a, cross_log_path=_SELF.CROSS_LOG_PATH),
+                     cli_invoked_verb="cross stray", read_only_admit=RO_READ)
     csh = cross_sub.add_parser("show", help="Inspect ONE item: event chain, linked task, resolution "
                                             "note (read-only; fails closed on an unknown id)")
     csh.add_argument("id", help="X-NNNN coordination id")
@@ -3118,7 +3128,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "an argv --reason alongside it is REFUSED")
     cpk.add_argument("--task", metavar="T-NNNN", help="this project's card that resolves the item")
     cpk.set_defaults(func=cmd_cross_pick)
-    cdn = cross_sub.add_parser("done", help="RECEIVER finishes (emits cross_done; may carry --task/--note)")
+    cdn = cross_sub.add_parser("done", help="RECEIVER finishes (emits cross_done; may carry --task/--note); "
+                                         "also closes a still-requested item a DONE local task already "
+                                         "resolves, naming that task (T-14680)")
     cdn.add_argument("id", help="X-NNNN coordination id")
     cdn.add_argument("--task", help="OPTIONAL receiver-side T-NNNN that did the work")
     cdn.add_argument("--note", help="what you actually did — recorded on cross_done, shown by `cross show` "
@@ -4664,8 +4676,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                "given --task ids and EXITS with a contracted terminal token as its final "
                                "stdout line — `WATCH: WAKE|ALL_TERMINAL|ANY_TERMINAL|TIMEOUT <reason>` (match "
                                "`^WATCH: (WAKE|ALL_TERMINAL|ANY_TERMINAL|TIMEOUT)\\b`; parse the TOKEN, not the shell "
-                               "exit — the `LAND:` contract analog). Run it under the harness Monitor "
-                               "primitive (the persistent watch-until-condition wrapper, NOT a plain "
+                               "exit — the `LAND:` contract analog). Run it under the harness background "
+                               "primitive with its stdout attached (NOT a plain shell "
                                "background job — a plainly-backgrounded long wait can be SWEPT before it "
                                "reports, silently leaving no monitor armed) and let your harness's "
                                "completion notification re-invoke you: that exit IS the wake, but key "

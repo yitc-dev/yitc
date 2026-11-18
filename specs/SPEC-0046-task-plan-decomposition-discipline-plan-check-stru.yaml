@@ -202,24 +202,40 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   ordered by `requires:` before the cards that change the new specs. A cut that keeps\
   \ the one spec\nnames why, where a declined grouping is named (the plan body or\
   \ the cut cards). This is a judgement\nread at the cut: no gate, detector or refusal\
-  \ reads it. Worked example: §Rationale «The one-lineage\nserial chain ».\n\n###\
-  \ A2. Plan-level split — one convergence regime / one fate per plan (<workshop-spec>\
-  \ head's delta)\n\nThe PLAN-altitude mirror of §A's default grain: a PLAN is cut\
-  \ by **convergence regime /\nfate**, never by topic affinity or authoring convenience.\
-  \ One plan = parts that converge under ONE\nvalidation regime and share ONE fate\
-  \ (the plan's single accept / realize / reject verdict honestly\ncovers all of them).\
-  \ **Split signals — any YES recommends splitting:**\n\n- **(1) Different validation\
-  \ horizons** — one part is provable NOW (text-audit / immediate state\n  check),\
-  \ the other needs ACCUMULATED REAL DATA (a soak window, N real runs, observation\
-  \ period).\n- **(2) Independently rejectable fates** — one half could honestly be\
-  \ `rejected`/`cancelled` while\n  the other ships `realized`; a single plan verdict\
-  \ would falsify one of them.\n- **(3) Producer/consumer over real data** — one part\
-  \ CONSUMES the real-data output of the other\n  (the consumer cannot even be designed-converged\
-  \ until the producer's data exists).\n\n**Split shape:** SEPARATE plans with INFORMATIONAL\
-  \ cross-refs (tracked ids in body / `cites` —\nresolvable per §C(i) in `## Implementation\
-  \ notes`); **NO `requires:` between plans** — plans carry no blocking-dep semantics\n\
-  (ordering lives in each plan's own entry-gates and the consumer plan's stated input).\n\
-  \n**Trial-FSM carve-out.** For a trial-ELIGIBLE plan, its own design-convergence\n\
+  \ reads it. Worked example: §Rationale «The one-lineage\nserial chain ».\n\n**A\
+  \ file many cards of one cut edit — a modularity hint.** When the SPEC-0070 §3\n\
+  pre-check names a file that is not append-only and that many cards of the cut edit,\
+  \ read it as a\nhint that the file may mix several concerns, and check which concern\
+  \ each card touches in it:\n- **(1) Different concerns** — give each concern its\
+  \ own module, and let ONE defining card add\n  plain call points for them in the\
+  \ shared file (a function call, not a plugin registry); the other\n  cards `requires:`\
+  \ that card and each edits its own module.\n- **(2) One concern** — keep the file\
+  \ and accept the queue: never split code or a spec only to\n  shorten the chain.\
+  \ A shorter chain is what a split along a real boundary buys, never its ground.\n\
+  - **(3) A spec** is split only along a real rule boundary — for example two paths\
+  \ that follow\n  different rules — never through one rule held as a whole. This\
+  \ is how the stable-surface split\n  of the paragraph above reads at a cut: with\
+  \ no such boundary the spec stays one and its chain is\n  kept.\nWhich files count\
+  \ as append-only, and so never draw the hint, is SPEC-0070 §3's. A judgement read\n\
+  at the cut, like the paragraph above: no gate, detector or refusal reads it, and\
+  \ nothing is split\nautomatically.\n\n### A2. Plan-level split — one convergence\
+  \ regime / one fate per plan (<workshop-spec> head's delta)\n\nThe PLAN-altitude\
+  \ mirror of §A's default grain: a PLAN is cut by **convergence regime /\nfate**,\
+  \ never by topic affinity or authoring convenience. One plan = parts that converge\
+  \ under ONE\nvalidation regime and share ONE fate (the plan's single accept / realize\
+  \ / reject verdict honestly\ncovers all of them). **Split signals — any YES recommends\
+  \ splitting:**\n\n- **(1) Different validation horizons** — one part is provable\
+  \ NOW (text-audit / immediate state\n  check), the other needs ACCUMULATED REAL\
+  \ DATA (a soak window, N real runs, observation period).\n- **(2) Independently\
+  \ rejectable fates** — one half could honestly be `rejected`/`cancelled` while\n\
+  \  the other ships `realized`; a single plan verdict would falsify one of them.\n\
+  - **(3) Producer/consumer over real data** — one part CONSUMES the real-data output\
+  \ of the other\n  (the consumer cannot even be designed-converged until the producer's\
+  \ data exists).\n\n**Split shape:** SEPARATE plans with INFORMATIONAL cross-refs\
+  \ (tracked ids in body / `cites` —\nresolvable per §C(i) in `## Implementation notes`);\
+  \ **NO `requires:` between plans** — plans carry no blocking-dep semantics\n(ordering\
+  \ lives in each plan's own entry-gates and the consumer plan's stated input).\n\n\
+  **Trial-FSM carve-out.** For a trial-ELIGIBLE plan, its own design-convergence\n\
   (`trial`) phase followed by implementation (`executing`) is ONE sequential regime\
   \ — that built-in\ntrial→executing sequence is NOT a split signal. Apply the split\
   \ signals only to parts whose fates\nstay independently rejectable AFTER accept.\n\
@@ -303,16 +319,23 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ 18 one-behaviour cards, regrouped to 9\nper-screen cards before dispatch, although\
   \ §A already set the default grain; each extra card paid two\naudits, a verify run\
   \ and a land (about 20-30 minutes per land in the queue). The example adds no split\n\
-  ground and no gate.\n\n## Parameters\n\nNone consumed. Governing constants referenced\
-  \ live in their OWN specs/decisions — NOT duplicated here.\n\n## Implementation\
-  \ notes\n\n### Moved from the rule text\n\nReference and maintainer passages moved\
-  \ word for word out of the rule text of the section\neach names; no rule an acting\
-  \ reader applies moved with them.\n\nFrom «Internal»:\n\n`big-plan-checklist`\n\
-  keeps only LINKS + judgement-only items; `plan-lifecycle` keeps only a POINTER here\
-  \ (single-SoT, P5).\n\nFrom «A. Plan STAGE is INPUT»:\n\n**Two delivery faces :**\
-  \ this cut discipline reaches the AI at BOTH the task-Analysis face\n(`stage-entry:Analysis`\
-  \ — when a task is claimed) AND the plan-cut face (`plan-stage-entry:decomposition`\n\
-  — at the gated `decomposition` plan-FSM stage where a plan is sliced into cards,\
+  ground and no gate.\n\n### The modularity hint\nAdded in place as an additive extension,\
+  \ on an owner go of 2026-11-17 («not the first time this\nneed comes up»), from\
+  \ a consumer's billing cut (cross item X-2418): 26 writer cards with a critical\n\
+  path of 16; with its append-only registers set aside the path was 14, and the remaining\
+  \ serialisers\nwere five code files edited by about ten cards each. Rules (1) and\
+  \ (2) cover a case §A did not\naddress (a code file many cards share); rule (3)\
+  \ reads the stable-surface split at a cut and\nchanges no case it covered.\n\n##\
+  \ Parameters\n\nNone consumed. Governing constants referenced live in their OWN\
+  \ specs/decisions — NOT duplicated here.\n\n## Implementation notes\n\n### Moved\
+  \ from the rule text\n\nReference and maintainer passages moved word for word out\
+  \ of the rule text of the section\neach names; no rule an acting reader applies\
+  \ moved with them.\n\nFrom «Internal»:\n\n`big-plan-checklist`\nkeeps only LINKS\
+  \ + judgement-only items; `plan-lifecycle` keeps only a POINTER here (single-SoT,\
+  \ P5).\n\nFrom «A. Plan STAGE is INPUT»:\n\n**Two delivery faces :** this cut discipline\
+  \ reaches the AI at BOTH the task-Analysis face\n(`stage-entry:Analysis` — when\
+  \ a task is claimed) AND the plan-cut face (`plan-stage-entry:decomposition`\n—\
+  \ at the gated `decomposition` plan-FSM stage where a plan is sliced into cards,\
   \ SPEC-0070 §9.5). Same\nsingle rule, two orthogonal delivery moments for two consumers\
   \ (task author vs plan decomposer).\n\nFrom «A2. Where the net fires»:\n\n**Where\
   \ the net fires — EXISTING surfaces only, nothing new.** No new verb / field / gate.\n\
@@ -440,7 +463,10 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ State check: `graph query SPEC-0046`. The\n  SPEC-0083 P5 template carries the\
   \ matching QUESTION and the advisory bound —\n  `tests/test_decomposition_fidelity_gate.py`\
   \ reads both from the real template and from the prompt\n  the real gate hands the\
-  \ auditor. Added in-place per <workshop-spec> rule 7.\n"
+  \ auditor. Added in-place per <workshop-spec> rule 7.\n- **VP14 (modularity hint\
+  \ present).** §A carries rules (1)-(3) for a file many cards of\n  one cut edit,\
+  \ and points at SPEC-0070 §3 for what counts as append-only.\n  `tests/test_cut_set_precheck.py`\
+  \ reads both real specs for the rules (state check).\n"
 cites:
 - SPEC-0103
 - SPEC-0008
@@ -461,5 +487,5 @@ activation_owner_task: null
 proposed_by: null
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 5d540ec2113d51fb48ec6da186c1b2d7e198baa6b264b136c509c73648981f63
-  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
+  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd
   bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a

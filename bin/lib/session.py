@@ -38,6 +38,7 @@ from lib import cross
 from lib import graph   # T-10219: `worker_seed_part_files` — the ONE home that derives the seed part chain
 from lib import views   # SPEC-0115 §1: the SINGLE transcript-usage parse home (usage_token_classes)
 from lib import observe  # SPEC-0135 / T-10121: the observation-loop capture-field composers
+from lib import host_paths  # T-14689: the stable engine behind a pinned copy — the CLI path printed
 from lib import init     # T-10912: `declared_neutral_home` — the ONE SPEC-0125 home resolution
 
 
@@ -340,7 +341,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # echo below STAYS — it carries genuinely-new engine-resolved paths the consumer lacks.) Re-deliver
     # co-design: SPEC-0007 §5b (AGENTS §At-session-start + §After-/compact + the yitc.md twins carry the consumer clause).
     if _is_consumer_build():
-        _eng_cli = f"{ENGINE_ROOT}/bin/yitc-v2 -C {REPO_ROOT}"
+        _eng_cli = f"{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 -C {REPO_ROOT}"
     if _is_consumer_build() and not _seed_held:
         # T-0996 (F-002): the methodology handbook seed resolves ENGINE-ALWAYS via _kernel_handbook_file
         # (NOT _kernel_content_file's own-wins) — a consumer's own CHARTER.md is its PRODUCT charter and
@@ -434,7 +435,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
                                  env=_git_env._git_child_env())
             if _gd.returncode == 0 and _gd.stdout.strip():
                 _rl = _release.session_release_line(REPO_ROOT, cache_dir=_gd.stdout.strip(),
-                                                    cli=f"{ENGINE_ROOT}/bin/yitc-v2")
+                                                    cli=f"{host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2")
                 if _rl:
                     print(_kq(_rl + " " + REPORT_ONLY))
         except Exception:  # noqa: BLE001 — a report-only notice never fails the start
@@ -457,7 +458,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         # is SESSION-TIED (credited only inside a window anchored by THIS session's `session_started`,
         # gates._require_help_read), so a rescan run without the carry is not credited and the first
         # gated verb refuses — the line that ORDERS the rescan must carry its own precondition.
-        print(_kq(f"rescan CLI surface: YITC_SESSION_REF={resolved_ref} {ENGINE_ROOT}/bin/yitc-v2 "
+        print(_kq(f"rescan CLI surface: YITC_SESSION_REF={resolved_ref} {host_paths.stable_engine_root(ENGINE_ROOT)}/bin/yitc-v2 "
               f"-C {REPO_ROOT} --help  (a consumer has no local bin/yitc-v2 — invoke the ENGINE CLI "
               "with -C <path>; the receipt is session-tied, so carry the ref or the scan is not credited) "
               + HELP_SCAN_OUTPUT_CLAUSE + " " + ON_DEMAND_GUARDED_VERB))
@@ -1130,7 +1131,8 @@ def _context_occupancy(path):
 # values the record must carry (matched on those fields ONLY); `prefilter` — a raw substring every marker
 # line holds (a cheap skip); `identity` — the key path of the record's own identity (rule 5); `version` —
 # (the record type that names the provider version, or None when every record does; its key path);
-# `versions_observed` — the inclusive range the live admission observed (rule 3).
+# `versions_observed` — the inclusive range the live admission observed (rule 3); `versions_observed_each`
+# (optional) — versions past that range admitted one by one, each with an observed marker row (T-14661).
 
 # The three readings of SPEC-1023 rule 4.
 READING_LAST = "last-compaction"          # (a) — `marker` is the newest identity, or None for NONE
@@ -1160,10 +1162,18 @@ def _version_tuple(v):
 
 
 def version_observed(version, marker) -> bool:
-    """Is `version` inside the marker's observed range (SPEC-1023 rule 3)? An unparseable one is not."""
+    """Is `version` inside the marker's observed range, or one of the versions it admits one by one
+    (SPEC-1023 rule 3)? An unparseable one is not."""
     lo, hi = (_version_tuple(x) for x in marker["versions_observed"])
     v = _version_tuple(version)
-    return v is not None and lo <= v <= hi
+    return v is not None and (lo <= v <= hi or
+                              any(v == _version_tuple(x) for x in marker.get("versions_observed_each", ())))
+
+
+def observed_versions_text(marker) -> str:
+    """The observed versions as one phrase: the range, then each version admitted one by one."""
+    lo, hi = marker["versions_observed"]
+    return ", ".join([f"{lo}–{hi}", *marker.get("versions_observed_each", ())])
 
 
 def context_epoch_reading(paths, kind, marker) -> dict:
@@ -1270,7 +1280,7 @@ def context_epoch_start_lines(r, marker, *, deviation_recorded) -> list:
     elif marker and r.get("version") and not version_observed(r["version"], marker):
         deviation_recorded(kind, r["version"])
         lines.append(f"compaction detection is unverified for {kind} version {r['version']} (observed "
-                     f"{marker['versions_observed'][0]}–{marker['versions_observed'][1]}); nothing is "
+                     f"{observed_versions_text(marker)}); nothing is "
                      "refused on it — the version needs a live observation (SPEC-1023 rule 3)")
     return lines
 

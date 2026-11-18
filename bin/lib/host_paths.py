@@ -46,6 +46,16 @@ import os
 import pwd
 from pathlib import Path
 
+# The per-user pinned release cache's directory-name prefix (T-14455; `init._TAG_RELEASE_CACHE` is this
+# prefix + the euid). A tree directly under such a parent is a `git archive` COPY of a pinned release,
+# not an install: it is per user and lives in the temp dir, so anchoring on it is anchoring on the
+# caller (T-14689 — the X-0663 split store came back through it).
+RELEASE_CACHE_PREFIX = "yitc-pinned-release-u"
+
+# Test seam (T-14689 concurrency arm): called inside the sidecar critical section, between the
+# validate and the publish. Production leaves it None.
+_SIDECAR_WINDOW_HOOK = None
+
 
 def _engine_root() -> Path:
     """This engine checkout's root: `<engine>/bin/lib/host_paths.py` -> `<engine>`.
@@ -55,6 +65,99 @@ def _engine_root() -> Path:
     to the copy it is actually running from, which is exactly what `__file__` gives.
     """
     return Path(__file__).resolve().parent.parent.parent
+
+
+def _is_cache_tree(root) -> bool:
+    """Is `root` a tree directly inside a pinned release cache parent?"""
+    try:
+        return Path(os.path.realpath(str(root))).parent.name.startswith(RELEASE_CACHE_PREFIX)
+    except (OSError, ValueError):
+        return False
+
+
+def _sidecar(tree: Path) -> Path:
+    """The provenance sidecar of a cache tree: `<parent>/<name>.engine` — OUTSIDE the verified tree."""
+    return tree.parent / f"{tree.name}.engine"
+
+
+def _valid_stable(raw) -> "Path | None":
+    """`raw` as a stable engine root when it names an existing engine install that is not a cache."""
+    raw = (raw or "").strip()
+    if not raw or not os.path.isabs(raw):
+        return None
+    cand = Path(raw)
+    try:
+        if cand.is_dir() and (cand / "bin" / "yitc-v2").is_file() and not _is_cache_tree(cand):
+            return cand
+    except OSError:
+        return None
+    return None
+
+
+def _read_sidecar(tree: Path) -> "Path | None":
+    try:
+        return _valid_stable(_sidecar(tree).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def stable_engine_root(root=None) -> Path:
+    """The STABLE engine behind `root` (T-14689): `root` itself unless it is a pinned release cache copy;
+    for a copy, the engine its provenance sidecar names, else this module's own engine when that is not a
+    copy, else `root` unchanged (nothing better is known). Never raises."""
+    root = Path(root) if root is not None else _engine_root()
+    if not _is_cache_tree(root):
+        return root
+    real = Path(os.path.realpath(str(root)))
+    named = _read_sidecar(real)
+    if named is not None:
+        return named
+    own = _engine_root()
+    if not _is_cache_tree(own):
+        return own
+    return root
+
+
+def record_stable_engine(tree, stable) -> bool:
+    """Record that cache copy `tree` was made by the stable engine `stable` (T-14689).
+
+    FIRST VALID WRITER WINS: a valid existing sidecar is never replaced, so a copy's provenance cannot
+    switch between owners. Validate, invalid-sidecar removal and publish are ONE critical section under
+    an exclusive flock on `<parent>/<name>.engine.lock` in the private cache parent, so a second writer
+    re-validates after the first and keeps its value. Readers take no lock (`os.replace` is atomic).
+    Returns True only when THIS call published. Any failure: no write, never raises."""
+    import fcntl
+    import tempfile
+    try:
+        tree = Path(os.path.realpath(str(tree)))
+        if _valid_stable(str(stable)) is None:
+            return False                       # a cache, or not an engine install: never recorded
+        side = _sidecar(tree)
+        lock = tree.parent / f"{tree.name}.engine.lock"
+        with open(lock, "a") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            if _read_sidecar(tree) is not None:
+                return False                   # a valid winner stays
+            if _SIDECAR_WINDOW_HOOK is not None:
+                _SIDECAR_WINDOW_HOOK()
+            try:
+                side.unlink()
+            except FileNotFoundError:
+                pass
+            fd, tmp = tempfile.mkstemp(dir=str(tree.parent), prefix=f".{tree.name}.engine.", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as out:
+                    out.write(str(stable) + "\n")
+                os.replace(tmp, str(side))
+            except BaseException:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
+            return True
+    except Exception:  # noqa: BLE001 — provenance is best-effort; a reader falls back
+        return False
 
 
 def _caller_home(env) -> "Path | None":
@@ -87,6 +190,7 @@ def host_home(engine_root=None, env=None) -> Path:
     """
     env = os.environ if env is None else env
     engine = Path(engine_root) if engine_root is not None else _engine_root()
+    engine = stable_engine_root(engine)      # a pinned copy anchors on the engine that made it (T-14689)
     try:
         engine = engine.resolve()
     except OSError:

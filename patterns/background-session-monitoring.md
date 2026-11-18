@@ -176,7 +176,7 @@ incidents on 2026-07-09 came straight out of that: a **false ALL_TERMINAL** read
 **premature `blocked`** acted on from ONE transient snapshot. The blessed surface is now a verb:
 
 ```
-bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY ...]     # run under Monitor, key off the token
+bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY ...]     # harness background primitive, stdout attached; key off the token
     [--watch-interval 60] [--watch-timeout 1500] [--watch-confirm-ticks 2]
 ```
 
@@ -249,21 +249,19 @@ bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY ...]     # run under M
   — no decision is pending: the task waits on the artifact its card declares (`paused_awaits`), and is
   relaunched once that artifact has arrived (the session-start echo then reads RESUMABLE)**; any other
   reason — the decision it names.
-- **The exit IS the re-invoke — but run it under Monitor, or it may never reach that exit (2026-08-12).** The
-  verb simply *exits* with its token and your harness's completion notification wakes you; re-invoking the AI
-  stays a harness capability the provider-neutral CLI cannot perform (CHARTER §P4b) and the observability verb
-  must never do (SPEC-0133 rule 1). **A PLAIN background job is NOT how you hold that wait.** A watcher waits
-  out a worker's tens-of-minutes lifecycle, and a plainly-backgrounded long wait CAN BE SWEPT BEFORE IT
-  REPORTS: on 2026-08-12 the blessed watcher was backgrounded EXACTLY as this bullet used to prescribe and was
-  killed before emitting a single line — status `killed`, empty output, zero `WATCH:` token — while the worker
-  it watched ran on unaffected. The loss is SILENT and fails in the direction that HIDES itself: the controller
-  believes the non-skippable monitor is armed while nothing is watching, so the obligation is DEFEATED, not
-  merely inconvenienced. So run the watcher under the harness **Monitor** primitive — the SAME persistent
-  watch-until-condition wrapper §Synchronous-to-LAND names for a contended `land` (re-arming under it held for
-  six further watches that session) — and **key ALL recovery off the JOURNAL** (the `WATCH:` token +
-  `journal query --fleet-verdict` / `--dispatch-status --json`, re-derivable from current state at any tick,
-  SPEC-0133 §3), NEVER off the wrapper's process lifetime: a wrapper that dies costs you a re-arm, not the
-  fleet's state. One rule for both long controller waits — this is that rule, not a second one.
+- **The exit IS the re-invoke — arm it under the harness background primitive, stdout attached (2026-08-12).** The verb simply *exits* with its token and your harness's completion notification wakes you;
+  re-invoking the AI stays a harness capability the provider-neutral CLI cannot perform (CHARTER §P4b) and the
+  observability verb must never do (SPEC-0133 rule 1). **A PLAIN shell background job (`... &`) is NOT how you
+  hold that wait.** A watcher waits out a worker's tens-of-minutes lifecycle, and a plainly-backgrounded long
+  wait CAN BE SWEPT BEFORE IT REPORTS: on 2026-08-12 a watcher backgrounded that way was killed before
+  emitting a single line — status `killed`, empty output, zero `WATCH:` token — while the worker it watched ran
+  on unaffected. The loss is SILENT and fails in the direction that HIDES itself: the controller believes the
+  non-skippable monitor is armed while nothing is watching. So arm the watcher — the `dispatch` launch and a
+  `dispatch --watch` re-arm alike — under the harness background primitive with its stdout left attached, the
+  one form AGENTS-SESSIONS §Orchestrate posture names, and **key ALL recovery off the JOURNAL** (the `WATCH:`
+  token + `journal query --fleet-verdict` / `--dispatch-status --json`, re-derivable from current state at any
+  tick, SPEC-0133 §3), NEVER off the wrapper's process lifetime: a wrapper that dies costs you a re-arm, not the
+  fleet's state.
 - **§6-safe by construction.** A read-only poll over the existing readers: no scheduler, no queue-state
   machine, no cap, no auto-adopt, no liveness-arming FSM, no auto-relaunch (the CHARTER §6 named retirements).
   It mutates nothing and persists nothing across invocations — the consecutive-tick counters are in-memory for

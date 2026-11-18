@@ -606,4 +606,4 @@ implements_signature:
   bin/lib/worktree.py#_resolve_held_turn_claim: 2845f79e27192016bf301ba288e4139d222829b32eb1d065155736ee077655a1
   bin/lib/worktree.py#_start_detached_worker_land: 45118db878f31f68137d4650eff65a344f5839bbda8079e4eca299290a2e200a
   bin/lib/worktree.py#_worker_start_detach_decision: ef7ce322f125c363ad2292b34f51ce94ee4ab33690602ae05eed063218e7dc1c
-  bin/lib/worktree.py#cmd_land: 71dcd626a4e9a4c43fee2ef1458e4ebc734edbc673fe5ced04231ab843da8e01
+  bin/lib/worktree.py#cmd_land: 386f7edf5b15e086dbf94a282d871739d0cc9db843a307939536627f0c2fe0a0

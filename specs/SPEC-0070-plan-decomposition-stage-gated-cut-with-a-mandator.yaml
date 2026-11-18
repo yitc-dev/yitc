@@ -83,18 +83,28 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \  by `requires:` — an overlap line, never a defect and never given a defining card;\
   \ and the\n  longest `requires:` chain. The lines are recorded on the transition's\
   \ `plan_stage_entered` row.\n  The pre-check never holds the transition: the gate\
-  \ runs and decides exactly as without it.\n- **A split recommendation is advisory.**\
-  \ A finding that a card bundles more than one\n  claim and should be split never\
-  \ holds the transition: the project's declared grouping rules\n  decide (SPEC-0046\
-  \ §A); the question and its bound are asked in the SPEC-0083 P5 template. Every\n\
-  \  other finding of this gate holds the transition as before.\n- **Anchor wiring\
-  \ carried by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task`\
-  \ card either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card\
-  \ that does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
-  \  disposition; and the owner card is `requires:`-ordered after every implementing\
-  \ card. The question is asked in the SPEC-0083 P5 template; no new gate, no validator.\
-  \ How a cut meets this clause when a plan spec restates an ACTIVE spec and several\
-  \ cards build the change: the how-to `patterns/restating-an-active-spec-across-cards.md`\
+  \ runs and decides exactly as without it.\n- **Append-only files and the modularity\
+  \ hint.** The pre-check counts a file as\n  append-only — each card only adds its\
+  \ own entry to it, so the cards need not wait for one\n  another — when the file\
+  \ is union-merged at land, or when every card naming it marks that entry\n  `(append)`\
+  \ after the path in its touch forecast or after the locator in its `Owns:` line;\
+  \ a spec\n  is never append-only. An append-only file is non-serialising: it draws\
+  \ no overlap line and no\n  hint, and the pre-check prints one line that names every\
+  \ file it counted so. For each other\n  file that three or more cards of the cut\
+  \ name, whether `requires:` orders them or not, it\n  prints one modularity-hint\
+  \ line naming the file and the cards; what the cut does with it is\n  SPEC-0046\
+  \ §A. Both are recorded with the other pre-check lines; nothing is refused or split.\n\
+  - **A split recommendation is advisory.** A finding that a card bundles more than\
+  \ one\n  claim and should be split never holds the transition: the project's declared\
+  \ grouping rules\n  decide (SPEC-0046 §A); the question and its bound are asked\
+  \ in the SPEC-0083 P5 template. Every\n  other finding of this gate holds the transition\
+  \ as before.\n- **Anchor wiring carried by the cut.** For each `proposed` plan spec,\
+  \ its\n  `activation_owner_task` card either CARRIES the code-anchor wiring work\
+  \ itself OR `requires:` the\n  card that does (a predecessor may wire it), OR the\
+  \ spec declares a SPEC-0151 `execution:`\n  disposition; and the owner card is `requires:`-ordered\
+  \ after every implementing card. The question is asked in the SPEC-0083 P5 template;\
+  \ no new gate, no validator. How a cut meets this clause when a plan spec restates\
+  \ an ACTIVE spec and several cards build the change: the how-to `patterns/restating-an-active-spec-across-cards.md`\
   \ (`bin/yitc-v2 graph query restating-an-active-spec-across-cards`), which adds\
   \ no rule.\n\n### 4. Card-set fingerprint freshness contract (the canonical home\
   \ — F5)\n\"A fresh verdict exists\" alone is too weak — the cut could be edited\
@@ -105,23 +115,25 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ —\nNO new machinery class.\n- **Fingerprint inputs (canonical, sorted/stable):**\
   \ the sorted set of cut task ids; for EACH card\n  its content hash + its `requires:`\
   \ list + its `activation_owner_task` + its acceptance/probe\n  fields; for a plan\
-  \ with `prototype_ref`, also what SPEC-1058 §3 names. Editing any of these after\n\
-  \  the audit re-fingerprints → stale → REFUSE.\n- **A cut that changes while the\
-  \ plan is `executing`** (a card filed into it after the freeze) leaves\n  the recorded\
-  \ verdict bound to the old cut: `plan show` names the gate STALE, and\n  `plan stage\
-  \ executing <slug> --recut` re-runs THIS gate on the live cut — same record, same\
-  \ pass\n  rules, the plan stays `executing`. It is refused `nothing changed` when\
-  \ a GREEN/YELLOW verdict\n  already binds the live cut.\n- **This contract is homed\
-  \ HERE** (single source); SPEC-0034's `executing` entry-gate and the verb\n  POINT\
-  \ here, they do not restate it.\n\n### 5. Claim-block — a card of an un-decomposed-and-verified\
-  \ plan is NOT claimable\nCards exist in `decomposition` BEFORE `executing`; under\
-  \ parallel/background dispatch a\n`worktree new --task` could otherwise claim+build\
-  \ a card before the fidelity gate passes, defeating\n\"audit the cut, THEN build\"\
-  . So: a task whose **`decomposed_from`** marker names a plan whose status is\nBELOW\
-  \ `executing` is **NOT claimable** — the `worktree new --task` claim chokepoint\
-  \ REFUSES while the\nparent plan is pre-`executing`. This EXTENDS the existing claim-validation\
-  \ in `worktree new --task` (it\nalready validates `ready` + unblocked); no new mechanism.\
-  \ The guard makes the cut fully audited before\nany card can be worked, even across\
+  \ with `prototype_ref`, also what SPEC-1058 §3 names; the digest of the plan-stage\n\
+  \  obligations due through `decomposition` (SPEC-0034 §Plan-stage obligations at\
+  \ the plan checkpoints).\n  Editing any of these after the audit re-fingerprints\
+  \ → stale → REFUSE.\n- **A cut that changes while the plan is `executing`** (a card\
+  \ filed into it after the freeze) leaves\n  the recorded verdict bound to the old\
+  \ cut: `plan show` names the gate STALE, and\n  `plan stage executing <slug> --recut`\
+  \ re-runs THIS gate on the live cut — same record, same pass\n  rules, the plan\
+  \ stays `executing`. It is refused `nothing changed` when a GREEN/YELLOW verdict\n\
+  \  already binds the live cut.\n- **This contract is homed HERE** (single source);\
+  \ SPEC-0034's `executing` entry-gate and the verb\n  POINT here, they do not restate\
+  \ it.\n\n### 5. Claim-block — a card of an un-decomposed-and-verified plan is NOT\
+  \ claimable\nCards exist in `decomposition` BEFORE `executing`; under parallel/background\
+  \ dispatch a\n`worktree new --task` could otherwise claim+build a card before the\
+  \ fidelity gate passes, defeating\n\"audit the cut, THEN build\". So: a task whose\
+  \ **`decomposed_from`** marker names a plan whose status is\nBELOW `executing` is\
+  \ **NOT claimable** — the `worktree new --task` claim chokepoint REFUSES while the\n\
+  parent plan is pre-`executing`. This EXTENDS the existing claim-validation in `worktree\
+  \ new --task` (it\nalready validates `ready` + unblocked); no new mechanism. The\
+  \ guard makes the cut fully audited before\nany card can be worked, even across\
   \ concurrent sessions.\n\n**The carrier is `decomposed_from`, NOT `cites:`.**\n\
   So the block now reads the explicit\n**`decomposed_from: <plan-slug>`** marker —\
   \ the NARROW structural relation \"member of the audited cut\",\nwritten ONLY by\
@@ -331,12 +343,16 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ cut-set pre-check\n\nThe §3 pre-check bullet was added, in place as an additive\
   \ extension, from the same\nconsumer hand-over (X-2379 part E3, report X-2376):\
   \ a script that checked the cut before the\nexternal gate left that gate's first\
-  \ pass to spec ownership and semantic order.\n\n## Implementation notes\n\n### Moved\
-  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
-  \ text of the section it names\n(its class per <workshop-spec> rule 3 in brackets);\
-  \ every acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity\
-  \ gate» [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From\
-  \ «5. Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
+  \ pass to spec ownership and semantic order.\n\n### Append-only files and the modularity\
+  \ hint\n\nThe §3 bullet was added, in place as an additive extension, from a consumer's\
+  \ billing\ncut (cross item X-2418, 2026-11-17): the consumer had to set its append-only\
+  \ registers aside by\nhand to see that five code files, each edited by about ten\
+  \ cards, set its critical path.\n\n## Implementation notes\n\n### Moved from the\
+  \ rule body\n\nEach entry is a passage moved word for word out of the rule text\
+  \ of the section it names\n(its class per <workshop-spec> rule 3 in brackets); every\
+  \ acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity gate»\
+  \ [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From «5.\
+  \ Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
   \  `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4), `_plan_card_set_context`\n\
   \  (the fidelity-audit prompt card-set) **and `cmd_plan_show`'s `status: decomposition`\
   \ cut-card\n  listing** enumerate the cut through it.\n- From «5. Claim-block» [MECH]:\
@@ -368,7 +384,12 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ satisfied) — no plan-class skip path.\n- **VP8 (non-dangling at activation):**\
   \ on activation this spec carries `binding:\n  [plan-stage-entry:decomposition]`\
   \ (added with the step-1 code edit) ⇒ excluded from\n  `binding_report.dangling_specs`;\
-  \ `graph conformance` GREEN (the token is valid once the stage exists).\n"
+  \ `graph conformance` GREEN (the token is valid once the stage exists).\n- **VP9\
+  \ (append-only files and the modularity hint):** on a fixture cut, `plan stage\n\
+  \  executing` prints the hint for a file three requires-ordered cards edit and names\
+  \ the register\n  every card marks `(append)` as counted append-only, before the\
+  \ gate auditor runs, and records\n  both on the stage row; one unmarked card makes\
+  \ the register serialising again\n  (`tests/test_cut_set_precheck.py`).\n"
 cites:
 - SPEC-0034
 - SPEC-0046

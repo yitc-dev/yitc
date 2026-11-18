@@ -56,13 +56,74 @@ body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loo
   \ «linkage chain»: — the picture that previously required reading 4 surfaces (GRAPH\n\
   \  §spec-schema + §Spec-lifecycle + `patterns/plan-lifecycle.md` + <workshop-spec>\
   \ §5)\n- From «Planning-artifact handling»: (consolidated here from the retired\n\
-  \  `patterns/plan-lifecycle.md` — single normative home, P5)\n\n## Implementation\
-  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
-  \ rule text of the section\neach names.\n\n- From «Per-stage mechanics (one rule\
-  \ per linear stage»: Tripwire:\n  `tests/test_plan_stage.py::test_t12845_age_cancel_reads_postcheck_and_live_trigger_state`.\n\
-  \n### Moved from the rule body\n\nEach entry is a passage moved word for word out\
-  \ of the rule text of the section it names\n(its class per <workshop-spec> rule\
-  \ 3 in brackets); every acting rule stays in the rule text.\n\n- From «accepted»\
+  \  `patterns/plan-lifecycle.md` — single normative home, P5)\n\n### Project-declared\
+  \ plan check\nAdded in place as an additive extension (SPEC-1037 §7: no already-covered\
+  \ case changes; an\nundeclared project runs as before). Cause: cross item X-2404\
+  \ (<project>, 2026-11-17) — a consumer\nplan reached the edge of `plan stage specs`\
+  \ with three project-rule duties undone although the\nsession had read the bound\
+  \ consumer spec; the one duty backed by a refusing project script was done\nright,\
+  \ and the owner had to relay the other gaps. Owner directives events.jsonl#ts=\n\
+  and #ts=; external consult decisions/rules-hold-without-owner-reminder-audit-adhoc.yaml\n\
+  (findings 1 and 2: the phases distinguish a work stage's exit from the next stage's\
+  \ entry, and only\nexit 0 admits).\n\n### Plan-stage obligations\nAdded in place\
+  \ as an additive extension (SPEC-1037 §7): before it no plan-stage binding was an\
+  \ input\nof any plan verdict or packet, so no already-covered case changes; the\
+  \ plan-stage bindings gain the\nreaders they lacked. Cause: cross item X-2404 parts\
+  \ 2 and 3 (<project>, 2026-11-17) — `plan stage\n<NAME>` delivered the bound specs\
+  \ to the session only, no plan-gate packet named them, and a spec\nthat became active\
+  \ after a plan passed its stage never reached that plan (a plan filed 2026-11-12,\n\
+  its bound <workshop-spec> active 2026-11-16). Owner directives events.jsonl#ts=\
+  \ and\n#ts=; external consult decisions/rules-hold-without-owner-reminder-audit-adhoc.yaml\n\
+  (findings 2 and 3: one derived obligation view for the session and the packets;\
+  \ obligations added to\nprompts alone would not stale a reusable prior verdict,\
+  \ so they join the freshness records).\n\n### `checklist_pass` restated as report-only\n\
+  Restated in place (SPEC-1037 §7, the behaviour probe of E-0025): the 2026-06-04\
+  \ text made a filled\n`checklist_pass` a condition of `plan stage decomposition`\
+  \ and promised a refusal, but no verb ever\nrefused on it — the code has always\
+  \ produced one report-only `severity: low` finding in `plan check`\nand a WARN at\
+  \ `plan draft --finalize`, and the decomposition entry reads no `checklist_pass`.\
+  \ No\nconsumer-observable behaviour changes; the text now states what the system\
+  \ does. Measured 2026-11-17\nover `plans/*.md` in status decomposition..realized,\
+  \ with the shared LARGE predicate: 61 LARGE plans\ncarried `checklist_pass`, 28\
+  \ did not. Of the plans filed after the 2026-06 rule, 57 with it (8 ended\n`partial`,\
+  \ 14%) and 17 without it (2 `partial`, 12%) — no outcome difference — and no journaled\n\
+  deviation attributes a miss to a missing `checklist_pass`. The defects the block\
+  \ was meant to catch\nare caught by the `plan check` audit, the decomposition-fidelity\
+  \ audit (SPEC-0070), the plan-stage\nobligations view and the project-declared plan\
+  \ check. Owner decision «fix the\nexperience, not the June expectation» events.jsonl#ts=,\
+  \ go\nevents.jsonl#ts=; named by the inspection\n(decisions/plan-rule-homes-memory-only-duties-inspection-2026-11-17.yaml).\n\
+  \n## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
+  \ word out of the rule text of the section\neach names.\n\n- From «Per-stage mechanics\
+  \ (one rule per linear stage»: Tripwire:\n  `tests/test_plan_stage.py::test_t12845_age_cancel_reads_postcheck_and_live_trigger_state`.\n\
+  \n### Project-declared plan check\n`bin/lib/plan.py#run_project_plan_check` is the\
+  \ one runner; the four verbs call it through an\ninjected `_run_plan_checks` (None\
+  \ keeps a direct caller's behaviour), wired in `bin/lib/cli.py` with\nthe carrier\
+  \ root `_plan_check_carrier_root` (the main checkout, else REPO_ROOT). The output\
+  \ is drained\nby a daemon thread into a fixed 8192-byte ring buffer (nothing on\
+  \ disk); the verb waits on the direct\nchild only, joins the reader at most 2 s,\
+  \ and on timeout kills the group and waits at most 10 s, so a\ndescendant holding\
+  \ the pipe cannot block it. The rendered tail is the last 40 lines cut to 4000 bytes.\n\
+  \n### Plan-stage obligations\n`bin/lib/plan.py#plan_obligation_view` builds the\
+  \ projection from `cli.py#_plan_stage_maps` (whose\n`errors_out` names a kernel\
+  \ read failure), `plan_obligations_due` / `plan_obligations_digest` /\n`plan_obligations_block`\
+  \ filter and render it, `plan_obligation_catch_up` computes the late rules from\n\
+  the plan's `plan_stage_entered` rows. `plan_scope_obligations` holds the view for\
+  \ the life of the plan\nread scope (`plan_stage_read_scope`, installed at plan stage,\
+  \ plan draft, plan check and\n`audit adhoc --plan`), so a verb computes it once\
+  \ (SPEC-0190 rule 10). The host side is\n`cli.py#_plan_obligations` / `_deliver_plan_obligation_catch_up`;\
+  \ the checkpoints call\n`_plan_checkpoint_prepass` (catch-up, then `_run_plan_checks`).\
+  \ The digest of a spec is its normative\ndigest, `plan.py#_plan_obligation_digest`\
+  \ : its status and rule text across the read chain -\nevery top-level field but\
+  \ the bookkeeping ones (`_PLAN_OBLIGATION_BOOKKEEPING_FIELDS`), plus the body\n\
+  without its Rationale, Implementation notes, Verification and Drift review sections\n\
+  (`_PLAN_OBLIGATION_OMITTED_SECTIONS`). An edit confined to those sections or bookkeeping\
+  \ fields leaves\nit; a status or rule-text edit moves it. A part that does not parse\
+  \ falls back to the whole-chain\n`_plan_obligation_chain_digest`, the form of records\
+  \ written before. The due-set digest joins\nthe accept hash as `|OBL <digest>` and\
+  \ the\ncard-set fingerprint as its `obligations` input, each only when something\
+  \ is due.\n\n### Moved from the rule body\n\nEach entry is a passage moved word\
+  \ for word out of the rule text of the section it names\n(its class per <workshop-spec>\
+  \ rule 3 in brackets); every acting rule stays in the rule text.\n\n- From «accepted»\
   \ [MECH]: (`_plan_accept_core`)\n- From «accepted» [MECH]: (`_plan_accept_freshness_hash`)\n\
   - From «Realized-by-record» [MECH]: The terminal is journaled (`plan_stage_entered\
   \ {to: realized,\n  realized_by: record}` + the legacy `draft_closed` carrying\n\
@@ -82,13 +143,13 @@ body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loo
   \ VIEW (the chain diagram + per-edge homes), ONE home, no duplicate normative\n\
   \  rule (P5). Probe: grep the spec body for the chain section.\n- **VP3 (mandatory\
   \ big-plan check, AC3):** the `## Internal` carries the §\"Mandatory big-plan check\
-  \ at\n  the `accepted → decomposition`-gate\" with the 3 LARGE-plan requirements\
-  \ (filled `checklist_pass` +\n  `plan check --full` + dry-run when rules are novel).\
-  \ Probe: grep the spec body.\n- **VP4 (non-dangling, honest):** active SPEC-0034\
-  \ has non-empty `implements:` (the plan verbs) AND a\n  valid routing binding ⇒\
-  \ excluded from `binding_report.dangling_specs`; `graph conformance` exits GREEN\n\
-  \  with it present (no unknown/malformed token). Evidence: `graph build` + `graph\
-  \ conformance`.\n- **VP5 (work-first activation, AC1):** `activation_owner_task:\
+  \ at\n  the `accepted → decomposition`-gate\" with the LARGE-plan weight (a RECOMMENDED\
+  \ `checklist_pass`\n  whose absence is report-only + a fresh `plan check` + dry-run\
+  \ when rules are novel). Probe: grep the\n  spec body.\n- **VP4 (non-dangling, honest):**\
+  \ active SPEC-0034 has non-empty `implements:` (the plan verbs) AND a\n  valid routing\
+  \ binding ⇒ excluded from `binding_report.dangling_specs`; `graph conformance` exits\
+  \ GREEN\n  with it present (no unknown/malformed token). Evidence: `graph build`\
+  \ + `graph conformance`.\n- **VP5 (work-first activation, AC1):** `activation_owner_task:\
   \ `; `task close ` flips this\n  spec `proposed → active` ( deterministic side-effect)\
   \ — the SOLE activation path.\n- **VP6 (delivery observable on EXISTING surfaces,\
   \ AC2):** a journaled `plan_stage_entered` transition\n  event is present in `events.jsonl`\
@@ -123,9 +184,15 @@ body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loo
   \ (NOT \"compose\n  draft specs\") AND that a SPEC-FREE plan does NOT skip it, citing\
   \ the live 6-finding correct-verify\n  proof. Probe: `grep -c 'mandatory gate-specs\
   \ CHECK\\|spec-free plan STILL transits\\|does NOT skip it' specs/SPEC-0034-*.yaml`\
-  \ ≥ 1.\n- **VP11 (discovery-grown + bring-order + piecemeal-from-draft / AC3):**\
-  \ §Planning-artifact\n  handling carries the Piecemeal-from-draft anti-pattern +\
-  \ the Discovery-grown plan handling guidance\n  (record growth / out-of-band capture\
-  \ / freeze-before-build) + the Bring-order take-into-work\n  reconciliation pass.\
-  \ Probe: `grep -c 'Discovery-grown\\|Bring-order\\|Piecemeal-from-draft' specs/SPEC-0034-*.yaml`\
-  \ ≥ 3.\n"
+  \ ≥ 1.\n- **VP12 (project-declared plan check):** with `plan_checks.command` declared,\
+  \ a check\n  exiting 1 refuses `plan draft --finalize`, `plan check` (incl. `--round`),\
+  \ `audit adhoc --plan`,\n  `plan stage specs|accepted|decomposition|executing` (incl.\
+  \ `--recut`) before any auditor call or\n  stage write, naming command, phase and\
+  \ exit; exit 2, a timeout, a launch failure, any other exit, a\n  malformed declaration\
+  \ and an unreadable carrier refuse alike; exit 0 admits with the plan path,\n  checkout\
+  \ and phase passed; an undeclared project runs nothing. Probe:\n  tests/test_t14672_project_plan_check.py.\n\
+  - **VP11 (discovery-grown + bring-order + piecemeal-from-draft / AC3):** §Planning-artifact\n\
+  \  handling carries the Piecemeal-from-draft anti-pattern + the Discovery-grown\
+  \ plan handling guidance\n  (record growth / out-of-band capture / freeze-before-build)\
+  \ + the Bring-order take-into-work\n  reconciliation pass. Probe: `grep -c 'Discovery-grown\\\
+  |Bring-order\\|Piecemeal-from-draft' specs/SPEC-0034-*.yaml` ≥ 3.\n"

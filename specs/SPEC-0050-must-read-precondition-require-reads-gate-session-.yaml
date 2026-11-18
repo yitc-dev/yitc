@@ -13,8 +13,11 @@ implements:
 - bin/lib/session.py#reading_mark
 - bin/lib/events.py#_emit_cli_invoked
 - bin/lib/cli.py#_deliver_stage_bundle_contracts
+- bin/lib/cli.py#_held_point_lookup_line
 - bin/lib/cli.py#_stage_contract_view
 - bin/lib/cli.py#_stage_view_without_maintainer_sections
+- bin/lib/cli.py#_stage_view_subsection_table
+- bin/lib/cli.py#_contract_view_sections_only
 - bin/lib/cli.py#_deliver_before_rule_change
 - bin/lib/plan.py#_print_plan_stage_delivery
 - bin/lib/task.py#cmd_task_close
@@ -293,29 +296,49 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ no hand fetch; when the check admits, the set is delivered too, as the pointer\
   \ line\ninside the epoch that already holds it and as the body after a `/compact`\
   \ or a changed contract.\n`task file --skeleton` runs no check and delivers nothing.\n\
-  \n**A STAGE ENTRY DELIVERS THE CONTRACT VIEW.** The same deliverer hands the reader\
-  \ each\ncontract's body and routing fields — what an agent acting in the stage reads\
-  \ — and leaves out what\ntools and explicit lookups read: the derived index header\
-  \ the point-lookup opens with, the code\nanchors and their signatures, the born\
-  \ concern, and the provenance and activation bookkeeping. The\nexact set is the\
-  \ deliverer's own field list (`_stage_contract_view`); a field it does not name\
-  \ is\ndelivered. An explicit `graph query <SPEC>` stays the full render, so every\
-  \ omitted field is one\ncommand away. The fingerprint in (b) and (c) is taken over\
-  \ the bytes DELIVERED; a hand lookup's\nreceipt carries the fingerprint of the contract\
-  \ view cut from its full render, before the\nmaintainer sections below are left\
-  \ out, so a full lookup in the same epoch holds the contract and\nnever forces a\
-  \ body. Credit (§2) is unchanged.\nThe view also leaves out the body sections a\
-  \ spec's maintainer reads rather than an agent\nacting in the stage — its rationale,\
-  \ its verification contract, its implementation\nnotes, and its drift review, the\
-  \ record of past amendments and re-verifications — and\nsays so inside\nthe body,\
-  \ once per contract, where the first of them stood: one line naming each section\
-  \ left out\nand the command that prints the full text. A rule an agent applies at\
-  \ a stage belongs in the\nspec's rule text; one found only in such a section is\
-  \ re-homed there, never left behind the\nomission. How a section is recognised is\
-  \ the deliverer's own reading\n(`_stage_view_without_maintainer_sections`); a body\
-  \ holding a line that reading does not decide\nis delivered whole, those sections\
-  \ included. What the external auditor is handed is not built\nfrom this view and\
-  \ keeps the whole spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
+  \n**A HAND LOOKUP OF A SPEC RIDES THE SAME RULE.** A `graph query <SPEC>` point\
+  \ lookup run\nfrom the command line prints the pointer line instead of the body\
+  \ under the same three conditions\n(a)-(c), its fingerprint being the contract view\
+  \ of the body it would print, and the body in every\nother state. `graph query --full\
+  \ <SPEC>` always prints the body; the pointer line names that\ncommand. A pointer\
+  \ writes no read receipt: the earlier crediting receipt in this checkout is what\n\
+  credits, so every read check is unchanged. Every other form of the verb, and every\
+  \ render made\ninside another verb (the stage deliverer included), prints as before.\
+  \ A script that reads a spec\nbody through the command line twice under a session's\
+  \ carry passes `--full`.\n\n**A STAGE ENTRY DELIVERS THE CONTRACT VIEW.** The same\
+  \ deliverer hands the reader each\ncontract's body and routing fields — what an\
+  \ agent acting in the stage reads — and leaves out what\ntools and explicit lookups\
+  \ read: the derived index header the point-lookup opens with, the code\nanchors\
+  \ and their signatures, the born concern, and the provenance and activation bookkeeping.\
+  \ The\nexact set is the deliverer's own field list (`_stage_contract_view`); a field\
+  \ it does not name is\ndelivered. An explicit `graph query <SPEC>` stays the full\
+  \ render (`graph query --full <SPEC>` when\nthe same epoch already holds it, §A\
+  \ HAND LOOKUP OF A SPEC above), so every omitted\nfield is one command away. The\
+  \ fingerprint in (b) and (c) is taken over the bytes DELIVERED; a hand lookup's\n\
+  receipt carries the fingerprint of the contract view cut from its full render, before\
+  \ the\nmaintainer sections below are left out, so a full lookup in the same epoch\
+  \ holds the contract and\nnever forces a body. Credit (§2) is unchanged.\nThe view\
+  \ also leaves out the body sections a spec's maintainer reads rather than an agent\n\
+  acting in the stage — its rationale, its verification contract, its implementation\n\
+  notes, and its drift review, the record of past amendments and re-verifications\
+  \ — and\nsays so inside\nthe body, once per contract, where the first of them stood:\
+  \ one line naming each section left out\nand the command that prints the full text.\
+  \ A rule an agent applies at a stage belongs in the\nspec's rule text; one found\
+  \ only in such a section is re-homed there, never left behind the\nomission. How\
+  \ a section is recognised is the deliverer's own reading\n(`_stage_view_without_maintainer_sections`);\
+  \ a body holding a line that reading does not decide\nis delivered whole, those\
+  \ sections included. What the external auditor is handed is not built\nfrom this\
+  \ view and keeps the whole spec.\n**A STAGE MAY TAKE A SLICE OF A KERNEL SPEC.**\
+  \ Beside the maintainer sections, one\nstage's view of a kernel spec may also leave\
+  \ out named `###` subsections that another stage, or\nan on-demand trigger, delivers\
+  \ instead — the subsections and the stages are the deliverer's own\ntable (`_STAGE_VIEW_OMITTED_SUBSECTIONS`),\
+  \ and they are named on the same one line. A consumer's\nown spec at a kernel id\
+  \ is never sliced, and a subsection the spec does not carry cuts nothing.\nWhen\
+  \ a stage's context already holds a view of the same spec that carries everything\
+  \ this\nstage's view carries, the stage gives the pointer; when it holds a narrower\
+  \ view, the stage gives\nonly the subsections that view left out, with one line\
+  \ saying so. After a compaction nothing is\nheld, so each stage delivers its whole\
+  \ view again (SPEC-0007 §5a/§5b).\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
   \ analog — `patterns/emergency-mode.md`\nentry). No dedicated `--force` flag.\n\n\
   ### 6. Pilot scope — NORMATIVE = kind=stage only; seed/action RESERVED\nNORMATIVE:\
   \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
@@ -722,22 +745,25 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: f7fcd0aff331423aa51067c4cc69fa120c60995a94ef27b3a706e74293deb323
+  bin/lib/audit.py#cmd_audit: 75bf7e2a328128c65e656cb4a757e7d33893cba5a29b40cad339a17741fa408f
+  bin/lib/cli.py#_contract_view_sections_only: 5cdf0409401cf262d73d6b0b1001bab98d1a5ce7ebf1736a4c68bbc269c6e20f
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
-  bin/lib/cli.py#_deliver_stage_bundle_contracts: 882621ed5157845039974c46f6f077708e15e1aa99a3e20a3b21ac5a21983bfb
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: 1d1e45204e7ed90720211ade5a17c9b0e9d7627a112194b226467090e212af07
+  bin/lib/cli.py#_held_point_lookup_line: c9d64033220e94ba0af0aaea8933f7997b82a0eaae389ee402c0908d2ac88af6
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
-  bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
+  bin/lib/cli.py#_stage_view_subsection_table: 40fb40d657bb320406acdd3648cd1e7fcc39c86694a5f0bae338a641e559c0b2
+  bin/lib/cli.py#_stage_view_without_maintainer_sections: 2dc929499d83aa4c64a2e1bfcf0ddd5555371b569edb214b3e8f024b477697c1
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
-  bin/lib/events.py#_emit_cli_invoked: ebb505c9b2d3b4f08b802c3dfb1f0a70a6554f95ed3bc877c322ace6f3e3fada
+  bin/lib/events.py#_emit_cli_invoked: 0ef1de2e5fbdede583f10c2a21ae1481e47c9af2bb2bf94c995d13d81cb24fa3
   bin/lib/gates.py#_fetched_spec_ids: 6acc09b57677575216b62d505a8f268d40afd8d530e1f928196686ae8898ede2
   bin/lib/gates.py#_require_reads: 009adc6432fa2b93db9e7bbaaf3e4e3d9e11d42250ed8912b54d77836fb10da8
-  bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
+  bin/lib/gates.py#_require_seed_read: c5e1e13b1a759e0e49c2df4ea65c752e2c6252d28fee9da6f367f0e4d86f96fb
   bin/lib/gates.py#_seed_receipt_epochs: c41d8270ea3553a47a8ed7a84959dde9aee36079b52e75637bc6ab2120b77af5
   bin/lib/gates.py#_session_started_lower_bound: b33e13a47bcb5aa7ad4cb3671878fdce453aa448bbdf3f75d09ff6e6ad359265
   bin/lib/gates.py#seed_stamp_credits: 22d380afb43a79df24c2d7dd63962d968316ee42f8bc3b3dbac69ef16b275b37
   bin/lib/plan.py#_print_plan_stage_delivery: 2e17e8278a463eb6389bd7400a57e341ec2b2e116c51cdbf40830e49f1be95fa
-  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
+  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1da6dbd9c26d3d5ed2d5cdf785e1b7261348d5ae0b1ad9f10e0f2030868c5555
-  bin/lib/task.py#cmd_task_close: c103936b70022c2d9ad013036717ff6ea9c0c11e30ec92768b713d147890ae18
+  bin/lib/task.py#cmd_task_close: 3e7d1c5c66d005a99b28a119dbf92a785f295f6a9f60c6e4a129daaf3bfa08cd
   bin/lib/task.py#cmd_task_commit: 5e9c0f1c7cac0406d24dffa4ee3e4c482794ab4fe3c2820c4e4acb5cb06d805c

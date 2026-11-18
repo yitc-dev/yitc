@@ -120,8 +120,14 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ leaves a linked\n    `requested` item unpicked and prints the unanswered-link\
   \ warn above, which names `cross pick`; the\n    close-side auto-`cross_done` fires\
   \ only from `picked`.\n  - **`cross done`** (#2+#3+#4) — receiver finishes (may\
-  \ carry the receiver's `T-NNNN`); emits `cross_done`.\n**The done MAY carry `--note\
-  \ <text>` : WHAT the receiver actually did, recorded on\n`cross_done.data.note`\
+  \ carry the receiver's `T-NNNN`); emits `cross_done`.\n    **A still-`requested`\
+  \ item that a DONE local task already resolves** (its `resolves_cross` names\n \
+  \   the item — the same evidence `cross pick` refuses a stale intake on) is admitted\
+  \ from `requested`\n    too, in this one verb, with no `--force` and no pick: the\
+  \ `cross_done` names that task, and a\n    `--task` naming a different card is refused.\
+  \ With no such done task, `requested` stays refused\n    wrong-state. The pick-side\
+  \ already-addressed refusal is unchanged and names this route.\n**The done MAY carry\
+  \ `--note <text>` : WHAT the receiver actually did, recorded on\n`cross_done.data.note`\
   \ and surfaced by `cross show` as the item's resolution note** — the\nreceiver-side\
   \ mirror of `cross close --note` below. A receiver whose outcome DIVERGES from the\n\
   request needs a durable home ON the item to say so: X-0227 was closed with a bare\
@@ -501,8 +507,13 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ Anti-\ncomplexity: REUSES the existing `session start` surface slot + the `task\
   \ file`-style id-allocation +\nthe fold (no stored status) — adds the verb group\
   \ as the ONE governed write path, no new gate, no\nsecond state store. The deliberation\
-  \ lives in the plan (<workshop-spec> §3).\n\n## Verification\n\n- **VP1 (verbs are\
-  \ the only write path):** a raw append to the shared store is not the sanctioned\
+  \ lives in the plan (<workshop-spec> §3).\n\nThe already-addressed route of `cross\
+  \ done` was added by (X-2414): items a done local task\nalready resolved stayed\
+  \ `requested` for days — `cross pick` refused them as already-addressed and\n`cross\
+  \ done` refused a requested item, so closing X-2050 / X-2122 / X-2216 took `pick\
+  \ --force` plus a\ntriage class. In place, as an additive extension (SPEC-1037 §7):\
+  \ every already-covered case reads as before.\n\n## Verification\n\n- **VP1 (verbs\
+  \ are the only write path):** a raw append to the shared store is not the sanctioned\
   \ path;\n  each `cross` mutating verb allocates/append/emits atomically and refuses\
   \ a wrong-role/wrong-state\n  emit with a journal-observable refusal. (test at activation)\n\
   - **VP2 (views derived, no stored status):** `cross inbox`/`outbox` fold the log\
@@ -561,10 +572,10 @@ implements_signature:
   bin/lib/cross.py#_cross_self: 5b0315dc6f840072475516d478ad5cadc567302a1c24ce2fbd9c6b61dfba65e2
   bin/lib/cross.py#canonical_peer: fb42fe6efa1cce1f777c63cf04bfb4a0d4a8f5cfacdc0c767cfbac538d839427
   bin/lib/cross.py#cmd_cross_ack: 13d32a17e899a4bff305101db54b68f27497009b73d5b4e6d093e10529bd981d
-  bin/lib/cross.py#cmd_cross_done: abd54663b003b0d59da375e4b50b1a9d3e287e4a2a700d41488e357845f2b4f3
+  bin/lib/cross.py#cmd_cross_done: da3eff4f94fa99bf4fdd4bf495324e435ede20c1a5fb084b0ae827445d2269ac
   bin/lib/cross.py#cmd_cross_inbox: 3202233cae4f0bcb170cc1959881af0cf3141caa3618ae89e066a65b769060f5
   bin/lib/cross.py#cmd_cross_outbox: 768329186f6a9e1778c7784850ee60347668bfe088072055a769dcf60e18cd32
-  bin/lib/cross.py#cmd_cross_pick: 4500510f5cfedffe1401296c84cef0ec0ee12cad9eb581b18ed2573bdc832944
+  bin/lib/cross.py#cmd_cross_pick: dd94a5dea45bb941616024ba15b772cc234d8821672fd3babfda8c883ed3e6e0
   bin/lib/cross.py#cmd_cross_reject: fed19c84bdea293c673dc6ce7bda5f27d026306c9c44183cfd76f11ba8b5a247
   bin/lib/cross.py#describe_holder: 2e292c3ec8b95b7774abd5208b4c75704e3d12bd02a37446e73a9d87008e6c63
   bin/lib/cross.py#inbox_picked_untracked_rows: 8231b1019f1af903d8b56b5ca538e0690b312d3b5247743ad1a76e8ff4b60354
@@ -576,6 +587,6 @@ implements_signature:
   bin/lib/cross.py#unroutable_rows: d464e658238a6da075c5cd81ef3607e4a11bd00d7590883715715b7d6c852ee8
   bin/lib/nightly.py#register_project: 3395a47dbab142e6e2163567cce2ce366b00dc7fdee0d1e9437731e00cf0ef2f
   bin/lib/session.py#cmd_session_pick: 71f4aa00368cee90587a968097653a668725d12104d4342edb54b8908bf4ba74
-  bin/lib/session.py#cmd_session_start: 63a89f0dbcf8f31c0748b952fe356249434ffe36971d4157899e3a88df625cb9
+  bin/lib/session.py#cmd_session_start: e0f9985ee747b0c23756838e630aeef3b5cb2be731cc8fc1f270bde645935199
   bin/lib/task.py#_cross_link_held_skips: 19ac0040010219ee8529feeba1dbd861965dc31dd0320832f3f03355a2ae85eb
   bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a

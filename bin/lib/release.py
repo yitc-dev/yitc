@@ -550,7 +550,10 @@ def strip_published_text(tree: dict, identity: "ProjectIdentity | None" = None) 
             new = _strip_shell_comments(text, identity) if kind == "bash" else text
             out[rel] = blob if new == text else new.encode("utf-8")
             continue
-        if _is_machine_read(rel):
+        # T-14693: a template-owned scaffold under specs/ is a scaffold, not a spec. The spec arm below
+        # re-dumps the YAML and so deletes every comment, and a consumer's `init --refresh-scaffolds` then
+        # copies that comment-less file over its own (X-2429). It takes the comment-line strip instead.
+        if _is_machine_read(rel) or rel in TEMPLATE_OWNED_SURFACE and rel.startswith("specs/"):
             out[rel] = (text if rel.endswith(".json")
                         else _strip_comment_lines(text, identity)).encode("utf-8")
             continue
@@ -602,8 +605,11 @@ def reword_unpublished_spec_refs(tree: dict) -> dict:
 
     out = {}
     for rel, blob in tree.items():
-        is_spec = rel.startswith("specs/") and rel.endswith((".yaml", ".yml"))
-        if not (is_spec or (rel.startswith("patterns/") and rel.endswith(".md"))):
+        # T-14693: a template-owned scaffold under specs/ is reworded as TEXT, like a pattern — the spec
+        # path below re-dumps the YAML and would delete its comments.
+        is_template = rel in TEMPLATE_OWNED_SURFACE and rel.startswith("specs/")
+        is_spec = rel.startswith("specs/") and rel.endswith((".yaml", ".yml")) and not is_template
+        if not (is_spec or is_template or (rel.startswith("patterns/") and rel.endswith(".md"))):
             out[rel] = blob
             continue
         try:
@@ -1065,6 +1071,52 @@ def published_project_identity(tree: dict, identity: "ProjectIdentity | None") -
                 hits.append(f"{rel}:{line}: project {kind} {token!r} is published")
                 protected = protected[:m.start()] + blank * len(m.group(0)) + protected[m.end():]
     return hits
+
+
+def landed_project_identity(changes: dict, identity: "ProjectIdentity | None") -> list:
+    """T-14660 — the publish-time project-identity refusal, asked at LAND over a branch's changed
+    engine code (SPEC-0074 rule 4b, shifted left: three names reached main and were caught only by
+    `work publish`).
+
+    `changes` maps each changed path to `(base_text | None, tip_text)`. Only engine code
+    (`_is_engine_code`) is judged, each file alone, by the SAME strip + matcher publish runs, so a
+    comment or docstring is abstracted exactly as it is at publish and only a VALUE or a path is
+    refused. A row is refused only when the tip carries it more often than the base did (the key drops
+    the line number), so a name main already carries is the publish refusal's business, not this
+    branch's. Rows keep publish's `<file>:<line>: project <kind> '<token>' is published` shape."""
+    if not identity:
+        return []
+    line_no = re.compile(r"^([^:\n]+):\d+:")
+
+    def judge(rel, text):
+        if text is None:
+            return []
+        return published_project_identity(strip_published_text({rel: text.encode("utf-8")}, identity),
+                                          identity)
+
+    out = []
+    for rel in sorted(changes):
+        if not _is_engine_code(rel):
+            continue
+        base, tip = changes[rel]
+        if tip is None or tip == base:
+            continue
+        # The strip parses the module, the costly step on a large file: judge the base only when
+        # the tip still carries a row (on a publish-clean tree it almost never does).
+        tip_rows = judge(rel, tip)
+        if not tip_rows:
+            continue
+        seen = {}
+        for row in judge(rel, base):
+            key = line_no.sub(r"\1:", row)
+            seen[key] = seen.get(key, 0) + 1
+        for row in tip_rows:
+            key = line_no.sub(r"\1:", row)
+            if seen.get(key):
+                seen[key] -= 1
+                continue
+            out.append(row)
+    return out
 
 
 # T-13382 (SPEC-0074 rule 4b, metadata) — the publish COMMIT and TAG travel with the tree, so their
@@ -5167,6 +5219,15 @@ def cmd_release_check(args, *, repo_path, _die=None) -> None:
     pin = init_mod.resolve_engine_pin(repo_path)
     status = pin.get("status")
     detail = (pin.get("detail") or "").strip()
+    # T-14678: the post-/compact re-fold of the session-start journal-shape line — the SAME line, from the
+    # pin resolved just above (no second resolution). Silent on an uncut journal or a pin that reads it.
+    try:
+        from lib import journal as _journal
+        _js_ln = _journal.journal_shape_mismatch_line(Path(repo_path) / "events.jsonl", repo_path, pin=pin)
+        if _js_ln:
+            print(_js_ln)
+    except Exception:  # noqa: BLE001 — a report never fails its verb (exit 0 always, above)
+        pass
 
     if status == "not-declared":
         print(f"release check: {repo_path} declares no `kernel.engine` pin, so there is no pinned "

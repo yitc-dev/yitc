@@ -3904,6 +3904,9 @@ _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     # T-14472 — the same rule for the pair the 2026-11-01 capture named. Verdict and evidence:
     # tests/test_t12497_selection_read_vs_mention_pairs.py.
     ("patterns/inspection-criteria-roster.md", "test_t14297_inspection_distinct_second.py"),
+    # T-14671 — the same rule for T-14472's own test, captured on the roster path it names only as a
+    # fixture needle. Verdict and evidence: tests/test_t12497_selection_read_vs_mention_pairs.py.
+    ("patterns/inspection-criteria-roster.md", "test_t14472_selection_roster_and_git_guard.py"),
 })
 
 _SELECTION_SPEC_FILE_RE = re.compile(r"^specs/(SPEC-\d{4})(?:[-.][^/]*)?\.yaml$")

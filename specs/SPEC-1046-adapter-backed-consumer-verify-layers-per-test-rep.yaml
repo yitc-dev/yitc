@@ -30,6 +30,9 @@ implements:
 - bin/lib/unit_table.py#encode
 - bin/lib/unit_table.py#expand
 - bin/lib/worktree.py#_consumer_zero_probe_guard
+- bin/lib/worktree.py#_layer_timeout_rerun_eligible
+- bin/lib/worktree.py#_timed_out_layer_failing_tests
+- bin/lib/worktree.py#_timeout_invocation_reading
 - bin/lib/land_verify_legs.py#_adapter_unit_medians
 - bin/lib/land_verify_legs.py#_adapter_units_with_medians
 - bin/lib/land_verify_legs.py#_DecideBarrier
@@ -185,11 +188,29 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ not authenticity\nOUTER FAILURES DECIDE FIRST. Before any report is read, the\
   \ SPEC-0152 rule-16 classes decide exactly as they do\non a layer without an adapter:\
   \ a layer whose `run` or full `command:` hit the layer's outer `timeout:` bound,\
-  \ or\nwhose `prep:` failed, FAILS — no report fallback, no whole-layer re-run, no\
-  \ per-unit re-run, no rescue (the\nDECLINED classes of SPEC-0152 rule 16; SPEC-0071\
-  \ makes a verify timeout non-retriable). A test's OWN timeout\ninside the runner\
-  \ — a per-test or per-action timeout the runner records on the test case — is not\
-  \ an outer\ntimeout: it is that unit's failure under the rules below.\nThe report\
+  \ or\nwhose `prep:` failed, FAILS — no report fallback, no per-unit re-run, no rescue\
+  \ by a report (the DECLINED\nclasses of SPEC-0152 rule 16); the one whole re-run\
+  \ a timed-out layer may take is the next paragraph's. A\ntest's OWN timeout inside\
+  \ the runner — a per-test or per-action timeout the runner records on the test case\
+  \ —\nis not an outer timeout: it is that unit's failure under the rules below.\n\
+  A LAYER THAT RAN OUT OF TIME WITH NO FAILED TEST IN SIGHT. A layer whose first attempt\
+  \ hit its bound where its\ntests run — its full `command:`, the adapter's `run`,\
+  \ or the reading of its report — takes ONE whole re-run of\nits own, the one a void-failed\
+  \ layer takes below (after every layer of the verify, alone, the same invocation\n\
+  under the same bound, the layer's `rescue:` setting holding), when ALL hold: its\
+  \ adapter declares a runner whose\nfailed tests the kernel reads — report profile\
+  \ `pytest/1`, `vitest/1` or `playwright/1`, or `script/1` with\n`names_tests: true`;\
+  \ the attempt wrote output before the bound; and neither that output nor the attempt's\n\
+  per-unit record shows a failed test. The re-run's record says the first attempt\
+  \ timed out, and a pass there\nis recorded as load, never as a failure; a second\
+  \ timeout or a failure leaves the layer red. Every other\ntimed-out layer fails\
+  \ as above, the reason printed: no such declaration (its output cannot show that\
+  \ no test\nfailed), an attempt that wrote nothing (no answer is not «no failure»),\
+  \ output that shows a failed test, a\nbound that ran out in a `required:` check\
+  \ (rule 5) or in the decide-first wait (rule 3). A re-run's own\ntimeout takes no\
+  \ further re-run; with the retry bound at 0, or on the merge-base attribution run,\
+  \ nothing is\nre-run. LIMIT: what is judged is what the layer wrote before its bound,\
+  \ under the project's own declaration —\nthe LIMIT of this rule, below.\nThe report\
   \ is a versioned profile (a JUnit XML subset) bound to the kernel's manifest (run\
   \ id, requested\nunits, output path). The kernel writes it to a FRESH path per invocation\
   \ and checks each suite's timestamp\nagainst the invocation's start (a runner that\
@@ -517,14 +538,22 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ would hide; before this rule\nrule 16 re-ran such a layer when it failed alone.\
   \ The rule changes what a consumer observes in\na case <workshop-spec> rule 4 covered\
   \ (it declined), so it is a successor (SPEC-1037 rule 7), not an in-place edit;\n\
-  owner go events.jsonl#ts=. Every other rule is carried unchanged.\nThe decide-first\
-  \ barrier (rule 3) was asked on the kernel's public tracker (issue 226) by a\nconsumer\
-  \ sizing each layer's resources against the other layers' lists; the owner chose\
-  \ the opt-in barrier\n(events.jsonl#ts=, option A). It is an additive case in place\
-  \ (SPEC-1037 §7): with the\nkey absent no covered case changes.\n\n## Implementation\
-  \ notes\nThe decided-lists file (rule 3, `bin/lib/land_verify_legs.py#_DecideBarrier`):\
-  \ one JSON object\n`{\"schema\": 1, \"kind\": \"decided\", \"layers\": {<layer>:\
-  \ [{\"file\", \"project\", \"median_ms\"}] | null}}`, written\natomically (a temporary\
+  owner go events.jsonl#ts=. Every other rule is carried unchanged.\nA timed-out layer's\
+  \ own re-run (rule 4; cross item X-2413, owner go events.jsonl#ts=):\none consumer's\
+  \ triage of 400 captures since 2026-11-05 found layer bounds running out at host\
+  \ load 17-92 on 32\nCPUs with no failing assertion — one unit reddened 8 unrelated\
+  \ cards — while a timeout was declined outright.\nThe first plan read the absence\
+  \ of a known failure line as «no failure»; its audit-pre showed a runner whose\n\
+  dialect the reader did not know would be re-run and rescued, so the re-run rests\
+  \ on a positive declaration\ninstead. Amended in place on the card's owner-cleared\
+  \ scope, as amended rule 16's re-run in place.\nThe decide-first barrier (rule 3)\
+  \ was asked on the kernel's public tracker (issue 226) by a\nconsumer sizing each\
+  \ layer's resources against the other layers' lists; the owner chose the opt-in\
+  \ barrier\n(events.jsonl#ts=, option A). It is an additive case in place (SPEC-1037\
+  \ §7): with the\nkey absent no covered case changes.\n\n## Implementation notes\n\
+  The decided-lists file (rule 3, `bin/lib/land_verify_legs.py#_DecideBarrier`): one\
+  \ JSON object\n`{\"schema\": 1, \"kind\": \"decided\", \"layers\": {<layer>: [{\"\
+  file\", \"project\", \"median_ms\"}] | null}}`, written\natomically (a temporary\
   \ file renamed into place) by the last member of a group to decide, into one fresh\n\
   directory per run that is removed when the run's layers end. A later group's write\
   \ keeps every earlier\ngroup's entries. `project` and `median_ms` are null when\
@@ -560,38 +589,43 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ taken off the list, then rescued E times on runs whose recorded commit\n  lacks\
   \ that change, or with no recorded commit, is not entered and those rescues are\
   \ named; E rescues on\n  commits that hold the change re-enter it.\n- An outer layer\
-  \ timeout or a failed `prep:` fails the layer with no report fallback, re-run or\
-  \ rescue; a test's\n  own runner timeout reads as that unit's failure.\n- With no\
-  \ `list`, the layer's verdict is its full `command:`: no selection, no credit and\
-  \ no PER-UNIT re-run or\n  rescue acts, while the whole-layer re-run of SPEC-0152\
-  \ rule 16 runs, where that rule admits it, under the\n  layer's `rescue:` setting;\
-  \ with\n  no `related`, report, per-unit re-run and rescue work and selection and\
-  \ credit run the full layer.\n- Under `credit: shadow` a fix attempt runs the full\
-  \ layer and records the would-be credit and each void case\n  (i)-(iv) with its\
-  \ reason; a would-credited unit failing there is a recorded disagreement.\n- A rescued\
-  \ unit's row names the failing case; the per-case view counts it against that case\
-  \ only.\n- A runner config with native retries on: `run` disables them, so a fail-then-pass\
-  \ case reads failed on the\n  first attempt; a report showing a native retry is\
-  \ void.\n- A test failure and a separate run-level error in one invocation: the\
-  \ profile's channel shows the error and a\n  passing re-run of the failed unit does\
-  \ not clear it; without such a channel the layer rescues nothing.\n- A changed adapter\
-  \ script under an unchanged command, a widened glob, a changed `covers_classes`\
-  \ or a runner\n  version change records a new identity; switching `selection:`,\
-  \ `credit:` or `rescue:` does not.\n- A verify-infrastructure change, or a change\
-  \ to a layer's `sources:`, outside the layer's globs runs the layer.\n- With no\
-  \ `list`, a fail-then-pass full `command:` blocks under `rescue: off` and is rescued\
-  \ under `rescue: on`.\n- A void report with a nonzero exit is re-run once whole.\
-  \ As the sole failing layer it takes SPEC-0152 rule 16's\n  re-run. Beside a second\
-  \ layer that did not pass — another void report, a layer without an adapter failing\
-  \ by\n  its exit code, or an adapter-backed layer whose first attempt failed units\
-  \ even when rule 10 rescues them —\n  beside a timed-out layer or a failed `prep:`,\
-  \ rule 16 declines and the layer takes its own re-run after every\n  layer: a pass\
-  \ rescues it under `rescue: on` and is diagnostic under `rescue: off`, a second\
-  \ failure leaves it\n  failed. A void whose only reason is a nonzero exit over all-passed\
-  \ units takes no re-run, alone or beside\n  another failure; with `YITC_VERIFY_RETRY_MAX_FILES`\
-  \ at 0 or on the merge-base attribution run nothing is\n  re-run; the layer then\
-  \ fails with the decline reason recorded.\n- With `YITC_VERIFY_RETRY_MAX_FILES`\
-  \ at 0 no unit is re-run: a unit's first failure blocks.\n"
+  \ timeout or a failed `prep:` fails the layer with no report fallback or per-unit\
+  \ re-run; a\n  test's own runner timeout reads as that unit's failure. A layer that\
+  \ ran out of time where its tests run, under\n  a declaration whose failed tests\
+  \ the kernel reads, with output that shows none, is re-run once and a pass is\n\
+  \  recorded as load; a timeout whose output shows a failed test, one with no such\
+  \ declaration, one that wrote\n  nothing, one in a `required:` check, and a second\
+  \ timeout stay red after one invocation.\n- With no `list`, the layer's verdict\
+  \ is its full `command:`: no selection, no credit and no PER-UNIT re-run or\n  rescue\
+  \ acts, while the whole-layer re-run of SPEC-0152 rule 16 runs, where that rule\
+  \ admits it, under the\n  layer's `rescue:` setting; with\n  no `related`, report,\
+  \ per-unit re-run and rescue work and selection and credit run the full layer.\n\
+  - Under `credit: shadow` a fix attempt runs the full layer and records the would-be\
+  \ credit and each void case\n  (i)-(iv) with its reason; a would-credited unit failing\
+  \ there is a recorded disagreement.\n- A rescued unit's row names the failing case;\
+  \ the per-case view counts it against that case only.\n- A runner config with native\
+  \ retries on: `run` disables them, so a fail-then-pass case reads failed on the\n\
+  \  first attempt; a report showing a native retry is void.\n- A test failure and\
+  \ a separate run-level error in one invocation: the profile's channel shows the\
+  \ error and a\n  passing re-run of the failed unit does not clear it; without such\
+  \ a channel the layer rescues nothing.\n- A changed adapter script under an unchanged\
+  \ command, a widened glob, a changed `covers_classes` or a runner\n  version change\
+  \ records a new identity; switching `selection:`, `credit:` or `rescue:` does not.\n\
+  - A verify-infrastructure change, or a change to a layer's `sources:`, outside the\
+  \ layer's globs runs the layer.\n- With no `list`, a fail-then-pass full `command:`\
+  \ blocks under `rescue: off` and is rescued under `rescue: on`.\n- A void report\
+  \ with a nonzero exit is re-run once whole. As the sole failing layer it takes SPEC-0152\
+  \ rule 16's\n  re-run. Beside a second layer that did not pass — another void report,\
+  \ a layer without an adapter failing by\n  its exit code, or an adapter-backed layer\
+  \ whose first attempt failed units even when rule 10 rescues them —\n  beside a\
+  \ timed-out layer or a failed `prep:`, rule 16 declines and the layer takes its\
+  \ own re-run after every\n  layer: a pass rescues it under `rescue: on` and is diagnostic\
+  \ under `rescue: off`, a second failure leaves it\n  failed. A void whose only reason\
+  \ is a nonzero exit over all-passed units takes no re-run, alone or beside\n  another\
+  \ failure; with `YITC_VERIFY_RETRY_MAX_FILES` at 0 or on the merge-base attribution\
+  \ run nothing is\n  re-run; the layer then fails with the decline reason recorded.\n\
+  - With `YITC_VERIFY_RETRY_MAX_FILES` at 0 no unit is re-run: a unit's first failure\
+  \ blocks.\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0152
@@ -630,6 +664,9 @@ implements_signature:
   bin/lib/unit_table.py#encode: c79aec22f78edb3f6b8f56f0301718adfe5d0321c8552816432735920361d218
   bin/lib/unit_table.py#expand: 143910f22e33829115b1fac782a5f4d40935f3ddc0f65bfc47dd463cffc21b80
   bin/lib/views.py#_view_test_layout_hotspots: 0ad3f5f4c2b474a225ea8117b38138d5b2f6ec7cb28caf433953d2ce67a9f05d
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 21572a384556a0e2f4b3a9f195993268160aeb3197284c25667d53434bf79d7b
+  bin/lib/worktree.py#_consumer_zero_probe_guard: a384e4d1d02074b2dd9403a990170953d4bba71c571f9d2343f6c4886e3c4821
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37
+  bin/lib/worktree.py#_layer_timeout_rerun_eligible: ef1df4094d8c6c5aa4cb94382312eddff0b87f1c73c4896a22186003f512ff28
+  bin/lib/worktree.py#_timed_out_layer_failing_tests: 86db91c4eac1c5373a2ed4444571bbe26390ac24443d121d14bfc324cd219e23
+  bin/lib/worktree.py#_timeout_invocation_reading: 5b9234e09791d650e868ea7484a3ce11f01c8f54bd54393d1219831d96601e32
   bin/lib/worktree.py#_unit_lane_entry_at_land_tail: d0a9deeb45664ebbb951750729f686d086018535acbcc4f05df30e2f0f38e322

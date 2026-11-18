@@ -145,16 +145,20 @@ body: "## Scenario\nA project switches on the engine's admission queue in its ow
   \    run asked for a full reading — `--exclusive`, or the verb's full-run flag —\
   \ takes no quick step and runs\n      the full verify. `task test` is admitted and\
   \ syncs before it builds the temporary activation of the\n      card's proposed\
-  \ specs, and takes that snapshot after the sync;\n  (b) IN-PROCESS DECIDERS, ONE\
-  \ PREDICATE EACH: the layer-skip decision, the inert-path classifier, the merge\n\
-  \      probe, the queue-jump reader and the credit answer are called as the engine's\
-  \ own functions, never\n      re-implemented. Post-sync eligibility — for the proof\
-  \ and for a light run's prediction — is the\n      engine's one predicate (SPEC-0152\
-  \ rule 16); the source's own ELIGIBLE reading is not ported;\n  (c) THE LOGICAL\
-  \ JOURNAL: every journal read goes through the engine's segment-aware reader (SPEC-0190\n\
-  \      rule 1) and names a row by its timestamp and row sha, never a file offset;\n\
-  \  (d) THE SYNC AND THE QUICK CHECKS — THE ENGINE'S EXISTING PROOF, UNTOUCHED: with\n\
-  \      `verify.sync_at_stage6_admission` on, the queue calls `worktree sync --task`\
+  \ specs, and takes that snapshot after the sync. At its first ticket filing a card's\n\
+  \      `task test --run` repeats its stage decision under the queue LOCK, and `stage`\
+  \ reads the queue and\n      moves the pointer under that same LOCK (SPEC-1038 «Scope\
+  \ of the move rules»), so a pointer moved\n      while the run waits refuses the\
+  \ run before it takes a slot;\n  (b) IN-PROCESS DECIDERS, ONE PREDICATE EACH: the\
+  \ layer-skip decision, the inert-path classifier, the merge\n      probe, the queue-jump\
+  \ reader and the credit answer are called as the engine's own functions, never\n\
+  \      re-implemented. Post-sync eligibility — for the proof and for a light run's\
+  \ prediction — is the\n      engine's one predicate (SPEC-0152 rule 16); the source's\
+  \ own ELIGIBLE reading is not ported;\n  (c) THE LOGICAL JOURNAL: every journal\
+  \ read goes through the engine's segment-aware reader (SPEC-0190\n      rule 1)\
+  \ and names a row by its timestamp and row sha, never a file offset;\n  (d) THE\
+  \ SYNC AND THE QUICK CHECKS — THE ENGINE'S EXISTING PROOF, UNTOUCHED: with\n   \
+  \   `verify.sync_at_stage6_admission` on, the queue calls `worktree sync --task`\
   \ at admission; that verb's own\n      post-sync proof, its carrier and the land's\
   \ reading of it are unchanged. With\n      `verify.post_sync_set_first` also on:\
   \ if the sync ran the quick set, GREEN ends the run there only when\n      the card's\
@@ -475,7 +479,7 @@ implements_signature:
   bin/lib/admission.py#soak: 4e509e5f66384a98fea1f708a65bef482a489d8c495386c04ddaa289ec51efd6
   bin/lib/admission.py#switch: 81462a57aa25c9da176d523f19daf017ce88a09845e2849dd6995278fe684924
   bin/lib/admission.py#sync_step: 34e5ce6620d4b06d60d63098b491ddb52d4290b7d6cb27430d240d24b468c6ec
-  bin/lib/admission.py#task_test_entry: 226bc399bf78e47337a63b7b8269dbbd5e1e1b2f101c2eb62ab09196d0a8ad62
+  bin/lib/admission.py#task_test_entry: 4affaad1cd6b393119d53aa79b3af19d6b0344b9ec7e548b681a344177b6b09b
   bin/lib/admission.py#unlink_own: a3f8ae6168989d3129cb56087a01c7d80f1718acc9cdc7269a4c81d6490cf0ba
   bin/lib/cli.py#_admission_after_run: cb40e51ea8a8053797ecc03e0d4eaeb29f36be58a84bc1bc82a13167f043814d
   bin/lib/cli.py#_admission_land_preview: 2dc9bd074fcce1f949dff0d7ff3a89b06b43156266617264b08cb9687c54790d
@@ -483,5 +487,5 @@ implements_signature:
   bin/lib/cli.py#_admission_run_steps: e3297d69bd8fadf9aaf07e647457f90a76780e79530f26ccc56367a0cf6dcea1
   bin/lib/cli.py#_stage6_run_not_owed: c17cef181f2d2aeaf566a1483cbec956efd2dd29910484f1400076e9933ed7ff
   bin/lib/cli.py#cmd_land: 27217963c45612a2d330131d8612af2650ac07ff27952d560f3d3944d4c8d103
-  bin/lib/cli.py#cmd_task_test: aaa064e56c298fcc0f915a350196f9865ef42a70ff19bc282741e7a6da3b91ff
+  bin/lib/cli.py#cmd_task_test: 4a0393247f8d5f8c3c91a7cac7d5ff5a040742c064b4ca09bd03cf542c2753cc
   bin/lib/machine_settings.py#admission_from_main: e2e5b3d225958b6387482fbc3c56b459fb9c2ef37138da7870f29eaf36e368ca

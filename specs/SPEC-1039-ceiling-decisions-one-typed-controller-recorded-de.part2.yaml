@@ -241,69 +241,70 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ same exits on stderr and no row. The Worker's verb is unchanged —\n`task pause\
   \ --reason audit-ceiling` — and on such a stage its default `next_action` and the\n\
   dispatch recovery hint both name those exits instead of `audit decide`, read through\
-  \ the one\nrule-4 predicate. No halt kind, pause reason or payload key is added,\n\
-  and rules 3-4 are unchanged: the exits remain the owner's dispositions, cited to\
-  \ a directive.\n\n### 9. Plan-gate arm — the same route for a PLAN GATE at its ceiling\n\
-  Its text, (a) to (h), is in the edge-case reference that the index paragraph at\
-  \ the head of §Internal\nnames, under its heading `### Rule 9 — the plan-gate arm\
-  \ (text)` (moved verbatim).\n\n### 7. Kept — the safety properties, and where each\
-  \ now lives\nThe ceiling itself (<workshop-spec>, 2 passes) — unchanged. No self-grant\
-  \ past the ceiling — rule 2's writer\nauthority + the mandatory directive locator.\
-  \ No silent loop — rule 3: one pass, then terminal on a TASK target; a PLAN gate\
-  \ is decision-bounded, each round admitted only by fresh decisions (rule 9(f)) (amended\n\
-  : a YELLOW-absorbable pass admits ONE further absorption re-audit, derived from\
-  \ the rows and spent\nby its own record — still bounded, still no loop).\nAudited-commit\
-  \ custody — rules 1 + 4: fingerprints and decisions are revision-bound; nothing\n\
-  inherits. Record integrity — a verdict never reads GREEN with an undecided residual:\
-  \ rule 3\nrefuses the pass before an auditor runs. Loud failure (SPEC-0165) — every\
-  \ refusal axis in rules 2-3 is\na distinct `read_gate_refused` kind with a pinned\
-  \ test.\n\n### 8. First-round delta discipline (below the ceiling)\nPass 1 of audit-pre/post\
-  \ asks for the full survey; the auditor's completeness declaration is RECORDED,\n\
-  never a gate. Every later pass — including the rule-3 pass — receives the DELTA\
-  \ overlay in place of the\nwhole-subject survey directive: the prior pass's findings\
-  \ with their fingerprints, «judge their closure\nand any regression the change introduced;\
-  \ nothing else». The engine fingerprints the response and matches\nit (rule 1):\
-  \ an echo → closed/open; a NEW finding the change INTRODUCED (`causality:\nintroduced-by-subject`)\
-  \ → an ordinary finding at its severity; a NEW finding the auditor COULD have raised\n\
-  on pass 1 (`pre-existing-in-subject`) → recorded `late_finding` and never a verdict\
-  \ driver on its own —\nthe pass's verdict is computed from the non-late findings.\
-  \ The engine DERIVES that classification when the\nauditor is SILENT and it can\
-  \ decide the question itself: a NEW finding carrying NO `causality`, whose\n`locator`\
-  \ RESOLVES (file, file:symbol or file:line-range) and whose located content is BYTE-IDENTICAL\n\
-  between the pass-1 subject revision (the ceiling row's first `passes_trail` commit)\
-  \ and the audited\nsubject, is recorded `late_finding` with `causality_derived:\
-  \ unchanged-locator` — it was raisable on\npass 1 by construction. BOUND, both halves\
-  \ fail-closed: an EXPLICIT `introduced-by-subject` is HONORED\neven on an unchanged\
-  \ locator (the auditor may be naming an interaction with changed code — the\nderivation\
-  \ fills silence, it never overrides a stated cause), and a locator that does not\
-  \ resolve, whose\ncontent moved, or that carries an out-of-vocabulary value counts\
-  \ at its severity exactly as before.\nHow a late finding is decided is homed in\
-  \ <workshop-spec> §Audit-loop ceiling. Late findings per pass are\ncounted (a debt-view\
-  \ line).\n\n## Parameters\n\nNone consumed. `AUDIT_PASS_CEILING` (2) stays homed\
-  \ in <workshop-spec> / `bin/lib/audit.py` (stated in the\n<workshop-spec> §Audit-loop\
-  \ ceiling core); the fingerprint\nversion prefix (`fp1:`) is a code constant beside\
-  \ the hash, bumped on any change to the canonical\ntuple (a bump invalidates nothing\
-  \ retroactively — an old-version fingerprint simply matches no current\nresidual,\
-  \ so it can never be decided).\n\n## Rationale\n\nThe contract satisfies three constraints:\
-  \ an immutable decision record bound to task + stage +\nrevision + ceiling row +\
-  \ fingerprint; typed dispositions with `accept` terminal and a post-decision\nRED\
-  \ needing an explicit terminal owner disposition; a directive locator on every decision\
-  \ and the\njournal as the single store. Prior-art it EXTENDS rather than re-invents:\
-  \ <workshop-spec>'s per-finding\nfields (the fingerprint inputs already exist);\
-  \ no-worktree journal append; SPEC-0168's\ncross-instance fold; the existing `task\
-  \ update --status` / `worktree park` terminals.\n\n### A pre `fix` bound at the\
-  \ pass\n\nUntil a pre `fix` held the pass to the plan fingerprint typed at `audit\
-  \ decide`, and the\ncurrent plan had to EQUAL it. Public issue yitc#155 (cryptochart)\
-  \ measured the wedge: the\nplan was edited again after the decision to apply the\
-  \ fix, the pass refused, and rule 4 forbids\nre-recording. The owner chose binding\
-  \ at the pass (events.jsonl#ts=).\n\n### History moved out of the rule body\n\n\
-  The passages below stood in the rule text and were moved here verbatim; the rule\
-  \ they\nsat in is unchanged.\n\n- **1. The residual list IS the last RED's findings\
-  \ — fingerprinted by the engine:** (`green`\n  joined the set when admitted RED/YELLOW/GREEN\
-  \ as severity words)\n\n- **1. The residual list IS the last RED's findings — fingerprinted\
-  \ by the engine:**\n  (`read_gate_refused` kind `finding-locator-unresolvable` and\
-  \ its `findings_all` key are RETIRED:\n  nothing is refused, and a refusal row on\
-  \ a recorded verdict would misreport it to every later\n  reader)\n\n- **1. The\
+  \ the one\nrule-4 predicate. The row carries the same `kind: audit-ceiling` as the\
+  \ ceiling halt (SPEC-0103\n§3-ceiling); no other kind, pause reason or payload key\
+  \ is added,\nand rules 3-4 are unchanged: the exits remain the owner's dispositions,\
+  \ cited to a directive.\n\n### 9. Plan-gate arm — the same route for a PLAN GATE\
+  \ at its ceiling\nIts text, (a) to (h), is in the edge-case reference that the index\
+  \ paragraph at the head of §Internal\nnames, under its heading `### Rule 9 — the\
+  \ plan-gate arm (text)` (moved verbatim).\n\n### 7. Kept — the safety properties,\
+  \ and where each now lives\nThe ceiling itself (<workshop-spec>, 2 passes) — unchanged.\
+  \ No self-grant past the ceiling — rule 2's writer\nauthority + the mandatory directive\
+  \ locator. No silent loop — rule 3: one pass, then terminal on a TASK target; a\
+  \ PLAN gate is decision-bounded, each round admitted only by fresh decisions (rule\
+  \ 9(f)) (amended\n: a YELLOW-absorbable pass admits ONE further absorption re-audit,\
+  \ derived from the rows and spent\nby its own record — still bounded, still no loop).\n\
+  Audited-commit custody — rules 1 + 4: fingerprints and decisions are revision-bound;\
+  \ nothing\ninherits. Record integrity — a verdict never reads GREEN with an undecided\
+  \ residual: rule 3\nrefuses the pass before an auditor runs. Loud failure (SPEC-0165)\
+  \ — every refusal axis in rules 2-3 is\na distinct `read_gate_refused` kind with\
+  \ a pinned test.\n\n### 8. First-round delta discipline (below the ceiling)\nPass\
+  \ 1 of audit-pre/post asks for the full survey; the auditor's completeness declaration\
+  \ is RECORDED,\nnever a gate. Every later pass — including the rule-3 pass — receives\
+  \ the DELTA overlay in place of the\nwhole-subject survey directive: the prior pass's\
+  \ findings with their fingerprints, «judge their closure\nand any regression the\
+  \ change introduced; nothing else». The engine fingerprints the response and matches\n\
+  it (rule 1): an echo → closed/open; a NEW finding the change INTRODUCED (`causality:\n\
+  introduced-by-subject`) → an ordinary finding at its severity; a NEW finding the\
+  \ auditor COULD have raised\non pass 1 (`pre-existing-in-subject`) → recorded `late_finding`\
+  \ and never a verdict driver on its own —\nthe pass's verdict is computed from the\
+  \ non-late findings. The engine DERIVES that classification when the\nauditor is\
+  \ SILENT and it can decide the question itself: a NEW finding carrying NO `causality`,\
+  \ whose\n`locator` RESOLVES (file, file:symbol or file:line-range) and whose located\
+  \ content is BYTE-IDENTICAL\nbetween the pass-1 subject revision (the ceiling row's\
+  \ first `passes_trail` commit) and the audited\nsubject, is recorded `late_finding`\
+  \ with `causality_derived: unchanged-locator` — it was raisable on\npass 1 by construction.\
+  \ BOUND, both halves fail-closed: an EXPLICIT `introduced-by-subject` is HONORED\n\
+  even on an unchanged locator (the auditor may be naming an interaction with changed\
+  \ code — the\nderivation fills silence, it never overrides a stated cause), and\
+  \ a locator that does not resolve, whose\ncontent moved, or that carries an out-of-vocabulary\
+  \ value counts at its severity exactly as before.\nHow a late finding is decided\
+  \ is homed in <workshop-spec> §Audit-loop ceiling. Late findings per pass are\n\
+  counted (a debt-view line).\n\n## Parameters\n\nNone consumed. `AUDIT_PASS_CEILING`\
+  \ (2) stays homed in <workshop-spec> / `bin/lib/audit.py` (stated in the\n<workshop-spec>\
+  \ §Audit-loop ceiling core); the fingerprint\nversion prefix (`fp1:`) is a code\
+  \ constant beside the hash, bumped on any change to the canonical\ntuple (a bump\
+  \ invalidates nothing retroactively — an old-version fingerprint simply matches\
+  \ no current\nresidual, so it can never be decided).\n\n## Rationale\n\nThe contract\
+  \ satisfies three constraints: an immutable decision record bound to task + stage\
+  \ +\nrevision + ceiling row + fingerprint; typed dispositions with `accept` terminal\
+  \ and a post-decision\nRED needing an explicit terminal owner disposition; a directive\
+  \ locator on every decision and the\njournal as the single store. Prior-art it EXTENDS\
+  \ rather than re-invents: <workshop-spec>'s per-finding\nfields (the fingerprint\
+  \ inputs already exist); no-worktree journal append; SPEC-0168's\ncross-instance\
+  \ fold; the existing `task update --status` / `worktree park` terminals.\n\n###\
+  \ A pre `fix` bound at the pass\n\nUntil a pre `fix` held the pass to the plan fingerprint\
+  \ typed at `audit decide`, and the\ncurrent plan had to EQUAL it. Public issue yitc#155\
+  \ (cryptochart) measured the wedge: the\nplan was edited again after the decision\
+  \ to apply the fix, the pass refused, and rule 4 forbids\nre-recording. The owner\
+  \ chose binding at the pass (events.jsonl#ts=).\n\n### History moved out of the\
+  \ rule body\n\nThe passages below stood in the rule text and were moved here verbatim;\
+  \ the rule they\nsat in is unchanged.\n\n- **1. The residual list IS the last RED's\
+  \ findings — fingerprinted by the engine:** (`green`\n  joined the set when admitted\
+  \ RED/YELLOW/GREEN as severity words)\n\n- **1. The residual list IS the last RED's\
+  \ findings — fingerprinted by the engine:**\n  (`read_gate_refused` kind `finding-locator-unresolvable`\
+  \ and its `findings_all` key are RETIRED:\n  nothing is refused, and a refusal row\
+  \ on a recorded verdict would misreport it to every later\n  reader)\n\n- **1. The\
   \ residual list IS the last RED's findings — fingerprinted by the engine:** (the\
   \ same\n  fingerprinted projection, so a YELLOW pass is journaled like a RED; residual\
   \ identity is unchanged,\n  since a YELLOW ceiling row resolved the same findings\

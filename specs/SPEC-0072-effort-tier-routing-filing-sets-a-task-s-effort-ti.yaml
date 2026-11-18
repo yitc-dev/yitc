@@ -241,8 +241,8 @@ implements_signature:
   bin/lib/cli.py#_resolve_worker_binary: 15c4e30a31bd509a9705a546ea7375b1e361aad288e59649d23d26f889e1fa3e
   bin/lib/cli.py#_strip_model_window_suffix: 01955b91ac353e9e62c496d299ea60c4714b596774915502aff25a3af9f1760b
   bin/lib/dispatch.py#classify_launch_answer: 217a598ab5ed2f5865ccffc887106c23f9714c7283ca1cc0f1d887dfa70abfb1
-  bin/lib/dispatch.py#cmd_dispatch: 3702df382325f91d8024ab714d6a96c07d7b52ea63bfd07d5a5335c288155ad9
+  bin/lib/dispatch.py#cmd_dispatch: 3f80f3d863a29a6699b497c266cb1a178b23e89a97efe47e1a15822d4db6d381
   bin/lib/dispatch.py#launch_worker_with_pair: 4330b00e18ebeb5505ee8333455c912b877d4e6d86f2d61e86a3ff03b2bc84d6
   bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a
-  bin/lib/task.py#cmd_task_update: 6d0fab30fc22d973cb785a9301cb2d253d8c3fe595c172ecf32e0d8a7a6ab0ea
+  bin/lib/task.py#cmd_task_update: 6b66f89eca53bb2abae63ce18385268fdbc673e41532f91f5107db115d0f4dea
   bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

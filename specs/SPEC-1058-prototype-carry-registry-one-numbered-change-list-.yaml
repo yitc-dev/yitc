@@ -15,6 +15,7 @@ implements:
 - bin/lib/audit.py#prototype_carry_block
 - bin/lib/plan.py#_proto_carried_by
 - bin/lib/plan.py#_plan_prototype_earlier_plans
+- bin/lib/plan.py#_plan_registry_judged_view
 body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spike,\
   \ SPEC-0205), checks it there, and asks\nfor it in production. The carry must bring\
   \ over everything the owner kept and nothing else.\n\nThe CARRY REGISTRY is one\
@@ -146,61 +147,71 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ The card-set\n  fingerprint covers each card's `prototype_lines`, the registry\
   \ text and `prototype_tip`, so a\n  change to any re-opens the fidelity verdict.\
   \ JUDGED: the fidelity audit packet carries the\n  registry; the auditor checks\
-  \ that the verifier's acceptance walks every item.\n- **Each writer card.** `audit\
-  \ pre` delivers its items in full beside the prototype diff; the\n  overlay: build\
-  \ exactly these items to their expected state; an unresolved departure from an item's\
-  \ expected state is a\n  stop-and-ask — `task pause --reason controller-wait` naming\
-  \ the item — never a silent drop and\n  never «the card governs»; building an owner\
-  \ amendment\n  already cited on the item is not a departure and asks nothing. An\
-  \ owner-risk item is no\n  stop-and-ask either: the card builds a reasonable resolution\
-  \ of its open detail, its audits do\n  not re-open it, and the verifier walks it\
-  \ like any item. The verdict's reuse key covers `prototype_lines`, those items'\
-  \ text, and `prototype_tip`.\n  `audit post` carries the same items, every `not-carried`\
-  \ item on the same surfaces and the\n  prototype hunks of their locators, and asks\
-  \ both ways: each item in its expected state; nothing\n  owner-visible shipped that\
-  \ no item names and no `not-carried` item applied. On a post-GREEN\n  merge-integration\
-  \ re-audit an item on no path the integration touched is named by reference to\n\
-  \  the GREEN that judged it (SPEC-1018 «The merge-integration packet»). New implementation\n\
-  \  and test files are the card's own design (SPEC-0205 rule 5) and need no item.\
-  \ For an opted-in card\n  this replaces rule 5's per-card «which prototype findings\
-  \ it does NOT carry» request. A `[]` card's\n  `audit post` asks the forward half\
-  \ only: it changes no owner-visible behaviour on the registry's\n  surfaces.\n-\
-  \ **The verifier card — it walks and records; it does not repair.** An ordinary\
-  \ card, the last of\n  the cut. Its acceptance criteria: every registry item but\
-  \ a `carried-by-plan` one walked on the acceptance stand (SPEC-0205\n  rule 7) over\
-  \ landed main, and its state recorded — a `carry` item in its expected state or\
-  \ not, a\n  `not-carried` item applied or not — plus every owner-visible change\
-  \ in the commits of the other\n  cards of the cut that has no item, named by its\
-  \ surface and locator: reverting such a change needs\n  no item, keeping it needs\
-  \ an item added with an owner_row. Each failure is routed by the EXISTING acceptance-finding\n\
-  \  route of SPEC-0205 rule 7 (a `followup add`, or a card filed WITHOUT `prototype_ref`\
-  \ and outside\n  the cut, naming the registry item it fixes), or settled by the\
-  \ owner on the item — DROP (it\n  becomes `not-carried`) or ACCEPT AS SHIPPED (`what`\
-  \ rewritten) — by an `owner_row`. The verifier\n  closes when the walk is recorded\
-  \ and every failure is routed or settled: it is the list, not the\n  fix.\n- **The\
-  \ verifier template — path evidence, the one home.** A verifier card's acceptance\
-  \ proves\n  each claimed behaviour by ONE CONNECTED PATH through the named records,\
-  \ and states each element\n  below as a criterion; the cut gate (SPEC-0083 P5) asks\
-  \ it of every verifier card:\n  1. **Active pass of every item.** Each item is walked\
-  \ by doing the action it names on the stand\n     and reading what the action produced;\
-  \ viewing a screen or a record does not count as a pass.\n  2. **Seeding missing\
-  \ data.** Where the stand lacks the records an item's path needs, the walk\n   \
-  \  seeds them first and names what it seeded; an item is never passed on absent\
-  \ data.\n  3. **Step 0 — the stand as production.** Before the first item, the stand\
-  \ is raised from landed\n     main with production settings (the acceptance stand\
-  \ of SPEC-0205 rule 7) and its version is\n     recorded.\n  4. **Visibility under\
-  \ real limited logins.** What a role may or may not see is walked logged in\n  \
-  \   as a real account of that role, never through an administrator's view.\n  5.\
-  \ **Rolling mini-passes.** As each card of the cut lands, the items it carries are\
-  \ walked on the\n     stand then; the final pass walks every item once more over\
-  \ landed main.\n  6. **One stand and one pass for several plans.** Plans landing\
-  \ together may share one stand and\n     one pass; each item is recorded against\
-  \ the plan whose registry holds it.\n  7. **Path evidence, not totals.** The record\
-  \ of each item names the records, the actions and what\n     each showed along its\
-  \ path; a count — so many resolved, so many published — over records not\n     on\
-  \ that path proves nothing about the item.\n  The template binds a verifier card\
-  \ filed after it was added; a verifier card filed before is\n  judged by its own\
-  \ criteria, unchanged.\n- **After the verifier — the plan's `postcheck` (SPEC-0034),\
+  \ that the verifier's acceptance walks every item.\n  **The fidelity packet within\
+  \ the auditor's input budget.** The registry is sent once, in the cut\n  block,\
+  \ by a fixed key rule, never a model's judgement: each item with the fields the\
+  \ gate judges\n  (id, kind, surface, what, locators, disposition, owner_row, owner_risk);\
+  \ every other key of an\n  item — its notes — is left out and LISTED in the packet\
+  \ with its size, the full text by reference\n  to the plan file; the plan body shown\
+  \ beside it points at that block instead of repeating the\n  registry. Every card\
+  \ and every proposed spec of the cut is sent. A gate packet still over the\n  budget\
+  \ is refused before the auditor, naming its parts largest-first with their sizes;\
+  \ no record\n  is written and no pass is spent. The gate is one auditor call and\
+  \ one recorded verdict, so its\n  passes count as before.\n- **Each writer card.**\
+  \ `audit pre` delivers its items in full beside the prototype diff; the\n  overlay:\
+  \ build exactly these items to their expected state; an unresolved departure from\
+  \ an item's expected state is a\n  stop-and-ask — `task pause --reason controller-wait`\
+  \ naming the item — never a silent drop and\n  never «the card governs»; building\
+  \ an owner amendment\n  already cited on the item is not a departure and asks nothing.\
+  \ An owner-risk item is no\n  stop-and-ask either: the card builds a reasonable\
+  \ resolution of its open detail, its audits do\n  not re-open it, and the verifier\
+  \ walks it like any item. The verdict's reuse key covers `prototype_lines`, those\
+  \ items' text, and `prototype_tip`.\n  `audit post` carries the same items, every\
+  \ `not-carried` item on the same surfaces and the\n  prototype hunks of their locators,\
+  \ and asks both ways: each item in its expected state; nothing\n  owner-visible\
+  \ shipped that no item names and no `not-carried` item applied. On a post-GREEN\n\
+  \  merge-integration re-audit an item on no path the integration touched is named\
+  \ by reference to\n  the GREEN that judged it (SPEC-1018 «The merge-integration\
+  \ packet»). New implementation\n  and test files are the card's own design (SPEC-0205\
+  \ rule 5) and need no item. For an opted-in card\n  this replaces rule 5's per-card\
+  \ «which prototype findings it does NOT carry» request. A `[]` card's\n  `audit\
+  \ post` asks the forward half only: it changes no owner-visible behaviour on the\
+  \ registry's\n  surfaces.\n- **The verifier card — it walks and records; it does\
+  \ not repair.** An ordinary card, the last of\n  the cut. Its acceptance criteria:\
+  \ every registry item but a `carried-by-plan` one walked on the acceptance stand\
+  \ (SPEC-0205\n  rule 7) over landed main, and its state recorded — a `carry` item\
+  \ in its expected state or not, a\n  `not-carried` item applied or not — plus every\
+  \ owner-visible change in the commits of the other\n  cards of the cut that has\
+  \ no item, named by its surface and locator: reverting such a change needs\n  no\
+  \ item, keeping it needs an item added with an owner_row. Each failure is routed\
+  \ by the EXISTING acceptance-finding\n  route of SPEC-0205 rule 7 (a `followup add`,\
+  \ or a card filed WITHOUT `prototype_ref` and outside\n  the cut, naming the registry\
+  \ item it fixes), or settled by the owner on the item — DROP (it\n  becomes `not-carried`)\
+  \ or ACCEPT AS SHIPPED (`what` rewritten) — by an `owner_row`. The verifier\n  closes\
+  \ when the walk is recorded and every failure is routed or settled: it is the list,\
+  \ not the\n  fix.\n- **The verifier template — path evidence, the one home.** A\
+  \ verifier card's acceptance proves\n  each claimed behaviour by ONE CONNECTED PATH\
+  \ through the named records, and states each element\n  below as a criterion; the\
+  \ cut gate (SPEC-0083 P5) asks it of every verifier card:\n  1. **Active pass of\
+  \ every item.** Each item is walked by doing the action it names on the stand\n\
+  \     and reading what the action produced; viewing a screen or a record does not\
+  \ count as a pass.\n  2. **Seeding missing data.** Where the stand lacks the records\
+  \ an item's path needs, the walk\n     seeds them first and names what it seeded;\
+  \ an item is never passed on absent data.\n  3. **Step 0 — the stand as production.**\
+  \ Before the first item, the stand is raised from landed\n     main with production\
+  \ settings (the acceptance stand of SPEC-0205 rule 7) and its version is\n     recorded.\n\
+  \  4. **Visibility under real limited logins.** What a role may or may not see is\
+  \ walked logged in\n     as a real account of that role, never through an administrator's\
+  \ view.\n  5. **Rolling mini-passes.** As each card of the cut lands, the items\
+  \ it carries are walked on the\n     stand then; the final pass walks every item\
+  \ once more over landed main.\n  6. **One stand and one pass for several plans.**\
+  \ Plans landing together may share one stand and\n     one pass; each item is recorded\
+  \ against the plan whose registry holds it.\n  7. **Path evidence, not totals.**\
+  \ The record of each item names the records, the actions and what\n     each showed\
+  \ along its path; a count — so many resolved, so many published — over records not\n\
+  \     on that path proves nothing about the item.\n  The template binds a verifier\
+  \ card filed after it was added; a verifier card filed before is\n  judged by its\
+  \ own criteria, unchanged.\n- **After the verifier — the plan's `postcheck` (SPEC-0034),\
   \ unchanged.** The routed findings are\n  postcheck inputs; the deploy follows the\
   \ walk and the fixes, as the project deploys today; the\n  realization exit counts\
   \ failures against the registry after the deploy. This rule adds no deploy\n  binding,\
@@ -319,6 +330,7 @@ implements_signature:
   bin/lib/audit.py#prototype_carry_block: c5fafc6da92efc4b71437e5003f6f6f1a028d92c2b18eb116f5584a42e089626
   bin/lib/plan.py#_plan_prototype_owner_risk_block: 5ca4d4e9397b75c4b3f72b0c76432d233228fc58883cdc0e8738e0db703f0cdd
   bin/lib/plan.py#_plan_prototype_owner_risk_rows: 36695c96f2b015f573e26d5a4dc93273893fdd373f53e8d9fa336eb8f9e4977e
+  bin/lib/plan.py#_plan_registry_judged_view: 8f969544d83b5c5cfafe7c36e85ea71ebcbccb9ddbe64992767e8a6cabb6be72
   bin/lib/plan.py#cmd_plan_show: d87cd559b25e20cbdb0f3a44cbfa0727b72d90f357bc7f596bd77006cae6121b
-  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2
+  bin/lib/plan.py#cmd_plan_stage: 04eedba70690a04f2e3fabd3b2dd4bfe9cff5a2f9603207dc7fcee69ce4b8b5f
   bin/lib/plan.py#owner_words_reconciliation: 2a961682437d3a5cb5154d203e9e7d2e34fb2096fbfc2ff0303256592ea2d59d

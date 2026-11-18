@@ -9967,7 +9967,35 @@ def _bridge_declaration(repo_path, section="spike_sandbox", key="bridge"):
 # for both, and a cache parent the first user created is not writable by the second. Per user, not
 # group-writable: a cache another user can write would let that user plant a tree that a pin declaring
 # no `anchor` accepts unverified. Every reader takes this constant, so they all follow it.
-_TAG_RELEASE_CACHE = f"yitc-pinned-release-u{__import__('os').geteuid()}"
+def _host_paths_mod():
+    """`lib.host_paths`, or None. This module is also imported off `bin/lib` directly (the verify
+    sandbox copies it — see the module docstring), where `lib` is no package: the sibling leaf is then
+    loaded by path, and a copy without it yields None (callers keep their pre-T-14689 behaviour)."""
+    try:
+        from lib import host_paths
+        return host_paths
+    except ImportError:
+        pass
+    try:
+        import importlib.util
+        from pathlib import Path
+        spec = importlib.util.spec_from_file_location(
+            "_yitc_host_paths_sibling", Path(__file__).resolve().parent / "host_paths.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except (OSError, ImportError):
+        return None
+
+
+def _release_cache_prefix():
+    """`host_paths.RELEASE_CACHE_PREFIX` — the one spelling (T-14689); the literal only when the leaf
+    itself is unreachable (an init.py loaded alone)."""
+    mod = _host_paths_mod()
+    return mod.RELEASE_CACHE_PREFIX if mod is not None else "yitc-pinned-release-u"
+
+
+_TAG_RELEASE_CACHE = f"{_release_cache_prefix()}{__import__('os').geteuid()}"
 
 
 def _private_cache_parent(parent, why=None, uid=None):
@@ -10135,6 +10163,28 @@ def _anchor_mismatch_detail(ref, repo, evidence):
             f"release's published fingerprint) and re-run; removing the release cache will not help")
 
 
+def _record_cache_provenance(cache):
+    """T-14689 — name, beside a resolved cache tree, the STABLE engine that made it, so a copy run
+    directly anchors its host home and baked paths on that engine rather than on itself. The invoking
+    engine is this module's own checkout (mapped to its live root); a cache never records itself."""
+    try:
+        from pathlib import Path
+        host_paths = _host_paths_mod()
+        if host_paths is None:
+            return cache
+        own = Path(__file__).resolve().parent.parent.parent
+        try:
+            from lib import engine_route
+            own = engine_route.live_engine_root(own)
+        except ImportError:
+            pass
+        if not host_paths._is_cache_tree(own):
+            host_paths.record_stable_engine(cache, own)
+    except Exception:  # noqa: BLE001 — provenance is best-effort, never blocks a resolution
+        pass
+    return cache
+
+
 def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
     """Resolve a pin declared as a git TAG in a declared sibling repo (T-11758, X-1161) — return the
     release ROOT holding that tag's bytes, or None.
@@ -10194,7 +10244,7 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
         # it back unchecked would let an unverified tree be read as pinned through a warm cache.
         # The re-check is read-only and cheap next to the extraction it skips (T-12043).
         if _pinned_release_integrity_ok(cache, anchor):
-            return cache
+            return _record_cache_provenance(cache)
         # T-13230 — say WHICH bytes drifted, so the refusal is actionable rather than a generic
         # "does not resolve" (the recovery is removing this cache; it re-extracts from the tag).
         # T-14611 — but only a cache that REALLY drifted is blamed: when the cache equals the tag's
@@ -10248,7 +10298,7 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
         except OSError:
             if not cache.is_dir():                # a real failure, not a lost race
                 return None
-        return cache if cache.is_dir() else None
+        return _record_cache_provenance(cache) if cache.is_dir() else None
     except Exception:  # noqa: BLE001
         return None
     finally:
@@ -11458,8 +11508,16 @@ def _engine_install_root(engine_root, _run_git_cap):
     from pathlib import Path   # function-local, matching this module's import idiom
 
     cache = Path(tempfile.gettempdir()) / _TAG_RELEASE_CACHE
-    if cache == Path(engine_root) or cache in Path(engine_root).parents:
-        engine_root = Path(__file__).resolve().parent.parent.parent
+    # T-14689 (audit-post fp1:131c7a31410b3925): a copy is recognised by its cache-parent NAME too, not
+    # only by sitting under THIS run's temp dir — a run with another TMPDIR must still never bake it.
+    if (cache == Path(engine_root) or cache in Path(engine_root).parents
+            or Path(os.path.realpath(str(engine_root))).parent.name == _TAG_RELEASE_CACHE):
+        # T-14689 — the copy's recorded stable engine first: run FROM the copy, this module's own
+        # __file__ IS the copy, so it cannot name the durable install by itself.
+        host_paths = _host_paths_mod()
+        stable = host_paths.stable_engine_root(engine_root) if host_paths is not None else engine_root
+        engine_root = (stable if host_paths is not None and not host_paths._is_cache_tree(stable)
+                       else Path(__file__).resolve().parent.parent.parent)
         try:
             from lib import engine_route
             engine_root = engine_route.live_engine_root(engine_root)

@@ -44,7 +44,7 @@ in §System-inspection. No check lives in two homes.
 ### Tier — Operational hygiene (weekly) → part 1
 
 The weekly operational-hygiene checklist (parking-lot · blocked-queue · MEMORY GC · postcheck-ready ·
-overdue-recheck · lifecycle-integrity · read-gate · canary · cron-drift · soak-scan · bench-refresh ·
+overdue-recheck · lifecycle-integrity · read-gate · canary · cron-drift · soak-scan ·
 lesson-generalization · journal-hygiene · …) is a **freshness-hashed living checklist** and lives in
 **part 1** (`patterns/inspection-criteria-roster.md` §Operational-hygiene weekly checklist) — `inspect
 record --tier weekly` hashes that section there. Read it there.

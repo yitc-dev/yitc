@@ -411,6 +411,7 @@ concern:
     \ the artifact rather than the shared\n      filesystem (SPEC-0195 rules 3-4).\n"
 init_concern: null
 implements_signature:
+  bin/lib/cli.py#_rebind_repo_root: 3743f3fba2e7aa6863ab263389e9bea4c1bea3294f26fb49450f78d180e2d523
   bin/lib/release.py#_add_trust_surfaces: b72577832dd49c4dbfe21b201f77cfe07d1d5c680ae43a5bc61ac531742403e8
   bin/lib/release.py#cmd_release_update: bcb92ddab5f873cee07df795880729b83fd137e8bf30540ba79e2595fdf8387c
   bin/lib/release.py#cmd_work_publish: a696b98ace57bd02bac309c89f63a9b01270eb44c0123f4886155c24593949d8

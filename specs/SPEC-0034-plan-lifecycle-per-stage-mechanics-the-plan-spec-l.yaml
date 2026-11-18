@@ -8,6 +8,9 @@ implements:
 - bin/lib/plan.py#cmd_plan_stage
 - bin/lib/plan.py#cmd_plan_check
 - bin/lib/plan.py#cmd_plan_file
+- bin/lib/plan.py#run_project_plan_check
+- bin/lib/plan.py#plan_obligation_view
+- bin/lib/plan.py#plan_obligation_catch_up
 binding:
 - plan-stage-entry:draft
 - plan-stage-entry:specs
@@ -72,15 +75,16 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ pays audits the change does not need. | SPEC-1043 (carrier sieve) · LIFECYCLE\
   \ §Routing |\n| **big vs small** | foundational / ≥3 canonical files / quantitative\
   \ claims / a new principle-or-mechanism / ≥3 commits (LARGE) · vs · not (SMALL)\
-  \ | the WEIGHT of the `accepted → decomposition` gate: a LARGE plan needs a filled\
-  \ `checklist_pass` + `plan check --full` + a dry-run when its RULES are novel; a\
-  \ SMALL plan pays the ordinary `plan check`. Set by blast-radius, not line count.\
-  \ | §Mandatory big-plan check · `patterns/big-plan-checklist.md` |\n\n### Per-stage\
-  \ mechanics (one rule per linear stage — entry-gate, work, side-effects, task analog)\n\
-  EVERY transition obeys ONE rule: the verb gates the **PRIOR stage's completion**\
-  \ (so a check \"at the\nend of stage N\" is expressed as the ENTRY gate of stage\
-  \ N+1).\n\n**Audit posture: FULL, not light.** Any external audit on a\nplan-lifecycle\
-  \ transition (e.g. `plan check`, the aggregate `audit post --plan`) uses the\nFULL-capability\
+  \ | the WEIGHT of the `accepted → decomposition` gate: a LARGE plan gets the big-plan\
+  \ checklist in `plan check` + a dry-run when its RULES are novel, a filled `checklist_pass`\
+  \ RECOMMENDED (its absence a report-only low finding); a SMALL plan pays the ordinary\
+  \ `plan check`. Set by blast-radius, not line count. | §Mandatory big-plan check\
+  \ · `patterns/big-plan-checklist.md` |\n\n### Per-stage mechanics (one rule per\
+  \ linear stage — entry-gate, work, side-effects, task analog)\nEVERY transition\
+  \ obeys ONE rule: the verb gates the **PRIOR stage's completion** (so a check \"\
+  at the\nend of stage N\" is expressed as the ENTRY gate of stage N+1).\n\n**Audit\
+  \ posture: FULL, not light.** Any external audit on a\nplan-lifecycle transition\
+  \ (e.g. `plan check`, the aggregate `audit post --plan`) uses the\nFULL-capability\
   \ auditor, never the lighter routine mode — plans are high-stakes and audit quality\n\
   is not economized. This OVERRIDES the AGENTS §External-auditor routine→light default\
   \ for PLAN-level\naudits. (WHICH early transitions block was the former open question\
@@ -544,97 +548,168 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ the cut) is **NOT\noptional for a LARGE plan** — it MUST apply the big-plan discipline.\
   \ For a plan meeting the\n`patterns/big-plan-checklist.md` apply-when criteria (foundational\
   \ · ≥3 canonical files · quantitative\nclaims · a new principle/mechanism · ≥3 commits),\
-  \ ALL THREE hold before the gate passes:\n\n1. the 7-probe **`checklist_pass` block\
-  \ MUST be filled** in the plan (the self-traversal), AND\n2. the external **`plan\
-  \ check --full` MUST run** — it auto-applies the big-plan-checklist for large\n\
-  \   plans (records `big_plan_checklist: true`) + a structural pre-pass that mechanizes\
+  \ the gate carries this weight:\n\n1. the 7-probe **`checklist_pass` block is RECOMMENDED**\
+  \ in the plan (the self-traversal, an authoring\n   aid): its absence is a report-only\
+  \ `severity: low` structural finding in `plan check` (and a WARN at\n   `plan draft\
+  \ --finalize`), never a refusal — no gate reads `checklist_pass`;\n2. the external\
+  \ **`plan check` MUST run** (always at full capability; `--full` is accepted and\
+  \ changes\n   nothing) — it auto-applies the big-plan-checklist for large plans\
+  \ (records\n   `big_plan_checklist: true`) + a structural pre-pass that mechanizes\
   \ P7, AND\n3. a **dry-run rehearsal** is required when the plan's RULES (not just\
-  \ its steps) are novel — a model /\n   governance change.\n\nA LARGE plan WITHOUT\
-  \ a filled `checklist_pass` + a fresh `plan check --full` does NOT pass this gate\
-  \ —\nso `plan stage decomposition` (entry to the cut) is REFUSED. For a SMALL plan\
-  \ this gate is the ordinary `plan check`.\n(This makes explicit and stage-binds\
-  \ what `patterns/big-plan-checklist.md` left as optional reference —\nthe owner-directed\
-  \ empirical pull, 2026-06-04. It reuses the EXISTING checklist + the EXISTING `plan\n\
-  check` large-detection; it adds no new gate engine — CHARTER §P1.)\n\n### Where\
-  \ pre-execution plan work lives, and when it lands\nPlan work before execution —\
-  \ `draft`, `specs`, `trial`, `accepted`, every `plan check` round and the\n`decomposition`\
-  \ cut — stays in ONE `work/<slug>` worktree and takes NO land between gates or rounds:\n\
-  every plan verb needs only a writing worktree, and each land of a batch carrying\
-  \ draft-spec edits\npays a full verify. A plan batch lands only where `main` needs\
-  \ it:\n- **once after `plan stage executing`** (the cut's fidelity verdict passed)\
-  \ and before its cards are\n  dispatched — `worktree new --task` claims a card off\
-  \ `main`'s committed state and the claim-block\n  (SPEC-0070 §5) reads the plan's\
-  \ status there, so an unlanded cut cannot be claimed;\n- **once at the end** — a\
-  \ terminal (`realized`, `partial`, `rejected`, `cancelled`) or the owner\n  stopping\
-  \ the plan; the `postcheck` work and the terminal move ride that last batch.\nEach\
-  \ executing card still lands on its own. What keeps the long-lived plan worktree\
-  \ harmless: run\n`worktree sync --work <slug>` before each gate, so the plan reads\
-  \ current `main` without a verify; a\nhand-off names the open plan worktree, and\
-  \ the next session takes it with\n`worktree adopt --work <slug> --confirm-dead`\
-  \ once its holder is dead. Unlanded plan text is\ninvisible to other sessions —\
-  \ accepted, because only the plan author edits it. The rule is the same\nin the\
-  \ kernel and in a consumer under `-C` (same verbs, same guards).\n\n### Planning-artifact\
-  \ handling — idea sibling, file shape, anti-patterns\nThe plan-lifecycle home ALSO\
-  \ governs the sibling `idea` class, the on-disk file shape, and the\nplanning-hygiene\
-  \ anti-patterns. The plan FSM, the verbs, the accept-gate, the audit-post\nfinalization,\
-  \ and the decomposition procedure are NOT restated here — they ARE the per-stage\n\
-  mechanics + linkage chain above (consolidate, do NOT duplicate).\n\n- **`idea` sibling\
-  \ class (flat — NO FSM).** `ideas/<slug>.md` is a forward-looking holding pen: no\n\
-  \  FSM, no checks, no accept/finalize gates; sessions NEVER scan / pick / analyze\
-  \ it (the picker reads\n  `tasks/` ONLY) unless the owner explicitly asks. `plan\
-  \ file --idea` creates one; `plan to-idea <slug>`\n  moves a plan that turns out\
-  \ to be «not now, maybe later» into `ideas/`. An idea becomes actionable\n  only\
-  \ when an incident pulls it — re-file it as a plan (manual) then. Holding it here\
-  \ is the\n  anti-accretion default; promoting it prematurely is scope-creep (anti-pattern\
-  \ below).\n\n- **File shape (markdown + frontmatter).** A plan/idea is a small `---`\
-  \ frontmatter block (machine-read\n  for accounting + the `plan` graph node) over\
-  \ prose (human-read); `id` = the slug (no numeric id —\n  patterns precedent). The\
-  \ terminal frontmatter CARRIERS: `realized`/`partial` → `closed_into: [D-/T-…]`\n\
-  \  (what it became); `partial` additionally → `deferred: <new-plan-slug>` (the remainder\
-  \ — a tracked\n  plan, never prose); `rejected` → `rejected_reason: <one line>`.\
-  \ (Terminal plans stay in\n  `plans/`, status-filtered — §Terminals.)\n\n- **Anti-patterns\
-  \ (planning hygiene).**\n  - Treating a STALE `accepted` plan as still-valid WITHOUT\
-  \ the take-into-work currency re-check —\n    verification DECAYS (there is no `verified`\
-  \ status; the re-check is the §accepted / §executing entry-gate).\n  - Filing a\
-  \ forward-looking idea as a task/decision PREMATURELY (accretion) — keep it in `ideas/`\n\
-  \    until an incident pulls it.\n  - Leaving a decomposed plan as «just a note»\
-  \ — close it (`realized`/`partial`) so it stops cluttering\n    the active view\
-  \ (silent-skip otherwise).\n  - Deferring a plan part / spec-body half as PROSE\
-  \ with no tracked task (the deferral-as-prose trap):\n    any such deferral MUST\
-  \ be a tracked task (parked/blocked, with a `return_trigger`), never prose.\n  \
-  \  The standing rule + its mechanized `plan check` structural pre-pass are homed\
-  \ in **<workshop-spec>** (P5);\n    this is a pointer there, not a second home.\n\
-  \  - **Piecemeal-from-draft (build off an un-frozen draft).** Cutting cards / dispatching\
-  \ Workers off a\n    plan whose `draft`/`specs` body is STILL MOVING — scope lines\
-  \ being added, carve-outs still\n    shifting — so different cards are cut against\
-  \ different snapshots and the cut de-syncs from the\n    plan. A plan must be FROZEN\
-  \ (its `accepted`/`decomposition` snapshot the fidelity gate fingerprints,\n   \
-  \ SPEC-0070 §4) before any card is claimed; the claim-block (SPEC-0070 §5) enforces\
-  \ this for\n    decomposed cards. Do NOT build from a draft that is still growing\
-  \ — see discovery-grown handling next.\n\n- **Discovery-grown plan handling (a plan\
-  \ that grows scope AFTER the owner takes it into work).**\n  Real work surfaces\
-  \ items the plan did not foresee. That growth is legitimate — but it must be\n \
-  \ RECORDED, not absorbed silently, and it must not de-sync the cut:\n  - **Record\
-  \ the growth in the plan body** (a dated growth note / an added scope line), so\
-  \ the plan\n    stays the single truth of what it now covers — never grow scope\
-  \ only in a Worker's head or a\n    commit body.\n  - **Out-of-band work is captured,\
-  \ not hidden.** When an item is discovered mid-drive that belongs\n    OUTSIDE this\
-  \ plan's cut (a different territory, a separable concern), route it by the Filing\
-  \ rule\n    (a `followup` / a new task / a `cross request`) — do NOT bolt it onto\
-  \ an in-flight card.\n  - **FREEZE before you build.** New scope is folded into\
-  \ the plan while it is still `draft`/`specs`;\n    once the plan is frozen for the\
-  \ cut, further growth is a NEW take-into-work pass (below), not an\n    edit under\
-  \ the running cut — else the fidelity fingerprint (SPEC-0070 §4) goes stale mid-build.\n\
-  - **Bring-order — the take-into-work reconciliation pass (re-cut a re-grown / stale\
-  \ plan against\n  shipped reality).** When a plan that grew (or sat `accepted` while\
-  \ the world moved) is taken back\n  into work, run a RECONCILIATION pass BEFORE\
-  \ re-cutting: re-read the plan against what has actually\n  shipped since, drop\
-  \ cards already done out-of-band, re-derive the task graph from the CURRENT body\n\
-  \  (a plan STAGE is INPUT — the graph is re-derived at decompose, SPEC-0046 §A),\
-  \ and re-fingerprint the\n  cut. A stale `accepted` plan is NOT still-valid without\
-  \ this currency re-check (the anti-pattern\n  above) — the re-check IS the §accepted\
-  \ / §decomposition entry-gate. Bring-order is that gate applied\n  to a plan whose\
-  \ scope moved, not a new mechanism.\n"
+  \ its steps) are novel — a model /\n   governance change.\n\nA plan WITHOUT a fresh\
+  \ GREEN/YELLOW `plan check` does NOT pass this gate — `plan stage decomposition`\n\
+  (entry to the cut) is REFUSED; a missing `checklist_pass` alone refuses nothing.\
+  \ For a SMALL plan this gate is the ordinary `plan check`.\n(This makes explicit\
+  \ and stage-binds what `patterns/big-plan-checklist.md` left as optional reference\
+  \ —\nthe owner-directed empirical pull, 2026-06-04. It reuses the EXISTING checklist\
+  \ + the EXISTING `plan\ncheck` large-detection; it adds no new gate engine — CHARTER\
+  \ §P1.)\n\n### Where pre-execution plan work lives, and when it lands\nPlan work\
+  \ before execution — `draft`, `specs`, `trial`, `accepted`, every `plan check` round\
+  \ and the\n`decomposition` cut — stays in ONE `work/<slug>` worktree and takes NO\
+  \ land between gates or rounds:\nevery plan verb needs only a writing worktree,\
+  \ and each land of a batch carrying draft-spec edits\npays a full verify. A plan\
+  \ batch lands only where `main` needs it:\n- **once after `plan stage executing`**\
+  \ (the cut's fidelity verdict passed) and before its cards are\n  dispatched — `worktree\
+  \ new --task` claims a card off `main`'s committed state and the claim-block\n \
+  \ (SPEC-0070 §5) reads the plan's status there, so an unlanded cut cannot be claimed;\n\
+  - **once at the end** — a terminal (`realized`, `partial`, `rejected`, `cancelled`)\
+  \ or the owner\n  stopping the plan; the `postcheck` work and the terminal move\
+  \ ride that last batch.\nEach executing card still lands on its own. What keeps\
+  \ the long-lived plan worktree harmless: run\n`worktree sync --work <slug>` before\
+  \ each gate, so the plan reads current `main` without a verify; a\nhand-off names\
+  \ the open plan worktree, and the next session takes it with\n`worktree adopt --work\
+  \ <slug> --confirm-dead` once its holder is dead. Unlanded plan text is\ninvisible\
+  \ to other sessions — accepted, because only the plan author edits it. The rule\
+  \ is the same\nin the kernel and in a consumer under `-C` (same verbs, same guards).\n\
+  \n### Project-declared plan check at the plan checkpoints\nA project MAY declare\
+  \ ONE command in its `yitc-ops.yaml`, read from the MAIN checkout —\n`plan_checks:\
+  \ {command: \"<shell command>\"}` — that checks the project's OWN plan duties. The\
+  \ kernel\nknows none of those duties; the command alone decides whether they apply.\
+  \ When it is declared, these\nverbs run it ONCE, before any auditor call, any reuse\
+  \ of a recorded verdict and any stage write,\nnaming the phase:\n- `plan draft --finalize`\
+  \ → `finalize`;\n- every `plan check` — the draft check, the accept gate, the trial\
+  \ gate and `--round` alike →\n  `plan-check` (an `--absorb` field edit runs no auditor\
+  \ and runs no check);\n- the change check `audit adhoc --plan <slug>` → `change-check`;\n\
+  - `plan stage specs`, `accepted`, `decomposition`, `executing` → the stage being\
+  \ ENTERED, which is\n  the gate at which the prior stage's work is complete (the\
+  \ duties of the cut are checkable at\n  `executing`, the exit of `decomposition`);\
+  \ `plan stage executing --recut` → `executing`.\n`trial`, `postcheck`, `realized`,\
+  \ the terminals and `audit post --plan` run no project check.\nThe command runs\
+  \ in the acting checkout and receives `YITC_PLAN_CHECK_PLAN` (the absolute plan\n\
+  path), `YITC_PLAN_CHECK_CHECKOUT` (the acting checkout) and `YITC_PLAN_CHECK_PHASE`\
+  \ in its\nenvironment; it inspects and must not change anything.\n**Admission is\
+  \ fail-closed: ONLY exit 0 admits** — a check that does not apply exits 0 with a\n\
+  message. Exit 1 (duties missing), exit 2 (could not check), any other exit, a run\
+  \ past the bound\n`lib.plan.PLAN_CHECK_TIMEOUT_SECONDS` (its process group is killed),\
+  \ a command that cannot start, a\nmalformed declaration and an unreadable carrier\
+  \ each REFUSE the verb, naming the command, the phase,\nthe exit or reason and the\
+  \ tail of the command's output. Nothing was audited or written: fix what it\nnames\
+  \ and re-run the same verb. There is no retry, no result cached across verbs, no\
+  \ automatic\nrepair and no stage rewind. Every run appends one `project_plan_check_ran`\
+  \ journal row, admitted or\nrefused. A project that declares nothing runs every\
+  \ checkpoint exactly as before.\n\n### Plan-stage obligations at the plan checkpoints\n\
+  The rules bound `plan-stage-entry:<stage>` are a plan's obligations for that stage.\
+  \ ONE projection of\nthem — per plan stage, every ACTIVE spec bound there (under\
+  \ `-C` the kernel's and the project's, each\nkeyed by its realm and id), with the\
+  \ content digest of its file chain and its source path — serves\nthe three readers\
+  \ below. It is recomputed from the corpus once per verb; nothing stores it.\n- **Catch-up\
+  \ delivery.** At each checkpoint the project plan check above names, and at\n  `plan\
+  \ stage trial`, BEFORE that check and before any gate runs: a rule bound to a stage\
+  \ the plan has already passed (every stage up to and including its\n  status; `trial`\
+  \ excepted when the plan's journal shows `specs → accepted`) that the plan's\n \
+  \ `plan_stage_entered` row for that stage does not record as delivered is delivered\
+  \ now — in full,\n  or as the held pointer when this session already holds the same\
+  \ content. A passed stage with no\n  recorded row proves nothing, so every rule\
+  \ bound there is delivered; under `-C` a recorded id that\n  also resolves in the\
+  \ other realm proves nothing either. Delivery is not fulfilment: the plan's\n  status\
+  \ is never rewound and no stage is marked done. A rule that is not delivered REFUSES\
+  \ the\n  checkpoint before any auditor call, naming each rule and its `graph query`\
+  \ command. `plan show`\n  and `plan list` deliver nothing.\n- **The packet checklist.**\
+  \ The gate-specs, gate-trial and gate-executing (decomposition-fidelity)\n  packets\
+  \ and every `plan check` list the obligations DUE at the boundary they judge — the\
+  \ rules\n  bound to every stage up to and including `draft` at gate-specs, `specs`\
+  \ at gate-trial, the plan's\n  status at `plan check`, `decomposition` at gate-executing\
+  \ — each with its id, stage(s), digest and\n  source. The auditor judges each clause\
+  \ due by that boundary and states any clause not yet due or\n  not applicable to\
+  \ the plan, with the reason; a missed due clause is a finding. Rules bound only\
+  \ to\n  later stages are named not due. The change check `audit adhoc --plan` lists\
+  \ the obligations due at\n  the plan's status now and keeps its two questions: it\
+  \ does not re-audit them, and a contradiction\n  of a listed obligation that the\
+  \ cumulative change introduces is a regression under its second.\n- **Freshness.**\
+  \ The digest of the due set joins the accept freshness hash (`plan check` records\
+  \ it\n  through the plan's status and names that boundary; `plan stage accepted`\
+  \ and the change check\n  compare it through the same boundary, also after the plan\
+  \ has moved on) and the\n  decomposition-fidelity card-set fingerprint (through\
+  \ `decomposition`, SPEC-0070 §4). A due rule that\n  changes or becomes active stales\
+  \ the recorded verdict: run `plan check` again (a change check\n  cannot carry it,\
+  \ SPEC-1061 §2), and `plan stage executing` re-runs the fidelity audit. A spec not\n\
+  \  due at that boundary changes neither; with nothing due both are computed as before.\
+  \ A verdict\n  recorded before a due rule was an input of it does not match: run\
+  \ it again.\n- **Fail-closed.** When the projection cannot be complete — this repository's\
+  \ corpus unreadable,\n  under `-C` the kernel corpus unreadable, or a bound spec\
+  \ whose file does not resolve or cannot be\n  read — every plan checkpoint REFUSES\
+  \ before any auditor call, naming the cause, and no verdict is\n  recorded or reused.\n\
+  \n### Planning-artifact handling — idea sibling, file shape, anti-patterns\nThe\
+  \ plan-lifecycle home ALSO governs the sibling `idea` class, the on-disk file shape,\
+  \ and the\nplanning-hygiene anti-patterns. The plan FSM, the verbs, the accept-gate,\
+  \ the audit-post\nfinalization, and the decomposition procedure are NOT restated\
+  \ here — they ARE the per-stage\nmechanics + linkage chain above (consolidate, do\
+  \ NOT duplicate).\n\n- **`idea` sibling class (flat — NO FSM).** `ideas/<slug>.md`\
+  \ is a forward-looking holding pen: no\n  FSM, no checks, no accept/finalize gates;\
+  \ sessions NEVER scan / pick / analyze it (the picker reads\n  `tasks/` ONLY) unless\
+  \ the owner explicitly asks. `plan file --idea` creates one; `plan to-idea <slug>`\n\
+  \  moves a plan that turns out to be «not now, maybe later» into `ideas/`. An idea\
+  \ becomes actionable\n  only when an incident pulls it — re-file it as a plan (manual)\
+  \ then. Holding it here is the\n  anti-accretion default; promoting it prematurely\
+  \ is scope-creep (anti-pattern below).\n\n- **File shape (markdown + frontmatter).**\
+  \ A plan/idea is a small `---` frontmatter block (machine-read\n  for accounting\
+  \ + the `plan` graph node) over prose (human-read); `id` = the slug (no numeric\
+  \ id —\n  patterns precedent). The terminal frontmatter CARRIERS: `realized`/`partial`\
+  \ → `closed_into: [D-/T-…]`\n  (what it became); `partial` additionally → `deferred:\
+  \ <new-plan-slug>` (the remainder — a tracked\n  plan, never prose); `rejected`\
+  \ → `rejected_reason: <one line>`. (Terminal plans stay in\n  `plans/`, status-filtered\
+  \ — §Terminals.)\n\n- **Anti-patterns (planning hygiene).**\n  - Treating a STALE\
+  \ `accepted` plan as still-valid WITHOUT the take-into-work currency re-check —\n\
+  \    verification DECAYS (there is no `verified` status; the re-check is the §accepted\
+  \ / §executing entry-gate).\n  - Filing a forward-looking idea as a task/decision\
+  \ PREMATURELY (accretion) — keep it in `ideas/`\n    until an incident pulls it.\n\
+  \  - Leaving a decomposed plan as «just a note» — close it (`realized`/`partial`)\
+  \ so it stops cluttering\n    the active view (silent-skip otherwise).\n  - Deferring\
+  \ a plan part / spec-body half as PROSE with no tracked task (the deferral-as-prose\
+  \ trap):\n    any such deferral MUST be a tracked task (parked/blocked, with a `return_trigger`),\
+  \ never prose.\n    The standing rule + its mechanized `plan check` structural pre-pass\
+  \ are homed in **<workshop-spec>** (P5);\n    this is a pointer there, not a second\
+  \ home.\n  - **Piecemeal-from-draft (build off an un-frozen draft).** Cutting cards\
+  \ / dispatching Workers off a\n    plan whose `draft`/`specs` body is STILL MOVING\
+  \ — scope lines being added, carve-outs still\n    shifting — so different cards\
+  \ are cut against different snapshots and the cut de-syncs from the\n    plan. A\
+  \ plan must be FROZEN (its `accepted`/`decomposition` snapshot the fidelity gate\
+  \ fingerprints,\n    SPEC-0070 §4) before any card is claimed; the claim-block (SPEC-0070\
+  \ §5) enforces this for\n    decomposed cards. Do NOT build from a draft that is\
+  \ still growing — see discovery-grown handling next.\n\n- **Discovery-grown plan\
+  \ handling (a plan that grows scope AFTER the owner takes it into work).**\n  Real\
+  \ work surfaces items the plan did not foresee. That growth is legitimate — but\
+  \ it must be\n  RECORDED, not absorbed silently, and it must not de-sync the cut:\n\
+  \  - **Record the growth in the plan body** (a dated growth note / an added scope\
+  \ line), so the plan\n    stays the single truth of what it now covers — never grow\
+  \ scope only in a Worker's head or a\n    commit body.\n  - **Out-of-band work is\
+  \ captured, not hidden.** When an item is discovered mid-drive that belongs\n  \
+  \  OUTSIDE this plan's cut (a different territory, a separable concern), route it\
+  \ by the Filing rule\n    (a `followup` / a new task / a `cross request`) — do NOT\
+  \ bolt it onto an in-flight card.\n  - **FREEZE before you build.** New scope is\
+  \ folded into the plan while it is still `draft`/`specs`;\n    once the plan is\
+  \ frozen for the cut, further growth is a NEW take-into-work pass (below), not an\n\
+  \    edit under the running cut — else the fidelity fingerprint (SPEC-0070 §4) goes\
+  \ stale mid-build.\n- **Bring-order — the take-into-work reconciliation pass (re-cut\
+  \ a re-grown / stale plan against\n  shipped reality).** When a plan that grew (or\
+  \ sat `accepted` while the world moved) is taken back\n  into work, run a RECONCILIATION\
+  \ pass BEFORE re-cutting: re-read the plan against what has actually\n  shipped\
+  \ since, drop cards already done out-of-band, re-derive the task graph from the\
+  \ CURRENT body\n  (a plan STAGE is INPUT — the graph is re-derived at decompose,\
+  \ SPEC-0046 §A), and re-fingerprint the\n  cut. A stale `accepted` plan is NOT still-valid\
+  \ without this currency re-check (the anti-pattern\n  above) — the re-check IS the\
+  \ §accepted / §decomposition entry-gate. Bring-order is that gate applied\n  to\
+  \ a plan whose scope moved, not a new mechanism.\n"
 cites:
 - SPEC-0013
 - SPEC-0070
@@ -654,6 +729,9 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/plan.py#cmd_plan_check: d40d218f85e4811544092412ab38a84a78ced4d6bc6420e97bb725fd7ac4ebf8
+  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd
   bin/lib/plan.py#cmd_plan_file: 1edaaf81e9141657f44179262be47aa3eebd07c73db0b4082cecbbef8321ed86
-  bin/lib/plan.py#cmd_plan_stage: 02b68c037685b0feb238590e20f4483a2d6b8ddd4f575acfe974ee2da195bec2
+  bin/lib/plan.py#cmd_plan_stage: 04eedba70690a04f2e3fabd3b2dd4bfe9cff5a2f9603207dc7fcee69ce4b8b5f
+  bin/lib/plan.py#plan_obligation_catch_up: 66a0db6a43d1a16528ba90a05ba45f16942027ada02ae852404c53cc4135f6e4
+  bin/lib/plan.py#plan_obligation_view: 90d30cd21e45a3aef5aaaae1236f0f9fc6d3f6e7445ca3dda133774d34212ba1
+  bin/lib/plan.py#run_project_plan_check: 48e9dfa04596825e96ffac2a3b21078cb19a100141d3f7aad56b212b71c4f1bf

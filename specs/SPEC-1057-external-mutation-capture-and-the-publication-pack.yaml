@@ -226,7 +226,7 @@ binding:
 - before-external-mutation
 init_concern: null
 implements_signature:
-  bin/lib/events.py#cmd_event: 3902a973ec38733a390efeb7d161f97c8ddf253f50cbe994f184ba2745cc6c93
+  bin/lib/events.py#cmd_event: 261f5ab5cecf44b7a7e4f01583d4867c8f9186fe770621d7b0e3c9e952935aaa
   bin/lib/publication.py#canonical_form: fb6592d440d7a8d83ecaf8f335ed20c1ac55921416fccb4358eb9067b5cc1a41
   bin/lib/publication.py#consent_covers: 86c89dc67f20e2d6c72adb0a437f809429699121e0cbb6d30a8d27c672b36c9b
   bin/lib/publication.py#consent_text: cc3e7fb386ff7d8866282e2257d410f0396a6515de105dc913d26d85460c6b44

@@ -4394,9 +4394,9 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 01c8dd8bcee9171140b41bfcfa3573bba4caa561492c708b1f7318b54be777a8
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
-  bin/lib/session.py#cmd_session_start: 63a89f0dbcf8f31c0748b952fe356249434ffe36971d4157899e3a88df625cb9
+  bin/lib/session.py#cmd_session_start: e0f9985ee747b0c23756838e630aeef3b5cb2be731cc8fc1f270bde645935199
   bin/lib/task.py#_render_live_dependents: 02e538bf32a90192c8b9f576da4fbde037c70ebd8d3eab47cb21286e5fc53aa7
-  bin/lib/task.py#cmd_task_update: 6d0fab30fc22d973cb785a9301cb2d253d8c3fe595c172ecf32e0d8a7a6ab0ea
+  bin/lib/task.py#cmd_task_update: 6b66f89eca53bb2abae63ce18385268fdbc673e41532f91f5107db115d0f4dea
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
@@ -4407,4 +4407,4 @@ implements_signature:
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_load_sensitive_file_card: e18678b2d56985f14fc3021ee4247db7c1eb3b6b61d58de0c19b13b23335b66a
-  bin/lib/worktree.py#cmd_land: 71dcd626a4e9a4c43fee2ef1458e4ebc734edbc673fe5ced04231ab843da8e01
+  bin/lib/worktree.py#cmd_land: 386f7edf5b15e086dbf94a282d871739d0cc9db843a307939536627f0c2fe0a0

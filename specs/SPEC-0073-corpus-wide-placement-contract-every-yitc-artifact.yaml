@@ -158,7 +158,12 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm â€
   \ too: an edit that moves\na spec's `implements:` or `status:` rebuilds the graph\
   \ index and regenerates all three GEN regions from\nit in the same verb, so the\
   \ regions never lag a governed edit until a `graph build`; a failed regen\nrestores\
-  \ the spec and refuses the edit, never leaving the edited spec beside a stale manifest.\n\
+  \ the spec and refuses the edit, never leaving the edited spec beside a stale manifest.\
+  \ The activation write is a regen seam as well: when `task close` flips a spec `proposed\
+  \ -> active`, and in the Stage-6 window that holds that flip for the governed run,\
+  \ the same three regions are regenerated from the activated specs, so the closed\
+  \ tree and the tested tree carry a current map; the activation is never undone for\
+  \ a failed regen, which leaves the regions for `graph build` or land to regenerate.\n\
   \n### 6. Realm-qualified reference `<realm>:<ID>` MANDATORY at the first merged-discovery\
   \ surface\nOnce kernel + project artifacts become discoverable through ONE graph/index\
   \ surface, a bare id is\nstructurally ambiguous (`<workshop-spec>` in two realms).\

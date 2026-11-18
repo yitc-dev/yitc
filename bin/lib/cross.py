@@ -2561,7 +2561,8 @@ def cmd_cross_pick(args, *, cross_log_path, self_name, cross_emit, local_append,
     if "already_addressed" in advisories and not force:
         _refuse(local_append, die, item["id"], "pick", self_name,
                 f"already-addressed: done task {resolver_task} already resolves {item['id']} "
-                f"(its fix already landed) — skip the stale intake (re-pick with --force to override)")
+                f"(its fix already landed) — skip the stale intake and close it with `cross done {item['id']}` "
+                f"(re-pick with --force to override)")
     if "not_for_this_side" in advisories:
         print(f"cross pick: {item['id']} is addressed to {item.get('to')!r}, not {self_name!r} — "
               f"not actionable for this side; skip it (relevance check, T-9362)")
@@ -2602,7 +2603,7 @@ def cmd_cross_pick(args, *, cross_log_path, self_name, cross_emit, local_append,
 
 
 def cmd_cross_done(args, *, cross_log_path, self_name, cross_emit, local_append, die,
-                   aliases=None) -> None:
+                   aliases=None, resolver_task=None) -> None:
     """`cross done` — RECEIVER finishes (picked → done; may carry the receiver's T-NNNN), optionally
     carrying `--note <text>`: WHAT the receiver actually did.
 
@@ -2631,14 +2632,30 @@ def cmd_cross_done(args, *, cross_log_path, self_name, cross_emit, local_append,
     From `done` a `--note` is REQUIRED: the transition already happened, so a bare repeat would resolve
     nothing and is refused.
 
+    ALREADY-ADDRESSED ROUTE (T-14680, X-2414). `resolver_task` is the host-injected id of a DONE local
+    task whose `resolves_cross` names this item — the SAME evidence `cross pick` refuses a stale intake
+    on. A `requested` item with such a resolver is admitted here in ONE verb and the emitted
+    `cross_done` names that task; without one, `requested` stays refused wrong-state as before. The
+    pick-side staleness refusal is untouched, so the intake guard against re-picking holds.
+
     T-12690: `--from-stdin` (note) — the FIRST statement, above every check."""
     _stdin_prose_ingest(args, DONE_STDIN_CONFLICTING_ARGV_FLAGS, PROSE_BEARING_DONE_FIELDS,
                         DONE_STDIN_RECOGNISED_KEYS, die=die, carries="the done note",
                         verb="cross done")
     item = _resolve_or_die(cross_log_path, args.id, die, aliases=aliases)
     note = (getattr(args, "note", None) or "").strip()
+    # T-14680: a still-`requested` item a DONE local task already resolves closes here, naming that
+    # task; no resolver -> `requested` is not admitted and the guard refuses it wrong-state as before.
+    already_addressed = bool(resolver_task) and item.get("status") == "requested"
+    from_states = {"picked", "done", "requested"} if already_addressed else {"picked", "done"}
     _guard(local_append, die, item, "done", self_name,
-           role="receiver", kinds={"task", "bugfix"}, from_states={"picked", "done"})
+           role="receiver", kinds={"task", "bugfix"}, from_states=from_states)
+    explicit_task = (getattr(args, "task", None) or "").strip()
+    if already_addressed and explicit_task and explicit_task != resolver_task:
+        _refuse(local_append, die, item["id"], "done", self_name,
+                f"task-mismatch: {item['id']} is still requested and the done task resolving it is "
+                f"{resolver_task}, not {explicit_task} — run `cross done {item['id']}` (it names "
+                f"{resolver_task}) or pick the item first")
     if item["status"] == "done" and not note:
         # NOTE-ATTACH ONLY from `done` (T-10785): the transition already happened, so a bare repeat
         # would resolve nothing — refuse it (journal-observably) rather than append a no-op event.
@@ -2647,10 +2664,14 @@ def cmd_cross_done(args, *, cross_log_path, self_name, cross_emit, local_append,
     data = {"id": item["id"], "by": self_name}
     if getattr(args, "task", None):
         data["task"] = args.task
+    elif already_addressed:
+        data["task"] = resolver_task
     if note:
         data["note"] = note
     cross_emit("cross_done", data)
-    print(f"cross done: {item['id']} by {self_name}" + (f" — {note}" if note else ""))
+    print(f"cross done: {item['id']} by {self_name}"
+          + (f" — already resolved by done task {resolver_task}" if already_addressed else "")
+          + (f" — {note}" if note else ""))
 
 
 # T-11116 — the CONDITIONAL-DECLINE predicate. A resolution that declines an ask *for now* and names
@@ -4244,3 +4265,87 @@ def _cross_items(*, _SELF, _cross_peer_aliases, cross) -> dict:
         return cross.fold(cross.read_events(_SELF.CROSS_LOG_PATH, _cross_peer_aliases()))
     except Exception:
         return {}
+
+
+# ── `cross stray --store PATH` — report-only listing of a SECOND store's lost items (T-14689) ───────
+# A pinned copy run directly once anchored the host home on the CALLER (X-2421), so one OS user's
+# engine read and wrote its own coordination store beside the shared one (the X-0663 split, again).
+# This lists the items born there whose fingerprint the shared store does not carry, so their owners
+# can re-file them through `cross request`. It reads both stores and WRITES NOTHING — no event, no
+# journal row, no edit of either store.
+
+def _row_fp(e) -> str:
+    data = e.get("data") if isinstance(e.get("data"), dict) else {}
+    return str(data.get("origin_fp") or e.get("origin_fp") or "").strip()
+
+
+def stray_items(stray_rows, shared_rows) -> list:
+    """PURE. Every `cross_requested` row of the second store whose fingerprint no shared-store row
+    carries; a row with no fingerprint is listed (nothing proves it arrived), marked by an empty fp."""
+    shared = {_row_fp(e) for e in shared_rows if isinstance(e, dict)} - {""}
+    out = []
+    for e in stray_rows:
+        if not isinstance(e, dict) or e.get("type") != "cross_requested":
+            continue
+        fp = _row_fp(e)
+        if fp and fp in shared:
+            continue
+        data = e.get("data") if isinstance(e.get("data"), dict) else {}
+        out.append({"id": data.get("id") or e.get("id", ""), "from": data.get("from") or e.get("from", ""),
+                    "to": data.get("to") or e.get("to", ""), "kind": data.get("kind") or e.get("kind", ""),
+                    "origin_fp": fp, "brief": data.get("brief") or e.get("brief", "")})
+    return out
+
+
+def _read_rows_strict(path):
+    """(rows, malformed) of a jsonl store, read-only. Raises OSError when it cannot be read."""
+    rows, bad = [], 0
+    with open(str(path), encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                bad += 1
+                continue
+            if isinstance(e, dict):
+                rows.append(e)
+    return rows, bad
+
+
+def cmd_cross_stray(args, *, cross_log_path, **_) -> None:
+    """`cross stray --store PATH [--json]` — read-only; exits 2 naming a store it cannot read."""
+    store = str(getattr(args, "store", "") or "")
+    if not store:
+        print("cross stray: --store PATH is required", file=sys.stderr)
+        raise SystemExit(2)
+    if os.path.realpath(store) == os.path.realpath(str(cross_log_path)):
+        print(f"cross stray: {store} IS the shared store — nothing to compare", file=sys.stderr)
+        raise SystemExit(2)
+    try:
+        stray, bad = _read_rows_strict(store)
+    except (OSError, UnicodeDecodeError) as exc:
+        print(f"cross stray: cannot read the second store {store} ({exc.__class__.__name__}: {exc})",
+              file=sys.stderr)
+        raise SystemExit(2)
+    try:
+        shared, shared_bad = _read_rows_strict(cross_log_path)
+    except FileNotFoundError:
+        shared, shared_bad = [], 0
+    except (OSError, UnicodeDecodeError) as exc:
+        print(f"cross stray: cannot read the shared store {cross_log_path} ({exc})", file=sys.stderr)
+        raise SystemExit(2)
+    items = stray_items(stray, shared)
+    if getattr(args, "json", False):
+        print(json.dumps({"store": store, "shared": str(cross_log_path), "items": items,
+                          "malformed_lines": bad, "shared_malformed_lines": shared_bad}, ensure_ascii=False))
+        return
+    print(f"cross stray: {len(items)} item(s) of {store} absent from the shared store {cross_log_path} "
+          f"(read-only; re-file each through `cross request` — no store was edited)")
+    for it in items:
+        fp = it["origin_fp"] or "no fingerprint"
+        print(f"  {it['id']}  [{it['kind']}]  {it['from']} → {it['to']}  fp={fp}  {str(it['brief'])[:120]}")
+    if bad:
+        print(f"  ({bad} malformed line(s) in {store} skipped)")

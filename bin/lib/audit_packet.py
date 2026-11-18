@@ -3493,7 +3493,7 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
         types.discard("state_checked")
     lines = [
         "# ---- packet readiness (T-11977; REPORT-ONLY — ADVISORY, gates nothing) ----",
-        "# Every row below is DATA about the packet printed above: no verdict, no ceiling pass, no",
+        "# Every row below is DATA about the packet (its file is named below): no verdict, no ceiling pass, no",
         "# gate moves on any of it. Read it before spending an auditor pass; act or do not.",
     ]
     if not crits:

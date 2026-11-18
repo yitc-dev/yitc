@@ -172,8 +172,8 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#main: c6879a916c5ae5aac1b4787bf033e79cca94597abc6e21fdc36836b027222bed
-  bin/lib/cli_parser.py#build_parser: bd174a1c09bdd2d187ad879e52c2b37bfe02a5a2d39c968741b2feab9aa09818
+  bin/lib/cli.py#main: 313ece8485fb2236805e24aecee114a6a1483993ab79a567c87c43d774f9ef17
+  bin/lib/cli_parser.py#build_parser: b831ad5a0bf0d5a74f55c24e64a11c235f77eb265462d89ce419cd8f92d1241c
   bin/lib/textutil.py#ARGV_PROSE_RESIDUE_VERBS: a14357dce8243c42484f7ceb2fcfa9f9cc57ca3d19b446ea91ce501c75ff1de3
   bin/lib/textutil.py#ARGV_PROSE_SEAMS: 1b27a33088f9b5f3a434f93a637553cd465981e1c6591584b7e63a72bca0f07c
   bin/lib/textutil.py#ARGV_PROSE_WAIVED: 315b572b5864e608df514228107852dbfcfc30e05e9030bfea31f00e1d43d979
