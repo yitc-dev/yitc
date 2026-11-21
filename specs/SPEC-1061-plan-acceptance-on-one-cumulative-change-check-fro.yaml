@@ -36,20 +36,24 @@ body: "## Scenario\n\nA plan's accept check comes back RED. The author fixes wha
   \ freshness hash, `plan check` records the digest of each input that hash covers.\
   \ An\n  anchor recorded without them admits on arm (i) only — run `plan check` for\
   \ an anchor a change check\n  can start from.\n- After a RED anchor `plan check`\
-  \ prints the next step as a cue and a pointer to §2.\n\n### 2. The change check\
-  \ — one fix batch, one check, always from the anchor\n- Fix the anchor's highs,\
-  \ and whichever other findings you choose, in ONE batch; then run ONE change\n \
-  \ check: `bin/yitc-v2 audit adhoc --plan <slug>`. The kernel assembles its packet:\
-  \ the anchor's\n  findings as the CLOSURE LIST, and the CUMULATIVE diff of every\
-  \ changed eligible input from its text\n  at the anchor to its text now. It asks\
-  \ whether each listed finding is closed and whether the change\n  introduces a contradiction\
-  \ or a regression. A `--prompt` adds to the packet; `--read-corpus` inlines\n  the\
-  \ files it names in full.\n- The anchor-time text of an input is read from the repository's\
-  \ history, found by the digest the\n  anchor recorded: commit the plan with its\
-  \ check before editing it. When the anchor-time text of a\n  changed input is not\
-  \ in the history, the cumulative diff cannot be shown and no change check is\n \
-  \ possible from that anchor — `audit adhoc --plan` refuses before the auditor, naming\
-  \ the input, and\n  a fresh `plan check` is the anchor.\n- The record is `decisions/<slug>-change-check-audit-adhoc.yaml`,\
+  \ prints the next step as a cue and a pointer to §2. A plain\n  `plan check` that\
+  \ ends RED, or that follows a RED anchor, also prints ONE hint beside that cue:\n\
+  \  converge the plan-scope findings with `plan check --round` (SPEC-0083 P4 round);\
+  \ a plain check is\n  for admission. A check that a new prototype commit forces\
+  \ (§2) prints no hint, nor does a round.\n\n### 2. The change check — one fix batch,\
+  \ one check, always from the anchor\n- Fix the anchor's highs, and whichever other\
+  \ findings you choose, in ONE batch; then run ONE change\n  check: `bin/yitc-v2\
+  \ audit adhoc --plan <slug>`. The kernel assembles its packet: the anchor's\n  findings\
+  \ as the CLOSURE LIST, and the CUMULATIVE diff of every changed eligible input from\
+  \ its text\n  at the anchor to its text now. It asks whether each listed finding\
+  \ is closed and whether the change\n  introduces a contradiction or a regression.\
+  \ A `--prompt` adds to the packet; `--read-corpus` inlines\n  the files it names\
+  \ in full.\n- The anchor-time text of an input is read from the repository's history,\
+  \ found by the digest the\n  anchor recorded: commit the plan with its check before\
+  \ editing it. When the anchor-time text of a\n  changed input is not in the history,\
+  \ the cumulative diff cannot be shown and no change check is\n  possible from that\
+  \ anchor — `audit adhoc --plan` refuses before the auditor, naming the input, and\n\
+  \  a fresh `plan check` is the anchor.\n- The record is `decisions/<slug>-change-check-audit-adhoc.yaml`,\
   \ one per plan: each run replaces it,\n  so the record on disk is the LATEST change\
   \ check. It binds the plan's freshness hashes at the anchor\n  and now, carries\
   \ the diff of each changed eligible input, the closure list and the anchor findings\n\
@@ -166,6 +170,6 @@ implements_signature:
   bin/lib/plan.py#_plan_change_check_admission: b6696663cd836884b6815ce49eb29a5950a5a126b0e9e8764e9a87d1c46eac1a
   bin/lib/plan.py#_plan_prototype_cut_faults: ea5337e4283fa1ee8cba22968f9105c81985179d8f89b2c1b5f65062f1b93939
   bin/lib/plan.py#_require_plan_decomposition_ready: 8b215f0a3130d64a99ad0cab88b980b81682dfc160d05fad73150579819aa746
-  bin/lib/plan.py#cmd_plan_check: a23c381279f51b3f51aac621570b3b25549809b42d4ed8336d5aa5350cce65bd
-  bin/lib/plan.py#cmd_plan_stage: 04eedba70690a04f2e3fabd3b2dd4bfe9cff5a2f9603207dc7fcee69ce4b8b5f
-  bin/lib/plan.py#plan_change_check_packet: 614126c251cc54c8eb1714359b11bf05047cb18a67f173ab2ed483d009e4c316
+  bin/lib/plan.py#cmd_plan_check: 7eb356af20ef2dfa37d52bf8f1d4abdd04cb2342ff10c16a77c28713a80570f3
+  bin/lib/plan.py#cmd_plan_stage: fd3778a2d907109e2ebedec99f98d71727cca05325676757df93f850e0290556
+  bin/lib/plan.py#plan_change_check_packet: 24ee3fa3f8059a8e2e7e7c6739fad6329dddcc1a819c57a7c11fbc9bd9c8542b

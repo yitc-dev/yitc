@@ -6,9 +6,9 @@
    "declare_type": "mapping",
    "presence_policy": "opt-in",
    "section": "admission",
-   "spec": "SPEC-1045",
+   "spec": "SPEC-1063",
    "update_policy": "init re-seed",
-   "version": "fc1bd84d97b6",
+   "version": "281155a34547",
    "waiver_policy": "loose"
   },
   {

@@ -1749,6 +1749,8 @@ ARGV_PROSE_SEAMS = (
       ("--settle-live-probe-method", "an instrument name"),
       ("--settle-live-probe-probed-at", "an ISO timestamp"),
       ("--settle-live-probe-terminal", "a fixed terminal token"),
+      ("--settle-live-probe-superseded-by", "a T-NNNN id"),
+      ("--settle-live-probe-directive", "a journal locator (`events.jsonl#ts=...`) that must RESOLVE"),
       ("--settle-observation", "a journal locator that must RESOLVE"),
       ("--live-probe-outcome-evidence", "a journal locator"),
       ("--live-probe-outcome-probed-at", "an ISO timestamp"))),
@@ -1809,7 +1811,7 @@ ARGV_PROSE_SEAMS = (
 
     (("audit", "decide"),
      (("--reason", "reason"), ("--directive", "directive"),
-      ("--receiving", "receiving"), ("--evidence", "evidence")),
+      ("--receiving", "receiving"), ("--evidence", "evidence"), ("--sweep", "sweep")),
      "an append-only ceiling-decision journal row (X-1427)",
      ("audit:AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS",),
      (("--task", "a T-NNNN id"),
@@ -1854,12 +1856,14 @@ ARGV_PROSE_SEAMS = (
     # commit subparsers is what makes these the ONLY spellings argparse accepts. Both rows also consult
     # the eaten-span residue predicate — see ARGV_PROSE_RESIDUE_VERBS.
     (("task", "commit"),
-     (("--message", "message"), ("-m", "message")),
+     (("--message", "message"), ("-m", "message"), ("--reason", "void_reason")),
      "a git commit message — once committed no governed verb rewrites it, and audit custody pins its "
-     "sha (D-0082)",
+     "sha (D-0082); the `--void` mode's reason, an append-only `commit_landed_voided` row (T-14738)",
      ("task:COMMIT_STDIN_CONFLICTING_ARGV_FLAGS",),
      (("--from", "a durable-artifact reference (a path or locator) — no prose"),
-      ("--reverify", "a SPEC id"))),
+      ("--reverify", "a SPEC id"),
+      ("--void", "a commit sha — no prose"),
+      ("--directive", "a journal locator (events.jsonl#ts=<ISO>) — no prose; T-14750"))),
 
     (("work", "commit"),
      (("--message", "message"), ("-m", "message")),

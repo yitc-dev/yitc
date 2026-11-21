@@ -310,12 +310,12 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ `test_*.py` files inside a declared test-sweep\ndirectory instead, and the proof\
   \ runs those files through the engine's own runner; a name that is\nno such file\
   \ is `ineligible` (`unknown-test-file`). Two switches sit beside it, read only while\
-  \ the\nSPEC-1045 admission queue is on, each true unless the section sets it false:\n\
-  `sync_at_stage6_admission` — the queue runs `worktree sync --task` at a Stage-6\
-  \ run's admission,\nthis proof unchanged; `post_sync_set_first` — the quick set\
-  \ decides first: that sync's proof\n`failed` stops the run, `passed` ends it only\
-  \ while the card's prior green run already covers\nClosure (SPEC-1038 §Tests), and\
-  \ where the sync ran no set the queue runs the set ONCE as a screen —\nred stops\
+  \ the\n<workshop-spec> admission queue is on, each true unless the section sets\
+  \ it false:\n`sync_at_stage6_admission` — the queue runs `worktree sync --task`\
+  \ at a Stage-6 run's admission,\nthis proof unchanged; `post_sync_set_first` — the\
+  \ quick set decides first: that sync's proof\n`failed` stops the run, `passed` ends\
+  \ it only while the card's prior green run already covers\nClosure (SPEC-1038 §Tests),\
+  \ and where the sync ran no set the queue runs the set ONCE as a screen —\nred stops\
   \ the run, anything else starts it, and a screen is never a proof. `--full`, `--whole`\
   \ and\n`--exclusive` take neither the end on a proof nor the screen. While the queue\
   \ is on, a hand sync's\nset run holds BUSY shared and waits while an exclusive run\
@@ -487,7 +487,7 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/debt.py#undeclared_class_remedy: 2d7d398a2b916a353698e8e68b96ad7991b086f9d1afb19d1df0c96677b7f9d7
-  bin/lib/debt_adoption.py#unexecuted_test_classes: ae5effb2c811f59446051f7e3ec9e1c917dc9f44ea6feff8fc9924a06fcb493a
+  bin/lib/debt_adoption.py#unexecuted_test_classes: 5d9004ddc7f5bfe41d4e96584d61303bff718cf6814f253051906ab4acac58a8
   bin/lib/graph.py#_coverage_admission_warnings: e48ca6cc24127c64608a7b84ad8f75e34ae0bb084b5360032b3b80c23136edb0
   bin/lib/graph.py#_verify_layer_boundary_warnings: c56ff639967669874bb428b6470cb18bd32bf097ddeffe45b799f87ed22a77d1
   bin/lib/graph.py#_verify_layer_coverage_warnings: bec29aeb8df5a536e0045b40215fec4afde7fbab98e79bcfd3deb0df1cba3c2a
@@ -505,10 +505,10 @@ implements_signature:
   bin/lib/land_verify_legs.py#_verify_layer_forecast: d71acfb0af91c44098f5f0ad7da6e290471f54498d76127f739ab869108c2aaf
   bin/lib/land_verify_legs.py#_verify_selected_layers: 26fe747f068bb04690ca8293db9ed6ef59abe73ead1e09677805890c87655d13
   bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
-  bin/lib/task.py#cmd_task_test: 6545d2b1cd2555eb414731e02ba65370cb92b045a2dda1f424d46596ba335945
+  bin/lib/task.py#cmd_task_test: 930d0b1d04b5922be7e30e285ccf74c29cabb29d867543adb1164bb56449ce09
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
   bin/lib/verify_wiring.py#_verify_infrastructure_globs: 24b9da17eacfdc1d6fa4bd2dcfa4dae66744eed2a379c0dfa2233fa8b1389099
-  bin/lib/worktree.py#_consumer_zero_probe_guard: a384e4d1d02074b2dd9403a990170953d4bba71c571f9d2343f6c4886e3c4821
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 4965c3caece1c0ad6ba40e762d3802b75852f17edd0e2d27918e037ba5418eaf
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279
@@ -518,4 +518,4 @@ implements_signature:
   bin/lib/worktree.py#_work_batch_unanswered_paths: 6b8dc699863474bb55f09ea9ed722c3ca2ec4e7a009c33705f6ad3de34f1823a
   bin/lib/worktree.py#_work_batch_verify_covers: 23c1ec3257f3951e8bea8850a1647881ad725c3e004ccf08bca5bd6eab674ae5
   bin/lib/worktree.py#_working_tree_delta_paths: ce5411910bf1d01b4c169ac84f3770d5ca22e5d8b2cf38a467fb8aa03992b61b
-  bin/lib/worktree_lifecycle.py#_post_sync_proof: 36dede00f6dcb02d8566687d303037dc0725246bfec8355478d7e3116a808afe
+  bin/lib/worktree_lifecycle.py#_post_sync_proof: 1b7a6117ed3dfd5e02879754434805940e1dbdf53e09a4516041aa73f0339f57

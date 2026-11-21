@@ -651,7 +651,10 @@ parts that cost the owner time:
    (§5a). Parallel helpers each committing their own paths DEPEND on `work commit` taking explicit
    paths, which task adds; until it lands, streams commit one after another, each when no
    other stream holds uncommitted files. Raw `git commit` is never the brief's route — meeting the
-   gap is a `deviation_captured`, not a licence.
+   gap is a `deviation_captured`, not a licence. Before the first helper is handed a commit, the
+   controller runs `session start` IN the spike worktree once: a session ref is backed only in the
+   checkout where it started (SPEC-0137), so without that run the helper's `work commit` there is
+   refused as UNBACKED.
 4. **No permission windows.** The owner is talking to the controller, not watching the helper. The
    helper writes and edits files ONLY with its file write and edit tools — never through the shell
    (no heredoc into a file, no `echo >`, no in-place `sed`, no inline interpreter that writes). Shell

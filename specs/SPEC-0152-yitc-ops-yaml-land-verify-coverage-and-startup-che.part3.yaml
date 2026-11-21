@@ -104,50 +104,55 @@ body: "### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-
   \ the `event` verb is the call site.\n\n**The DEBT view (report-only, two surfaces).**\
   \ For each declared `tests.classes[]` class (a waived section\nor a waived entry\
   \ declares no class — rule 6, an ANSWERED question): a class with NO matching complete\n\
-  record surfaces `never`; one whose latest one has aged past the staleness floor\n\
-  (`YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`, default 30 days) surfaces `stale`. NEVER-run\
-  \ is unconditional\ndebt (unfloored); STALE surfaces only while the floor is active\
-  \ (a non-positive floor disables the\nstaleness arm, the sibling-fold AGE-floor\
-  \ discipline). Wired at the ONE shared debt residue\n(`bin/yitc-v2#_debt_echo_lines`)\
-  \ so it rides every debt seam (session-start / `debt` re-fold),\nsuppressed-when-clean.\
-  \ A repo that declares none of these classes (the engine kernel itself)\nfolds to\
-  \ zero, so history is never retro-charged (the SPEC-0149 lesson).\n\n### 25. Hermetic-class\
-  \ admission — a class declared HERMETIC is hermetic in TIME, not just DATA (X-0431)\n\
-  Rules 10/16 let a project DECLARE a test class or verify-layer HERMETIC (the `tests.classes[]`\
-  \ taxonomy\n+ the rule-16 F-025 per-layer hermeticity contract — `land` runs it\
-  \ on the LIVE tree with no network /\nno shared fixture mutation). That contract\
-  \ is hermetic in DATA: no test sees another's rows, no external\nis really mutated.\
-  \ It says nothing about TIME. A declared-hermetic suite can still, per test, fire\
-  \ a\nprod code path that reaches out to an external infra dependency that the hermetic\
-  \ container does NOT\nprovide (a broker `.delay` with no Redis, a cache client with\
-  \ no cache, a third-party HTTP client) and\nthen WAIT OUT that dependency's connect/retry\
-  \ timeout — a hidden per-test stall that is invisible to\nevery DATA-hermeticity\
-  \ check. This rule is the TIME axis of the hermetic-class admission doctrine.\n\n\
-  **THE ADMISSION CRITERION (report-only authoring doctrine).** A suite/class declared\
-  \ hermetic MUST be\nhermetic in TIME: **every external infrastructure dependency\
-  \ it can reach (broker / queue / cache /\nthird-party API) is stubbed, run EAGER\
-  \ (in-process, e.g. celery `task_always_eager`), or mocked — OR it\nfails FAST**\
-  \ (a short connect timeout configured in the TEST environment, so an absent external\
-  \ errors in\nmilliseconds instead of waiting out a real ~15-20s connect/retry).\
-  \ **Waiting out a real connect timeout\nto an absent external is a DOCTRINE VIOLATION,\
-  \ not a slow test** — the class was never hermetic in time.\nThe unmocked external\
-  \ is easy to miss precisely because the OBVIOUS externals (email, a bot API) are\n\
-  already mocked: it takes only ONE prod code path firing ONE unmocked infra call\
-  \ to silently set a whole\nsuite's per-test floor (X-0431: boomrocket's declared-hermetic\
-  \ backend suite carried a hidden\n~19.5s-per-test celery result-backend connect-retry\
-  \ stall — 7 tests ≈ 136s of a 145s file — that\nsurvived 990-test growth and pinned\
-  \ the whole suite's parallel floor, found only by a faulthandler stack\ndump; PuzzleBot\
-  \ + email were mocked, celery was the ONE unmocked external and no methodology rule\
-  \ asked\nthe question).\n\n**REPORT-ONLY — an authoring/declaration criterion, no\
-  \ gate, no scanner (the rule-16 subject-scoping\nsibling — X-0426).** The kernel\
-  \ does NOT time-profile a consumer's suite or scan for unmocked\nexternals — it\
-  \ judges STANCE + shape, never behaviour (rule 3). This criterion is the QUESTION\
-  \ an author\nanswers when declaring a class hermetic, and the doctrine an audit/review\
-  \ cites; it composes with the\nrule-24 last-successful-execution debt (a class that\
-  \ RAN green) and the rule-16 hermeticity contract (a\nclass hermetic in DATA). The\
-  \ DIAGNOSTIC SIGNATURE + triage recipe (uniform per-test durations clustering\n\
-  near a configured timeout ⇒ hidden external wait; `--durations=N` → confirm with\
-  \ a `faulthandler_timeout`\nstack dump; boomrocket worked example) travel as `patterns/hermetic-in-time-suite-latency-triage.md`\n\
+  record surfaces `never` — save a pre-deploy class whose declared `units:` list is\
+  \ empty (the\nSPEC-1051 rule-1 born state): with no complete record it surfaces\
+  \ apart as listing no unit, not\ncounted among the classes to run, with the one\
+  \ remedy that exists — `pre-deploy list --write` at the\nweekly review (SPEC-1051\
+  \ rule 7) — and its `outcome: empty` rows clear nothing; one whose latest one has\
+  \ aged past the staleness floor\n(`YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`, default\
+  \ 30 days) surfaces `stale`. NEVER-run is unconditional\ndebt (unfloored); STALE\
+  \ surfaces only while the floor is active (a non-positive floor disables the\nstaleness\
+  \ arm, the sibling-fold AGE-floor discipline). Wired at the ONE shared debt residue\n\
+  (`bin/yitc-v2#_debt_echo_lines`) so it rides every debt seam (session-start / `debt`\
+  \ re-fold),\nsuppressed-when-clean. A repo that declares none of these classes (the\
+  \ engine kernel itself)\nfolds to zero, so history is never retro-charged (the SPEC-0149\
+  \ lesson).\n\n### 25. Hermetic-class admission — a class declared HERMETIC is hermetic\
+  \ in TIME, not just DATA (X-0431)\nRules 10/16 let a project DECLARE a test class\
+  \ or verify-layer HERMETIC (the `tests.classes[]` taxonomy\n+ the rule-16 F-025\
+  \ per-layer hermeticity contract — `land` runs it on the LIVE tree with no network\
+  \ /\nno shared fixture mutation). That contract is hermetic in DATA: no test sees\
+  \ another's rows, no external\nis really mutated. It says nothing about TIME. A\
+  \ declared-hermetic suite can still, per test, fire a\nprod code path that reaches\
+  \ out to an external infra dependency that the hermetic container does NOT\nprovide\
+  \ (a broker `.delay` with no Redis, a cache client with no cache, a third-party\
+  \ HTTP client) and\nthen WAIT OUT that dependency's connect/retry timeout — a hidden\
+  \ per-test stall that is invisible to\nevery DATA-hermeticity check. This rule is\
+  \ the TIME axis of the hermetic-class admission doctrine.\n\n**THE ADMISSION CRITERION\
+  \ (report-only authoring doctrine).** A suite/class declared hermetic MUST be\n\
+  hermetic in TIME: **every external infrastructure dependency it can reach (broker\
+  \ / queue / cache /\nthird-party API) is stubbed, run EAGER (in-process, e.g. celery\
+  \ `task_always_eager`), or mocked — OR it\nfails FAST** (a short connect timeout\
+  \ configured in the TEST environment, so an absent external errors in\nmilliseconds\
+  \ instead of waiting out a real ~15-20s connect/retry). **Waiting out a real connect\
+  \ timeout\nto an absent external is a DOCTRINE VIOLATION, not a slow test** — the\
+  \ class was never hermetic in time.\nThe unmocked external is easy to miss precisely\
+  \ because the OBVIOUS externals (email, a bot API) are\nalready mocked: it takes\
+  \ only ONE prod code path firing ONE unmocked infra call to silently set a whole\n\
+  suite's per-test floor (X-0431: boomrocket's declared-hermetic backend suite carried\
+  \ a hidden\n~19.5s-per-test celery result-backend connect-retry stall — 7 tests\
+  \ ≈ 136s of a 145s file — that\nsurvived 990-test growth and pinned the whole suite's\
+  \ parallel floor, found only by a faulthandler stack\ndump; PuzzleBot + email were\
+  \ mocked, celery was the ONE unmocked external and no methodology rule asked\nthe\
+  \ question).\n\n**REPORT-ONLY — an authoring/declaration criterion, no gate, no\
+  \ scanner (the rule-16 subject-scoping\nsibling — X-0426).** The kernel does NOT\
+  \ time-profile a consumer's suite or scan for unmocked\nexternals — it judges STANCE\
+  \ + shape, never behaviour (rule 3). This criterion is the QUESTION an author\n\
+  answers when declaring a class hermetic, and the doctrine an audit/review cites;\
+  \ it composes with the\nrule-24 last-successful-execution debt (a class that RAN\
+  \ green) and the rule-16 hermeticity contract (a\nclass hermetic in DATA). The DIAGNOSTIC\
+  \ SIGNATURE + triage recipe (uniform per-test durations clustering\nnear a configured\
+  \ timeout ⇒ hidden external wait; `--durations=N` → confirm with a `faulthandler_timeout`\n\
+  stack dump; boomrocket worked example) travel as `patterns/hermetic-in-time-suite-latency-triage.md`\n\
   — the hermetic-in-TIME half assumed by `patterns/consumer-suite-parallelization.md`'s\
   \ \"hermetic first,\nparallel second\" precondition. Consumer-side fix worked example:\
   \ boomrocket (celery\n`task_always_eager` + a short test-env broker timeout).\n\n\
@@ -329,10 +334,12 @@ body: "### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-
   \ (pass + a named\n  `evidence:`) surfaces `never`; one aged past `YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`\
   \ surfaces `stale`; a\n  non-pass / under-evidenced record does NOT clear it; a\
   \ waiver answers; a repo with no carrier owes\n  nothing — `bin/lib/debt_adoption.py#unexecuted_test_classes`,\
-  \ differential probes in tests/test_coverage_boundary.py.\n- the `product_source:`\
-  \ section (rule 27) is OPT-IN, checked-if-present: a declared\n  `globs:` list IS\
-  \ read by the work-batch carrier gate and DOES govern (an uncarried `work/<slug>`\n\
-  \  batch touching a declared glob refuses at land with `work-batch-uncarried-product-source`);\
+  \ differential probes in tests/test_coverage_boundary.py;\n  a pre-deploy class\
+  \ with an empty `units:` and no pass row is listing no unit, neither cleared nor\n\
+  \  among the classes to run, its remedy the list verb — tests/test_t14710_empty_pre_deploy_class.py.\n\
+  - the `product_source:` section (rule 27) is OPT-IN, checked-if-present: a declared\n\
+  \  `globs:` list IS read by the work-batch carrier gate and DOES govern (an uncarried\
+  \ `work/<slug>`\n  batch touching a declared glob refuses at land with `work-batch-uncarried-product-source`);\
   \ a\n  `waiver: {reason}` and an ABSENT section both fall to the kernel carrier\
   \ floor for RECOGNITION and\n  differ there only in whether the report-only migration\
   \ note prints — the separate refusal arm\n  below is what distinguishes them in\

@@ -24,6 +24,7 @@ import ast      # T-11778: the runner-closure derivation of a touched test file'
 import hashlib  # T-11406: the bytes-identity of a machine-refuted artifact's parse evidence
 import fnmatch  # T-11407: the preview's declared-vs-audited touch match admits the glob forecast form
 import functools  # T-12696: the leaf residues wrap the moved bodies (inspect.getsource unwraps)
+import inspect  # T-14724: the hold wrapper publishes cmd_audit's signature without `_audit_hold`
 import json
 import os
 import re
@@ -2323,7 +2324,10 @@ def auditor_status(*, config_path: Path, iter_events, env=None,
             ts = _parse_iso_ts(e.get("ts"))
             data = e.get("data") or {}
             key = "auditor_tier" if etype == "external_audit_completed" else "tier"
-            r = rate.get(data.get(key)) if isinstance(data, dict) else None
+            # T-14706 — a non-string tier (free-form `data`) names no tier; it must not raise inside
+            # this fold's catch-all, which would silently drop every later row.
+            _tier = data.get(key) if isinstance(data, dict) else None
+            r = rate.get(_tier) if isinstance(_tier, str) else None
             if r is None or ts is None or not (start <= ts <= end):
                 continue
             if etype == "external_audit_completed":
@@ -4150,6 +4154,10 @@ CEILING_DECISION_PAYLOAD_KEYS = (
     "plan_slug",
     "gate",
 )
+#: T-14707 (SPEC-1039 rule 2) — the ONE optional `ceiling_decision` key: the same-class sweep
+#: statement of a PLAN-gate `fix` (`sweep_statement`: the text, or `not stated`). Written on that row
+#: only and ABSENT on every other, so a task row and every row written before it keep their shape.
+CEILING_DECISION_OPTIONAL_KEYS = ("sweep",)
 #: The ceiling EXTENSION keys on the EXISTING `external_audit_completed` row. A NAMED SUBSET of a
 #: wider row: a base-row key is neither required by this set nor unknown to it.
 EXTERNAL_AUDIT_COMPLETED_CEILING_KEYS = (
@@ -4172,7 +4180,8 @@ def validate_ceiling_payload(event_type, data) -> list:
     card read it exactly that way):
 
       `ceiling_decision` — a CLOSED payload the card defines whole. Every rule-2 key is REQUIRED and
-        nothing else is allowed, so BOTH arms apply: `missing:<key>` and `unknown:<key>`.
+        nothing else is allowed but the optional keys of CEILING_DECISION_OPTIONAL_KEYS (T-14707), so
+        BOTH arms apply: `missing:<key>` and `unknown:<key>`.
 
       `external_audit_completed` — an EXTENSION on an OPEN row, so the `missing:` arm ONLY, and the
         absence of an `unknown:` arm here is a decision, not an omission. That row is written at five
@@ -4197,8 +4206,9 @@ def validate_ceiling_payload(event_type, data) -> list:
         return []
     if event_type == "ceiling_decision":
         declared = set(CEILING_DECISION_PAYLOAD_KEYS)
+        allowed = declared | set(CEILING_DECISION_OPTIONAL_KEYS)   # T-14707: optional, never required
         problems = [f"missing:{k}" for k in declared if k not in data]
-        problems += [f"unknown:{k}" for k in data if k not in declared]
+        problems += [f"unknown:{k}" for k in data if k not in allowed]
         return sorted(problems)
     if event_type == "external_audit_completed":
         declared = set(EXTERNAL_AUDIT_COMPLETED_CEILING_KEYS)
@@ -5901,6 +5911,7 @@ AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("directive", "--directive", "directive", None),
     ("receiving", "--receiving", "receiving", None),
     ("evidence", "--evidence", "evidence", None),
+    ("sweep", "--sweep", "sweep", None),        # T-14707 — prose: a plan-gate fix's sweep statement
 )
 
 #: The stdin keys the fold-back below reads — the same set, by DERIVATION rather than a second
@@ -6280,6 +6291,36 @@ def ceiling_fix_commit_open(tid, rows) -> tuple:
     if verdicts[-1] != "RED":
         return False, f"ceiling_row_not_red: the newest audit-post verdict for {tid} is {verdicts[-1]}"
     return True, None
+
+
+#: T-14750 — the owner-reset-pass names (re-export aliases; the bodies live in `bin/lib/audit_ceiling.py`).
+OWNER_RESET_PASS_BASIS = audit_ceiling.OWNER_RESET_PASS_BASIS
+OWNER_RESET_PASS_MARKER = audit_ceiling.OWNER_RESET_PASS_MARKER
+owner_reset_pass_context = audit_ceiling.owner_reset_pass_context
+
+
+def owner_reset_pass_admission_for(tid, rows, *, custody_sha, resolve, strict_descendant,
+                                   owner_rows) -> tuple:
+    """T-14750 — the host binding of `audit_ceiling.owner_reset_pass_admission` (the AUDIT door). `rows`
+    are the card's rows the test-found-fix arm already read (one read, two arms); `owner_rows` the
+    zero-argument reader of the journal's owner_directive rows, called only past every card-row check.
+    The directive resolves through the SPEC-1039 rule-2 resolver, the pass being the decision it
+    authorizes (`decision_pos` = past every row of the corpus)."""
+    rows, real = _test_found_fix_inputs(tid, rows)
+
+    def _resolve(corpus, locator):
+        return _resolve_owner_directive(corpus, locator, tid, decision_ts=_utc_now_iso_local(),
+                                        decision_pos=len(corpus))
+    return audit_ceiling.owner_reset_pass_admission(
+        tid, rows=rows, stage_rows=real, custody_sha=custody_sha, resolve=resolve,
+        strict_descendant=strict_descendant, owner_rows=owner_rows, resolve_directive=_resolve,
+        currency_basis=CURRENCY_BASIS)
+
+
+def _utc_now_iso_local() -> str:
+    """T-14750 — second-granularity UTC now, the journal's `ts` shape (the resolver's `decision_ts`)."""
+    import datetime as _dt   # noqa: PLC0415
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def test_found_fix_admission_for(tid, rows, *, custody_sha, resolve, strict_descendant) -> tuple:
@@ -10009,7 +10050,8 @@ CEILING_ROW_RESET_KEY = "ceiling_row_reset_for"
 
 
 def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_sha,
-                                 resolve_sha, run_since_audit: bool = False) -> "str | None":
+                                 resolve_sha, run_since_audit: bool = False,
+                                 prior_passes=None, ceiling=None) -> "str | None":
     """T-12444 (SPEC-1041 «Rule 4 — custody», T-12038) — does THIS audit-post open a NEW ceiling row?
 
     Returns `subject_sha` when the revision being audited is a `task commit --reship` ship that opens
@@ -10067,6 +10109,17 @@ def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_s
     fixes after a red Tests run reach the ceiling and its decision route. Decided by that fact alone,
     never by the run's verdict or by how the card reached Commit; the GREEN second ship with no run
     since keeps its new row.
+
+    T-14732 (<project> X-2501) — TWO more fail-closed conjuncts, so the audit door (its `--preview`
+    included) and the `task commit --reship` door read this ONE predicate and never disagree:
+      (e) the subject is NOT the GREEN record's own commit (resolved identity). A row opens for a NEW
+          subject only; re-auditing the commit the GREEN already covers is not one. Measured: an A6-kept
+          row (a reship after a governed run) re-audited GREEN at pass 3 on the reship commit wrote no
+          stamp, so (d) could not see it and the preview promised «NEW ceiling row, pass 1» on that same
+          subject while the door refused the card past the ceiling. A record naming no commit, or one
+          that does not resolve, opens nothing.
+      (f) the superseded row is not PAST the ceiling — `prior_passes > ceiling` opens nothing (the
+          commit door's own past-ceiling+1 bound, stated here once). Asked only when both are given.
     """
     if not isinstance(recorded_commit_landed, dict) or not recorded_commit_landed.get("reship"):
         return None                                        # (a)
@@ -10090,6 +10143,21 @@ def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_s
                if isinstance(prior_record, dict) else "")
     if already == subject:                                 # (d)
         return None
+    green_commit = str((prior_record or {}).get("commit") or "").strip() if isinstance(prior_record, dict) else ""
+    if not green_commit:                                   # (e) — no GREEN commit to differ from
+        return None
+    try:
+        green_resolved = resolve_sha(green_commit)
+    except Exception:      # noqa: BLE001 — a git that cannot answer REFUSES, never admits
+        return None
+    if not green_resolved or str(green_resolved).strip() == subject:
+        return None                                        # (e) — the GREEN already covers this subject
+    if prior_passes is not None and ceiling is not None:
+        try:
+            if int(prior_passes) > int(ceiling):           # (f) — past the ceiling: no row
+                return None
+        except (TypeError, ValueError):
+            return None
     return subject
 
 
@@ -10098,7 +10166,8 @@ def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_s
 RESHIP_A6_ROW_TYPES = ("audit_post_completed", "tests_passed", "tests_failed")
 
 
-def reship_reaudit_opens_new_row(prior_record, a6_rows) -> bool:
+def reship_reaudit_opens_new_row(prior_record, a6_rows, prior_passes=None, ceiling=None,
+                                 resolve_sha=None) -> bool:
     """T-14543 (X-2279) — will the REQUIRED re-audit of the reship being committed NOW open a new
     ceiling row? Asked by `task commit --reship` BEFORE its commit exists, so the WARN it prints names
     the step the audit door will actually admit.
@@ -10108,11 +10177,21 @@ def reship_reaudit_opens_new_row(prior_record, a6_rows) -> bool:
     sides, identity resolver), so conjuncts (a)/(b) hold by construction, (d) cannot match a subject
     that does not exist yet, and the answer turns on (c) the prior record's verdict and the A6 fact.
     `a6_rows` None (the journal could not be read) is treated as a run since — the audit door's own
-    fail-closed direction — so the WARN then names the decisions route."""
+    fail-closed direction — so the WARN then names the decisions route.
+    T-14732: `prior_passes`/`ceiling` are forwarded so conjunct (f) answers here exactly as at the audit
+    door, and the GREEN record's commit is resolved by the door's own `resolve_sha` — only the
+    placeholder resolves to itself — so conjunct (e) refuses an unresolvable or absent record commit
+    here as it does there. No resolver wired = nothing resolves = no row (fail-closed)."""
     placeholder = "<reship-commit>"
     run_since = True if a6_rows is None else gates.run_since_newest_audit_post(a6_rows)
+
+    def _resolve(ref):
+        if ref == placeholder:
+            return placeholder
+        return resolve_sha(ref) if resolve_sha is not None else None
     return reship_opens_new_ceiling_row({"reship": True, "commit": placeholder}, prior_record,
-                                        placeholder, lambda s: s, run_since_audit=run_since) is not None
+                                        placeholder, _resolve, run_since_audit=run_since,
+                                        prior_passes=prior_passes, ceiling=ceiling) is not None
 
 
 def normalized_verdict(rec) -> str:
@@ -11094,11 +11173,18 @@ def ship_span_commits(chain, target, *, authored_paths, reachable=None, resolve=
             if ok is not True:
                 state = ("is not reachable from the tree being audited" if ok is False
                          else "could not be proven reachable from the tree being audited")
+                # T-14738 — git answered NO (never on an unanswered question): when the commit was
+                # undone on the unlanded branch, its row has a governed exit. The verb re-checks every
+                # admission condition and refuses otherwise, so naming it here admits nothing.
+                route = (f" If {sha[:12]} was undone (e.g. `git reset` on the unlanded branch), is not "
+                         f"on main and no audit names it, retire its row: `task commit <task> --void "
+                         f"{sha[:12]} --reason <why>` (T-14738, SPEC-1022) — the verb refuses unless "
+                         f"git and the journal prove each condition." if ok is False else "")
                 return {"span": [], "refusal":
                         f"ship-span: span member {sha[:12]}… {state}, so the audited span would name "
                         f"material that is not provably present. Auditing the last ship alone instead "
                         f"would silently drop this card's earlier work (T-12612, fail-closed). No "
-                        f"auditor was invoked and no pass was spent."}
+                        f"auditor was invoked and no pass was spent.{route}"}
 
     if len(members) <= 1:
         return {"span": [tgt], "refusal": None}
@@ -14108,7 +14194,8 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
             since = None   # this one scope also answers the whole-history (routed) readers
         # `commit_landed` whole: the custody readers (`_recorded_commit_landed`, the commit chain) read
         # it typed from the declared task's floor (`journal.task_floor`, registered by `task=`).
-        audit_keep = dict(keep, commit_landed=None)
+        # T-14738 — and the void row those readers fold beside it (one walk, never a second fold).
+        audit_keep = dict(keep, commit_landed=None, commit_landed_voided=None)
         if _same(spike, events_path):
             audit_keep.update(spike_keep)
         scope = stack.enter_context(journal_mod.scan_scope(
@@ -14408,7 +14495,122 @@ def from_file_attachments(paths, *, _resolve_prompt_file, _die) -> str:
     return "\n\n".join(parts)
 
 
-def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _capacity_retry_hint=None, _with_repo_lock=None, _iter_events=None, EVENTS_PATH=None, _ac_probe_evidence_events_for=None,   # T-12289 — the SPEC-0168 fold the rule-3 admission reads decisions through
+# ═══ T-14724 — the per-task, per-stage audit HOLD (X-2477, X-2478) ═══════════════════════════════
+# Two `audit pre|post --task T` runs on one (task, stage) at once each invoked the auditor; the later
+# verdict replaced the earlier and both passes were charged. The hold is an exclusive NON-BLOCKING flock
+# taken just before the auditor call and released when `cmd_audit` returns or exits, so a second run is
+# REFUSED at once (no queue, no wait). A dead holder never blocks: the kernel drops a flock when its
+# process exits. The holder's identity is published under a short blocking publish mutex (`.meta`)
+# held across try-hold + publish, and a refused contender reads it under the same mutex, so it always
+# names the live holder. Any failure to establish the hold refuses (fail-closed): a run that cannot
+# prove it is alone never reaches the auditor.
+
+AUDIT_HOLD_PUBLISH_WAIT_SECS = 10   # bound on the publish-mutex wait (a publish takes milliseconds)
+
+
+def audit_hold_path(repo_root, tid: str, stage: str) -> Path:
+    """`<git-common-dir>/yitc/audit-hold/<tid>-<stage>.lock` — shared by every checkout of the repo (a
+    task worktree and the main checkout resolve the same common dir); `<repo_root>/.yitc/audit-hold/`
+    when `repo_root` is not a git checkout."""
+    root = Path(repo_root)
+    common = events_mod._resolve_git_common_dir(root)
+    base = (Path(common) / "yitc") if common is not None else (root / ".yitc")
+    return base / "audit-hold" / f"{tid}-{stage}.lock"
+
+
+def _write_audit_holder(holder_path: Path, record: dict) -> None:
+    """Publish the holder record atomically (tmp + rename). A module function so a test can pause it."""
+    tmp = holder_path.with_name(f"{holder_path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(record, sort_keys=True), encoding="utf-8")
+    os.replace(tmp, holder_path)
+
+
+def take_audit_hold(repo_root, tid: str, stage: str, held: list, *, _die, started_at: str,
+                    session_ref: str = "") -> None:
+    """Take the (tid, stage) hold for this process, or `_die` naming the live holder. `held` collects
+    the hold fd; its owner (`cmd_audit`) closes it. Already holding (a re-entry inside one run) → no-op."""
+    if held:
+        return
+    import fcntl
+    from lib import lockfile
+    lock = audit_hold_path(repo_root, tid, stage)
+    meta_path = lock.with_name(lock.name + ".meta")
+    holder_path = lock.with_name(lock.name + ".holder")
+    fd = meta_fd = None
+    try:
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        meta_fd = lockfile.open_flock_target(meta_path, 0o664)
+        # The publish mutex is held only across try-hold + publish/read, so it frees in milliseconds;
+        # it is still taken NON-blocking in a BOUNDED retry, so a publisher suspended mid-publish can
+        # never make this run wait without end (audit-pre pass-2 F1) — at the bound the run refuses.
+        _deadline = time.monotonic() + AUDIT_HOLD_PUBLISH_WAIT_SECS
+        while True:
+            try:
+                fcntl.flock(meta_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= _deadline:
+                    _die(f"audit {stage}: {tid}: another `audit {stage}` run on this task is starting — "
+                         f"its holder record is not yet published after {AUDIT_HOLD_PUBLISH_WAIT_SECS}s. "
+                         f"This run invoked no auditor and charged no pass; once that run is visible or "
+                         f"gone, re-run `yitc-v2 audit {stage} --task {tid}` (T-14724, hold {lock}).")
+                time.sleep(0.05)
+        fd = lockfile.open_flock_target(lock, 0o664)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            try:
+                rec = json.loads(holder_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                rec = {}
+            os.close(fd)
+            fd = None
+            who = (f"pid {rec.get('pid', '?')}, started {rec.get('started_at', '?')}, "
+                   f"session {rec.get('session_ref') or '?'}") if rec else "holder record unreadable"
+            _die(f"audit {stage}: {tid}: another `audit {stage}` run on this task is running ({who}) — "
+                 f"its verdict will be recorded by that run. This run invoked no auditor and charged no "
+                 f"pass. Wait for that run to finish and read its verdict in decisions/{tid}-audit-{stage}.yaml "
+                 f"(`yitc-v2 journal query --type audit_{stage}_completed --task {tid}`); a run whose process is gone releases the "
+                 f"hold by itself (T-14724, hold {lock}).")
+        _write_audit_holder(holder_path, {"pid": os.getpid(), "started_at": started_at,
+                                          "session_ref": session_ref, "task": tid, "stage": stage})
+        held.append(fd)
+        fd = None
+    except OSError as e:
+        _die(f"audit {stage}: {tid}: the per-task audit hold could not be established at {lock} "
+             f"({type(e).__name__}: {e}) — refused before any auditor call, so no pass is charged: a run "
+             f"that cannot prove it is the only `audit {stage}` on this task does not run (T-14724). Fix "
+             f"the permissions or space named above and re-run `yitc-v2 audit {stage} --task {tid}`.")
+    finally:
+        if fd is not None:
+            os.close(fd)
+        if meta_fd is not None:
+            os.close(meta_fd)                          # releases the publish mutex
+
+
+def _releases_audit_hold(fn):
+    """Decorator for `cmd_audit`: owns the T-14724 hold list, hands it to the body as `_audit_hold`, and
+    releases every hold fd however the body ends (return, `_die`, `sys.exit` with the verdict code).
+    `functools.wraps` keeps `inspect.getsource(cmd_audit)` reading the body (it follows __wrapped__)."""
+    @functools.wraps(fn)
+    def _with_hold(args, **kw):
+        held: list = []
+        try:
+            return fn(args, _audit_hold=held, **kw)
+        finally:
+            for fd in held:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+    # The PUBLIC signature hides `_audit_hold` (the wrapper supplies it): callers and tests that build
+    # their keyword roster from `inspect.signature(cmd_audit)` must not pass it a second time.
+    _sig = inspect.signature(fn)
+    _with_hold.__signature__ = _sig.replace(
+        parameters=[p for n, p in _sig.parameters.items() if n != "_audit_hold"])
+    return _with_hold
+
+
+@_releases_audit_hold
+def cmd_audit(args: argparse.Namespace, *, _audit_hold, _bookkeeping_commit_authored_paths, _capacity_retry_hint=None, _with_repo_lock=None, _iter_events=None, EVENTS_PATH=None, _ac_probe_evidence_events_for=None,   # T-12289 — the SPEC-0168 fold the rule-3 admission reads decisions through
               _ceiling_decision_events_for=None,   # T-13459 — that fold's `ceiling_decision` rows, read as a declared slice inside audit pre's scope; un-injected ⇒ the fold, filtered
               _file_followup=None, _plan_gate_lens=None, _audit_scrutiny_spend_note=None,   # T-11581 — SPEC-0178 read at the spend seam; un-injected ⇒ silent (fail-closed)
               _packet_evidence_record=None, _auditor_outage_park=None, _work_batch_next_hint=None,
@@ -14489,6 +14691,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     sync_merge_below_ceiling = None    # T-14181 — the same evidence, admitted BELOW the ceiling (ordinary pass)
     test_found_fix_reaudit = None      # T-14090 — the admitted test-found-fix evidence (SPEC-1041 «Rule 4»)
     test_found_fix_refusal = None      # T-14090 — why it was NOT admitted (appended to the ceiling refusal)
+    owner_reset_reaudit = None         # T-14750 — the admitted owner-reset-pass evidence (SPEC-1018)
+    owner_reset_refusal = None         # T-14750 — why it was NOT admitted (appended to the ceiling refusal)
     _tff_rows = None                   # T-14090 — the card's window rows, when the audit door read them
     custody_repin_bound_by = None   # T-12506 — set only when the landed-branch-ancestor leg bound
     # T-11403 (X-1074/X-1075) — HOISTED so the `stage == "post"` custody branch below can carry a
@@ -15526,6 +15730,43 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                           f"Tests run ({test_found_fix_reaudit['red_run']}); auditing the fix "
                           f"{sha[:12]} ONCE past the ceiling (T-14090, SPEC-1041 «Rule 4 — custody»).",
                           file=sys.stderr)
+                elif _tff_rows is not None:
+                    # T-14750 (SPEC-1018 «Exits from a spent GREEN») — the ONE audit-post on the card's
+                    # owner-reset commit when the ceiling row is GREEN (no residual for `audit decide`).
+                    # Same seam, same card rows; the owner rows are read only past the card-row checks.
+                    def _owner_rows():
+                        # The journal's owner_directive rows of BOTH SPEC-0168 instances, through the
+                        # ceiling ladder's own typed reader (`_decide_journal_view`, the census-recorded
+                        # seam `audit decide` resolves directives through) — no new reader site.
+                        try:
+                            _mp = _main_events_path() if callable(_main_events_path) else _main_events_path
+                            got, seen = [], set()
+                            for _p in (EVENTS_PATH, _mp):
+                                if _p is None or _iter_events is None:
+                                    continue
+                                for _r in _decide_journal_view(tid, "post", _iter_events=_iter_events,
+                                                               events_path=_p,
+                                                               types=("owner_directive",))["rows"]:
+                                    _k = json.dumps(_r, sort_keys=True, default=str)
+                                    if isinstance(_r, dict) and _k not in seen:
+                                        seen.add(_k)
+                                        got.append(_r)
+                            return got
+                        except Exception:      # noqa: BLE001 — unreadable is unknown, never empty
+                            return None
+                    owner_reset_reaudit, owner_reset_refusal = owner_reset_pass_admission_for(
+                        tid, _tff_rows, custody_sha=sha, resolve=_git_resolve_sha,
+                        strict_descendant=(lambda a, b: _git_strict_descendant(a, b, repo_root=REPO_ROOT)),
+                        owner_rows=_owner_rows)
+                    if owner_reset_refusal and owner_reset_refusal.startswith("not_owner_reset_commit"):
+                        owner_reset_refusal = None   # an ordinary commit: this arm was never asked
+                    if owner_reset_reaudit:
+                        test_found_fix_refusal = None
+                        print(f"# {tid} audit-post: OWNER-RESET COMMIT — the ceiling row is GREEN at "
+                              f"{owner_reset_reaudit['prior_commit'][:12]} with no residual; auditing the "
+                              f"owner-reset commit {sha[:12]} ONCE past the ceiling on "
+                              f"{owner_reset_reaudit['owner_directive']} (T-14750, SPEC-1018 «Exits from a "
+                              f"spent GREEN»).", file=sys.stderr)
             if audited_span and len(audited_span) > 1:
                 # T-12612 — the multi-ship span form; T-12714 — reached by the ORDINARY route as well
                 # as `--repin-ship` (both set `audited_span`). `get_audit_post_span_diff` delegates to
@@ -15715,7 +15956,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         _crr_opened = reship_opens_new_ceiling_row(
             _recorded_commit_landed(tid) if _recorded_commit_landed else None,
             _crr_prior, sha, _git_resolve_sha,
-            run_since_audit=(True if _a6_rows is None else gates.run_since_newest_audit_post(_a6_rows)))
+            run_since_audit=(True if _a6_rows is None else gates.run_since_newest_audit_post(_a6_rows)),
+            prior_passes=prior_passes, ceiling=AUDIT_PASS_CEILING)   # T-14732 — the door's own bound
         if _crr_opened:
             # The row OPENS here: this pass is its pass 1. `passes` is what every downstream fork
             # reads (the record's own counter, the rule-8 round fork, the at-ceiling fold guard and
@@ -16648,6 +16890,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         and not concurrent_merge_reaudit and not task_lens_reaudit
         and not merge_integration_reaudit   # T-13260 — that axis, not a trend, admits this pass
         and not test_found_fix_reaudit      # T-14090 — likewise
+        and not owner_reset_reaudit         # T-14750 — likewise
         and not plan_gate_on_decisions      # T-13844 — the recorded decisions admit this pass (the
                                             # plan-gate ladder's own `not on_decisions`)
         and is_trend_convergence_grant(_trend_prior)
@@ -16773,7 +17016,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             and not merge_integration_reaudit
             # T-14090 — the ONE test-found-fix pass (derived at the same seam, fail-closed, one-shot off
             # its own recorded basis). It COUNTS a pass; no ledger skip.
-            and not test_found_fix_reaudit):
+            and not test_found_fix_reaudit
+            # T-14750 — the ONE owner-reset pass (same seam, fail-closed, one-shot off its own basis).
+            # It COUNTS a pass; no ledger skip.
+            and not owner_reset_reaudit):
         # T-9618 — the SPEC-0103 §3 blocked-on-land escalation: a DISPATCHED worker hitting this ceiling
         # needs an owner-authorized --owner-reset. Emit a CONTRACTED bg_dispatch_halted terminal marker
         # BEFORE the `_die` (worker context only) so dispatch-status reads blocked_on_land(needs-owner),
@@ -16862,7 +17108,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 if merge_integration_refusal else "")
              # T-14090 — when the test-found-fix axis was asked, WHICH guard refused.
              + (f"\n\nTest-found fix (T-14090) not admitted — {test_found_fix_refusal}."
-                if test_found_fix_refusal else ""))
+                if test_found_fix_refusal else "")
+             # T-14750 — when the owner-reset-pass axis was asked, WHICH guard refused.
+             + (f"\n\nOwner-reset commit pass (T-14750) not admitted — {owner_reset_refusal}."
+                if owner_reset_refusal else ""))
     # T-12309 — an ADMITTED SPEC-0204 rule-3 pass takes PRECEDENCE over the T-0544 unchanged-fingerprint
     # CARRY-FORWARD, exactly as the T-9626 stale-lens re-audit above does. The plan is unchanged but the
     # audit INPUTS are not: the on-decisions PACKET BLOCK carrying the Controller's recorded decisions is
@@ -17145,6 +17394,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     if test_found_fix_reaudit:
         # T-14090 — the prior GREEN + the red run, as CONTEXT beside the fix subject.
         extra = (extra or "") + "\n\n" + test_found_fix_context(test_found_fix_reaudit)
+    if owner_reset_reaudit:
+        # T-14750 — the prior GREEN + the owner's directive, as CONTEXT beside the owner-reset subject.
+        extra = (extra or "") + "\n\n" + owner_reset_pass_context(owner_reset_reaudit)
     tooling_absence_abort = False
     # T-10741 (SPEC-0168 rule 5) — declared BEFORE the verdict-branch chain so the record write below
     # is safe on EVERY branch: the consult-governs / unchanged-fingerprint carry branches
@@ -17605,6 +17857,15 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 "packet_sha256": packet_sha256,
             })
             return
+        # T-14724 (X-2477, X-2478) — ONE auditor run per (task, stage) at a time. Taken HERE: after the
+        # preview arm (a preview invokes no auditor) and before the first auditor call, so a refused run
+        # has invoked no auditor, sent no `audit_prompt_sent` row and written no verdict - no pass is
+        # charged. Plan / decision audits keep their own route (the card's CHANGE). `_audit_hold` is the
+        # list the `cmd_audit` wrapper below owns and releases in its `finally`.
+        if target_kind == "task":
+            take_audit_hold(REPO_ROOT, tid, stage, _audit_hold, _die=_die,
+                            started_at=_utc_now_iso(),
+                            session_ref=os.environ.get("YITC_SESSION_REF") or "")
         # T-14675 — ONE packet's invoke + classify (the single packet, or one part of a split aggregate
         # plan audit); the body is the inline loop it replaces, returning what that loop assigned.
         def _invoke_once(_p, _answered):
@@ -18955,6 +19216,14 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # ABORT leaves a retry admitted) and is what the rule-4 terminal reading matches on a RED.
         on_decisions_row_fields = {"basis": TEST_FOUND_FIX_BASIS,
                                    TEST_FOUND_FIX_MARKER: dict(test_found_fix_reaudit)}
+        on_decisions_yaml_fields = dict(on_decisions_row_fields)
+    elif (owner_reset_reaudit
+          and str(verdict or "").strip().upper() in ("GREEN", "YELLOW", "RED")):
+        # T-14750 — the owner-reset pass records its OWN basis + marker, on the row AND the saved record.
+        # Only a REAL verdict carries it: that spends the one-shot (a no-verdict ABORT leaves a retry
+        # admitted). NOT a terminal basis: a RED/YELLOW here is an ordinary ceiling row with residuals.
+        on_decisions_row_fields = {"basis": OWNER_RESET_PASS_BASIS,
+                                   OWNER_RESET_PASS_MARKER: dict(owner_reset_reaudit)}
         on_decisions_yaml_fields = dict(on_decisions_row_fields)
 
     # ── SPEC-0204 rule 3 SUSPECTED-ECHO REPORT (T-12899, X-1549) — report-only, AFTER every verdict

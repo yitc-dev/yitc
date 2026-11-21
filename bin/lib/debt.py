@@ -2415,6 +2415,8 @@ def late_findings_per_pass(events_path, window_days: int = _LATE_FINDINGS_WINDOW
             if (now - ts).days > window_days:
                 continue
             tid = event.get("task_id") or data.get("target_id")
+            if not isinstance(tid, str):
+                continue          # T-14706: no string subject ⇒ no card to hold the finding against
             stage, passes = data.get("stage"), data.get("passes")
             rows_seen.add((tid, stage, passes))
             for f in late:
@@ -2451,8 +2453,10 @@ def late_findings_per_pass(events_path, window_days: int = _LATE_FINDINGS_WINDOW
             # At least as wide as the judge's own row→task test (envelope `task_id`, or the audit
             # family's `data.target_id` / `data.plan_slug`): the judge narrows, this only bounds.
             data = row.get("data") if isinstance(row.get("data"), dict) else {}
-            return (row.get("task_id") in need or data.get("target_id") in need
-                    or data.get("plan_slug") in need)
+            # T-14706 — free-form values are tested only when they are strings (`in` over a set
+            # hashes its operand, and a dict / list value raises).
+            return any(isinstance(v, str) and v in need
+                       for v in (row.get("task_id"), data.get("target_id"), data.get("plan_slug")))
         try:
             gate_rows = [r for r in _read(_names_needed) if isinstance(r, dict)]
         except (OSError, UnicodeDecodeError):
@@ -4283,8 +4287,15 @@ def _declared_test_classes(ops_path) -> list:
             continue                      # a single waived class is an ANSWERED question (rule 6)
         name = _entry_name(entry, "class", index)
         moment = entry.get("moment") if isinstance(entry, dict) else None
-        rows.append({"class": name, "moment": moment.strip() if isinstance(moment, str) and moment.strip()
-                     else None})
+        row = {"class": name, "moment": moment.strip() if isinstance(moment, str) and moment.strip()
+               else None}
+        # T-14710 (SPEC-0152 rule 24): a pre-deploy class whose listed order names no file yet (the
+        # SPEC-1051 rule-1 born state, `units: []` or an empty `units_file:`) — it has nothing to run
+        units = entry.get("units") if isinstance(entry, dict) else None
+        if row["moment"] == "pre-deploy" and isinstance(units, list) \
+                and not any(isinstance(u, str) and u.strip() for u in units):
+            row["listed_empty"] = True
+        rows.append(row)
     return rows
 
 

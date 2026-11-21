@@ -491,6 +491,35 @@ def _pending_supersession_note(sid: str, successors) -> str:
             f"{sid} is the expected state until then.")
 
 
+def _pending_successors_in(specs_dir, sid: str) -> list:
+    """`pending_successors(sid, …)` over the spec files of `specs_dir` (T-13672's read, shared with the
+    T-14712 carry note). Fail-soft: an unreadable directory or file names no successor."""
+    records = []
+    try:
+        paths = state.scan_specs(specs_dir)
+    except Exception:
+        paths = []
+    for p in paths:
+        try:
+            records.append(state.load_str(p.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    return pending_successors(sid, records)
+
+
+def _carry_duty_note(sid: str, successors) -> str:
+    """The report-only line `spec edit` prints after an edit of an ACTIVE spec that has pending
+    successors (T-14712, SPEC-1037 §7 — the carry duty of an in-place amend); "" when it has none."""
+    if not successors:
+        return ""
+    named = ", ".join(f"{succ} (activation_owner_task {owner})" if owner
+                      else f"{succ} (no activation_owner_task named yet)" for succ, owner in successors)
+    return (f"↳ pending successor (SPEC-1037 §7): proposed {named} supersedes {sid}. This in-place amend "
+            f"of {sid} is carried into that successor by the amending card, or that card's Analysis "
+            f"records why the successor needs none of it; the successor's activation owner reads "
+            f"{sid}'s changes since its mention review snapshot before activation (report-only).")
+
+
 def _warn_anchor_rule(sid: str, rec, *, verb: str, specs_dir=None) -> None:
     """Report-only WARN for the two authoring verbs. Never refuses, never touches the exit code — the
     authoring half of SPEC-0151 §Internal 3 (its other half is the graph-conformance sweep line).
@@ -509,17 +538,7 @@ def _warn_anchor_rule(sid: str, rec, *, verb: str, specs_dir=None) -> None:
         return
     note = ""
     if specs_dir is not None and rec.get("status") == "active":
-        records = []
-        try:
-            paths = state.scan_specs(specs_dir)
-        except Exception:
-            paths = []
-        for p in paths:
-            try:
-                records.append(state.load_str(p.read_text(encoding="utf-8")))
-            except Exception:
-                continue
-        note = _pending_supersession_note(sid, pending_successors(sid, records))
+        note = _pending_supersession_note(sid, _pending_successors_in(specs_dir, sid))
     print(f"⚠ anchor-rule (SPEC-0151) after `{verb}`: {sid} {reason}{note}", file=sys.stderr)
 
 
@@ -1190,6 +1209,10 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                     verb="spec edit --bless")
         except Exception:
             pass
+        if status == "active":            # T-14712: a blessed in-place amend carries the same duty
+            carry = _carry_duty_note(sid, _pending_successors_in(path.parent, sid))
+            if carry:
+                print(carry, file=sys.stderr)
         return
     # Input resolution (T-10051): old/new may come flat via --old/--new OR — for the multi-line /
     # full-section body replacements the flat CLI cannot carry — as a YAML mapping {old, new,
@@ -1687,6 +1710,14 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # A part (T-12925) carries no status/implements, so the rule has nothing of its own to judge there.
     if not is_part:
         _warn_anchor_rule(sid, updated_rec, verb="spec edit", specs_dir=base_path.parent)
+    # T-14712 (SPEC-1037 §7) — on EVERY edit of a spec that is `active` after the edit (a part edit
+    # reads its base record's status; a `--bless` edit included), name the proposed successors that
+    # supersede it and the carry duty. Report-only: the edit has already succeeded.
+    edited_status = updated_rec.get("status") if (not is_part and isinstance(updated_rec, dict)) else status
+    if edited_status == "active":
+        carry = _carry_duty_note(sid, _pending_successors_in(base_path.parent, sid))
+        if carry:
+            print(carry, file=sys.stderr)
     # governing_contract carries the SINGLE documented shape `{specs, status}` (SPEC-0025 / T-9254 —
     # `_governing_contract_for`), NOT a bare list, so EVERY floor-gated emitter is uniform. The printed
     # forward-pointer reads the `specs` list off that dict (the same auditable binding derivation — not

@@ -246,7 +246,14 @@ def box_ref(request: str, attempt: int = 1, name: str = "cand", *, ns: str = BOX
 
 
 SSH_OPTS = ("-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=15", "-o", "ServerAliveInterval=20")
+            "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=15", "-o", "ServerAliveInterval=20",
+            # T-14718: the venue reads no user ssh config and no agent — its ONE identity is the
+            # binding's dedicated key, inserted per call by `venue_run` / `venue_popen`.
+            # Attached-argument forms (`-F<the null device>`, `-i<path>`): one argv token each.
+            "-F" + os.devnull, "-o", "IdentitiesOnly=yes", "-o", "IdentityAgent=none")
+#: The venue's git-over-ssh command BEFORE the identity is added; `venue_run` appends `-i <copy>` to
+#: exactly this value and refuses a git call that carries any other.
+VENUE_GIT_SSH = "ssh " + " ".join(shlex.quote(o) for o in SSH_OPTS)
 
 
 class RemoteVerifyError(RuntimeError):
@@ -254,6 +261,129 @@ class RemoteVerifyError(RuntimeError):
     exception). `execute_remote_verify` never lets one escape — it converts every failure into an
     INDETERMINATE outcome, because a verdict path that can raise is a verdict path that can turn an
     infrastructure fault into a traceback the caller reads as "no result" rather than as a class."""
+
+
+# ── the venue identity (T-14718) ─────────────────────────────────────────────────────────────────
+# Every venue ssh / scp / git-over-ssh authenticates with the binding's DEDICATED key, never the running
+# user's own identity. The key file is shared by the served repository's group (0640) and ssh refuses a
+# group-readable key, so each call runs on a private 0600 COPY owned by the running user, in a 0700 dir
+# under the session scratch root. The copy is reference-counted across the calls in flight (parallel
+# legs share one) and removed when the last of them returns — failure paths included.
+_IDENTITY_LOCK = threading.Lock()
+_IDENTITY = {"path": None, "dir": None, "refs": 0}
+
+
+def _identity_acquire() -> str:
+    with _IDENTITY_LOCK:
+        if _IDENTITY["refs"] == 0:
+            # `VENUE_KEY_FILE` first, without importing venue: a leg runner loaded script-style (only
+            # bin/lib on sys.path) cannot import it; `venue.key_path` honours the same override.
+            src = (os.environ.get("VENUE_KEY_FILE") or "").strip()
+            if not src:
+                try:                                 # deferred: venue imports this module
+                    from lib import venue as _venue
+                except ImportError:                  # script-style import (bin/lib on sys.path)
+                    import venue as _venue           # type: ignore[no-redef]
+                src = _venue.key_path()
+            if not src:
+                raise RemoteVerifyError("the venue binding names no ssh key file (`ssh_key_file`) — "
+                                        "refusing to ssh with the running user's own identity")
+            try:
+                data = Path(src).read_bytes()
+            except OSError as exc:
+                raise RemoteVerifyError(f"the venue ssh key {src} cannot be read "
+                                        f"({exc.__class__.__name__}) — refusing to ssh") from None
+            if not data.strip():
+                raise RemoteVerifyError(f"the venue ssh key {src} is empty — refusing to ssh")
+            root = os.environ.get("YITC_SCRATCH_DIR") or ""
+            d = tempfile.mkdtemp(prefix="venue-key-", dir=root if root and os.path.isdir(root) else None)
+            path = os.path.join(d, "id")
+            try:
+                fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(data if data.endswith(b"\n") else data + b"\n")
+            except BaseException:            # a failed write leaves no partial key behind
+                shutil.rmtree(d, ignore_errors=True)
+                raise
+            _IDENTITY.update(path=path, dir=d)
+        _IDENTITY["refs"] += 1
+        return _IDENTITY["path"]
+
+
+def _identity_release() -> None:
+    with _IDENTITY_LOCK:
+        _IDENTITY["refs"] -= 1
+        if _IDENTITY["refs"] > 0:
+            return
+        _IDENTITY["refs"] = 0
+        path, d = _IDENTITY["path"], _IDENTITY["dir"]
+        _IDENTITY.update(path=None, dir=None)
+    for fn, arg in ((os.unlink, path), (os.rmdir, d)):
+        try:
+            if arg:
+                fn(arg)
+        except OSError:
+            pass
+
+
+def _with_identity(argv, kw: dict, path: str):
+    """ssh / scp get `-i<copy>`; a git call must carry the venue's GIT_SSH_COMMAND, which gets it too —
+    a git call without it would reach the box with the running user's own identity, so it is refused.
+    Any other argv opens no ssh connection (a test's local stand-in for the box) and is left as it is."""
+    argv = list(argv)
+    if argv and argv[0] in ("ssh", "scp"):
+        return [argv[0], f"-i{path}", *argv[1:]], kw
+    if not argv or argv[0] != "git":
+        return argv, kw
+    env = kw.get("env")
+    if not env or env.get("GIT_SSH_COMMAND") != VENUE_GIT_SSH:
+        raise RemoteVerifyError(f"a venue git call without the venue's GIT_SSH_COMMAND: {argv[:2]!r} — "
+                                f"refusing to run it with the running user's own identity")
+    return argv, {**kw, "env": {**env, "GIT_SSH_COMMAND": f"{VENUE_GIT_SSH} {shlex.quote('-i' + path)}"}}
+
+
+def venue_run(argv, **kw):
+    """`subprocess.run` for every venue ssh / scp / git-over-ssh call: the identity copy is held for
+    the call and released after it, however it ends."""
+    path = _identity_acquire()
+    try:
+        argv, kw = _with_identity(argv, kw, path)
+        return subprocess.run(argv, **kw)
+    finally:
+        _identity_release()
+
+
+def venue_popen(argv, *, held: bool = False, **kw):
+    """`subprocess.Popen` for a long-lived venue ssh: ssh reads the key when it authenticates, after
+    the spawn, so the copy must outlive the spawn. `held=False` (the pre-ship lease) acquires a
+    reference that `_PreshipLease.close()` releases; `held=True` (the legs) uses the copy the
+    enclosing `_holds_venue_identity` function holds until it returns, and refuses outside one."""
+    if held:
+        path = _IDENTITY["path"]
+        if not path:
+            raise RemoteVerifyError("a held venue ssh outside a function that holds the identity")
+        argv, kw = _with_identity(argv, kw, path)
+        return subprocess.Popen(argv, **kw)
+    path = _identity_acquire()
+    try:
+        argv, kw = _with_identity(argv, kw, path)
+        return subprocess.Popen(argv, **kw)
+    except BaseException:
+        _identity_release()
+        raise
+
+
+def _holds_venue_identity(fn):
+    """Hold the identity copy for the whole call of `fn` — the leg runners, whose ssh children run
+    for the length of the pass — and release it however `fn` ends."""
+    @functools.wraps(fn)
+    def wrapper(*a, **kw):
+        _identity_acquire()
+        try:
+            return fn(*a, **kw)
+        finally:
+            _identity_release()
+    return wrapper
 
 
 # ── the W policy (SPEC-0203 rule 5) ──────────────────────────────────────────────────────────────
@@ -592,13 +722,25 @@ def working_tree_snapshot(repo_root, *, filemode: "bool | None" = None) -> "str 
     with tempfile.TemporaryDirectory(prefix="yitc-venue-snap-") as td:
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(td) / "index")}
 
-        def _snap_git(*args: str) -> str:
+        def _snap_git(*args: str, identity: bool = False) -> str:
             try:  # T-13587 — the git child env policy leaf, under either import spelling
                 from lib import git_env as _git_env
             except ImportError:                                  # script-style import (bin/lib on sys.path)
                 import git_env as _git_env                        # type: ignore[no-redef]
-            r = subprocess.run(["git", *args], cwd=str(repo_root), text=True,
-                               capture_output=True, env=_git_env._git_child_env(env))
+            child, idargs = env, []
+            if identity:
+                # T-14730 — the snapshot commit takes the engine's commit identity, as every engine
+                # commit does (SPEC-0014 §Author and committer): the registry identity of the OS user,
+                # else git's own, else the X-0233 fallback — the same two helpers `_run_git_cap` applies.
+                try:
+                    from lib import cli as _cli
+                except ImportError as e:                         # fail loud: never an identity-less commit
+                    raise RemoteVerifyError(
+                        f"the Stage-6 working-tree snapshot cannot reach the engine commit identity: {e}")
+                child = _cli._commit_identity_env(env, repo_root)
+                idargs = _cli._git_identity_fallback_args(repo_root)
+            r = subprocess.run(["git", *idargs, *args], cwd=str(repo_root), text=True,
+                               capture_output=True, env=_git_env._git_child_env(child))
             if r.returncode != 0:
                 raise RemoteVerifyError(
                     f"the Stage-6 working-tree snapshot failed at `git {' '.join(args)}` "
@@ -613,7 +755,7 @@ def working_tree_snapshot(repo_root, *, filemode: "bool | None" = None) -> "str 
         if tree == head_tree:
             return None
         return _snap_git("commit-tree", tree, "-p", "HEAD", "-m",
-                         "venue stage-6 working-tree snapshot (T-12425)").strip()
+                         "venue stage-6 working-tree snapshot (T-12425)", identity=True).strip()
 
 
 def shipped_identity(repo_root, ref: str = "HEAD", *, main_ref: str = "main") -> dict:
@@ -641,8 +783,8 @@ def ssh_argv(box: str, command: str, *, user: str = "dev") -> list:
 
 
 def _ssh(box: str, command: str, *, user: str = "dev", timeout: float = 120, check: bool = True):
-    r = subprocess.run(ssh_argv(box, command, user=user), text=True, capture_output=True,
-                       timeout=timeout)
+    r = venue_run(ssh_argv(box, command, user=user), text=True, capture_output=True,
+                  timeout=timeout)
     if check and r.returncode != 0:
         raise RemoteVerifyError(f"ssh failed (rc={r.returncode}): {(r.stderr or r.stdout)[:300]}")
     return r
@@ -719,7 +861,7 @@ class MirrorPushTimeout(subprocess.TimeoutExpired):
 
 def _push(argv, **kw):
     try:
-        return subprocess.run(argv, **kw)
+        return venue_run(argv, **kw)
     except MirrorPushTimeout:
         raise
     except subprocess.TimeoutExpired as exc:
@@ -769,7 +911,7 @@ def mirror_main_to_box(repo_root, box: str, ident: dict, *, user: str = "dev",
     out: dict = {}
     attempt_out = {} if attempt_out is None else attempt_out
     url = url or f"ssh://{user}@{box}/home/{user}/venue/repo.git"
-    push_env = push_env or {**os.environ, "GIT_SSH_COMMAND": "ssh " + " ".join(SSH_OPTS)}
+    push_env = push_env or {**os.environ, "GIT_SSH_COMMAND": VENUE_GIT_SSH}
 
     def _read_mirror():
         return _ssh(box, f"cd {BOX_REPO_GIT} && git rev-parse --verify -q {MIRROR_MAIN_REF}",
@@ -1002,8 +1144,8 @@ def ship_trees(repo_root, box: str, ref: str = "HEAD", *, request: str, attempt:
          user=user, timeout=120)
     t0 = time.monotonic()
     url = f"ssh://{user}@{box}/home/{user}/venue/repo.git"
-    push_env = {**os.environ, "GIT_SSH_COMMAND": "ssh " + " ".join(SSH_OPTS)}
-    r = subprocess.run(
+    push_env = {**os.environ, "GIT_SSH_COMMAND": VENUE_GIT_SSH}
+    r = venue_run(
         ["git", "push", "-q", "-f", url,
          f"{ident['cand_sha']}:{cand_ref}", f"{ident['shipped_main_sha']}:{main_box_ref}",
          "refs/tags/*:refs/tags/*"],
@@ -2967,6 +3109,7 @@ def leg_command_prefix(*, corrupt_path: "str | None", legs: "tuple | list", envi
     return prefix
 
 
+@_holds_venue_identity
 def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
              workers: "int | None" = None, user: str = "dev", scratch=None,
              fingerprint: "dict | None" = None, disconnect_after: "float | None" = None,
@@ -3054,43 +3197,43 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
                                      stage6_exports=stage6_exports,
                                      **({"verify_test_timeout": verify_test_timeout}
                                         if verify_test_timeout is not None else {})))
-    subprocess.run(["scp", *SSH_OPTS, "-q", str(leg_sh), f"{user}@{box}:{run_dir}/box-leg.sh"],
+    venue_run(["scp", *SSH_OPTS, "-q", str(leg_sh), f"{user}@{box}:{run_dir}/box-leg.sh"],
                    check=True, timeout=120)
     if fingerprint is not None:
         fp = scratch / "fingerprint.json"
         fp.write_text(json.dumps(fingerprint))
-        subprocess.run(["scp", *SSH_OPTS, "-q", str(fp),
+        venue_run(["scp", *SSH_OPTS, "-q", str(fp),
                         f"{user}@{box}:{run_dir}/fingerprint.json"], check=True, timeout=120)
     exc = scratch / "exclude.json"
     exc.write_text(json.dumps(sorted(exclude or [])))
-    subprocess.run(["scp", *SSH_OPTS, "-q", str(exc),
+    venue_run(["scp", *SSH_OPTS, "-q", str(exc),
                     f"{user}@{box}:{run_dir}/exclude.json"], check=True, timeout=120)
     onl = scratch / "only.json"
     onl.write_text(json.dumps(sorted(only) if only is not None else None))
-    subprocess.run(["scp", *SSH_OPTS, "-q", str(onl),
+    venue_run(["scp", *SSH_OPTS, "-q", str(onl),
                     f"{user}@{box}:{run_dir}/only.json"], check=True, timeout=120)
     # T-12313 — THIS pass's pinned-leg narrowing. ALWAYS written, an empty list when the host
     # narrowed nothing, so a PREVIOUS pass's file can never narrow this one — the same invariant
     # `exclude.json` and `only.json` are always-written for.
     psk = scratch / "pinned_skip.json"
     psk.write_text(json.dumps(sorted(pinned_skip or [])))
-    subprocess.run(["scp", *SSH_OPTS, "-q", str(psk),
+    venue_run(["scp", *SSH_OPTS, "-q", str(psk),
                     f"{user}@{box}:{run_dir}/pinned_skip.json"], check=True, timeout=120)
     # T-14288 — THIS pass's pre-deploy skip set, always written for the same reason.
     pds = scratch / "pre_deploy_skip.json"
     pds.write_text(json.dumps(sorted(pre_deploy_skip or [])))
-    subprocess.run(["scp", *SSH_OPTS, "-q", str(pds),
+    venue_run(["scp", *SSH_OPTS, "-q", str(pds),
                     f"{user}@{box}:{run_dir}/pre_deploy_skip.json"], check=True, timeout=120)
     _ssh(box, f"chmod +x {run_dir}/box-leg.sh", user=user, timeout=60)
 
     declared_env = venue_declaration_env()
     prefix = leg_command_prefix(corrupt_path=corrupt_path, legs=legs, environ=declared_env)
     t0 = time.monotonic()
-    procs = {leg: subprocess.Popen(
+    procs = {leg: venue_popen(
         ssh_argv(box, f"{prefix}{run_dir}/box-leg.sh {leg} {int(workers)} "
                       f"{shlex.quote(request)} {int(attempt)} {int(nice)}"
                       f"{' stage6' if _s6class else ''}", user=user),
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) for leg in legs}
+        held=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) for leg in legs}
     # DRAIN EACH LEG'S OUTPUT AS IT ARRIVES (T-12241). Two reasons, and the second is not the
     # decoration: (i) a `waiting_for_venue_admission` line must reach the local journal WHILE the leg
     # is still waiting — a heartbeat delivered after the pass finishes is not a heartbeat; (ii) the
@@ -3137,7 +3280,7 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
 
     _ssh(box, envelope_script(request=request, attempt=attempt, legs=legs), user=user, timeout=300)
     dest = scratch / f"envelope-{request}-{attempt}.json"
-    subprocess.run(["scp", *SSH_OPTS, "-q", f"{user}@{box}:{run_dir}/envelope.json", str(dest)],
+    venue_run(["scp", *SSH_OPTS, "-q", f"{user}@{box}:{run_dir}/envelope.json", str(dest)],
                    check=True, timeout=300)
     # CLEANUP AFTER THE FETCH, never before it, and never fatally: the envelope is already local, so
     # a cleanup that fails must not turn a completed pass into a fault (the caller judges the
@@ -5907,6 +6050,13 @@ class _PreshipLease:
         if proc is None:
             return
         try:
+            self._close(proc)
+        finally:
+            _identity_release()          # the copy `venue_popen` acquired for this lease (T-14718)
+
+    @staticmethod
+    def _close(proc) -> None:
+        try:
             proc.stdin.close()
         except Exception:                             # noqa: BLE001 — best-effort release
             pass
@@ -5923,7 +6073,7 @@ class _PreshipLease:
 def _open_preship_lease(box: str, key: str, *, user: str = "dev", attempt: int = 1,
                         timeout: float = 60) -> _PreshipLease:
     """Open the box lease and return its handle once the box confirmed it (`LEASED`), else raise."""
-    proc = subprocess.Popen(ssh_argv(box, preship_lease_script(key, attempt), user=user),
+    proc = venue_popen(ssh_argv(box, preship_lease_script(key, attempt), user=user),
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True)
     line = [""]
@@ -6413,12 +6563,58 @@ def consumer_plan(guard_plan: dict, *, sweep_paths, sweep_only=None) -> dict:
     if tree is not None and not (isinstance(tree, str) and tree):
         raise ValueError("the tree the plan was taken over is not a tree id")
     attempt = guard_plan.get("attempt")
-    return {"schema": CONSUMER_PLAN_SCHEMA, "tree": tree,
-            "skip": sorted(str(n) for n in guard_plan["skip"]),
-            "attempt": dict(attempt) if isinstance(attempt, dict) else None,
-            "layers": json.loads(json.dumps(guard_plan["layers"])),
-            "sweep": {"paths": sorted(set(paths)),
-                      "only": sorted(set(sweep_only)) if sweep_only is not None else None}}
+    out = {"schema": CONSUMER_PLAN_SCHEMA, "tree": tree,
+           "skip": sorted(str(n) for n in guard_plan["skip"]),
+           "attempt": dict(attempt) if isinstance(attempt, dict) else None,
+           "layers": json.loads(json.dumps(guard_plan["layers"])),
+           "sweep": {"paths": sorted(set(paths)),
+                     "only": sorted(set(sweep_only)) if sweep_only is not None else None}}
+    if "pre_deploy_skip" in guard_plan:
+        # T-14717 (SPEC-1051 rule 2): the host's ONE pre-deploy skip read, applied by the box as read.
+        # ABSENT when the tree lists no class, so such a plan — and its digest — is unchanged.
+        rec = guard_plan["pre_deploy_skip"]
+        if not isinstance(rec, dict):
+            raise ValueError("the pre-deploy skip record is not a record")
+        try:
+            out["pre_deploy_skip"] = json.loads(json.dumps(rec))
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"the pre-deploy skip record does not travel as JSON: {e}")
+    return out
+
+
+def consumer_box_guard_kw(plan: dict, root) -> dict:
+    """T-14717 (SPEC-1059 rule 4, SPEC-1051 rule 2) — the keywords the box hands its layer guard for
+    the shipped `plan`: `shipped_plan` (the host's skip, attempt and per-layer decisions, plus the
+    host's pre-deploy skip record when the plan ships one) and, ONLY when it ships one, the pre-deploy
+    declaration of the shipped tree's own contract (`_pre_deploy_contract_kw(root)`), so the guard
+    applies that record — it reads no journal on the box. A plan shipping no record, or one that is
+    not a record, is followed as before: no declaration, every unit runs."""
+    shipped = {"skip": plan.get("skip") or [], "attempt": plan.get("attempt"),
+               "layers": plan.get("layers") or {}}
+    if not isinstance(plan.get("pre_deploy_skip"), dict):
+        return {"shipped_plan": shipped}
+    shipped["pre_deploy_skip"] = plan["pre_deploy_skip"]
+    try:  # the contract reader, under either import spelling (`_git`'s way)
+        from lib import land_verify_legs as _lvl
+    except ImportError:
+        import land_verify_legs as _lvl                   # type: ignore[no-redef]
+    return {"shipped_plan": shipped, **_lvl._pre_deploy_contract_kw(root)}
+
+
+def consumer_result_guard(box_result: dict, cand, layers) -> dict:
+    """The layer guard's result a host reads off a consumer box's result — `mode`, the failures
+    `cand`, the box's per-layer rows `layers`, and the keys the box copies from its own guard
+    (`layer_worker_budget`, `flaky_retry`; T-14717: `pre_deploy_skip`, the record the box applied)."""
+    box_result = box_result if isinstance(box_result, dict) else {}
+    guard = {"mode": box_result.get("mode"), "bad": list(cand), "layers": list(layers or [])}
+    for key in CONSUMER_RESULT_GUARD_KEYS:
+        if key in box_result:
+            guard[key] = box_result[key]
+    return guard
+
+
+#: the box guard's keys a consumer box result carries over to the host's guard
+CONSUMER_RESULT_GUARD_KEYS = ("layer_worker_budget", "flaky_retry", "pre_deploy_skip")
 
 
 def consumer_plan_bytes(plan: dict) -> bytes:
@@ -6783,17 +6979,26 @@ def consumer_box_main(argv) -> int:
                 dirs, root, a.workers, fail_fast=False, select=False, journal_path=_cli.EVENTS_PATH,
                 metrics_out=metrics, _host_globals=vars(_cli),
                 **({"only": set(only)} if only is not None else {}))]
-        guard = _cli._consumer_zero_probe_guard(
-            root, None, workers=a.workers,
-            shipped_plan={"skip": plan.get("skip") or [], "attempt": plan.get("attempt"),
-                          "layers": plan.get("layers") or {}})
+        _box_kw = consumer_box_guard_kw(plan, root)   # T-14717: + the host's skip record, applied as read
+        # T-14735: every EXECUTED layer's output, passing ones included, is kept beside this result
+        # (`consumer_box_log_root`), from where the transport copies it back before the box cleanup.
+        from lib import worktree as _wt
+        _box_kw["layer_log_ctx"] = {"root": str(consumer_box_log_root(a.out)),
+                                    "branch": _wt.CONSUMER_BOX_LOG_BRANCH,
+                                    "attempt": _wt.CONSUMER_BOX_LOG_ATTEMPT, "passing": True}
+        guard = _cli._consumer_zero_probe_guard(root, None, workers=a.workers,
+                                                shipped_plan=_box_kw.pop("shipped_plan"), **_box_kw)
         result.update({"mode": guard.get("mode"), "layers": guard.get("layers") or [],
                        "bad": [str(b) for b in guard.get("bad") or []] + swept,
                        "sweep": {"paths": paths, "only": only, "ran": bool(dirs), "bad": swept,
                                  "test_file_count": metrics.get("test_file_count")}})
-        for key in ("layer_worker_budget", "flaky_retry"):
+        for key in CONSUMER_RESULT_GUARD_KEYS:
             if key in guard:
                 result[key] = guard[key]
+        # T-14720 - the retry record is written on EVERY result the runner returned (null = the runner
+        # re-ran nothing), so the host can tell "no flakes" from a result that does not carry the key
+        # (`"unknown"`, SPEC-0165 item 11) - the T-12357 tri-state a kernel leg keeps.
+        result["flaky_retry"] = guard.get("flaky_retry")
     except BaseException as e:                 # a `_die` is a SystemExit: still a fault, never a pass
         result["launch_error"] = f"{type(e).__name__}: {e}"[:500]
     tmp = a.out + ".tmp"
@@ -6961,6 +7166,46 @@ def _box_repo_url(box: str, user: str) -> str:
     return f"ssh://{user}@{box}/home/{user}/venue/repo.git"
 
 
+#: T-14735 — the dir beside a consumer box result its layer logs are kept under (the layer runner
+#: writes them into its own `.yitc/land-logs/` below it)
+CONSUMER_BOX_LOG_ROOT = "layer-logs"
+_LAND_LOG_SUBDIR = ".yitc/land-logs"     # `worktree._LAND_LOG_DIR`, the layer runner's own
+
+
+def consumer_box_log_root(result_path) -> Path:
+    """T-14735 — the log root of a consumer box pass: `layer-logs/` in the dir of its result file
+    (the run's `out-consumer/`), which the box cleanup removes with the run dir."""
+    return Path(str(result_path)).parent / CONSUMER_BOX_LOG_ROOT
+
+
+def fetch_box_layer_logs(box: str, run_dir: str, user: str, dest, *, _run=None) -> dict:
+    """T-14735 (SPEC-1059 rule 4) — copy a consumer pass's layer logs from its box run dir into the
+    local `dest` (one recursive copy) and return them as `{file name: bytes}`: only `*.log` files
+    named the way the box writes them (`worktree.CONSUMER_BOX_LOG_BRANCH`). Best effort by contract:
+    a copy that fails, a run that kept no logs or any other fault returns `{}`, and nothing about the
+    pass or its verdict depends on it. Must run before the box cleanup removes the run dir."""
+    try:
+        from lib import worktree as _wt
+    except ImportError:
+        import worktree as _wt                             # type: ignore[no-redef]
+    dest = Path(dest)
+    src = f"{run_dir}/out-{CONSUMER_LEG}/{CONSUMER_BOX_LOG_ROOT}/{_LAND_LOG_SUBDIR}"
+    try:
+        got = (_run or venue_run)(["scp", *SSH_OPTS, "-q", "-r", f"{user}@{box}:{src}", str(dest)],
+                                  capture_output=True, timeout=300)
+        if getattr(got, "returncode", 1) != 0 or not dest.is_dir():
+            return {}
+        out = {}
+        for f in sorted(dest.iterdir()):
+            if f.is_file() and not f.is_symlink() and f.suffix == ".log" \
+                    and f.name.startswith(_wt.CONSUMER_BOX_LOG_BRANCH + "-layer-"):
+                out[f.name] = f.read_bytes()
+        return out
+    except Exception:                          # noqa: BLE001 — best effort by contract
+        return {}
+
+
+@_holds_venue_identity
 def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint: "dict | None" = None,
                       scratch=None, timeout: float = 3600, on_wait=None,
                       admission_timeout: float = VENUE_ADMISSION_WAIT_BOUND_S) -> dict:
@@ -6974,8 +7219,9 @@ def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint:
     and the run by `timeout` from its admission (the kernel leg's own default in `run_legs`). When no envelope comes back, the leg's own record
     is read instead: the prologue writes the class there when it ends the pass before any test.
 
-    Returns `{envelope_text, leg_record, push_s, wall_s, output}` — `envelope_text` is None when the
-    box wrote none; `output` is every line the box text printed. The box run dir, lease and request
+    Returns `{envelope_text, leg_record, push_s, wall_s, output, layer_logs}` — `envelope_text` is None when the
+    box wrote none; `output` is every line the box text printed; `layer_logs` the executed layers'
+    logs the box kept (`fetch_box_layer_logs`, T-14735). The box run dir, lease and request
     ref are cleaned, and the local scratch removed, on every exit (a bound running out included). Raises RemoteVerifyError on a failed push, `subprocess` errors on a failed
     copy, `subprocess.TimeoutExpired` (incl. `VenueAdmissionWait`) when a bound runs out."""
     try:  # the git child env policy leaf, under either import spelling (`_git`'s way)
@@ -6988,7 +7234,7 @@ def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint:
     scratch = Path(scratch) if scratch else Path(tempfile.mkdtemp(prefix=f"venue-consumer-{request}-"))
     try:
         t0 = time.monotonic()
-        push_env = {**os.environ, "GIT_SSH_COMMAND": "ssh " + " ".join(SSH_OPTS)}
+        push_env = {**os.environ, "GIT_SSH_COMMAND": VENUE_GIT_SSH}
         r = _push(["git", "push", "-q", "-f", "--no-follow-tags", _box_repo_url(box, user),
                    f"{req['cand_sha']}:{req['box_cand_ref']}"],
                   cwd=str(repo_root), text=True, capture_output=True, timeout=SHIP_PUSH_TIMEOUT_S,
@@ -7004,13 +7250,13 @@ def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint:
         for name, data in files.items():
             local = scratch / name
             local.write_bytes(data)
-            subprocess.run(["scp", *SSH_OPTS, "-q", str(local), f"{user}@{box}:{run_dir}/{name}"],
+            venue_run(["scp", *SSH_OPTS, "-q", str(local), f"{user}@{box}:{run_dir}/{name}"],
                            check=True, timeout=120)
         t_run = time.monotonic()
-        proc = subprocess.Popen(
+        proc = venue_popen(
             ssh_argv(box, f"bash {run_dir}/consumer-box.sh {shlex.quote(request)} {attempt} "
                           f"{int(req['width'])}", user=user),
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            held=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         admission: dict = {}
         output: list = []
         relay = threading.Thread(target=_drain_leg, args=(CONSUMER_LEG, proc, on_wait, None),
@@ -7028,9 +7274,11 @@ def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint:
         relay.join(timeout=30)
         wall_s = round(time.monotonic() - t_run, 1)
         dest = scratch / f"envelope-{request}-{attempt}.json"
-        got = subprocess.run(["scp", *SSH_OPTS, "-q", f"{user}@{box}:{run_dir}/envelope.json",
+        got = venue_run(["scp", *SSH_OPTS, "-q", f"{user}@{box}:{run_dir}/envelope.json",
                               str(dest)], capture_output=True, timeout=300)
         text = dest.read_text(encoding="utf-8") if got.returncode == 0 and dest.is_file() else None
+        # T-14735: the layer logs, copied back before the cleanup below removes the run dir
+        layer_logs = fetch_box_layer_logs(box, run_dir, user, scratch / f"layer-logs-{request}-{attempt}")
         leg_record = None
         if text is None:
             rec = _ssh(box, f"cat {run_dir}/out-{CONSUMER_LEG}/leg.json", user=user, timeout=60,
@@ -7041,7 +7289,7 @@ def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint:
                 leg_record = None
         return {"envelope_text": text,
                 "leg_record": leg_record if isinstance(leg_record, dict) else None,
-                "push_s": push_s, "wall_s": wall_s, "output": output}
+                "push_s": push_s, "wall_s": wall_s, "output": output, "layer_logs": layer_logs}
     finally:                                   # on EVERY exit, after any fetch; never fatally
         try:
             _ssh(box, box_cleanup_script(request, attempt), user=user, timeout=120, check=False)
@@ -7060,7 +7308,8 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
     runner's own record in the shape the host's guard returns (`mode`, `bad`, `layers`, and
     `layer_worker_budget` / `flaky_retry` when the box run carried them), so the Stage-6 row, the
     SPEC-1030 credit and the SPEC-0065 land credit read the pass as a local one; and `output`, every
-    line the box printed (empty when the box never ran).
+    line the box printed (empty when the box never ran); and `layer_logs`, the executed layers' logs
+    the box kept, `{file name: bytes}` (T-14735; empty when none came back).
 
     In order: the working-tree snapshot (`working_tree_snapshot`; a clean tree ships HEAD); the
     host's plan, taken by `take_plan()` AFTER the snapshot over the same working tree (the guard's
@@ -7112,12 +7361,23 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
             result["checks"], result["envelope"] = validated.get("checks"), validated.get("envelope")
         result["all_in_wall_s"] = round(time.monotonic() - t0, 1)
         box_result = (validated or {}).get("result") or {}
-        guard = {"mode": box_result.get("mode"), "bad": list(cand),
-                 "layers": list((validated or {}).get("layers") or [])}
-        for key in ("layer_worker_budget", "flaky_retry"):
-            if key in box_result:
-                guard[key] = box_result[key]
+        guard = consumer_result_guard(box_result, cand, (validated or {}).get("layers") or [])
+        if not isinstance(guard.get("flaky_retry"), dict):   # the host guard's shape: absent when none
+            guard.pop("flaky_retry", None)
         metrics = venue_verify_metrics(result)
+        # T-14720 - `venue_flaky_retry` of a consumer pass, from the box runner's own record: the
+        # per-unit and whole-layer re-runs run on the box in the host's layer runner, but
+        # `venue_verify_metrics` reads only a KERNEL envelope's legs, so every consumer pass read
+        # "unknown". Keyed by `cand` with its rows stamped `cand` - the pass is the Stage-6 run's
+        # candidate leg, and the guard copy above is folded onto `flaky_retry` under that same leg,
+        # so a reader of both keys counts one rescue once. "unknown" stays where no result answers.
+        if "flaky_retry" in box_result:
+            _rec = json.loads(json.dumps(box_result["flaky_retry"]))
+            if isinstance(_rec, dict):
+                for _r in _rec.get("rows") or []:
+                    if isinstance(_r, dict):
+                        _r["leg"] = "cand"
+            metrics[VENUE_FLAKY_RETRY_KEY] = {"cand": _rec if isinstance(_rec, dict) else None}
         if (result.get("w_derivation") or {}).get("bound") == CONSUMER_WIDTH_PER_LIVE_PASS:
             metrics["venue_width_live"] = result["w_derivation"].get("live")
         try:  # the layer-row reader, under either import spelling (`_git`'s way)
@@ -7132,7 +7392,10 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
                 "indeterminate_detail": result.get("indeterminate_detail"),
                 "cand": list(cand), "pinned": [], "metrics": metrics,
                 "partition": None, "result": result, "guard": guard,
-                "output": list((ran or {}).get("output") or [])}
+                "output": list((ran or {}).get("output") or []),
+                # T-14735: the box's layer logs, which the Stage-6 caller writes on the host
+                # (`worktree._consumer_box_layer_logs_to_host`)
+                "layer_logs": dict((ran or {}).get("layer_logs") or {})}
 
     req = ran = None
     try:

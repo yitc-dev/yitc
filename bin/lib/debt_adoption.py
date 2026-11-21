@@ -1328,9 +1328,15 @@ def unexecuted_test_classes(ops_path, events_path, floor_days: int = 30, now=Non
 
     executed = _test_class_executions(events_path)
     classes: list = []
+    unlisted: list = []
     for row in declared:
         cls = row["class"]
         last = executed.get(cls)
+        if last is None and row.get("listed_empty"):
+            # T-14710: a pre-deploy class listing no unit yet has nothing to run — named apart, with
+            # the remedy that exists (the weekly `pre-deploy list`, SPEC-1051 rule 7); never cleared
+            unlisted.append({"class": cls, "moment": row["moment"]})
+            continue
         if last is None:
             classes.append({"class": cls, "moment": row["moment"], "state": "never",
                             "last_executed": None, "stale_days": None})
@@ -1346,12 +1352,21 @@ def unexecuted_test_classes(ops_path, events_path, floor_days: int = 30, now=Non
     # order is stable across folds.
     classes.sort(key=lambda r: (r["state"] != "never", r["class"]))
     return _unexecuted_result(now, classes, floor,
-                              _test_class_near_misses(events_path, [r["class"] for r in classes]))
+                              _test_class_near_misses(events_path, [r["class"] for r in classes]),
+                              listing_no_unit=unlisted)
 
 
 
-def _unexecuted_result(now, classes: list, floor: int, near_misses: list = None) -> dict:
+def _unexecuted_result(now, classes: list, floor: int, near_misses: list = None, *,
+                       listing_no_unit: list = None) -> dict:
     near_misses = near_misses or []
+    listing_no_unit = listing_no_unit or []
+    unlisted_clause = (
+        (" " if classes else "") + "LISTING NO UNIT YET (not counted above — nothing to run): "
+        + ", ".join(f"`{r['class']}`" for r in listing_no_unit)
+        + " — a pre-deploy class whose declared `units:` list is empty; the weekly review's "
+          "`bin/yitc-v2 pre-deploy list --write` adds its members (SPEC-1051 rule 7)."
+    ) if listing_no_unit else ""
     return {
         "lens": "unexecuted-test-classes (SPEC-0152 rule 24 / X-0375) — test classes this project DECLARES "
                 "in its yitc-ops.yaml `tests.classes` with NO recorded successful execution of their own: "
@@ -1367,6 +1382,7 @@ def _unexecuted_result(now, classes: list, floor: int, near_misses: list = None)
         "floor_days": floor,
         "classes": classes,
         "near_misses": near_misses,
+        "listing_no_unit": listing_no_unit,
         "next": ("these declared test classes have no recorded successful run — nothing shows they were "
                  "ever executed (a declared class that never ran reads as coverage while catching nothing). "
                  "RUN each one for real, then record `bin/yitc-v2 event test_class_executed --data "
@@ -1379,7 +1395,9 @@ def _unexecuted_result(now, classes: list, floor: int, near_misses: list = None)
                      f"`{r['class']}` — {r['reason']}" for r in near_misses) + "."
                     if near_misses else "")
                  if classes else
-                 "every declared test class has a recorded successful execution — nothing owed."),
+                 ("" if listing_no_unit else
+                  "every declared test class has a recorded successful execution — nothing owed."))
+                + unlisted_clause,
     }
 
 

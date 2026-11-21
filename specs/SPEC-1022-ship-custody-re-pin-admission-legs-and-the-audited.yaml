@@ -146,18 +146,33 @@ body: "## Scenario\n\nA park, a pause or a wont-do self-commit was recorded afte
   \ — additive-optional, ABSENT on every single-ship\n  subject and on the re-pin\
   \ route, which keeps `custody_repin_span`.\nThis is likewise an ADDITIVE extension\
   \ (<workshop-spec> §additive-extension): it adds an answer for a\nquestion the rule\
-  \ was silent on, and alters no already-covered case's required behaviour.\n\n##\
-  \ Rationale\n\nA re-pin is recorded on well under one in a hundred audit-post passes.\
-  \ Rendered inside SPEC-0015\nthis detail reached every session entering Closure;\
-  \ as a reference behind one index paragraph and\nthe help of the two verbs involved\
-  \ it is met by the session that has the case at hand (<workshop-spec>\n§6, the rare-case\
-  \ option).\n\n## Verification\n\n- VP1 (one home): every block of §Ship-custody\
-  \ re-pin — admission legs and the audited subject is\n  present in this spec and\
-  \ absent from SPEC-0015, and SPEC-0015 carries exactly one index paragraph\n  naming\
-  \ this spec and the heading to search.\n- VP2 (reachable from the verb): the head\
-  \ of the `task close` help and the help of the re-pin\n  option of `audit post`\
-  \ name this spec.\n- VP3 (no stage render): no stage entry delivers this spec.\n\
-  The executable form of VP1-VP3 is `tests/test_t13693_repin_reference_spec.py`.\n"
+  \ was silent on, and alters no already-covered case's required behaviour.\n- **VOID\
+  \ OF AN UNDONE COMMIT.** A commit recorded by `task commit` and then undone on the\
+  \ unlanded\n  branch (a sanctioned `git reset`) leaves a row no span can reach,\
+  \ so every audit-post and the\n  close custody check refuse it. `task commit <task>\
+  \ --void <sha> --reason <why>` retires that ONE\n  row by an explicit journal row\
+  \ naming the full sha and the reason; the custody readers then leave\n  out every\
+  \ earlier row it names. Admitted only when the sha resolves to one commit, git answers\
+  \ it\n  is an ancestor of NEITHER the task branch HEAD NOR main, a live row of the\
+  \ card names it, and no\n  audit verdict, ceiling decision or recorded audit span\
+  \ names it; each failure refuses with its\n  own text, and an unanswered git question\
+  \ refuses. There is no silent reachability filter: a row\n  stays in custody until\
+  \ a void names it, so custody never slides back past audited work. The\n  span's\
+  \ unreachable-member refusal names this route when git answered no. A card with\
+  \ no void row\n  reads exactly as before.\n\n## Rationale\n\nThe void of an undone\
+  \ commit was added by (<project>, cross X-2516): a commit reset\naway after a GREEN\
+  \ audit-post left the card with no governed exit short of discard and re-claim.\n\
+  \nA re-pin is recorded on well under one in a hundred audit-post passes. Rendered\
+  \ inside SPEC-0015\nthis detail reached every session entering Closure; as a reference\
+  \ behind one index paragraph and\nthe help of the two verbs involved it is met by\
+  \ the session that has the case at hand (<workshop-spec>\n§6, the rare-case option).\n\
+  \n## Verification\n\n- VP1 (one home): every block of §Ship-custody re-pin — admission\
+  \ legs and the audited subject is\n  present in this spec and absent from SPEC-0015,\
+  \ and SPEC-0015 carries exactly one index paragraph\n  naming this spec and the\
+  \ heading to search.\n- VP2 (reachable from the verb): the head of the `task close`\
+  \ help and the help of the re-pin\n  option of `audit post` name this spec.\n- VP3\
+  \ (no stage render): no stage entry delivers this spec.\nThe executable form of\
+  \ VP1-VP3 is `tests/test_t13693_repin_reference_spec.py`.\n"
 cites:
 - SPEC-0015
 - SPEC-0013

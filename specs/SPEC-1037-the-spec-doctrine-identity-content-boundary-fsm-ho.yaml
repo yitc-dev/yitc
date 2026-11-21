@@ -318,13 +318,23 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \   snapshot line in the same Analysis before land; `worktree sync` names that difference.\
   \ No\n    separate gate, store or verb.\n    Delivery: the Analysis procedure (SPEC-0032)\
   \ carries the one-line cue for a card that is the\n    activation owner of a spec\
-  \ with `supersedes:`.\n  - **In-place amend vs supersede — the boundary (the line\
-  \ is NORMATIVITY, not edit size):**\n    - **IN-PLACE amend ALLOWED** — edit the\
-  \ ACTIVE spec body directly for a typo / clarification /\n      non-normative editorial\
-  \ correction that does NOT change what the rule REQUIRES or FORBIDS (a\n      concise\
-  \ interpreting note per rule 3, a cross-ref fix, disambiguating prose the rule was\
-  \ silent\n      on). No new id, no `supersedes:`, no FSM transition. A multi-line\
-  \ / full-section in-place\n      amend rides the verb via `spec edit --from-file`/`--from-stdin`\
+  \ with `supersedes:`.\n  - **In-place amend under a waiting successor — carried\
+  \ by the amending card.** An in-place amend\n    of an ACTIVE spec that a `proposed`\
+  \ spec supersedes is carried into that successor by the\n    amending card, or that\
+  \ card records in its Analysis why the successor needs none of it (the\n    successor\
+  \ reshapes or removes that part). Before activation the successor's activation owner\n\
+  \    also reads the target's own changes, and those of its earlier ancestors, since\
+  \ its recorded\n    snapshot, and carries what the successor needs. `spec edit`\
+  \ of such a spec names each\n    successor and its activation owner; `worktree sync`\
+  \ names main's commits that changed the\n    target's own file since the snapshot.\
+  \ Report-only: nothing refuses on it, and no text is\n    copied between specs by\
+  \ a tool.\n  - **In-place amend vs supersede — the boundary (the line is NORMATIVITY,\
+  \ not edit size):**\n    - **IN-PLACE amend ALLOWED** — edit the ACTIVE spec body\
+  \ directly for a typo / clarification /\n      non-normative editorial correction\
+  \ that does NOT change what the rule REQUIRES or FORBIDS (a\n      concise interpreting\
+  \ note per rule 3, a cross-ref fix, disambiguating prose the rule was silent\n \
+  \     on). No new id, no `supersedes:`, no FSM transition. A multi-line / full-section\
+  \ in-place\n      amend rides the verb via `spec edit --from-file`/`--from-stdin`\
   \ (a YAML mapping {old, new,\n      replace_all?}) — NOT a hand-edit of the YAML\
   \ (which skips the `spec_edited` emit).\n      PEP/ADR analog: living docs take\
   \ errata in-place.\n    - **SUPERSEDE via a NEW `proposed` spec + `supersedes:`\
@@ -612,7 +622,16 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ — Y reviewed against X at a snapshot, then Z landed by\n  another branch superseding\
   \ X with a «read Z before …» card: `worktree sync` prints RE-RUN\n  REQUIRED naming\
   \ Z and the card line; an unrelated advance prints current; a missing snapshot\n\
-  \  line is named; a card activating no superseding spec gets no line.\n"
+  \  line is named; a card activating no superseding spec gets no line.\n- **VP19\
+  \ (in-place amend under a waiting successor):** §7 states the carry duty of the\
+  \ amending\n  card and the activation owner's read of the target's own changes.\
+  \ Probes:\n  tests/test_t14712_spec_edit_successor_carry_note.py — `spec edit` of\
+  \ an active spec that a\n  proposed spec, with an edit that fires no anchor WARN\
+  \ (and a `--bless` edit), prints\n  the note naming the successor and its activation\
+  \ owner; no successor prints nothing new; and\n  tests/test_t14712_mention_review_target_own_change.py\
+  \ — main changes the target's own text in\n  lines naming no lineage id after the\
+  \ snapshot: `worktree sync` names the target and the commit\n  where it read `current`\
+  \ before; an unrelated advance prints exactly the `current` line.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

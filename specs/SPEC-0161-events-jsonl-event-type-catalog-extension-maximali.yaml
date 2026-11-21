@@ -219,21 +219,24 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \          \"evidence\": \"<what run — a CI url / a log ref / a harness id>\"}}\n\
   ```\n- `class` — WHICH declared `tests.classes[]` class ran, as the carrier names\
   \ it.\n- `outcome` — **must be `pass` to record a successful run.** A non-pass (or\
-  \ absent, or misspelt) outcome\n  records no successful run and clears nothing.\n\
-  - `evidence` — what run this attests to (a CI url / a log ref / a harness id). **REQUIRED\
-  \ to clear the\n  class** (the SPEC-0156 `broken_input` discipline): a bare \"it\
-  \ ran\" with no named run is a CLAIM anyone\n  could type, and clearing a class\
-  \ on a claim is the false-green this contract exists to end. `class`, a\n  `pass`\
-  \ `outcome`, and a non-empty `evidence` must ALL be present; an incomplete record\
-  \ does not clear it,\n  so the class stays visible as debt (the conservative direction\
-  \ — under-evidenced ⇒ still owed).\n- It rides the EXISTING generic `event` verb\
-  \ (`bin/yitc-v2 event test_class_executed --data`) — SPEC-0152\n  rule 24 admits\
-  \ **no new verb, no new emitter, no new store** (the SPEC-0156 producer precedent).\
-  \ It is\n  NOT auto-emitted from the declaration: a pinned suite pass does not positively\
-  \ observe a per-class run\n  (`land` runs `verify.layers` by layer, never per class),\
-  \ so an auto-emit would be the very false-green\n  this ends. The consumer is the\
-  \ DERIVED debt view `debt.unexecuted_test_classes`, which folds\n  carrier + journal\
-  \ at read time and surfaces every declared class with no matching record as unexecuted\n\
+  \ absent, or misspelt) outcome\n  records no successful run and clears nothing.\
+  \ A pre-deploy run writes `outcome: empty` with a\n  `reason:` for a listed class\
+  \ whose declared `units:` names no file (SPEC-1051 rule 4): nothing of\n  it ran,\
+  \ so it is neither `pass` nor `fail`, and it clears nothing.\n- `evidence` — what\
+  \ run this attests to (a CI url / a log ref / a harness id). **REQUIRED to clear\
+  \ the\n  class** (the SPEC-0156 `broken_input` discipline): a bare \"it ran\" with\
+  \ no named run is a CLAIM anyone\n  could type, and clearing a class on a claim\
+  \ is the false-green this contract exists to end. `class`, a\n  `pass` `outcome`,\
+  \ and a non-empty `evidence` must ALL be present; an incomplete record does not\
+  \ clear it,\n  so the class stays visible as debt (the conservative direction —\
+  \ under-evidenced ⇒ still owed).\n- It rides the EXISTING generic `event` verb (`bin/yitc-v2\
+  \ event test_class_executed --data`) — SPEC-0152\n  rule 24 admits **no new verb,\
+  \ no new emitter, no new store** (the SPEC-0156 producer precedent). It is\n  NOT\
+  \ auto-emitted from the declaration: a pinned suite pass does not positively observe\
+  \ a per-class run\n  (`land` runs `verify.layers` by layer, never per class), so\
+  \ an auto-emit would be the very false-green\n  this ends. The consumer is the DERIVED\
+  \ debt view `debt.unexecuted_test_classes`, which folds\n  carrier + journal at\
+  \ read time and surfaces every declared class with no matching record as unexecuted\n\
   \  (report-only, never a gate).\n- Append-only + P5-safe : additive — no existing\
   \ event type changes; a consumer that does not know\n  this type parses it as the\
   \ opaque `{ts,type,data}` triple.\n\n#### Followup-capture events (per SPEC-0095;\
@@ -988,11 +991,11 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   `tests_failed` and `tests_passed` (the duration fold keys on the hash+revision pair).\n\
   `admission_config.config_hash|config` — the one snapshot of an applied admission\
   \ configuration per\ndistinct hash, and `admission_pass|step|wait|left.config_ref`\
-  \ — that snapshot row's `{ts, sha}` or\n`\"unavailable\"` (SPEC-1045 rule 2 (e)).\n\
-  `land_completed.verify_forecast` — this land's own request beside its admission\
-  \ preview's forecast,\nthe inputs that moved between them; absent on a queue-off\
-  \ land.\n`bg_dispatch_halted.spent_green` — `{commit, head}` of a GREEN `--on-decisions`\
-  \ pass the subject\nmoved past · `bg_dispatch_halted.merge_integration_refusal`\
+  \ — that snapshot row's `{ts, sha}` or\n`\"unavailable\"` (<workshop-spec> rule\
+  \ 2 (e)).\n`land_completed.verify_forecast` — this land's own request beside its\
+  \ admission preview's forecast,\nthe inputs that moved between them; absent on a\
+  \ queue-off land.\n`bg_dispatch_halted.spent_green` — `{commit, head}` of a GREEN\
+  \ `--on-decisions` pass the subject\nmoved past · `bg_dispatch_halted.merge_integration_refusal`\
   \ — why the post-GREEN merge\nintegration was not admitted. `cli_invoked.as_of`\
   \ — the one sha a historical\n`graph query --as-of` read; never credited as a fetch.\
   \ `commit_landed.owner_reset_commit`\n— true on the commit an owner-reset re-pin\
@@ -2061,12 +2064,14 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ is unstamped — recorded as unknown, never\n  invented) and the holder's path.\
   \ Read back by the `--fleet-verdict` claim-lost basis so the\n  controller routes\
   \ to the holder's land without a journal grep. Reported, never branched on.\n\n\
-  ## Verification\n\n- Size: SPEC-0025 back under the SPEC-0120 §3 ceiling (durable_docs\
-  \ metrics; over_ceiling /\n  over_ceiling_bytes no longer list it) after the section\
-  \ re-homes here; SPEC-0161 sits in-band.\n- Verbatim: the moved body text is byte-identical\
-  \ to the SPEC-0025 pre-split source (no content deleted).\n- Retrieval: `bin/yitc-v2\
-  \ graph query SPEC-0161` returns the extension catalog; the SPEC-0025\n  §Event-type\
-  \ catalog extension pointer stub names this spec id + the lookup command.\n- Graph-indexed:\
+  ## Verification\n\n- : the `outcome: empty` row of a listed pre-deploy class with\
+  \ an empty `units:` clears no\n  rule-24 debt — tests/test_t14710_empty_pre_deploy_class.py.\n\
+  \n- Size: SPEC-0025 back under the SPEC-0120 §3 ceiling (durable_docs metrics; over_ceiling\
+  \ /\n  over_ceiling_bytes no longer list it) after the section re-homes here; SPEC-0161\
+  \ sits in-band.\n- Verbatim: the moved body text is byte-identical to the SPEC-0025\
+  \ pre-split source (no content deleted).\n- Retrieval: `bin/yitc-v2 graph query\
+  \ SPEC-0161` returns the extension catalog; the SPEC-0025\n  §Event-type catalog\
+  \ extension pointer stub names this spec id + the lookup command.\n- Graph-indexed:\
   \ `bin/yitc-v2 graph build` indexes SPEC-0161 as a `spec` node.\n- ** (2026-08-19)\
   \ additions:** the type sweep re-run against the WHOLE `specs/` corpus reports\n\
   \  ZERO live-emitter types without a home, and every residual is a NAMED no-emitter\

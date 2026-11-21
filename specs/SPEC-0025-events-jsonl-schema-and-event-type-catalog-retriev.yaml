@@ -27,47 +27,47 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   The engine admission queue writes its full applied configuration once per distinct\
   \ configuration\nhash, as an `admission_config` row (`data`: `admission`, `config_hash`,\
   \ `config`), and each of its\n`admission_*` rows carries `config_hash` and `config_ref`\
-  \ — that row's `{ts, sha}`, or `\"unavailable\"`\n(SPEC-1045 rule 2 (e)); a row\
-  \ written before carries the inline `config` list instead.\n\n### Universal schema\n\
-  ```jsonc\n{\"ts\": \"\", \"type\": \"<event_type>\", \"task_id\": \"T-XXXX\", \"\
-  data\": {...}}\n```\n- `ts` — ISO 8601 UTC, microsecond optional\n- `type` — snake_case\
-  \ event name\n- `task_id` — optional, present when the event ties to a specific\
-  \ task\n- `data` — type-specific payload. May include `commit: <sha>` (for commit-related\
-  \ events:\n  `commit_landed`, `audit_post_completed`) or `audit_id: <task-audit-stage>`\
-  \ (for audit-related\n  events: `external_audit_completed`)\n\n#### `unresolved_locators`\
-  \ — the cross-type governed-citation mark (X-1465)\n\nAn ADDITIVE-OPTIONAL `data`\
-  \ key that may appear on a row of **ANY** type — which is why it is homed\nhere\
-  \ in the universal schema rather than in one type's catalog entry. Shape:\n\n```jsonc\n\
-  \"unresolved_locators\": [{\"field\": \"<the governed field>\", \"locator\": \"\
-  <the ts as written>\",\n                         \"why\": \"malformed | no-row\"\
-  }]\n```\n\n**What it records.** <workshop-spec> rule 2 holds that authority is proven\
-  \ by RESOLUTION, never by a\nnon-empty string — but it enforced that for one TYPED\
-  \ argument only, so a governed FREE-TEXT reason\ncould cite a locator that resolves\
-  \ to nothing. It did: `task update --status wont-do` accepted\n placeholder `events.jsonl#ts=2026-09-16T12:5x`\
-  \ (the real row is at 14:58:18Z) and LANDED\nit unchecked (deviation events.jsonl#ts=).\
-  \ `bin/lib/cli.py#_check_reason_locators`\nnow scans the governed reason fields\
-  \ once per invocation and stamps this key onto the row in flight.\n\n**PRESENT ONLY\
-  \ ON AN OFFENDING ROW — never `false`, never an empty list.** `why` distinguishes\
-  \ the\ntwo failures that both had to be caught: `malformed` (the token is not a\
-  \ well-formed timestamp — the\n shape, which a resolve-only check would have skipped\
-  \ entirely) and `no-row` (well-formed, but\nno journal row carries that ts). A claim\
-  \ written `<project> events.jsonl#ts=<ts>` (or `<project>/` / `<project>:`), where\
-  \ `<project>` names another host-registry project, is resolved in THAT project's\
-  \ journal only; any other claim in this repository's journal and its main checkout's.\
-  \ A locator that RESOLVES, and one whose lookup could not be decided\n(I/O failure),\
-  \ are both silent — the fail-SAFE direction, since a governance mark must never\
-  \ assert\nan offence it cannot prove.\n\n**Report-only by design.** The mark is\
-  \ paired with a stderr WARN and refuses nothing: the class it\naddresses is a defect\
-  \ that LANDED unnoticed, and a stderr line in a background worker is gone the\n\
-  moment the process exits — so the ROW is the durable half, making the record self-describing\
-  \ and\ngreppable (`journal query --grep unresolved_locators`). The key is derived\
-  \ at the write path, never\ncaller-supplied.\n\n### Required `duration_ms` field\
-  \ set ( — the machine-readable roster)\n\nThe event types on which `duration_ms`\
-  \ is a REQUIRED `data` field. This roster is the SINGLE source\nthe schema self-test\
-  \ reads (`tests/test_test_and_audit_rows_carry_duration.py`), so the catalog and\n\
-  the check cannot drift apart — a type is required-by-being-listed here, nowhere\
-  \ else:\n\n```yaml\nduration_ms_required_on:\n  - tests_passed\n  - tests_failed\n\
-  \  - audit_pre_completed\n  - audit_post_completed\n  - external_audit_completed\n\
+  \ — that row's `{ts, sha}`, or `\"unavailable\"`\n(<workshop-spec> rule 2 (e));\
+  \ a row written before carries the inline `config` list instead.\n\n### Universal\
+  \ schema\n```jsonc\n{\"ts\": \"\", \"type\": \"<event_type>\", \"task_id\": \"T-XXXX\"\
+  , \"data\": {...}}\n```\n- `ts` — ISO 8601 UTC, microsecond optional\n- `type` —\
+  \ snake_case event name\n- `task_id` — optional, present when the event ties to\
+  \ a specific task\n- `data` — type-specific payload. May include `commit: <sha>`\
+  \ (for commit-related events:\n  `commit_landed`, `audit_post_completed`) or `audit_id:\
+  \ <task-audit-stage>` (for audit-related\n  events: `external_audit_completed`)\n\
+  \n#### `unresolved_locators` — the cross-type governed-citation mark (X-1465)\n\n\
+  An ADDITIVE-OPTIONAL `data` key that may appear on a row of **ANY** type — which\
+  \ is why it is homed\nhere in the universal schema rather than in one type's catalog\
+  \ entry. Shape:\n\n```jsonc\n\"unresolved_locators\": [{\"field\": \"<the governed\
+  \ field>\", \"locator\": \"<the ts as written>\",\n                         \"why\"\
+  : \"malformed | no-row\"}]\n```\n\n**What it records.** <workshop-spec> rule 2 holds\
+  \ that authority is proven by RESOLUTION, never by a\nnon-empty string — but it\
+  \ enforced that for one TYPED argument only, so a governed FREE-TEXT reason\ncould\
+  \ cite a locator that resolves to nothing. It did: `task update --status wont-do`\
+  \ accepted\n placeholder `events.jsonl#ts=2026-09-16T12:5x` (the real row is at\
+  \ 14:58:18Z) and LANDED\nit unchecked (deviation events.jsonl#ts=). `bin/lib/cli.py#_check_reason_locators`\n\
+  now scans the governed reason fields once per invocation and stamps this key onto\
+  \ the row in flight.\n\n**PRESENT ONLY ON AN OFFENDING ROW — never `false`, never\
+  \ an empty list.** `why` distinguishes the\ntwo failures that both had to be caught:\
+  \ `malformed` (the token is not a well-formed timestamp — the\n shape, which a resolve-only\
+  \ check would have skipped entirely) and `no-row` (well-formed, but\nno journal\
+  \ row carries that ts). A claim written `<project> events.jsonl#ts=<ts>` (or `<project>/`\
+  \ / `<project>:`), where `<project>` names another host-registry project, is resolved\
+  \ in THAT project's journal only; any other claim in this repository's journal and\
+  \ its main checkout's. A locator that RESOLVES, and one whose lookup could not be\
+  \ decided\n(I/O failure), are both silent — the fail-SAFE direction, since a governance\
+  \ mark must never assert\nan offence it cannot prove.\n\n**Report-only by design.**\
+  \ The mark is paired with a stderr WARN and refuses nothing: the class it\naddresses\
+  \ is a defect that LANDED unnoticed, and a stderr line in a background worker is\
+  \ gone the\nmoment the process exits — so the ROW is the durable half, making the\
+  \ record self-describing and\ngreppable (`journal query --grep unresolved_locators`).\
+  \ The key is derived at the write path, never\ncaller-supplied.\n\n### Required\
+  \ `duration_ms` field set ( — the machine-readable roster)\n\nThe event types on\
+  \ which `duration_ms` is a REQUIRED `data` field. This roster is the SINGLE source\n\
+  the schema self-test reads (`tests/test_test_and_audit_rows_carry_duration.py`),\
+  \ so the catalog and\nthe check cannot drift apart — a type is required-by-being-listed\
+  \ here, nowhere else:\n\n```yaml\nduration_ms_required_on:\n  - tests_passed\n \
+  \ - tests_failed\n  - audit_pre_completed\n  - audit_post_completed\n  - external_audit_completed\n\
   ```\n\nA row of one of these types with no `duration_ms` FAILS the check. Rows emitted\
   \ BEFORE\nlanded are grandfathered — the check reads fixture rows and the emitters,\
   \ not the historical\njournal (an append-only log cannot be retro-fixed, and the\
@@ -927,35 +927,42 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ ride this row because a consumer's Stage-6 run\nmay skip a subject-disjoint layer\
   \ (rule home: SPEC-0152 rule 16 `subject_globs`), so a green row\nhas to say WHICH\
   \ layers it is green over, and a reader setting a Stage-6 pass beside a land\ncompares\
-  \ like with like.\n**`verify_metrics.flaky_retry` on this row — a layer the run\
-  \ had to re-run.** OPTIONAL,\npresent ONLY when THIS run's layer guard re-ran (or\
-  \ declined to re-run) a failed verify layer: the\nSAME record, in the SAME shape,\
-  \ as `land_completed.verify_metrics.flaky_retry` (its LAYER ROWS\nparagraph below;\
-  \ not restated here), so a green row that needed a re-run names the layer and keeps\n\
-  the first-run failure excerpt. ABSENT on a first-try green and on a hand-authored\
-  \ `--evidence`.\n**`verify_metrics.per_file_durations` + `verify_metrics.per_file_outcomes`\
-  \ on this row — the run's\nper-file walls.** OPTIONAL, present on a `--run --evidence`\
-  \ row whose run measured files\n— this row and `tests_failed` alike: the SAME two\
-  \ records, in the SAME shape, that\n`land_completed.verify_metrics` carries (the\
-  \ record with its `duration_series`, and the\n sidecar locator); on a routed run\
-  \ they are the land's own fold over the box rows. ABSENT\nwhere no file was measured\
-  \ here, on a layer-only or delegated run, and on a hand-authored\n`--evidence`.\
-  \ Read by the duration-table refresh (SPEC-0132 rule 6) and the slow-tail view\n\
-  (SPEC-0119 rule 19), so a land that credits this run leaves both something to read.\n\
-  **`layer_duration_step` — a layer step this run printed.** OPTIONAL, present ONLY\
-  \ on a\n`--run --evidence` row whose run printed a SPEC-0132 Rule 7 layer step line:\
-  \ those lines, verbatim,\nas a list of strings. ABSENT when no line printed and\
-  \ on a hand-authored `--evidence`. Report-only:\nnothing reads it to decide.\n**`land_verifies_beside`\
-  \ — the land verifies beside this run.** OPTIONAL, present on the row of an\ninvocation\
-  \ that RAN the suite — this row and `tests_failed` alike: how many lands of this\n\
-  repository their own result rows prove were in their verify step (its wait for a\
-  \ verify slot\nincluded) during the run's wall time, and how many more those rows\
-  \ leave undecided (a land still\nrunning at the run's end included); where the reading\
-  \ was not taken, the field says so in place of\nthe numbers. Read from the MAIN\
-  \ checkout's land rows once the run is over. ABSENT on a\nhand-authored `--evidence`.\
-  \ Report-only: nothing reads it to decide.\n\n**`stage6_run` — the RUNNER's mark:\
-  \ which tree this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence`\
-  \ row: `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
+  \ like with like.\n**`output_log` on a `consumer_verify_layers` row of a run routed\
+  \ to the consumer venue.** On a run\nwhose layers ran on the venue box (SPEC-1059\
+  \ rule 4), EVERY executed layer's row, a passing one\nincluded, names in `output_log`\
+  \ the host file holding that layer's clipped output, under the name a\nfailing host\
+  \ layer's log gets (`.yitc/land-logs/`, attempt `stage6`); the key is ABSENT for\
+  \ a layer\nwhose log did not come back, never a box path. A host run's rows are\
+  \ unchanged: there a passing\nlayer names none. Tripwire: tests/test_t14735_consumer_box_layer_logs.py.\n\
+  **`verify_metrics.flaky_retry` on this row — a layer the run had to re-run.** OPTIONAL,\n\
+  present ONLY when THIS run's layer guard re-ran (or declined to re-run) a failed\
+  \ verify layer: the\nSAME record, in the SAME shape, as `land_completed.verify_metrics.flaky_retry`\
+  \ (its LAYER ROWS\nparagraph below; not restated here), so a green row that needed\
+  \ a re-run names the layer and keeps\nthe first-run failure excerpt. ABSENT on a\
+  \ first-try green and on a hand-authored `--evidence`.\n**`verify_metrics.per_file_durations`\
+  \ + `verify_metrics.per_file_outcomes` on this row — the run's\nper-file walls.**\
+  \ OPTIONAL, present on a `--run --evidence` row whose run measured files\n— this\
+  \ row and `tests_failed` alike: the SAME two records, in the SAME shape, that\n\
+  `land_completed.verify_metrics` carries (the record with its `duration_series`,\
+  \ and the\n sidecar locator); on a routed run they are the land's own fold over\
+  \ the box rows. ABSENT\nwhere no file was measured here, on a layer-only or delegated\
+  \ run, and on a hand-authored\n`--evidence`. Read by the duration-table refresh\
+  \ (SPEC-0132 rule 6) and the slow-tail view\n(SPEC-0119 rule 19), so a land that\
+  \ credits this run leaves both something to read.\n**`layer_duration_step` — a layer\
+  \ step this run printed.** OPTIONAL, present ONLY on a\n`--run --evidence` row whose\
+  \ run printed a SPEC-0132 Rule 7 layer step line: those lines, verbatim,\nas a list\
+  \ of strings. ABSENT when no line printed and on a hand-authored `--evidence`. Report-only:\n\
+  nothing reads it to decide.\n**`land_verifies_beside` — the land verifies beside\
+  \ this run.** OPTIONAL, present on the row of an\ninvocation that RAN the suite\
+  \ — this row and `tests_failed` alike: how many lands of this\nrepository their\
+  \ own result rows prove were in their verify step (its wait for a verify slot\n\
+  included) during the run's wall time, and how many more those rows leave undecided\
+  \ (a land still\nrunning at the run's end included); where the reading was not taken,\
+  \ the field says so in place of\nthe numbers. Read from the MAIN checkout's land\
+  \ rows once the run is over. ABSENT on a\nhand-authored `--evidence`. Report-only:\
+  \ nothing reads it to decide.\n\n**`stage6_run` — the RUNNER's mark: which tree\
+  \ this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence` row:\
+  \ `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
   \ which the run left unchanged apart from the journal) and the `main` commit that\n\
   tree sat on. When the run held its card's close-time spec activation on disk and\
   \ that flipped\ncommitted spec files, the mark also carries `activation_flipped`:\
@@ -2087,91 +2094,92 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ same clock's stretches IN ORDER, each\n`[phase, sub, offset_ms, ms]` with `offset_ms`\
   \ from `t_start` (consecutive equal stretches merged),\nso a recurring phase (a\
   \ retry, a yield redo) reads as separate occurrences and a paused span as the\n\
-  gap between two offsets. `phase_split_ms` (dict) = `setup`, `graph_rebuild` and\
-  \ `other`\neach split into named sub-spans plus `rest`, each map summing EXACTLY\
-  \ to its `phase_ms` value\n(`rest` holds rounding, unlabelled time and the reservation\
-  \ carve); the sub-span names are the\nlabels in `bin/lib/worktree.py#_land_integrate`\
-  \ and `#cmd_land`. `post_attempt_split_ms` (dict) = `unattributed_ms` split at its\
-  \ post-attempt boundaries plus `rest`, summing EXACTLY to\nit. All three ride on\
-  \ the SAME presence rule as `phase_ms`. `ended_at` (float epoch seconds) = the wall-clock\
-  \ moment `duration_ms` was read, on every ok land; the green-hold release\nrow (`admission_step`\
-  \ kind `hold`, outcome `cleared`) reads it to carry `after_land`\n{`land_tail_ms`,\
-  \ `release_ms`, `rest_ms`, `total_ms`} — the span from this row to the release,\n\
-  absent when the row or its `ended_at` cannot be read. `bin/yitc-v2 journal query\
-  \ --land-cycle`\nis the read-only report over these keys. REPORT-ONLY, like the\
-  \ keys above.\nBOTH OUTCOMES CARRY THIS KEY SET (same plan slice S4) — the ABORT\
-  \ payload records\n`attempt_count` / `attempt_breakdown` / `pre_attempt_ms` with\
-  \ the SAME spellings, the SAME\nsemantics and the SAME presence rule (breakdown\
-  \ + `pre_attempt_ms` only above one attempt), so\nthere is ONE description here\
-  \ and no parallel abort-side one. Rationale identical to the ok side:\nan abort\
-  \ at attempt 3 has already paid two full suite runs, and before this the row showed\
-  \ a\nsingle `duration_ms` (measured: 33.3h of abort cost in 7d that nothing attributed\
-  \ per attempt).\nThe dying attempt is CLOSED into the breakdown before the row is\
-  \ emitted, so the parts stay\ngap-free — and since a verify-failure abort means\
-  \ the suite RAN, that last part is usually the\nexpensive one. The SUM INVARIANT\
-  \ holds on the abort row against ITS OWN `duration_ms`, and holds\nEXACTLY there\
-  \ too : the abort row's `duration_ms` is measured off the SAME `t0` that\n`cmd_land`\
-  \ hands `_land_integrate` as its `t_start`, so one origin and one clock cover both\
-  \ ends,\nand `unattributed_ms` NAMES the unwind between closing the parts and measuring\
-  \ it rather than\nleaving it as a caveat (the attribution is still composed as the\
-  \ LAST act before the abort raises,\nwhich is what keeps that span small — the key\
-  \ now says how small). PRESENT ONLY when the land reached\nthe retry loop at all:\
-  \ a PREFLIGHT abort (every refusal raised before attempt 1 — unauthorized\n`--no-tests`,\
-  \ `rebaseline-unauthorized`, the spike gate, the concurrent-land guard) carries\
-  \ NONE\nof these keys, because it has no attempt to attribute and an `attempt_count:\
-  \ 1` there would be a\nfabricated fact (the no-fabricated-0s discipline). Absence\
-  \ therefore MEANS \"never entered\nthe loop\", and must not be read as one attempt.\n\
-  NAME NOTE (deliberate, not a collision to fix): the task-scorecard VIEW in `bin/lib/views.py`\
-  \ also\nemits a key spelled `attempt_count`, meaning \"how many `land_completed`\
-  \ rows this TASK has\" — a\ndifferent artifact with a different denominator. This\
-  \ one is a single land's OWN retry count. The\nspelling is the one the governing\
-  \ plan's P5 probe names.\n`actor` (str) = WHO RAN THIS LAND. The ONE key on this\
-  \ event that is ALWAYS PRESENT on\nBOTH outcomes (ok and abort) and is therefore\
-  \ NOT additive/conditional like every key described\naround it — a payload comparison\
-  \ written before sees one new key on every row from that\npoint on. It exists because\
-  \ the bypass keys below record that a verify bypass happened and WHY, and\nrecorded\
-  \ no actor: measured on this repo, of 7419 land_completed rows the 17 carrying a\n\
-  `no_tests_reason` had a null `source_ref` and no actor of any kind (<project> measured\
-  \ 67 of 67), so\nthe acting person was recoverable only by joining `session_ref`\
-  \ against sibling rows of the same\nsession that happen to carry one — reconstruction,\
-  \ not a record, and the forensic step nobody takes\nuntil something has already\
-  \ gone wrong. Producer: `bin/lib/cli.py#_server_actor` ->\n`bin/lib/memory.py#resolve_server_actor`,\
-  \ stamped in the single host append wrapper\n(`_append_event`) so all three emit\
-  \ sites — the ok emit, `_emit_land_abort`, and its\nclearing copy — are covered\
-  \ by one home. SERVER-ISSUED and NOT CALLER-ASSERTABLE (SPEC-0169 rule 3\napplied\
-  \ to a record): the identity is the passwd name of the uid the process runs as\n\
-  (`memory.os_identity`, deliberately NOT `getpass.getuser`, which an exported `USER`/`LOGNAME`\
-  \ can\nmove), no argument or environment variable reaches it, and the stamp OVERWRITES\
-  \ any `actor` a\ncaller pre-seeded into the payload (`actor` is additionally a RESERVED\
-  \ `--data` key).\nVALUES: a provisioned registry user's NAME when a non-owner acted;\
-  \ `ai-agent` when the owner-role\nhost user did (unchanged corpus meaning); and\
-  \ the literal `\"unresolved\"` when the identity could not\nbe resolved at all —\
-  \ never a null and never an absent key, so \"nobody was distinguishable\" stays\n\
-  distinguishable from both \"not recorded\" and \"the agent acted\" (the non-fabrication\
-  \ line).\nUnlike the SPEC-0169 gate it borrows its derivation from, this NEVER refuses:\
-  \ a land must not fail\nbecause a passwd lookup did.\n`no_tests` (bool), `owner_authorized`\
-  \ (bool), `no_tests_reason` (str, present only when set)\n(SPEC-0077 §2a owner-gate)\
-  \ = the recorded OWNER-AUTHORIZED test-skip — PRESENT ONLY on a\n`land --no-tests`\
-  \ land (ABSENT on every normal land, so normal payloads are byte-unchanged; additive\
-  \ /\nP5-safe). The durable, queryable, never-silent surface (CHARTER §P2 accountability\
-  \ — `grep no_tests\nevents.jsonl` is the >1/30d frequency audit). `rebaselined`\
-  \ (bool), `rebaseline_reason` (str, when set),\n`pinned_superseded` (list[str],\
-  \ the waived old-behaviour assertions) (SPEC-0077 §3a) = the\nrecorded owner-acked\
-  \ graceful re-baseline of a candidate-GREEN / pinned-RED audited behaviour change\
-  \ —\nPRESENT ONLY on a re-baselined land (ABSENT otherwise; additive / P5-safe),\
-  \ with `verify_mode=\nrebaselined+candidate`. Durable + queryable (`grep rebaselined\
-  \ events.jsonl`). `rebaseline_waived`\n(list[dict] `{assertion, test_file, class,\
-  \ covered_by:{source,ref}}`, SPEC-0077 §3a) = the\nPER-ASSERTION waive record —\
-  \ each waived pinned assertion PAIRED with the operator's\n`--rebaseline-waive`\
-  \ declaration that covered it, so the journal shows exactly what the ack BOUGHT\n\
-  and not only what was given up (`pinned_superseded`, its flat list[str] sibling,\
-  \ is unchanged).\nPRESENT ONLY on a re-baselined land (additive / P5-safe). A failing\
-  \ pinned assertion NO declaration\ncovers does not appear here — it REFUSES the\
-  \ land (`abort_class=rebaseline-unauthorized`), which is\nthe point: before the\
-  \ waive was all-or-nothing and absorbed unnamed failures into the next\nlast-green\
-  \ baseline (the incident). `rebaseline_kind` (str, closed vocabulary\n`broken` |\
-  \ `unrunnable-here`, SPEC-0077 §3a) = WHY the pinned check was waived — DECLARED\
-  \ by\nthe authorizer at grant (`--rebaseline-kind`, REQUIRED with `--rebaseline`,\
+  gap between two offsets. `phase_split_ms` (dict) = `setup`, `graph_rebuild`, `verify_prep`\n\
+  (: `gates` and the any-author `floor`) and `other` (: also the verify-skip judge's\n\
+  stretches `judge_inert`, `judge_first`, `judge_preview`, `judge_stage6`, then `after_judge`)\n\
+  each split into named sub-spans plus `rest`, each map summing EXACTLY to its `phase_ms`\
+  \ value\n(`rest` holds rounding, unlabelled time and the reservation carve); the\
+  \ sub-span names are the\nlabels in `bin/lib/worktree.py#_land_integrate` and `#cmd_land`.\
+  \ `post_attempt_split_ms` (dict) = `unattributed_ms` split at its post-attempt boundaries\
+  \ plus `rest`, summing EXACTLY to\nit. All three ride on the SAME presence rule\
+  \ as `phase_ms`. `ended_at` (float epoch seconds) = the wall-clock moment `duration_ms`\
+  \ was read, on every ok land; the green-hold release\nrow (`admission_step` kind\
+  \ `hold`, outcome `cleared`) reads it to carry `after_land`\n{`land_tail_ms`, `release_ms`,\
+  \ `rest_ms`, `total_ms`} — the span from this row to the release,\nabsent when the\
+  \ row or its `ended_at` cannot be read. `bin/yitc-v2 journal query --land-cycle`\n\
+  is the read-only report over these keys. REPORT-ONLY, like the keys above.\nBOTH\
+  \ OUTCOMES CARRY THIS KEY SET (same plan slice S4) — the ABORT payload records\n\
+  `attempt_count` / `attempt_breakdown` / `pre_attempt_ms` with the SAME spellings,\
+  \ the SAME\nsemantics and the SAME presence rule (breakdown + `pre_attempt_ms` only\
+  \ above one attempt), so\nthere is ONE description here and no parallel abort-side\
+  \ one. Rationale identical to the ok side:\nan abort at attempt 3 has already paid\
+  \ two full suite runs, and before this the row showed a\nsingle `duration_ms` (measured:\
+  \ 33.3h of abort cost in 7d that nothing attributed per attempt).\nThe dying attempt\
+  \ is CLOSED into the breakdown before the row is emitted, so the parts stay\ngap-free\
+  \ — and since a verify-failure abort means the suite RAN, that last part is usually\
+  \ the\nexpensive one. The SUM INVARIANT holds on the abort row against ITS OWN `duration_ms`,\
+  \ and holds\nEXACTLY there too : the abort row's `duration_ms` is measured off the\
+  \ SAME `t0` that\n`cmd_land` hands `_land_integrate` as its `t_start`, so one origin\
+  \ and one clock cover both ends,\nand `unattributed_ms` NAMES the unwind between\
+  \ closing the parts and measuring it rather than\nleaving it as a caveat (the attribution\
+  \ is still composed as the LAST act before the abort raises,\nwhich is what keeps\
+  \ that span small — the key now says how small). PRESENT ONLY when the land reached\n\
+  the retry loop at all: a PREFLIGHT abort (every refusal raised before attempt 1\
+  \ — unauthorized\n`--no-tests`, `rebaseline-unauthorized`, the spike gate, the concurrent-land\
+  \ guard) carries NONE\nof these keys, because it has no attempt to attribute and\
+  \ an `attempt_count: 1` there would be a\nfabricated fact (the no-fabricated-0s\
+  \ discipline). Absence therefore MEANS \"never entered\nthe loop\", and must not\
+  \ be read as one attempt.\nNAME NOTE (deliberate, not a collision to fix): the task-scorecard\
+  \ VIEW in `bin/lib/views.py` also\nemits a key spelled `attempt_count`, meaning\
+  \ \"how many `land_completed` rows this TASK has\" — a\ndifferent artifact with\
+  \ a different denominator. This one is a single land's OWN retry count. The\nspelling\
+  \ is the one the governing plan's P5 probe names.\n`actor` (str) = WHO RAN THIS\
+  \ LAND. The ONE key on this event that is ALWAYS PRESENT on\nBOTH outcomes (ok and\
+  \ abort) and is therefore NOT additive/conditional like every key described\naround\
+  \ it — a payload comparison written before sees one new key on every row from that\n\
+  point on. It exists because the bypass keys below record that a verify bypass happened\
+  \ and WHY, and\nrecorded no actor: measured on this repo, of 7419 land_completed\
+  \ rows the 17 carrying a\n`no_tests_reason` had a null `source_ref` and no actor\
+  \ of any kind (<project> measured 67 of 67), so\nthe acting person was recoverable\
+  \ only by joining `session_ref` against sibling rows of the same\nsession that happen\
+  \ to carry one — reconstruction, not a record, and the forensic step nobody takes\n\
+  until something has already gone wrong. Producer: `bin/lib/cli.py#_server_actor`\
+  \ ->\n`bin/lib/memory.py#resolve_server_actor`, stamped in the single host append\
+  \ wrapper\n(`_append_event`) so all three emit sites — the ok emit, `_emit_land_abort`,\
+  \ and its\nclearing copy — are covered by one home. SERVER-ISSUED and NOT CALLER-ASSERTABLE\
+  \ (SPEC-0169 rule 3\napplied to a record): the identity is the passwd name of the\
+  \ uid the process runs as\n(`memory.os_identity`, deliberately NOT `getpass.getuser`,\
+  \ which an exported `USER`/`LOGNAME` can\nmove), no argument or environment variable\
+  \ reaches it, and the stamp OVERWRITES any `actor` a\ncaller pre-seeded into the\
+  \ payload (`actor` is additionally a RESERVED `--data` key).\nVALUES: a provisioned\
+  \ registry user's NAME when a non-owner acted; `ai-agent` when the owner-role\n\
+  host user did (unchanged corpus meaning); and the literal `\"unresolved\"` when\
+  \ the identity could not\nbe resolved at all — never a null and never an absent\
+  \ key, so \"nobody was distinguishable\" stays\ndistinguishable from both \"not\
+  \ recorded\" and \"the agent acted\" (the non-fabrication line).\nUnlike the SPEC-0169\
+  \ gate it borrows its derivation from, this NEVER refuses: a land must not fail\n\
+  because a passwd lookup did.\n`no_tests` (bool), `owner_authorized` (bool), `no_tests_reason`\
+  \ (str, present only when set)\n(SPEC-0077 §2a owner-gate) = the recorded OWNER-AUTHORIZED\
+  \ test-skip — PRESENT ONLY on a\n`land --no-tests` land (ABSENT on every normal\
+  \ land, so normal payloads are byte-unchanged; additive /\nP5-safe). The durable,\
+  \ queryable, never-silent surface (CHARTER §P2 accountability — `grep no_tests\n\
+  events.jsonl` is the >1/30d frequency audit). `rebaselined` (bool), `rebaseline_reason`\
+  \ (str, when set),\n`pinned_superseded` (list[str], the waived old-behaviour assertions)\
+  \ (SPEC-0077 §3a) = the\nrecorded owner-acked graceful re-baseline of a candidate-GREEN\
+  \ / pinned-RED audited behaviour change —\nPRESENT ONLY on a re-baselined land (ABSENT\
+  \ otherwise; additive / P5-safe), with `verify_mode=\nrebaselined+candidate`. Durable\
+  \ + queryable (`grep rebaselined events.jsonl`). `rebaseline_waived`\n(list[dict]\
+  \ `{assertion, test_file, class, covered_by:{source,ref}}`, SPEC-0077 §3a) = the\n\
+  PER-ASSERTION waive record — each waived pinned assertion PAIRED with the operator's\n\
+  `--rebaseline-waive` declaration that covered it, so the journal shows exactly what\
+  \ the ack BOUGHT\nand not only what was given up (`pinned_superseded`, its flat\
+  \ list[str] sibling, is unchanged).\nPRESENT ONLY on a re-baselined land (additive\
+  \ / P5-safe). A failing pinned assertion NO declaration\ncovers does not appear\
+  \ here — it REFUSES the land (`abort_class=rebaseline-unauthorized`), which is\n\
+  the point: before the waive was all-or-nothing and absorbed unnamed failures into\
+  \ the next\nlast-green baseline (the incident). `rebaseline_kind` (str, closed vocabulary\n\
+  `broken` | `unrunnable-here`, SPEC-0077 §3a) = WHY the pinned check was waived —\
+  \ DECLARED by\nthe authorizer at grant (`--rebaseline-kind`, REQUIRED with `--rebaseline`,\
   \ never inferred or\ndefaulted) and written from that declaration alone. It separates\
   \ a waive of a check whose failure is\nREAL here from one of a check that is HEALTHY\
   \ but cannot RUN here at all (X-0739); before it the two\nwere indistinguishable\

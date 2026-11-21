@@ -67,7 +67,7 @@ value applied and its source, for a run row or a signal.
 THE DECLARATION CLASS AND THE VETO (SPEC-1031 rules 2 and 4, T-14193). A DECLARATION is an opened
 non-numeric value that describes the PROJECT's admission — its opt-in, its order, the lists that
 classify its work — set in the project's `yitc-ops.yaml` section its spec registers (`admission:`,
-SPEC-1045), never on the machine; `admission_settings` reads it. A VETO is a machine key one of whose
+SPEC-1063), never on the machine; `admission_settings` reads it. A VETO is a machine key one of whose
 values disables a mechanism (`YITC_ADMISSION_ENGINE=off`); `applied` reads it toward that value from
 every source. `admission_switch` and `verify_switches` are the two switch readers the admission
 queue's cards call.
@@ -92,12 +92,12 @@ DECLARATION = "declaration"            # SPEC-1031 rule 2 — an OPENED non-nume
 CLASSES = (PERFORMANCE, BINDING, BUDGET, THRESHOLD, GATE, DECLARATION)
 #: The project ops-carrier section a THRESHOLD is set in (SPEC-1031 rule 5).
 THRESHOLDS_SECTION = "thresholds"
-#: The project ops-carrier section the admission DECLARATIONs are set in (SPEC-1045 registers it).
+#: The project ops-carrier section the admission DECLARATIONs are set in (SPEC-1063 registers it).
 ADMISSION_SECTION = "admission"
-#: The two `verify:` switches the admission queue reads while it is on (SPEC-1045 rule 4), both on
+#: The two `verify:` switches the admission queue reads while it is on (SPEC-1063 rule 4), both on
 #: by default; they belong to the project's verify contract, not to SPEC-1031's classes.
 VERIFY_SWITCHES = ("sync_at_stage6_admission", "post_sync_set_first")
-#: The machine VETO of the admission queue (SPEC-1031 rule 4, SPEC-1045 rule 3).
+#: The machine VETO of the admission queue (SPEC-1031 rule 4, SPEC-1063 rule 3).
 ADMISSION_VETO = "YITC_ADMISSION_ENGINE"
 #: T-14193 — the shape a `cpus` knob accepts (its `bounds`, printed by `config list`): a taskset CPU
 #: list, ascending ranges or single ids joined by commas, or empty for no pinning.
@@ -168,6 +168,14 @@ class Knob:
         if self.cls == BUDGET:
             return self.bounds is not None
         return self.cls in (PERFORMANCE, BINDING)
+
+
+# T-14709 — the admission carve-out a local Stage-6 key's description carries: SPEC-1029 rule 5 and
+# SPEC-1063 rule 2 are its home (task.py#_stage6_local_admission returns a null context for a run the
+# queue admitted).
+_ADMITTED_RUN_CARVE_OUT = (" In a repository whose admission queue is on (`admission.mode: engine`), a "
+                           "run that queue admitted does not consult it (SPEC-1029 rule 5, SPEC-1063 "
+                           "rule 2).")
 
 
 def _p(name, kind, default, read_site, why, bounds=None, veto=None):
@@ -350,7 +358,8 @@ INVENTORY: "tuple[Knob, ...]" = (
        "anything else is ignored and the default stands. ON THE LOCAL HOST TOO WHEN SET (T-13806): with no venue published, a value set "
        "in the environment or this file also bounds the local Stage-6 arm; UNSET, the local arm keeps "
        "its built-in behaviour (no Stage-6 cap, full width) — the default shown here is the BOX's. PERFORMANCE: it changes WHEN a Stage-6 pass "
-       "is admitted, never which files run or how they conclude",
+       "is admitted, never which files run or how they conclude. Its local Stage-6 slot:"
+       + _ADMITTED_RUN_CARVE_OUT,
        bounds=(1, 16)),
     _p("YITC_VENUE_PRESHIP_MAX_CONCURRENT", "int", 1,
        "bin/lib/remote_verify.py#venue_preship_max_concurrent",
@@ -402,35 +411,6 @@ INVENTORY: "tuple[Knob, ...]" = (
        "its built-in behaviour (no Stage-6 cap, full width) — the default shown here is the BOX's. PERFORMANCE: it changes how fast a Stage-6 pass finishes, never "
        "which files run or how they conclude — the leg records the width it actually ran at",
        bounds=(0.0, 1.0)),
-    _p("YITC_STAGE6_LOAD_BOUND", "float", None, "bin/lib/task.py#_stage6_load_settings",
-       "the CPU busy share (a fraction, 0 to 1) the LOCAL host must be UNDER before the next local "
-       "Stage-6 run starts (SPEC-1029 rule 5's opt-in load hold, T-14023). It applies inside the local "
-       "Stage-6 slot, so it needs YITC_VENUE_STAGE6_MAX_CONCURRENT set too. UNSET (the default) = no "
-       "hold and nothing read from the host — admission exactly as before. The share is read over "
-       "YITC_STAGE6_LOAD_WINDOW_S from two /proc/stat samples, on a window that began at or after the "
-       "newest local Stage-6 start; an unreadable reading holds the run. Admissible (0, 1] — the "
-       "inclusive pair 0.0..1.0 with `coerce` refusing 0. PERFORMANCE: it changes WHEN a Stage-6 run "
-       "starts, never which files run or how they conclude (an admission value, SPEC-0193 rule 2)",
-       bounds=(0.0, 1.0)),
-    _p("YITC_STAGE6_LOAD_WINDOW_S", "float", 5.0, "bin/lib/task.py#_stage6_load_settings",
-       "the seconds between the two /proc/stat samples the YITC_STAGE6_LOAD_BOUND busy share is read "
-       "over (T-14023). 5 s smooths a one-tick spike yet answers within a few admission polls. "
-       "Admissible 1..60. Read only while the bound is set. PERFORMANCE: it changes WHEN a Stage-6 run "
-       "starts, never how it concludes",
-       bounds=(1.0, 60.0)),
-    _p("YITC_STAGE6_LOAD_SPACING_S", "float", 60.0, "bin/lib/task.py#_stage6_load_settings",
-       "the seconds that must pass after the newest local Stage-6 start before the next one may start "
-       "under YITC_STAGE6_LOAD_BOUND (T-14023): a suite needs time to load the host before a reading "
-       "shows it — T-13810 measured three runs started on one quiet reading. The start time is kept "
-       "after the run ends, so a short run still spaces the next start. Admissible 1..3600. Read only "
-       "while the bound is set. PERFORMANCE: it changes WHEN a Stage-6 run starts, never how it concludes",
-       bounds=(1.0, 3600.0)),
-    _p("YITC_STAGE6_LOAD_CPU_SET", "str", "", "bin/lib/task.py#_stage6_load_settings",
-       "the CPUs the YITC_STAGE6_LOAD_BOUND busy share is read over, as a list like `0-15,32-47` "
-       "(T-14023); empty (the default) = every online CPU (the aggregate /proc/stat line). A list "
-       "naming a CPU the host does not have, or one that does not parse, is an unreadable reading and "
-       "holds the run. Read only while the bound is set. PERFORMANCE: it changes WHEN a Stage-6 run "
-       "starts, never how it concludes"),
     _p("YITC_VERIFY_WORKER_NICE", "int", 19, "bin/lib/verify_runner.py#_verify_child_nice",
        "the scheduler nice a DISPATCHED WORKER's per-file test child is spawned at on the LOCAL host "
        "(T-12224). The default 19 is the minimum priority: such a child receives CPU only when the "
@@ -863,16 +843,16 @@ INVENTORY: "tuple[Knob, ...]" = (
        "runs every listed unit",
        bounds=(1, 720)),
 
-    # ---- SPEC-1045 — the resource-admission queue's switch and settings (T-14193). The project's
+    # ---- SPEC-1063 — the resource-admission queue's switch and settings (T-14193). The project's
     # DECLARATIONs live in its yitc-ops.yaml `admission:` section (read by `admission_settings`); the
     # machine sets every number, every value that describes the host and the VETO. Defaults are
     # cryptochart's in-force sequential setup where it is not host-specific — the source and its
-    # pinned revision are SPEC-1045 ## Rationale (gist 46ed5855 rev 541a3834, `wait-for-room.py`
+    # pinned revision are SPEC-1063 ## Rationale (gist 46ed5855 rev 541a3834, `wait-for-room.py`
     # THE SETTINGS), the values in force are public issue #197 (the issue body: GREEN_HOLD 900 s,
     # RUN_LAND_UNIT 1; comment 1: LOCAL_RUNS 1; comment 4: the sequential ORDER). CPU sets are empty:
     # no pinning. A numeric band starts above 0 even where the source admits 0 — `coerce` refuses a
     # number <= 0 for every numeric knob (SPEC-1031 rule 1) — and cryptochart's values are all above
-    # 0. Not ported (SPEC-1045 rule 2): BATCH_MAX (one land at a time is a rule), REFUSAL_SPAN,
+    # 0. Not ported (SPEC-1063 rule 2): BATCH_MAX (one land at a time is a rule), REFUSAL_SPAN,
     # RELEASE_HOLDS, LOCK_BOUND, LOCK_POLL, and REPORT_BOUND (the credit answer is an in-process
     # call, rule 2 (b)). The read sites are the queue's cards (T-14195..T-14197).
     _d("admission.at_once", "set", ("light", "bookkeeping", "credit", "no-layer", "own-tests"),
@@ -893,7 +873,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "land is light. A DECLARATION: names of the project's own layers",
        bounds=("a list of layer names",)),
     _d("admission.mode", "str", "off", "bin/lib/machine_settings.py#admission_switch",
-       "the switch (SPEC-1045 rule 3): `engine` puts the repo's Stage-6 runs, own-tests checks and lands "
+       "the switch (SPEC-1063 rule 3): `engine` puts the repo's Stage-6 runs, own-tests checks and lands "
        "behind the queue; `off`, or no section, leaves every entry point as it is. A new project is born "
        "`engine`, a re-seed into an existing yitc-ops.yaml writes `off`. The machine VETO "
        "YITC_ADMISSION_ENGINE=off overrides `engine`. A DECLARATION: the project's opt-in",
@@ -914,99 +894,111 @@ INVENTORY: "tuple[Knob, ...]" = (
        "the directories a planning land's changes lie under (the source's PLANNING_PATHS, its default). "
        "A DECLARATION",
        bounds=("a list of prefixes, each ending in /",)),
-    _d("admission.planning_lands", "str", None, "bin/lib/machine_settings.py#admission_settings",
-       "SPEC-1045 rule 2 (l): `after-run` — a planning land queues and is held by another card's unit "
-       "and green hold (the source's A PLANNING LAND); `immediately` — it passes them. No fixed "
-       "default: `immediately` when the project's yitc-ops.yaml declares a non-empty verify.layers, "
-       "else `after-run` (`admission_settings` derives it). A DECLARATION",
+    _d("admission.planning_lands", "str", "after-run", "bin/lib/machine_settings.py#admission_settings",
+       "SPEC-1063 rule 2 (l): `after-run` — a planning land queues and is held by another card's unit "
+       "and green hold (the source's A PLANNING LAND); `immediately` — it passes them. The default is "
+       "the fixed `after-run`; `immediately` comes only from the project's own declaration (T-14722). "
+       "A DECLARATION",
        bounds=("immediately", "after-run")),
     _d("admission.run_land_unit", "switch", "on", "bin/lib/machine_settings.py#admission_settings",
        "on: a card's Stage-6 run and its land are one unit — no other card's land moves main under it "
        "(the source's RUN_LAND_UNIT; 1 at cryptochart since 2026-10-24, #197 body). A DECLARATION",
        bounds=("on", "off")),
-    _p("YITC_ADMISSION_EMPTY_SAMPLE_S", "float", 3.0, "SPEC-1045 queue — THE RULE (T-14195)",
+    _p("YITC_ADMISSION_EMPTY_SAMPLE_S", "float", 3.0, "SPEC-1063 queue — THE RULE (T-14195)",
        "the empty-host rule's short reading, seconds (the source's EMPTY_SAMPLE, its default). "
        "PERFORMANCE: bounds a wait. Admissible 0.1..3600 (the source's 0, no reading, is not admitted)",
        bounds=(0.1, 3600.0)),
     _p(ADMISSION_VETO, "str", "auto", "bin/lib/machine_settings.py#admission_switch",
-       "the machine's VETO of the admission queue (SPEC-1045 rule 3): `off` switches the queue off on "
+       "the machine's VETO of the admission queue (SPEC-1063 rule 3): `off` switches the queue off on "
        "this machine whatever the project declares, read toward `off` from every source — the "
        "environment or the machine file (SPEC-1031 rule 4). `auto` leaves the project's admission.mode "
        "to decide. PERFORMANCE, read as a VETO. Admissible: auto | off",
        bounds=("auto", "off"), veto="off"),
-    _p("YITC_ADMISSION_GREEN_HOLD_S", "float", 900.0, "SPEC-1045 queue — THE GREEN HOLD (T-14197)",
+    _p("YITC_ADMISSION_GREEN_HOLD_S", "float", 900.0, "SPEC-1063 queue — THE GREEN HOLD (T-14197)",
        "the seconds after which a green hold's card is checked for progress, and again at every read "
        "after: the hold ends once the card shows none (T-14483; 900 in force at cryptochart, #197 "
        "body). PERFORMANCE: paces a check; whether there is a hold is "
        "admission.green_hold. Admissible 1..86400",
        bounds=(1.0, 86400.0)),
-    _p("YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT", "float", 10.0, "SPEC-1045 queue — THE RULE (T-14195)",
+    _p("YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT", "float", 10.0, "SPEC-1063 queue — THE RULE (T-14195)",
        "the most percent busy the window's mean may read for a run to start into a single land's tail "
        "(the source's LAND_TAIL_THRESHOLD, its default). 0: no run starts into a land's tail — the run "
        "takes the window rule, which waits while a land holds (T-14359). PERFORMANCE. Admissible 0..100",
        bounds=(0.0, 100.0)),
-    _p("YITC_ADMISSION_LIGHT_PIN", "cpus", "", "SPEC-1045 queue — THE PLACES (T-14195)",
+    _p("YITC_ADMISSION_LIGHT_PIN", "cpus", "", "SPEC-1063 queue — THE PLACES (T-14195)",
        "the CPUs a light land runs on, a taskset list (the source's LIGHT_PIN); empty: no pinning — no "
-       "affinity call (SPEC-1045 rule 2 (i)). PERFORMANCE: it describes the machine",
+       "affinity call (SPEC-1063 rule 2 (i)). PERFORMANCE: it describes the machine",
        bounds=(CPU_LIST_SHAPE,)),
-    _p("YITC_ADMISSION_LOCAL_RUNS", "int", 1, "SPEC-1045 queue — THE PLACES (T-14195)",
+    _p("YITC_ADMISSION_LOCAL_RUNS", "int", 1, "SPEC-1063 queue — THE PLACES (T-14195)",
        "the local runs at once (the source's LOCAL_RUNS; 1 in force at cryptochart, #197 comment 1). "
        "PERFORMANCE. Admissible 1..64 (the source's 0, the box only, is not admitted)",
        bounds=(1, 64)),
-    _p("YITC_ADMISSION_PIN", "cpus", "", "SPEC-1045 queue — THE WINDOW (T-14195)",
+    _p("YITC_ADMISSION_PIN", "cpus", "", "SPEC-1063 queue — THE WINDOW (T-14195)",
        "the pinned CPU set every admitted command runs on and the window reads, a taskset list (the "
        "source's PIN, whose default was its own host's); empty: no pinning, and the window reads the "
-       "CPUs the process may use (SPEC-1045 rule 2 (i)). PERFORMANCE: it describes the machine",
+       "CPUs the process may use (SPEC-1063 rule 2 (i)). PERFORMANCE: it describes the machine",
        bounds=(CPU_LIST_SHAPE,)),
-    _p("YITC_ADMISSION_POLL_S", "float", 15.0, "SPEC-1045 queue — THE HEAD (T-14195)",
+    _p("YITC_ADMISSION_POLL_S", "float", 15.0, "SPEC-1063 queue — THE HEAD (T-14195)",
        "seconds between a waiter's checks (the source's POLL, its default). PERFORMANCE. "
        "Admissible 1..3600",
        bounds=(1.0, 3600.0)),
-    _p("YITC_ADMISSION_QUICK_LOCK_BOUND_S", "float", 300.0, "SPEC-1045 queue — THE ADMISSION STEPS (T-14197)",
+    _p("YITC_ADMISSION_QUICK_LOCK_BOUND_S", "float", 300.0, "SPEC-1063 queue — THE ADMISSION STEPS (T-14197)",
        "the most seconds the quick checks wait for the light core's lock before the full run is asked "
        "for (the source's QUICK_LOCK_BOUND, its default). PERFORMANCE: bounds a wait (rule 2 (k)). "
        "Admissible 1..3600",
        bounds=(1.0, 3600.0)),
-    _p("YITC_ADMISSION_REMOTE_SLOTS", "str", "engine", "SPEC-1045 queue — THE PLACES (T-14195)",
+    _p("YITC_ADMISSION_REMOTE_SLOTS", "str", "engine", "SPEC-1063 queue — THE PLACES (T-14195)",
        "the box runs the queue lets pass at once: `engine` (the engine's own Stage-6 slots) or a lower "
        "number (the source's REMOTE_SLOTS, its default). PERFORMANCE. Admissible: engine | 0..16",
        bounds=("engine",) + tuple(str(n) for n in range(17))),
-    _p("YITC_ADMISSION_RUNS_AHEAD", "int", 8, "SPEC-1045 queue — THE ORDER (T-14195)",
+    _p("YITC_ADMISSION_RUNS_AHEAD", "int", 8, "SPEC-1063 queue — THE ORDER (T-14195)",
        "the runs an ordinary land lets pass ahead of it before it goes (the source's RUNS_AHEAD, its "
        "default). PERFORMANCE. Admissible 1..1000",
        bounds=(1, 1000)),
-    _p("YITC_ADMISSION_SAMPLE_S", "float", 3.0, "SPEC-1045 queue — THE WINDOW (T-14195)",
+    _p("YITC_ADMISSION_SAMPLE_S", "float", 3.0, "SPEC-1063 queue — THE WINDOW (T-14195)",
        "seconds between a waiter's samples (the source's SAMPLE, its default). PERFORMANCE. "
        "Admissible 0.1..60",
        bounds=(0.1, 60.0)),
-    _p("YITC_ADMISSION_SPACING_S", "float", 60.0, "SPEC-1045 queue — THE HEAD (T-14195)",
-       "the least seconds from the last head's pass to the next (the source's SPACING, its default). "
-       "PERFORMANCE. Admissible 1..3600",
-       bounds=(1.0, 3600.0)),
-    _p("YITC_ADMISSION_STEP_S", "float", 0.25, "SPEC-1045 queue — THE HEAD (T-14195)",
+    _p("YITC_ADMISSION_STEP_S", "float", 0.25, "SPEC-1063 queue — THE HEAD (T-14195)",
        "seconds of a waiter's sleep step (the source's STEP, its default). PERFORMANCE. "
        "Admissible 0.05..5",
        bounds=(0.05, 5.0)),
-    _p("YITC_ADMISSION_THRESHOLD_PCT", "float", 30.0, "SPEC-1045 queue — THE RULE (T-14195)",
-       "the most percent busy the window's mean may read for work to pass (the source's THRESHOLD, its "
-       "default). PERFORMANCE: an admission value — it decides only WHEN. Admissible 1..100",
-       bounds=(1.0, 100.0)),
-    _p("YITC_ADMISSION_WINDOW_S", "float", 90.0, "SPEC-1045 queue — THE WINDOW (T-14195)",
+    _p("YITC_HOST_START_LAG_S", "float", 60.0, "SPEC-1063 rule 1 — the host authority (T-14745)",
+       "the least seconds between two HEAVY starts on this machine (a Stage-6 run, a non-credited land), "
+       "whatever repository they belong to — it replaces the per-repository start spacing. PERFORMANCE: an "
+       "admission value, it decides only WHEN. Admissible 1..3600",
+       bounds=(1.0, 3600.0)),
+    _p("YITC_HOST_RESERVE_THREADS", "int", 12, "SPEC-1063 rule 1 — the host authority (T-14745)",
+       "the hardware threads kept out of every heavy start's reckoning: usable = processors - this. "
+       "The width a verify takes at its start is computed over the usable threads and never exceeds them. "
+       "PERFORMANCE: it describes the machine. Admissible 0..4096 (0: every thread usable)",
+       bounds=(0, 4096)),
+    _p("YITC_HOST_NEED_THREADS", "int", 36, "SPEC-1063 rule 1 — the host authority (T-14745)",
+       "the measured free usable threads a heavy start needs, one value for every project (read as the "
+       "usable threads where it is larger); a start also needs that many verify workers' memory free of "
+       "what the live starts hold. PERFORMANCE: an admission value, it decides only WHEN. Admissible "
+       "0..4096 (0: no reading — the order and the start lag alone)",
+       bounds=(0, 4096)),
+    _p("YITC_HOST_RUN_AGING_S", "float", 600.0, "SPEC-1063 rule 1 — the host authority (T-14745)",
+       "the seconds after which a waiting run ranks with the queue-jump marks, before every later arrival: "
+       "lands go before runs only until a run has waited this long. PERFORMANCE. Admissible 1..86400",
+       bounds=(1.0, 86400.0)),
+    _p("YITC_ADMISSION_WINDOW_S", "float", 90.0, "SPEC-1063 queue — THE WINDOW (T-14195)",
        "the window's seconds (the source's WINDOW, its default). PERFORMANCE. Admissible 1..3600",
        bounds=(1.0, 3600.0)),
-    _u("YITC_ADMISSION_LAND_SET_BOUND_S", "float", 120.0, "SPEC-1045 queue — THE SET OF A LAND (T-14196)",
+    _u("YITC_ADMISSION_LAND_SET_BOUND_S", "float", 120.0, "SPEC-1063 queue — THE SET OF A LAND (T-14196)",
        "the most seconds one land's whole set check may take (the source's SPEC_GROUP_BOUND, 120): "
-       "expiry ends the check. A BUDGET: it stops started work (SPEC-1045 rule 2 (k)). Admissible 1..3600",
+       "expiry ends the check. A BUDGET: it stops started work (SPEC-1063 rule 2 (k)). Admissible 1..3600",
        bounds=(1.0, 3600.0)),
-    _u("YITC_ADMISSION_LAND_SET_FILE_BOUND_S", "float", 60.0, "SPEC-1045 queue — THE SET OF A LAND (T-14196)",
+    _u("YITC_ADMISSION_LAND_SET_FILE_BOUND_S", "float", 60.0, "SPEC-1063 queue — THE SET OF A LAND (T-14196)",
        "the most seconds one file of a land's set check may run before it is killed and reads as not "
        "run (the source's SPEC_RUN_BOUND, 60). A BUDGET (rule 2 (k)). Admissible 1..3600",
        bounds=(1.0, 3600.0)),
-    _u("YITC_ADMISSION_QUICK_RUN_BOUND_S", "float", 300.0, "SPEC-1045 queue — THE ADMISSION STEPS (T-14197)",
+    _u("YITC_ADMISSION_QUICK_RUN_BOUND_S", "float", 300.0, "SPEC-1063 queue — THE ADMISSION STEPS (T-14197)",
        "the most seconds the quick set may run before it is killed and the full run is asked for (the "
        "source's QUICK_RUN_BOUND, its default). A BUDGET (rule 2 (k)). Admissible 1..3600",
        bounds=(1.0, 3600.0)),
-    _u("YITC_ADMISSION_SYNC_BOUND_S", "float", 600.0, "SPEC-1045 queue — THE ADMISSION STEPS (T-14197)",
+    _u("YITC_ADMISSION_SYNC_BOUND_S", "float", 600.0, "SPEC-1063 queue — THE ADMISSION STEPS (T-14197)",
        "the most seconds the sync at a run's admission may take before its process group is killed and "
        "the run stops (the source's SYNC_BOUND, its default). A BUDGET (rule 2 (k)). Admissible 1..3600",
        bounds=(1.0, 3600.0)),
@@ -1017,14 +1009,18 @@ INVENTORY: "tuple[Knob, ...]" = (
     _g("YITC_ADHOC_PAYLOAD_WARN_BYTES", "int", None, "bin/lib/audit.py",
        "a THRESHOLD a report reads; a threshold is gate-shaped even when its current use is a WARN"),
     _g("YITC_ADMITTED_BUSY_HELD", "str", None, "bin/lib/admission.py#hand_set_busy",
-       "T-14197 (SPEC-1045 rule 2 (d)) — set by an admitted Stage-6 run on its own `worktree sync` child "
+       "T-14197 (SPEC-1063 rule 2 (d)) — set by an admitted Stage-6 run on its own `worktree sync` child "
        "only: that child already holds the BUSY descriptor the run handed down, so its set run takes no "
        "second BUSY. GATE: a protocol input — it decides whether a set run waits for an exclusive run"),
     _g("YITC_ADMITTED_REEXEC", "str", None, "bin/lib/admission.py#task_test_entry",
-       "T-14252 (SPEC-1045 rule 2 (q)) — set by an admitted Stage-6 run on its OWN re-exec only, after its "
+       "T-14252 (SPEC-1063 rule 2 (q)) — set by an admitted Stage-6 run on its OWN re-exec only, after its "
        "admission sync moved the engine it started on: the pass it holds (pid, card, one-time token, BUSY "
        "descriptors) and the sync it ran; taken out of the environment at once. GATE: a protocol input — "
        "it decides whether the process queues and syncs again"),
+    _g("YITC_HOST_GRANT", "str", None, "bin/lib/host_admission.py#inside_admitted",
+       "T-14745 (SPEC-1063 rule 1) — set by a process the host authority admitted, to the grant it holds, "
+       "and by the verify runner on every test child: the process is part of an admitted heavy run and asks "
+       "the host gate nothing. GATE: a protocol input — it decides whether a start waits at the host gate"),
     _g("YITC_ALLOW_MAIN_WRITE", "str", None, "bin/lib/worktree_lifecycle.py",
        "the worktree-before-write guard's escape hatch — a refusal switch"),
     _g("YITC_AS_USER", "str", None, "bin/lib/grants.py", "identity input to the grants check"),
@@ -1163,7 +1159,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "a THRESHOLD a report reads"),
     _g("YITC_ISOLATED_VERIFY", "str", None, "bin/lib/cli.py", "selects the verify ISOLATION mode"),
     _g("YITC_LAND_ADMITTED_PASS", "str", None, "bin/lib/cli.py#_admission_land_inherited",
-       "an INTERNAL marker: the pass an admitted `land --task` hands its own re-exec child (SPEC-1045, "
+       "an INTERNAL marker: the pass an admitted `land --task` hands its own re-exec child (SPEC-1063, "
        "T-14196), taken only by that child and popped at once — process topology, not a tunable"),
     _g("YITC_LAND_HELD_TURN_PID", "str", None, "bin/lib/dispatch.py",
        "the SPEC-1028 held-turn CLAIM, verified server-side — a refusal input"),
@@ -1433,7 +1429,8 @@ def get_value(name, env=None):
 # ── The file: write side ──────────────────────────────────────────────────────────────────────
 # The numeric knobs whose 0 is a meaning of its own rather than a disabled engine (T-14359): `coerce`
 # admits 0 for these and refuses it for every other numeric knob, whatever its band says.
-ZERO_ADMITTED = frozenset({"YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT"})
+ZERO_ADMITTED = frozenset({"YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT", "YITC_HOST_RESERVE_THREADS",
+                           "YITC_HOST_NEED_THREADS"})
 
 
 def coerce(knob: Knob, raw, *, banded=True):
@@ -2009,7 +2006,7 @@ def in_force(name, *, env=None, ops=None) -> dict:
 
 
 # ── T-14193: the admission DECLARATION reader and the two switch readers (SPEC-1031 rules 4-5, ─────
-# SPEC-1045 rules 3-4). Pure over a carrier the caller already parsed, like `project_thresholds`;
+# SPEC-1063 rules 3-4). Pure over a carrier the caller already parsed, like `project_thresholds`;
 # `admission_from_main` is the one main-checkout read the queue's cards call.
 import re as _re
 
@@ -2056,8 +2053,8 @@ def _declared_keys():
 def admission_settings(ops) -> "tuple[dict, dict, list[str]]":
     """Every DECLARATION key of the project's `admission:` section (SPEC-1031 rules 4-5) as
     `({key: value}, {key: source}, notes)`: the section's value (source `yitc-ops.yaml`) else the
-    INVENTORY default (`built-in`). `admission.planning_lands` has no fixed default: `immediately`
-    when the carrier declares a non-empty `verify.layers`, else `after-run` (SPEC-1045 rule 2 (l)).
+    INVENTORY default (`built-in`), the fixed `after-run` of `admission.planning_lands` included
+    (SPEC-1063 rule 2 (l): `immediately` only from the project's own declaration).
 
     Every entry that is not read is ignored with ONE report-only line and its default stands: an
     unknown key, a value outside its set or shape, a `planning:` that is not a mapping, a section that
@@ -2070,9 +2067,6 @@ def admission_settings(ops) -> "tuple[dict, dict, list[str]]":
     if ops is not None and not isinstance(ops, dict):
         notes.append(f"{ADMISSION_SECTION}: not read — the project's ops carrier could not be read")
         ops = None
-    verify = (ops or {}).get("verify")
-    layers = verify.get("layers") if isinstance(verify, dict) else None
-    values["admission.planning_lands"] = "immediately" if isinstance(layers, list) and layers else "after-run"
     section = (ops or {}).get(ADMISSION_SECTION)
     if section is None:
         return values, sources, notes
@@ -2104,7 +2098,7 @@ def admission_settings(ops) -> "tuple[dict, dict, list[str]]":
 
 
 def admission_switch(ops, env=None) -> dict:
-    """THE SWITCH (SPEC-1045 rule 3): `{"on", "mode", "mode_source", "veto", "veto_source", "notes"}`.
+    """THE SWITCH (SPEC-1063 rule 3): `{"on", "mode", "mode_source", "veto", "veto_source", "notes"}`.
     On only when the project declares `admission.mode: engine` AND the machine VETO
     `YITC_ADMISSION_ENGINE` is not `off` (read toward `off` from the environment and the machine
     file, `applied`). A caller reads it once, at its start, and keeps that path (rule 2 (j)).
@@ -2117,7 +2111,7 @@ def admission_switch(ops, env=None) -> dict:
 
 
 def verify_switches(ops) -> "tuple[dict, list[str]]":
-    """The two `verify:` switches the queue reads while it is on (SPEC-1045 rule 4) as
+    """The two `verify:` switches the queue reads while it is on (SPEC-1063 rule 4) as
     `({name: bool}, notes)`, both True unless the project's `verify:` section sets one false. They
     act only once the project declares `verify.post_sync_set`. A value that is not a boolean is
     ignored with one report-only line and stays True; a `verify:` that is not a mapping, or a carrier

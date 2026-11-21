@@ -454,8 +454,8 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ pre --on-decisions` at the ceiling). The\nhygiene row has no Audit-pre and is\
   \ not gated. A `stage` entry that changes `current_stage` is\nrefused while the\
   \ card's own governed run (`task test --run`) is queued or running in the\nadmission\
-  \ queue (SPEC-1045): that run repeats its stage decision after its wait, so a moved\
-  \ pointer\nloses it. The refusal (`read_gate_refused`, reason `governed_run_pending`)\
+  \ queue (<workshop-spec>): that run repeats its stage decision after its wait, so\
+  \ a moved pointer\nloses it. The refusal (`read_gate_refused`, reason `governed_run_pending`)\
   \ names the run's pid and\nthe route — wait for its `TEST:` token, read a contract\
   \ meanwhile with `graph query`, or stop the\nrun (§Tests «A stopped run») and enter\
   \ again. A queue state that exists but cannot be read or\nwritten refuses the move\
@@ -691,11 +691,11 @@ supersedes: null
 activation_owner_task: null
 proposed_by: run-the-full-governed-test-stage-after-audit-post-
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 75bf7e2a328128c65e656cb4a757e7d33893cba5a29b40cad339a17741fa408f
+  bin/lib/audit.py#cmd_audit: 827d379dac800557c75db721f12d2e35f4f87848b20e9307441a8f6fcc3e263f
   bin/lib/gates.py#advance_stage_pointer: f2c4432ca2437c59d0d708dc73e7fb9f64d57d610427925044db52f8a0c05089
   bin/lib/gates.py#stage_pointer_move: a4d7b90fa1c95f4ce44d604dcaa78fd898bbcb079543dcf990c91e7efc7e76a3
-  bin/lib/task.py#cmd_task_close: 3e7d1c5c66d005a99b28a119dbf92a785f295f6a9f60c6e4a129daaf3bfa08cd
-  bin/lib/task.py#cmd_task_commit: 5e9c0f1c7cac0406d24dffa4ee3e4c482794ab4fe3c2820c4e4acb5cb06d805c
+  bin/lib/task.py#cmd_task_close: 909b71687213253d8f5a2cda4e199d70c77ed3bef3fb75b48a92b1b127d8f01e
+  bin/lib/task.py#cmd_task_commit: d64cb3cb36cd1177e4681afb409bc471eebff8c5841589dbfb0436cf4db3434a
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 6545d2b1cd2555eb414731e02ba65370cb92b045a2dda1f424d46596ba335945
+  bin/lib/task.py#cmd_task_test: 930d0b1d04b5922be7e30e285ccf74c29cabb29d867543adb1164bb56449ce09

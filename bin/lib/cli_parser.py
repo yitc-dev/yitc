@@ -1042,7 +1042,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "CARD'S OWN land_completed — probe moments only, T-12851). A BARE key "
                          "is REFUSED naming both forms (T-12076): a deferral with no moment can only "
                          "read as due NOW, so it headlines the debt echo from the day it is recorded "
-                         "until someone settles it. Deferring still gates nothing.")
+                         "until someone settles it. Deferring still gates nothing. EXCEPT a criterion "
+                         "whose moment the card already records (declared at filing in probe_moments, "
+                         "or by an earlier close): pass it as the BARE key and the recorded moment is "
+                         "kept — it needs no re-spelling (T-14714).")
     tc.add_argument("--closes-fp", dest="closes_fp", action="append",
                     help="fingerprint(s) this task remediated — folded into the task `cites:` (the §9 "
                          "LINK-RULE carrier, SPEC-0069); human-asserted, NOT derived from task_id. "
@@ -1120,7 +1123,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # (`_live_probe_settled_grammar_error`, which names the allowed pair), so an out-of-vocabulary
     # terminal still dies before any write — one home for the vocabulary, not two.
     tc.add_argument("--settle-live-probe-terminal", dest="settle_live_probe_terminal",
-                    metavar="unreachable|falsified",
+                    metavar="unreachable|falsified|superseded",
                     help="Discharge this DONE card's live_probe waiver as a TERMINAL instead of by "
                          "proof (T-11748, SPEC-0094 §3): `unreachable` — the differential can NEVER be "
                          "read (it needs a write, or data that does not exist on prod); `falsified` — "
@@ -1128,11 +1131,25 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "--settle-live-probe-reason, is MUTUALLY EXCLUSIVE with "
                          "--settle-live-probe-evidence/-probed-at/-method, moves the waiver off the "
                          "ACTIONABLE overdue-recheck set onto its OWN counted floor set, and NEVER "
-                         "satisfies CHARTER Principle 8 adoption evidence")
+                         "satisfies CHARTER Principle 8 adoption evidence. `superseded` (T-14742) is "
+                         "the URL-ASSERTION terminal instead: a later owner-decided card removed what "
+                         "the assertion checks — REQUIRES --settle-live-probe-superseded-by and "
+                         "--settle-live-probe-directive beside the reason, and is refused on a waiver")
     tc.add_argument("--settle-live-probe-reason", dest="settle_live_probe_reason",
                     help="WHY the waiver reached that terminal — non-empty free text, MANDATORY with "
                          "--settle-live-probe-terminal (T-11748). The reason IS the record: an empty "
                          "one discharges the debt while saying nothing, and is refused before any write")
+    # T-14742 (X-2510) — the two citations the `superseded` terminal requires (SPEC-0094 §3).
+    tc.add_argument("--settle-live-probe-superseded-by", dest="settle_live_probe_superseded_by",
+                    metavar="T-NNNN",
+                    help="with --settle-live-probe-terminal superseded ONLY: the card whose landed "
+                         "change removed what this card's url assertion checks — it must be "
+                         "`status: done` in the committed tree of `main` (T-14742)")
+    tc.add_argument("--settle-live-probe-directive", dest="settle_live_probe_directive",
+                    metavar="events.jsonl#ts=<ISO>",
+                    help="with --settle-live-probe-terminal superseded ONLY: the owner_directive row "
+                         "that decided the removal — resolved the way `audit decide` resolves one "
+                         "and covering this card or the superseding one (T-14742)")
     tc.add_argument("--settle-live-probe-method", dest="settle_live_probe_method",
                     help="HOW it was probed — non-empty text (docker-exec import / prod SQL invariant "
                          "/ served-bundle marker / live-container differential). Part of the "
@@ -1358,7 +1375,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     tt.add_argument("--whole", action="store_true",
                     help="T-14098: with --run, the MEASURING form — every declared verify layer and the test sweep run whole on this tree: no subject_globs skip, no deciding selection, no unit credit (it is not the candidate run of one card, SPEC-1030 rule 4); implies --full. The row is marked `whole: true`; the land takes it only on its own SPEC-0065 conditions")
     tt.add_argument("--exclusive", action="store_true",
-                    help="T-14195 (SPEC-1045 rule 2 (a)): with --run, the EXCLUSIVE form of the repo's admission queue — the run passes only once no admitted work runs, and nothing passes while it runs (a reading that must be alone on the host). Refused without --run; while the queue is off it is said and the run is not held exclusive")
+                    help="T-14195 (SPEC-1063 rule 2 (a)): with --run, the EXCLUSIVE form of the repo's admission queue — the run passes only once no admitted work runs, and nothing passes while it runs (a reading that must be alone on the host). Refused without --run; while the queue is off it is said and the run is not held exclusive")
     tt.add_argument("--evidence", help="record Stage-6 result: emit a tests_passed event with this evidence summary (T-0123) — call after tests are green")
     tt.add_argument("--duration-ms", type=int, dest="duration_ms",
                     help="T-0375: test-run wall (author-reported, with --evidence) — all-or-nothing with --passed/--failed")
@@ -1459,6 +1476,21 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "yitc-v2 task commit T-1 --from-stdin` — plain commit text on stdin is "
                           "REFUSED; indent the message under `message: |`")
     tcm.add_argument("--from", dest="from_ref", help="override from: trailer (default tasks/T-XXXX-*.yaml)")
+    # T-14738 — the governed VOID of ONE undone commit_landed row (its own mode: no commit is made).
+    tcm.add_argument("--void", dest="void", metavar="SHA",
+                     help="VOID MODE (T-14738, SPEC-1022): retire ONE commit_landed row of this task whose "
+                          "commit was undone (e.g. `git reset` on the unlanded branch), so custody and the "
+                          "audit-post ship span stop reading it. Makes NO commit; appends one "
+                          "`commit_landed_voided` row naming the full sha and --reason. Admitted only when "
+                          "the sha resolves to one commit, git answers it is an ancestor of NEITHER this "
+                          "task branch's HEAD NOR main, a commit_landed row of this task names it, and no "
+                          "audit verdict, ceiling decision or recorded audit span names it — each failure "
+                          "refuses with its own text; an unanswered git question refuses. Run from the "
+                          "task worktree. Not combinable with -m / --absorb / --fix-red / --reship.")
+    tcm.add_argument("--reason", dest="void_reason", metavar="TEXT",
+                     help="why the row is voided — REQUIRED with --void, recorded on the append-only void row. "
+                          "Prose with backticks? send it as the `void_reason:` key under --from-stdin "
+                          "(argv rides the shell; SPEC-0209)")
     tcm.add_argument("--absorb", action="store_true",
                      help="Stage-8 mode-a carve-out (T-0370): commit an inline absorption of audit-post "
                           "findings, folding the superseded verdict in (never hand-delete it); the "
@@ -1520,11 +1552,19 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "Pass only on owner authorization; recorded owner_reset:true on "
                           "commit_landed. Its former follow-ups — the ceiling-adjudication auditor "
                           "pass and the audit-side owner reset that re-pinned custody — are RETIRED "
-                          "(SPEC-0204 rule 6) and refuse: a pass on the new commit is admitted only "
+                          "(SPEC-0204 rule 6) and refuse: a pass on the new commit is admitted "
                           "by `audit decide` per residual, then `audit post --on-decisions "
-                          "--sweep '<where you looked for the same defect class and what you found>'`. "
+                          "--sweep '<where you looked for the same defect class and what you found>'`; "
+                          "when the ceiling row is GREEN (no residual), by ONE `audit post` on the commit "
+                          "if it cites the owner's word with --directive (T-14750). "
                           "Structurally non-stackable (a second escape is refused until a further "
                           "audit-post pass re-pins custody), NOT a blanket ceiling disable.")
+    tcm.add_argument("--directive", dest="directive", metavar="LOCATOR", default=None,
+                     help="T-14750: with --absorb --owner-reset, the owner directive that authorizes the "
+                          "commit (`events.jsonl#ts=<ISO>`), recorded on commit_landed. When the audit-post "
+                          "ceiling row is GREEN (no residual for `audit decide`), `audit post` admits ONE "
+                          "pass on that commit if the directive resolves and covers the card "
+                          "(SPEC-1018 «Exits from a spent GREEN»). Ignored on every other commit.")
     tcm.add_argument("--reverify", action="append",
                      help="SPEC-NNNN the AUTHOR asserts is STILL ACCURATE despite this task's diff "
                           "moving its anchored code — re-stamps ONLY the anchors this diff moved and "
@@ -2620,6 +2660,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # (`task file`, `task update`, `followup add`, `task commit`, `work commit`, `blocked-on-land`,
     # `worktree park`). It matters MOST here: `--reason` is prose and the `ceiling_decision` row is
     # append-only (SPEC-0204 rule 4), so an argv reason the shell rewrote is uncorrectable.
+    # T-14707 (SPEC-1039 rule 2) — the same-class sweep statement of a PLAN-gate `fix` (SPEC-1040
+    # §Absorption sweep); recorded on the row, `not stated` without it — never a refusal.
+    ad.add_argument("--sweep", metavar="TEXT",
+                    help="with --plan and --disposition fix: where you looked for the same defect "
+                         "class and what you found (SPEC-1040 §Absorption sweep). Recorded on the "
+                         "decision row; absent, the row carries `sweep: not stated` and the decision "
+                         "is still recorded. Any other decision does not carry it")
     ad.add_argument("--from-stdin", action="store_true",
                     help="read the decision's CONTENT fields as a YAML mapping on stdin (`reason:`, "
                          "`directive:`, `receiving:`, `evidence:`) instead of on argv — the "

@@ -567,9 +567,9 @@ overrides:
 # Rule text: `__YITC_CLI__ graph query SPEC-1031 --kernel`
 # absent = the kernel default. Opt-in.
 admission:
-  # SPEC-1045 — one queue decides WHEN Stage-6 runs, own-tests checks and lands take this repo's
+  # SPEC-1063 — one queue decides WHEN Stage-6 runs, own-tests checks and lands take this repo's
   # verify resources. Born ON; `mode: off` switches it off; a key left out is the engine default.
-  # Rule text: `__YITC_CLI__ graph query SPEC-1045 --kernel`
+  # Rule text: `__YITC_CLI__ graph query SPEC-1063 --kernel`
   # First setup and every key: the engine's `patterns/admission-queue.md` (§5).
   mode: engine
 # ── END born-ops template (generated completeness sentinel) ──

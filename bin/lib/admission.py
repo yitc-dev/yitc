@@ -1,7 +1,7 @@
-"""SPEC-1045 — the resource-admission queue: ONE bounded queue per repo that decides WHEN an already
+"""SPEC-1063 — the resource-admission queue: ONE bounded queue per repo that decides WHEN an already
 started Stage-6 run, own-tests check or land takes the repo's verify resources, never WHICH work.
 
-PORTED, NOT REDESIGNED (SPEC-1045 rule 2). The source is cryptochart's settled `ops/deploy/
+PORTED, NOT REDESIGNED (SPEC-1063 rule 2). The source is cryptochart's settled `ops/deploy/
 wait-for-room.py`, gist 46ed5855919802e2217424f8db92d42e revision 541a3834dd4a1ff5147514471de36e31b0c20c12
 (sha256 5f379acdd458a12a05aefeeae34cc250091357cf0077238002daa9fe81141f3b). Its rules are kept section
 for section; the section banners below carry the source's own headings, in the source's words where
@@ -61,14 +61,12 @@ def say_once(key, text: str) -> None:
 
 # ═══ THE SETTINGS ═════════════════════════════════════════════════════════════════════════════
 # Every number and CPU set is a machine setting and every class list a project DECLARATION
-# (SPEC-1045 rule 4, rule 2 (f)); each default and its provenance lives ONLY in
+# (SPEC-1063 rule 4, rule 2 (f)); each default and its provenance lives ONLY in
 # `machine_settings.INVENTORY` (SPEC-1031 rule 9). The source's names stay the keys of a check.
 MACHINE = {
-    "THRESHOLD": "YITC_ADMISSION_THRESHOLD_PCT",
     "WINDOW": "YITC_ADMISSION_WINDOW_S",
     "SAMPLE": "YITC_ADMISSION_SAMPLE_S",
     "POLL": "YITC_ADMISSION_POLL_S",
-    "SPACING": "YITC_ADMISSION_SPACING_S",
     "STEP": "YITC_ADMISSION_STEP_S",
     "RUNS_AHEAD": "YITC_ADMISSION_RUNS_AHEAD",
     "PIN": "YITC_ADMISSION_PIN",
@@ -83,6 +81,12 @@ MACHINE = {
     "SYNC_BOUND": "YITC_ADMISSION_SYNC_BOUND_S",
     "LAND_SET_BOUND": "YITC_ADMISSION_LAND_SET_BOUND_S",
     "LAND_SET_FILE_BOUND": "YITC_ADMISSION_LAND_SET_FILE_BOUND_S",
+    # T-14745 (SPEC-1063 rule 1): the host authority's values — read here so they enter the applied
+    # configuration and its hash like every other admission value
+    "HOST_LAG": "YITC_HOST_START_LAG_S",
+    "HOST_RESERVE": "YITC_HOST_RESERVE_THREADS",
+    "HOST_NEED": "YITC_HOST_NEED_THREADS",
+    "HOST_AGING": "YITC_HOST_RUN_AGING_S",
 }
 DECLARED = {
     "ORDER": "admission.order",
@@ -199,7 +203,7 @@ def settings(main) -> dict:
 
 
 def machine_value(ms, key) -> dict:
-    """THE READ SITE of one SPEC-1045 machine key (SPEC-1031 rule 4: the environment layer of a
+    """THE READ SITE of one SPEC-1063 machine key (SPEC-1031 rule 4: the environment layer of a
     PERFORMANCE knob is applied by its own read site): the environment, then the machine file, then the
     inventoried default — `in_force` answers the last two. An environment value `coerce` refuses is said
     once and the next source holds (the source's rule)."""
@@ -220,6 +224,8 @@ def config_hash(config) -> str:
 
 
 def _module_revision() -> str:
+    """This module's file as read at import. The host authority it asks (T-14745) enters the revision
+    as LOADED code (`_host_code_bytes`), never as its file on disk."""
     try:
         return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     except OSError:
@@ -256,18 +262,29 @@ def _credit_code_bytes() -> bytes:
     return h.hexdigest().encode()
 
 
+def _host_code_bytes() -> bytes:
+    """The host authority (`host_admission`) as this process LOADED it: the source digest that module
+    records once at its own import — the same idiom as `_REVISION` — so a file replaced under a waiter
+    does not change what the revision names, and no runtime state enters it (T-14749)."""
+    from lib import host_admission as ha
+    if ha.SOURCE_DIGEST == "unknown":
+        raise OSError("host_admission source unreadable at its import")
+    return ha.SOURCE_DIGEST.encode()
+
+
 def revision() -> str:
     """The queue revision (rule 2 (e)): a content hash of this module as it was when this process loaded
-    it AND of the credit code it calls (T-14196) — the code that decides, not the file on disk now (an
+    it, of the host authority it asks as loaded (its import-time source digest, T-14749), AND of the credit code it calls (T-14196) — the code that decides, not the file on disk now (an
     engine promoted under a waiter does not change what the waiter runs). Read once per process.
     Unreadable: `unknown`."""
     if _FULL_REVISION[0] is None:
         try:
             credit = _credit_code_bytes()
-        except Exception:              # noqa: BLE001 — unreadable credit code: the revision says so
-            credit = None
+            host = _host_code_bytes()
+        except Exception:              # noqa: BLE001 — unreadable credit/host code: the revision says so
+            credit = host = None
         _FULL_REVISION[0] = ("unknown" if _REVISION == "unknown" or credit is None else
-                             hashlib.sha256(_REVISION.encode() + b"\0" + credit).hexdigest())
+                             hashlib.sha256(_REVISION.encode() + b"\0" + host + b"\0" + credit).hexdigest())
     return _FULL_REVISION[0]
 
 
@@ -500,7 +517,7 @@ def class_in(name, names) -> str:
 # ═══ THE ORDER ════════════════════════════════════════════════════════════════════════════════
 # The classes in the order ORDER names them, read at each check; a class it leaves out comes after
 # the named ones, in the default order; within each, arrival. A gated deploy's pre-deploy run comes
-# before every class whatever ORDER says — a fixed rule, not a setting (SPEC-1045 rule 2 (r), T-14325).
+# before every class whatever ORDER says — a fixed rule, not a setting (SPEC-1063 rule 2 (r), T-14325).
 def order(name):
     if is_deploy(name):
         return (-1, int(name.split("-")[0]))
@@ -555,7 +572,7 @@ def group(q, land_held=False, tail=False) -> list:
     """The ticket that passes next (under LOCK; `q` in its order). While a land holds (`land_held`)
     none: nothing passes into a land's tail — but with `tail` (one land holds alone) the ticket that
     would pass with no land holding, when it is one run that is neither exclusive nor a deploy's run
-    (that one waits for the land's end, SPEC-1045 rule 2 (r)). Else a gated deploy's run alone (it heads
+    (that one waits for the land's end, SPEC-1063 rule 2 (r)). Else a gated deploy's run alone (it heads
     the order whatever ORDER says, T-14325); else a light land alone;
     else a marked or planning land alone; else the oldest ordinary land when BATCH_MAX (1) of them wait
     or the oldest has let RUNS_AHEAD runs pass; else the first run; else the ordinary land. Rule 2: one
@@ -619,7 +636,7 @@ def own_ticket(queue, ns, pid):
 
 def unlink_own(queue, ns, pid) -> None:
     """Remove the ticket of arrival `ns` and pid `pid` from `queue`, and its writer's temporaries,
-    WITHOUT the queue lock (SPEC-1045: a waiting run's stop takes no queue lock, so a signal ends it
+    WITHOUT the queue lock (SPEC-1063: a waiting run's stop takes no queue lock, so a signal ends it
     whoever holds that lock — another process, or its own interrupted main thread). An unlink is
     atomic and every reader of the queue takes a vanished ticket as gone. It returns only once a fresh
     listing shows no ticket of its own: a `remark` of another waiter may rename it between the listing
@@ -639,7 +656,7 @@ def unlink_own(queue, ns, pid) -> None:
 
 
 def carried_arrival(p, card):
-    """The arrival (ns) a NEW run ticket of `card` keeps (T-14273, SPEC-1045 rule 2 (d)): when the card's
+    """The arrival (ns) a NEW run ticket of `card` keeps (T-14273, SPEC-1063 rule 2 (d)): when the card's
     newest run ticket was admitted and its sync at admission stopped on a merge conflict, the next run
     ticket of that card takes the stopped ticket's arrival, so it re-enters at its old place. Read from
     the main journal only (rule 2 (c)), never from process memory: the card's admission rows since its
@@ -920,7 +937,9 @@ def exclusive_running(p) -> list:
 # task_paused or bg_dispatch_halted row of X in either journal at or after its set — read over the
 # LOGICAL journal (rule 2 (c): every segment, an archived one included; the row named by its
 # timestamp and row sha, never a byte offset). (2) and (3) wait while a live RUNNING entry of X stands
-# (the fence). A HOLD that cannot be read holds every card and ends only by (2), dated by the file's
+# (the fence); (4) while a Stage-6 run ticket of X stands in the queue (SPEC-1063 rule 2 (t), T-14731:
+# the hold keeps main still for X's land only, so X's further run waits in arrival order), fence or not.
+# A HOLD that cannot be read holds every card and ends only by (2), dated by the file's
 # time. A unit (admission.run_land_unit) opens at the pass of a card's Stage-6 run and ends with its
 # run (its RUNNING entry goes), at a pause or halt row of the card at or after its pass, or, after a
 # green end, with the green hold's ends.
@@ -1045,11 +1064,11 @@ def hold_says(h, s) -> str:
 
 # ═══ WHY A WAIT WAITS (T-14592) ═══════════════════════════════════════════════════════════════
 # Every wait says, in one plain line, the mode in force and what it waits for, so a serial wait is not
-# read as idle capacity (<project> X-2348). The mode is SPEC-1045 rule 6's reading; the blocker is the
+# read as idle capacity (<project> X-2348). The mode is SPEC-1063 rule 6's reading; the blocker is the
 # other card's standing green hold, else the ticket at the head of what stands ahead.
 WAIT_MODE = "one at a time per repo"
 WAIT_REASON = ("verify runs and lands pass one at a time per repo, because a land then re-uses its card's "
-               "green run instead of running the verify again (SPEC-1045 rule 6, SPEC-0065 §Bound)")
+               "green run instead of running the verify again (SPEC-1063 rule 6, SPEC-0065 §Bound)")
 
 
 def blocker_of(p, ahead, green, task, land_held=False) -> "dict | None":
@@ -1182,15 +1201,24 @@ def card_progress(h, s, now):
     return None
 
 
-def hold_end(h, s, now):
+def hold_end(h, s, now, p=None):
     """The end of the green hold `h` as its end tests read at `now`, or None while it holds: (`off`,
-    ..) under GREEN_HOLD 0, (`expired`, ..) at or past its check point when its card shows no progress
-    (card_progress, T-14483), (`cleared`, paused|halted|land, row) at its card's row. Reads the journals
+    ..) under GREEN_HOLD 0, (`ended`, `next-run ..`) while a live Stage-6 run ticket of its card stands
+    in the queue `p` (SPEC-1063 rule 2 (t), T-14731: the hold keeps main still for its card's land only),
+    (`expired`, ..) at or past its check point when its card shows no progress (card_progress,
+    T-14483), (`cleared`, paused|halted|land, row) at its card's row. Reads the queue and the journals
     only — no lock, no removal, no step row — so hold_now() and the read-only report() judge a hold by
     the same tests (T-14358). The fence is the caller's: a hold ended by its bound or its card's row
-    stands while a live RUNNING entry of its card stands."""
+    stands while a live RUNNING entry of its card stands; a hold its card's next run ended does not."""
     if not s["GREEN_HOLD"]:
         return ("off", "admission.green_hold off", None)
+    if p is not None and h["card"]:
+        try:
+            nxt = _stage6_queued(p, h["card"])
+        except QueueStateUnreadable:   # undetermined: this test names no end; the other ends still read
+            nxt = None
+        if nxt is not None:
+            return ("ended", f"next-run: pid {nxt}", None)
     if now - h["set_at"] >= s["GREEN_HOLD"] and not card_progress(h, s, now):
         return ("expired", f"GREEN_HOLD {s['GREEN_HOLD']:g} s, no progress of its card", None)
     row = hold_row(h, land=True) if h["card"] else None
@@ -1201,7 +1229,8 @@ def hold_now(p, s):
     """The green hold standing now (under LOCK), or None. GREEN_HOLD 0 (admission.green_hold off): none,
     and the file is left as it is. A hold past its bound, or whose card has a pause or halt row since
     its set, ends — the file is removed and one step row written — but while a live RUNNING entry of
-    its card stands it is kept (the fence)."""
+    its card stands it is kept (the fence). A hold whose card has a Stage-6 run ticket in the queue
+    ends at once, fence or not (`ended`, SPEC-1063 rule 2 (t)): its card asked for a new run."""
     if not s["GREEN_HOLD"]:
         return None
     h = hold_read(p)
@@ -1209,10 +1238,11 @@ def hold_now(p, s):
         return None
     now = time.time()
     age = now - h["set_at"]
-    why = hold_end(h, s, now)
+    why = hold_end(h, s, now, p)
     if why is None:
         return h
-    live = sorted((pid, kind) for pid, (kind, task) in running_tasks(p).items() if h["card"] and task == h["card"])
+    live = [] if why[0] == "ended" else sorted(
+        (pid, kind) for pid, (kind, task) in running_tasks(p).items() if h["card"] and task == h["card"])
     if live:
         say_once(("fence", h["card"], h["set_at"], tuple(live)),
                  f"the green hold of {h['card']} is due to end ({why[0]}: {why[1]}), but its "
@@ -1233,7 +1263,7 @@ def hold_now(p, s):
 
 
 def deploy_standing(p, me=None):
-    """SPEC-1045 rule 2 (r), T-14591 (owner, events.jsonl#ts=2026-11-11T12:33:02Z): what makes every
+    """SPEC-1063 rule 2 (r), T-14591 (owner, events.jsonl#ts=2026-11-11T12:33:02Z): what makes every
     other admission wait — a live `deploy` ticket other than `me` in the queue, else a live RUNNING
     entry marked `deploy` (a gated deploy's pre-deploy run the queue let pass) other than this process;
     else None. Read-only: no ticket or entry is removed, so it is callable with or without LOCK. A
@@ -1266,9 +1296,9 @@ def deploy_standing(p, me=None):
 
 def held_q(p, q, h, s=None) -> list:
     """The tickets that may pass while the hold `h` stands: those of its card; all of them with none.
-    Under `admission.planning_lands: immediately` (SPEC-1045 rule 2 (l), T-14196) a planning land's
+    Under `admission.planning_lands: immediately` (SPEC-1063 rule 2 (l), T-14196) a planning land's
     ticket also may (`planning_free`). While a deploy ticket is queued only the deploy tickets may: a
-    green hold does not let its card's land pass before a deploy (SPEC-1045 rule 2 (r), T-14591)."""
+    green hold does not let its card's land pass before a deploy (SPEC-1063 rule 2 (r), T-14591)."""
     s = s if s is not None else CUR
     deploys = [t for t in q if is_deploy(t)]
     if deploys:
@@ -1280,15 +1310,15 @@ def held_q(p, q, h, s=None) -> list:
 def hold_waits(green, task, name, free) -> bool:
     """Whether the green hold `green` makes the waiter `name` (of card `task`) wait: a hold of another
     card does, unless the waiter is a free planning land — and never a gated deploy's ticket, which
-    passes whatever hold stands (SPEC-1045 rule 2 (r), T-14591)."""
+    passes whatever hold stands (SPEC-1063 rule 2 (r), T-14591)."""
     return green is not None and green["card"] != task and not free and not is_deploy(name)
 
 
 def planning_free(name, s) -> bool:
-    """SPEC-1045 rule 2 (l): whether the ticket `name` is a planning land that passes another card's
+    """SPEC-1063 rule 2 (l): whether the ticket `name` is a planning land that passes another card's
     green hold and unit (`admission.planning_lands: immediately`). `after-run` is the source's planning
-    land, held by both like any queued land. It still waits for a land in flight, its merge checks,
-    SPACING and its reading — nothing else is exempted."""
+    land, held by both like any queued land. It still waits for a land in flight, its merge checks and
+    the host gate (T-14745) — nothing else is exempted."""
     return (kind_mark(name)[0] == "land" and land_class(name) == "planning"
             and (s or {}).get("PLANNING_LANDS") == "immediately")
 
@@ -1317,6 +1347,30 @@ def _read_entry(path):
     return data
 
 
+def _stage6_queued(p, card):
+    """The pid of a live Stage-6 run ticket of `card` in the queue (a run ticket carrying `stage6` and
+    naming the card; an own-tests or deploy ticket, or one an older engine filed, carries none), else
+    None. An absent queue reads None; a live ticket that exists but cannot be read raises
+    QueueStateUnreadable. Read-only — no ticket is removed, so the read-only report() may call it: a
+    dead owner's ticket is skipped, never swept. Read by card_stage6_pending (T-14676) and the green
+    hold's next-run end (hold_end, SPEC-1063 rule 2 (t), T-14731)."""
+    try:
+        names = sorted(os.listdir(p["queue"]))
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    for name in names:
+        try:
+            pid = int(name.split("-")[1])
+        except (IndexError, ValueError):   # not a ticket (a temporary, a stray file)
+            continue
+        if kind_mark(name)[0] != "run" or is_deploy(name) or not alive(pid):
+            continue
+        data = _read_entry(Path(p["queue"]) / name)
+        if data and data.get("task") == card and data.get("stage6") is True:
+            return pid
+    return None
+
+
 def card_stage6_pending(p, card):
     """T-14676 — the pid of `card`'s own Stage-6 run (`task test --run`) while it waits in the queue or
     runs, else None. Queued: a live run ticket carrying `stage6` and naming the card (the governed run
@@ -1331,12 +1385,9 @@ def card_stage6_pending(p, card):
     if not card:
         return None
     cur(p["main"])                 # `tickets()` orders by the queue's settings: read them from this repo's main
-    for name in tickets(p["queue"]):
-        if kind_mark(name)[0] != "run" or is_deploy(name):
-            continue
-        data = _read_entry(Path(p["queue"]) / name)
-        if data and data.get("task") == card and data.get("stage6") is True:
-            return int(name.split("-")[1])
+    queued = _stage6_queued(p, card)
+    if queued is not None:
+        return queued
     try:
         names = os.listdir(p["running"])
     except FileNotFoundError:
@@ -1382,8 +1433,8 @@ def set_hold(p, card, wt, s=None) -> str:
         outcome = "renewed" if h is not None else "set"
         log_step(p, card, "hold", outcome, s["GREEN_HOLD"], card)
     say(f"green hold {outcome} for {card}: no Stage-6 run and no land whose changes run a layer passes "
-        f"until its land ends with 0, its pause, or its card shows no progress at GREEN_HOLD {s['GREEN_HOLD']:g} s "
-        "or later")
+        f"until its land ends with 0, its pause, its next Stage-6 run's ticket, or its card shows no progress at "
+        f"GREEN_HOLD {s['GREEN_HOLD']:g} s or later")
     return outcome
 
 
@@ -1848,7 +1899,7 @@ def observed(p) -> dict:
 
 
 def log_pass(p, task, kind, *, s, limit=None, window=None, rule=None, place=None, ticket=None,
-             busy=None, light=None, arrival=None, ts=None):
+             busy=None, light=None, arrival=None, ts=None, host=None):
     """The pass row: the source's fields (pid, task, kind, limit, window, settings, rule, place,
     arrival, wait, runs-ahead, group (one land at a time: none), load1, busy, light reason), the full
     applied configuration, its hash, the queue revision and what was held."""
@@ -1868,6 +1919,8 @@ def log_pass(p, task, kind, *, s, limit=None, window=None, rule=None, place=None
             "wait_s": None if arrival is None else round(max(0.0, now - arrival), 3),
             "runs_ahead": ahead, "group": None, "load1": load1_now(),
             "busy": None if busy is None else round(busy, 3), "light": light, "held": observed(p)}
+    if host is not None:
+        data["host"] = host           # T-14745: what the host gate read at this start
     return emit(PASS, task, data, s=s, ticket=ticket, ts=ts)
 
 
@@ -1924,15 +1977,16 @@ def _release(fd) -> None:
 
 # ═══ THE RULE ═════════════════════════════════════════════════════════════════════════════════
 # Each check of the head takes one of three rules, named on its pass row:
-#   empty      nothing the queue let pass is held: the head passes when the mean of the read set over
-#              the last EMPTY_SAMPLE s (at most WINDOW), every sample taken after the last pass, is at
-#              most THRESHOLD; SPACING does not hold it.
+#   empty      nothing the queue let pass is held: the head passes at the host gate.
 #   land-tail  a run (not exclusive) while one land holds alone: it passes, when the queue's next
-#              ticket with no land holding would be that run, under SPACING and the mean over WINDOW
-#              at most LAND_TAIL_THRESHOLD. No land starts into any land's tail. A LAND_TAIL_THRESHOLD
-#              of 0 turns this rule off: the run takes the window rule and waits for the land's end.
-#   window     anything else held: a run or a land starts under SPACING when the mean of the read set
-#              over the last WINDOW s is at most THRESHOLD and no land holds.
+#              ticket with no land holding would be that run, when the mean over WINDOW is at most
+#              LAND_TAIL_THRESHOLD, and at the host gate. No land starts into any land's tail. A
+#              LAND_TAIL_THRESHOLD of 0 turns this rule off: the run waits for the land's end.
+#   window     anything else held: a run or a land starts when no land holds, at the host gate.
+# T-14745 (SPEC-1063 rule 1): the start spacing and the busy-share threshold of each repository are
+# gone; a HEAVY head (not at once, not a light class, not an own-tests check, not the remote place)
+# starts only when the ONE host authority (`host_admission`) grants it — machine-wide order, start lag,
+# free usable threads and memory.
 def rule_of(p, lh, kind, exclusive, skip=(), tail_pct=None):
     what = holds(p, skip)
     if not what:
@@ -1944,11 +1998,11 @@ def rule_of(p, lh, kind, exclusive, skip=(), tail_pct=None):
 
 # ═══ THE HEAD ═════════════════════════════════════════════════════════════════════════════════
 # The first ticket (the head) makes the checks, and passes only when all of these hold (an at-once
-# head: all but SPACING and the reading): no exclusive run runs and BUSY is not held exclusive; an
+# head: all but the host gate and the reading): no exclusive run runs and BUSY is not held exclusive; an
 # exclusive head: no RUNNING entry is live AND no BUSY holder is left (rule 2 (g): the flock, never a
 # pid entry); for a land, no credit-ready land runs and no other land holds; the last head's pass is
-# SPACING s ago or more, except under the empty rule; and the reading of its rule, all of it sampled
-# after that pass, is at most the rule's limit. The reading is taken outside the lock; the checks are
+# the host grant, for a heavy head; and, under land-tail, the reading over WINDOW, all of it sampled
+# after the last pass, is at most LAND_TAIL_THRESHOLD. The reading is taken outside the lock; the checks are
 # made again, the rule taken again and the group recomputed (both must be the same) and the pass
 # recorded, inside it. (Not ported: the release lock and gate, land groups, the ungated scan.)
 class Refused(Exception):
@@ -2027,7 +2081,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             mark = kind_mark(now)[1] == "1"
 
     def drop():
-        """Remove this waiter's ticket under whatever name it has now — without LOCK (SPEC-1045)."""
+        """Remove this waiter's ticket under whatever name it has now — without LOCK (SPEC-1063)."""
         unlink_own(p["queue"], ns, pid0)
     state["drop"] = drop
 
@@ -2054,6 +2108,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
         return ("run-mark" if mark else "run") if log_kind in ("run", "run-mark") else log_kind
 
     samples, said = Samples(), {"key": None, "at": 0.0}
+    hw = {"w": None, "reason": None}     # T-14745: this head's place at the host gate, once it asks
     skip = ("bookkeeping",) if kind == "land" else ()
 
     def nap(seconds, watch=False):
@@ -2085,7 +2140,9 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                               "detail": wait_says(facts), **facts}, s=s, ticket=me_name)
         return key, wait_says(facts)
 
-    def wait_line(key, text):
+    def wait_line(key, text, at_gate=False):
+        if not at_gate and hw["w"] is not None:
+            hw["w"].stand_down()       # T-14745: waiting for its own repository, it blocks nobody
         if said["key"] != key or time.time() - said["at"] >= CUR["POLL"]:
             say(text)
             said["key"], said["at"] = key, time.time()
@@ -2093,7 +2150,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
     t0 = time.time()
     while True:
         s = cur(p["main"])
-        # T-14591: while a gated deploy stands no fast re-ask passes either (SPEC-1045 rule 2 (r))
+        # T-14591: while a gated deploy stands no fast re-ask passes either (SPEC-1063 rule 2 (r))
         if fast is not None and fast[0] in s["AT_ONCE"] and (is_deploy(me_name) or not deploy_standing(p, me_name)):
             answer = fast[1]()
             if answer[0]:
@@ -2118,7 +2175,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             green = hold_now(p, s)
             qh = held_q(p, q, green, s)
             free = planning_free(me_name, s)
-            # T-14591 (SPEC-1045 rule 2 (r)): from the moment a gated deploy files its ticket until its
+            # T-14591 (SPEC-1063 rule 2 (r)): from the moment a gated deploy files its ticket until its
             # run ends, nothing else of this queue passes — read before every other head check
             dep = None if is_deploy(me_name) else deploy_standing(p, me_name)
             u_wait = land_unit_wait(p, s, task, me_name) if kind == "land" and not free else None
@@ -2148,7 +2205,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             # the blocker is the deploy (T-14592 wait facts): its ticket while queued, else its running entry
             bkey, why = why_line([t for t in q if is_deploy(t) and t != me_name], None, s, bool(lh))
             wait_line(f"deploy-{dep}-{bkey}", f"wait: queue {pos} of {len(q)}, {dep}: nothing else passes while a "
-                      f"gated deploy stands (SPEC-1045 rule 2 (r)), so this {pass_kind()} of {task or 'no card'} "
+                      f"gated deploy stands (SPEC-1063 rule 2 (r)), so this {pass_kind()} of {task or 'no card'} "
                       f"waits ({waited} s, load1 {load1}); {why}")
             nap(s["POLL"]); continue
         blocks = hold_waits(green, task, me_name, free)
@@ -2172,7 +2229,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                       f"load1 {load1})")
             nap(s["POLL"], watch); continue
         # THE PLACES, the remote place: the head of the order the queue would pass with no land holding,
-        # a free box slot: it passes at once, with no load reading and no SPACING, a land holding or not
+        # a free box slot: it passes at once, with no load reading and no host gate, a land holding or not
         if pub and not exclusive and not v.get("forced_local") and g_free[:1] == [me_name] and remote_n < slots:
             fd = None
             with Locked(p["lock"]):
@@ -2274,32 +2331,50 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 continue
         light_head = kind == "land" and land_class(me_name) == "light"
         at_once = not exclusive and class_in(me_name, s["AT_ONCE"]) in s["AT_ONCE"]
-        if not at_once and rule != "empty" and since < s["SPACING"]:
-            wait_line("spacing", f"wait: head of queue, last start {since:.0f} s ago ({who}), spacing "
-                      f"{s['SPACING']:g} s ({waited} s, load1 {load1})")
-            nap(max(1.0, s["SPACING"] - since), watch); continue
+        from lib import host_admission
+        heavy = (not at_once and not light_head and not light_now() and log_kind != "own-tests"
+                 and not host_admission.inside_admitted())
         sample = min(s["SAMPLE"], s["WINDOW"])
-        limit = s["LAND_TAIL_THRESHOLD"] if rule == "land-tail" else s["THRESHOLD"]
-        window = min(s["EMPTY_SAMPLE"], s["WINDOW"]) if rule == "empty" else s["WINDOW"]
+        limit, window, busy, start = None, None, None, None
         where = {"empty": ", nothing held", "land-tail": ", into a single land's tail", "window": ""}[rule]
         if rule == "empty" and what:
             where = f", nothing held but a bookkeeping land ({', '.join(what)}), which a land does not wait for"
-        busy, start = None, None
-        if at_once:
-            limit, window = None, None
-        elif window > 0:
+        if rule == "land-tail" and not at_once:      # an at-once head takes no reading (as before)
+            limit, window = s["LAND_TAIL_THRESHOLD"], s["WINDOW"]
             samples.take()
             busy, start, have = samples.mean(prev, window, read_set(s))
             if busy is None:
                 wait_line(f"window-{rule}", f"wait: head of queue, {have:.0f} s of samples since the last pass, "
                           f"the window is {window:g} s{where} ({waited} s, load1 {load1})")
-                nap(sample if rule == "empty" else min(s["POLL"], max(sample, window - have)), watch); continue
+                nap(min(s["POLL"], max(sample, window - have)), watch); continue
             if busy > limit:
                 wait_line(f"busy-{rule}", f"wait: busy {busy:.0f}% > {limit:g}% over the last {window:g} s{where} "
                           f"({waited} s, load1 {load1})")
                 nap(sample, watch); continue
+        grant, host_facts = None, None
+        if heavy:
+            if hw["w"] is None:
+                hw["w"] = host_admission.Waiter(repo=p["main"], task=task, kind=kind, mark=mark,
+                                                arrival=ns / 1e9)
+            r = hw["w"].check(s, samples, mark=mark)
+            host_facts = {k: v for k, v in r.items() if k not in ("ok", "grant")}
+            if not r["ok"]:
+                text = host_admission.says(r)
+                if r["reason"] != hw["reason"]:
+                    hw["reason"] = r["reason"]
+                    emit(STEP, task, {"kind": "host-gate", "outcome": "held", "secs": round(time.time() - t0, 3),
+                                      "detail": text, **host_facts}, s=s, ticket=me_name)
+                wait_line(f"host-{r['reason']}", f"wait: head of queue, {text} ({waited} s, load1 {load1})",
+                          at_gate=True)
+                nap(sample); continue
+            grant = r["grant"]
         if recheck is not None:
-            recheck(land_class(me_name))      # raises Refused: no work runs
+            try:
+                recheck(land_class(me_name))      # raises Refused: no work runs
+            except BaseException:
+                if grant is not None:
+                    host_admission.cancel(grant)
+                raise
         fd, land, moved, local_ok = None, None, None, True
         place_token = None if v is None else (
             f"local:{('exclusive' if exclusive else 'placement-local' if v.get('forced_local') else 'box-full') if pub else v['token']}")
@@ -2311,8 +2386,8 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             q = tickets(p["queue"])
             held = running_kinds(p)
             confirmed = cur(p["main"])
-            changed = [k for k in ("THRESHOLD", "WINDOW", "PIN", "SPACING", "RUNS_AHEAD", "EMPTY_SAMPLE",
-                                   "LAND_TAIL_THRESHOLD", "REMOTE_SLOTS", "LOCAL_RUNS", "LIGHT_PIN", "ORDER", "AT_ONCE",
+            changed = [k for k in ("WINDOW", "PIN", "RUNS_AHEAD", "EMPTY_SAMPLE", "HOST_LAG", "HOST_RESERVE",
+                                   "HOST_NEED", "HOST_AGING", "LAND_TAIL_THRESHOLD", "REMOTE_SLOTS", "LOCAL_RUNS", "LIGHT_PIN", "ORDER", "AT_ONCE",
                                    "PLANNING_BRANCHES", "PLANNING_LANDS", "RUN_LAND_UNIT") if confirmed[k] != s[k]]
             lh = land_holding(p)
             now_rule, now_what = rule_of(p, lh, kind, exclusive, skip, s["LAND_TAIL_THRESHOLD"])
@@ -2342,7 +2417,6 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                   and not placed_moved and "RUN_LAND_UNIT" not in changed)
                  or (not at_once and not changed and not moved))
                     and hold_ok and not dep_now and group(held_q(p, q, h_now, confirmed), lh, rule == "land-tail") == g
-                    and (at_once or rule == "empty" or since >= s["SPACING"])
                     and (at_once or start is None or start >= prev)
                     and not (kind == "land" and credit_running(p)) and local_ok and not cross and unit_ok
                     and ((not held and not busy_held(p)) if exclusive else "exclusive" not in held.values())):
@@ -2367,7 +2441,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                                 deploy=is_deploy(me_name),
                                 journals=journals_of(u_main, unit[0]) if unit else None, alone=(kind == "land"),
                                 limit=limit, window=window, rule=None if at_once else rule, place=place_token,
-                                busy=busy, light=light_now())
+                                busy=busy, light=light_now(), host=host_facts)
                 except BaseException:
                     _release(land)
                     raise
@@ -2375,6 +2449,8 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                 if placed is not None and kind == "land":
                     placed["cls"] = land_class(me_name)
         if fd is None:
+            if grant is not None:
+                host_admission.cancel(grant)      # T-14745: the repo pass did not hold — give the start back
             if cross:
                 say(f"wait: a command placed under another LIGHT_PIN runs on CPUs this pass takes: {', '.join(cross)}; "
                     "a new check")
@@ -2390,7 +2466,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             elif not local_ok:
                 say("wait: the local place was taken, or a land holds, under the lock; a new check")
             elif dep_now:
-                say(f"wait: {dep_now} under the lock (SPEC-1045 rule 2 (r)); a new check")
+                say(f"wait: {dep_now} under the lock (SPEC-1063 rule 2 (r)); a new check")
             elif not hold_ok:
                 say("wait: a green hold of another card stands under the lock; a new check")
             else:
@@ -2410,8 +2486,11 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                      if now_what else ", nothing held")
         gap = "none before" if prev == 0 else f"last start {since:.0f} s ago"
         alone = "; exclusive: nothing else runs, nothing passes while it runs" if exclusive else ""
-        reading = (f"no reading (EMPTY_SAMPLE {s['EMPTY_SAMPLE']:g}){where}" if busy is None else
-                   f"busy {busy:.0f}% <= {limit:g}% over the last {window:g} s{where}")
+        reading = (f"busy {busy:.0f}% <= {limit:g}% over the last {window:g} s{where}" if busy is not None
+                   else f"no repository reading{where}")
+        if host_facts is not None:
+            reading += (f"; host gate granted (free usable threads {host_facts.get('free_threads', 'not read')}, "
+                        f"need {host_facts.get('need_threads')})")
         here = ""
         if v is not None:
             stays = "an exclusive run stays here" if exclusive else f"the box's {slots} slot(s) are taken"
@@ -2461,7 +2540,7 @@ def fast_pass(p, kind, *, pin, task=None, ticket=None, recheck=None, state=None,
             waited = False
         fd, land, moving, stale, past = None, None, [], None, []
         with Locked(p["lock"]):
-            # T-14591 (SPEC-1045 rule 2 (r)): a gated deploy queued or running holds every fast pass
+            # T-14591 (SPEC-1063 rule 2 (r)): a gated deploy queued or running holds every fast pass
             ahead = deploy_standing(p, ticket) or exclusive_ahead(p, owner=task if kind == "credit" else None,
                                                                   past=past)
             if not ahead and side:
@@ -2518,7 +2597,7 @@ def fast_pass(p, kind, *, pin, task=None, ticket=None, recheck=None, state=None,
 # `adapter.sources` holds a changed path runs) AND no test sweep (rule 2 (o): the sweep the engine
 # runs where a test directory exists and no declared layer covers it). A LIGHT RUN (basis (a)) is a
 # queued run whose every layer the engine runs is in admission.light_layers, at least one, AND no
-# test sweep (the plan check residual, SPEC-1045 rule 2 (o)). Decided once, at its arrival. Any
+# test sweep (the plan check residual, SPEC-1063 rule 2 (o)). Decided once, at its arrival. Any
 # failure of a reading is not no-layer / not light, and its line says why.
 def _git_cap(args, cwd, env=None, input=None):
     from lib import git_env as _git_env
@@ -2881,13 +2960,16 @@ def sync_step(main, wt, card, bound, argv=None) -> dict:
 
 
 def _asked(name, fn):
-    """One predicate's answer for a step row: {check, says, detail}; an exception reads `unknown`."""
+    """One predicate's answer for a step row: {check, says, detail, secs}; an exception reads `unknown`.
+    T-14744: `secs` is the time this one predicate took, so the row's total splits by check."""
+    t0 = time.time()
     try:
         refused, detail = fn()
     except Exception as e:             # noqa: BLE001 — a preview never stops a run
-        return {"check": name, "says": "unknown", "detail": f"{type(e).__name__}: {e}"[:300]}
+        return {"check": name, "says": "unknown", "detail": f"{type(e).__name__}: {e}"[:300],
+                "secs": round(time.time() - t0, 3)}
     out = {"check": name, "says": "refuses" if refused else "admits",
-           "detail": (str(detail)[:600] if detail else None)}
+           "detail": (str(detail)[:600] if detail else None), "secs": round(time.time() - t0, 3)}
     if isinstance(detail, dict):
         # T-14569 (rule 2 (m)): a mapping answer is recorded as its own fields, never as its repr — the
         # request rides beside them, once
@@ -2926,8 +3008,9 @@ def admission_steps(p, s, *, card, wt, forced, sync, screen, covered, preview, h
             what = f"conflicts on {str(r['detail']).replace(',', ', ')}" if r["outcome"] == "conflict" else r["detail"]
             kept = ("its next run keeps this ticket's place" if r["outcome"] == "conflict" else "its place released")
             say(f"the sync of {card} at its admission did not end clean ({what}): no run, {kept}; a "
-                "merge left open is resolved with `worktree sync --resolved` and, as authored content, takes "
-                f"audit-post before the next run (exit {SYNC_STOPPED})")
+                "merge left open is resolved with `worktree sync --resolved`, then the Stage-6 run at the merged "
+                "HEAD (`task test --run --evidence`), then `audit post` on the merge (SPEC-1018 «Post-GREEN "
+                f"merge integration») (exit {SYNC_STOPPED})")
             return SYNC_STOPPED
         proof = r.get("proof")
         say(f"the sync of {card} at its admission: {r['outcome']} ({r['secs']:.1f} s)"
@@ -3035,7 +3118,7 @@ def hand_set_busy(main):
 # ticket (or takes its fast pass), waits, passes, holds BUSY for the work and its children, pins the
 # process, and yields the pass record the Stage-6 result rows are stamped with.
 def switch(main) -> dict:
-    """THE SWITCH (SPEC-1045 rule 3), read once: the project's admission.mode over the MAIN checkout's
+    """THE SWITCH (SPEC-1063 rule 3), read once: the project's admission.mode over the MAIN checkout's
     yitc-ops.yaml and the machine VETO. An unresolvable main checkout reads off, said."""
     if main is None:
         return {"on": False, "mode": "off", "why": "the main checkout could not be resolved; the queue is off"}
@@ -3283,7 +3366,7 @@ def task_test_entry(*, main, root, task, form, kernel, append_event, sweep=False
                     os.close(fd)
 
 
-# ═══ A SCHEDULED PRE-DEPLOY RUN (SPEC-1045 rule 2 (p), SPEC-1047 rule 3; T-14203) ══════════════
+# ═══ A SCHEDULED PRE-DEPLOY RUN (SPEC-1063 rule 2 (p), SPEC-1047 rule 3; T-14203) ══════════════
 # `deploy --scheduled-run` files a run ticket at its own start and is admitted as a run, in the declared
 # order. It is tied to no card: no sync, no quick step, no land preview, no green hold, no run-plus-land
 # unit, no credit answer. Its place is always this host's local place — it runs a fresh scratch checkout
@@ -3300,7 +3383,7 @@ RECHECK_PLACE = {"published": False, "token": "known-broken-recheck", "box": Non
 
 @contextlib.contextmanager
 def scheduled_run_entry(*, main, append_event):
-    """The queue's entry for a scheduled pre-deploy run (SPEC-1045 rule 2 (p)), switched on: one run
+    """The queue's entry for a scheduled pre-deploy run (SPEC-1063 rule 2 (p)), switched on: one run
     ticket, the wait, the pass; yields the pass record its result rows are stamped with (`stamp`). At
     exit the RUNNING entry goes and the descriptors this process holds are closed (its children keep
     theirs)."""
@@ -3312,7 +3395,7 @@ def scheduled_run_entry(*, main, append_event):
 
 @contextlib.contextmanager
 def deploy_run_entry(*, main, append_event):
-    """The queue's entry for a gated deploy's pre-deploy run (SPEC-1045 rule 2 (r), T-14325), switched on:
+    """The queue's entry for a gated deploy's pre-deploy run (SPEC-1063 rule 2 (r), T-14325), switched on:
     as the scheduled run's entry, but its ticket is of class `deploy`, which passes before every queued
     ticket whatever the declared order. Yields the pass record."""
     with _untied_run_entry(main=main, append_event=append_event, log_kind="deploy-run", place=DEPLOY_PLACE,
@@ -3325,7 +3408,7 @@ def deploy_run_entry(*, main, append_event):
 
 @contextlib.contextmanager
 def recheck_run_entry(*, main, append_event):
-    """The queue's entry for a known-broken recheck (SPEC-1045 rule 2 (s), T-14351), switched on: admitted
+    """The queue's entry for a known-broken recheck (SPEC-1063 rule 2 (s), T-14351), switched on: admitted
     as a scheduled run is (rule 2 (p)) — one run ticket tied to no card, the local place. Yields the pass
     record its evidence row is stamped with."""
     with _untied_run_entry(main=main, append_event=append_event, log_kind="known-broken-recheck",
@@ -3453,7 +3536,7 @@ def bookkeeping(t):
 # ═══ A LIGHT LAND and A PLANNING LAND ═════════════════════════════════════════════════════════
 # A LIGHT LAND: not bookkeeping and not credit-ready, the engine's decision runs at least one layer,
 # every one of them in admission.light_layers, and no test sweep (rule 2 (o)). A ticket of class light,
-# never in a group; as the head no SPACING and no reading while AT_ONCE names light; on LIGHT_PIN (the
+# never in a group; as the head no host gate and no reading while AT_ONCE names light; on LIGHT_PIN (the
 # run CPUs under RUN_LAND_UNIT); after its pass it takes the light core's lock for its work.
 # A PLANNING LAND: the skip decision answered, the branch starts with one of admission.planning.branches,
 # and every path its commits change since the merge-base with main — less the paths the engine's own
@@ -4219,9 +4302,9 @@ def report(main) -> "dict | None":
                                            "since": e.get("since_ts")})
         h = hold_read(p) if Path(p["hold"]).exists() else None
         if h is not None:              # judged by hold_now()'s own end tests, without its removal (T-14358)
-            end = hold_end(h, s, time.time())
+            end = hold_end(h, s, time.time(), p)
             fence = [{"pid": e["pid"], "kind": e["kind"]} for e in out["holders"]
-                     if h.get("card") and e["task"] == h["card"]] if end and end[0] != "off" else []
+                     if h.get("card") and e["task"] == h["card"]] if end and end[0] not in ("off", "ended") else []
             out["hold"] = {"card": h.get("card"), "set_ts": h.get("set_ts"), "unreadable": bool(h.get("unreadable")),
                            "set_at": h["set_at"],
                            "ends_at": h["set_at"] + s["GREEN_HOLD"] if s["GREEN_HOLD"] else None,

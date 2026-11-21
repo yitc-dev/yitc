@@ -125,10 +125,12 @@ body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-af
   \ the absorption's journal row carry it. In a task's mode (a) it is given on\nthe\
   \ re-audit run, and that run's absorption journal row carries it (a plan gate's\
   \ mode-(a) re-audit has\nno absorption row, so there it stays in the edited plan\
-  \ text). An absorption given\nwithout it still proceeds and is recorded as not stated,\
-  \ so a miss is countable rather than silent; no\ngate refuses it.\nA later round\
-  \ that finds a defect in an earlier round's fix — an absorbed finding or a RED fix\
-  \ — is the\npatch-on-patch signal: CHARTER §Failure trigger.\n\n### Auditor-tier\
+  \ text; a plan gate's `fix` decision at its\nceiling states it on `audit decide\
+  \ --plan … --disposition fix --sweep`, and its decision row carries\nit, SPEC-1039\
+  \ rule 2). An absorption given\nwithout it still proceeds and is recorded as not\
+  \ stated, so a miss is countable rather than silent; no\ngate refuses it.\nA later\
+  \ round that finds a defect in an earlier round's fix — an absorbed finding or a\
+  \ RED fix — is the\npatch-on-patch signal: CHARTER §Failure trigger.\n\n### Auditor-tier\
   \ policy — routine vs FULL, and no relitigation of a FULL-settled point\nTwo standing\
   \ policies.\n\n- **(b) Tier selection — doctrine/scope-sensitive gates default to\
   \ FULL.** The BASE tier guidance\n  lives in AGENTS §External auditor (FULL for\

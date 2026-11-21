@@ -145,6 +145,16 @@ In the measured run, card skeletons generated from the plan's units closed 95 of
 real cut before any external check, once the seams and guards were filled in. Filling them is the
 project's work; `plan show <slug> --unit-skeletons` prints the skeletons it fills.
 
+**A draft document that disagrees with a carried registry item is an owner question before accept.**
+For a sandbox exit the plan carries the prototype registry (SPEC-1058). Where a draft document — a
+rights matrix, a seam map, a guards row, an ADR — prescribes something different from a registry
+item the plan carries, the difference is not settled in a card: before `plan stage accepted` the
+owner answers, and the answer is recorded either as an `owner_row` amendment of the item (SPEC-1058
+§2 — the amended item then holds in every check) or as the document corrected to the item. In one
+measured run a card followed a rights matrix that forbade grants the registry carried; the
+decomposition-fidelity gate (SPEC-0070) went RED on it, and the registry was amended after accept at
+the price of one more change check.
+
 ## §What the auditor reads — and what it does not
 
 **The external auditor never reads these documents whole.** They are project documents; a plan

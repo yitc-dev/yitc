@@ -13499,7 +13499,7 @@ def worker_fit_line(fit) -> str:
             else "verify cost not measured yet")
     return (f"workers: this host ({fit['nproc']} CPUs) fits {fit['recommended']} parallel worker(s) "
             f"for this project ({cost}) — report-only, not a limit; verify runs and lands still pass one at "
-            f"a time per repo, because a land re-uses its run's green result (SPEC-1045 rule 6)")
+            f"a time per repo, because a land re-uses its run's green result (SPEC-1063 rule 6)")
 
 
 def cmd_journal_dispatch_readiness(args: argparse.Namespace, *, DISPATCH_WAVE_WINDOW_SEC, _cpu_count, _load_avg, _dispatch_status_events, _live_land_frontier, _live_claimed_task_ids, _land_proc_alive, _session_proc_alive, _parse_iso_ts, _work_land_proc_alive=_work_land_proc_alive, _events_path=None) -> None:
@@ -13618,7 +13618,7 @@ def _admission_report(*, main_wt, events_path, stage6_limits, _stage6_waiters, _
     itself: a journal that is not a readable file sets `waiters_readable: false` on both pools and the
     text says the waiters are unknown — never "no waiters" (audit-pre finding 2).
 
-    queue — T-14195 (SPEC-1045 rule 2 (e)): while the repo's admission queue is switched on,
+    queue — T-14195 (SPEC-1063 rule 2 (e)): while the repo's admission queue is switched on,
     `_queue_report()` (the queue module's own read-only reader) adds a third pool: the tickets in their
     order, the work it let pass, the green hold. Switched off it answers None and the report is as
     before; a reader that fails is reported unreadable, never as an empty queue."""
@@ -13999,7 +13999,7 @@ def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
         return
     print("admission (read-only — no lock taken, nothing written):")
     for p in report["pools"]:
-        if p["pool"] == "queue":                    # T-14195 — the SPEC-1045 queue, while switched on
+        if p["pool"] == "queue":                    # T-14195 — the SPEC-1063 queue, while switched on
             _print_admission_queue(p)
             continue
         if not p["configured"]:
@@ -14025,8 +14025,8 @@ def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
 
 
 def _print_admission_queue(p: dict) -> None:
-    """T-14195 — the text form of the SPEC-1045 queue pool of `journal query --admission`."""
-    print(f"  queue (SPEC-1045, {p.get('switch') or 'switched on'}):")
+    """T-14195 — the text form of the SPEC-1063 queue pool of `journal query --admission`."""
+    print(f"  queue (SPEC-1063, {p.get('switch') or 'switched on'}):")
     if not p.get("readable", True):
         print(f"    state unknown (could not be read: {p.get('error') or '?'}) — never read as an empty queue")
         return
@@ -14086,7 +14086,7 @@ def _print_admission_soak(sk) -> None:
 
 
 def _print_soak_unknown(m: dict) -> None:
-    """T-14294 (SPEC-1045 rule 2 (e)) — name each UNKNOWN of a soak measure: a result row naming a pass
+    """T-14294 (SPEC-1063 rule 2 (e)) — name each UNKNOWN of a soak measure: a result row naming a pass
     that has no row, or a land pass no land_completed names."""
     for u in m.get("unknown") or []:
         if u.get("why") == "admitting-pass-row-missing":

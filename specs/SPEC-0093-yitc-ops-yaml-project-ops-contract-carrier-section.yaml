@@ -462,7 +462,12 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ OWN half of this atom is lockfile presence:\n  a manifest with no committed lockfile\
   \ is refused. Discovery, what \"committed\" means, when a\n  `requirements.txt`\
   \ counts as its own lock, and the ONE narrow dependency-free exemption are\n  stated\
-  \ under THE DEPENDENCY ATOM'S KERNEL HALF below.\n- `verify.floor.probes.command`\
+  \ under THE DEPENDENCY ATOM'S KERNEL HALF below.\n- `verify.floor.dependencies.inputs`\
+  \ — OPTIONAL list of the files the dependencies command reads,\n  each a LITERAL\
+  \ repo-relative file path (no glob character, not absolute, no `.`/`..`/empty part).\n\
+  \  Read from the TRUSTED BASE only, like the command. An absent, empty or malformed\
+  \ list declares\n  nothing: the command runs on every land. What a declaration admits\
+  \ (the dependencies memo) is\n  SPEC-0163 §4b.\n- `verify.floor.probes.command`\
   \ — OPTIONAL, additive. `verify.floor.probes.max_age_days` — OPTIONAL\n  positive\
   \ int, DEFAULT 30: the freshness bound on the latest recorded verdict for each declared\n\
   \  `security.probes[]` entry (rule 8). A malformed value is REFUSED, never silently\
@@ -1296,4 +1301,4 @@ implements_signature:
   bin/lib/init.py#_integrity_graph_for_commit: 10ed757dd5ca1c461a0922f799e12994807de506e6a23b764b3f1b750d449b63
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
   bin/lib/init.py#cmd_init: dfd018d07767dad02fc48b3ed2532315cb1f12f7f67355d95f4e973c5f4b213c
-  bin/lib/worktree.py#_any_author_land_floor: 0043829235509924a5949f7b0b03d611b3ebdc978311a2aa22d78172cc1372cc
+  bin/lib/worktree.py#_any_author_land_floor: a71ff21cd1b6c3845d0254af6a24fd0c012bb6ed54b63582f62569bb62f9bf6a

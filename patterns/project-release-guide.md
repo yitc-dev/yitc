@@ -457,7 +457,7 @@ observations.
 
 ### D3. The queue it needs
 
-The run takes its place in the project's common queue of runs and lands (SPEC-1045), so the queue must
+The run takes its place in the project's common queue of runs and lands (SPEC-1063), so the queue must
 be on: `admission.mode: engine` in `yitc-ops.yaml`, and no `YITC_ADMISSION_ENGINE=off` veto on the
 machine. With the queue off the command is refused before it runs, naming the switch (and the veto
 when that is what holds it off), and writes no row. Once on, the run waits its turn behind the lands

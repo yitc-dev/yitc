@@ -134,52 +134,56 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ not yet\ndone; `worktree park` (discard the branch; the card stays `ready` on\
   \ main — QUEUE §Prematurely-\nclosed-unlanded) for a done-but-unlanded card; or\
   \ a NEW card. RED audit status is DISTINCT from land\neligibility: `land` keeps\
-  \ its SPEC-0077 audit-currency gate unchanged and reads nothing here.\n\n**THE ADMISSION\
-  \ PRECONDITION ON A TERMINAL-BEARING PASS — RETIRED (SPEC-1038).** <workshop-spec>\
-  \ refused a\nterminal-bearing pass while the engine's own Stage-6 ledger provably\
-  \ did not cover the audited\ncommit (its items (a)-(d)). Under the post-audit Tests\
-  \ order every card runs its governed\ntest run AFTER audit-post, so a missing run\
-  \ before a terminal-bearing pass is the normal ordering:\nno pass is refused on\
-  \ ledger coverage, and no `stage6-evidence-stale` refusal exists. The coverage\n\
-  obligation that precondition protected is carried at Closure by SPEC-1038 §Tests\
-  \ «Closure-time\ncoverage», the one home of that check (not restated here). An auditor\n\
-  finding that asserts missing test proof for a card is not a substantive RED (SPEC-1040,\
-  \ the\npost-audit packet clause). TERMINALITY ITSELF IS UNCHANGED: a substantive\
-  \ RED terminalizes exactly\nas before, and an ALREADY-terminal stage keeps saying\
-  \ TERMINAL. There is one order for every card\nfrom the moment the land that activates\
-  \ this spec and SPEC-1038 together reaches it — an engine\ncard at that land, a\
-  \ consumer's card once that engine version serves the consumer (SPEC-1038\n§Tests\
-  \ «One order for every card»; owner, option A,\nevents.jsonl#ts=); passes recorded\
-  \ before that land were judged under <workshop-spec>\nand are not re-judged.\nDecisions\
-  \ from `main`'s journal are visible to an audit running in the card's worktree through\
-  \ the\nEXISTING SPEC-0168 folded corpus (`_folded_journal_events`: worktree journal\
-  \ ∪ main journal); the packet ADMITS a folded row by type CLASS (SPEC-0168 rule\
-  \ 2),\nso `ceiling_decision` is REGISTERED as a task-subject evidence class in that\
-  \ reader and the\n`--on-decisions` admission reads the same corpus — no new transport,\
-  \ one explicit registration.\n\n### 4. Custody — a decision binds to its ceiling\
-  \ row and is SPENT by the pass\nA `ceiling_decision` binds to ONE `ceiling_ref`\
-  \ + fingerprint (computed at the ceiling row's\n`subject_revision`) and STAYS bound\
-  \ there while a `fix`'s new revision is audited — the new revision is\nexactly what\
-  \ the decision names, so it never invalidates the decision that admits the pass.\
-  \ The\n`--on-decisions` pass consumes the decisions: a later RED\nat the same stage\
-  \ is a NEW ceiling row (new fingerprints, no inherited decisions) — and by rule\
-  \ 3 it\nis terminal, so it is reached only through the one admitted pass. A `fix`\
-  \ never makes any revision\nother than its named `evidence_revision` auditable;\
-  \ `accept` never carries across revisions at\naudit-POST — at audit-PRE an all-`accept`/`defer`\
-  \ set is plan-fingerprint-agnostic (rule 3),\nso a plan edited after the ceiling\
-  \ pass is answered at ADMISSION, never by a re-recorded decision. Done-but-\nunlanded\
-  \ cards take rules 2-3 under `--reaudit-after-close` exactly as the rework-in-place\
-  \ route does\ntoday (QUEUE §Prematurely-closed-unlanded); the subject is HEAD of\
-  \ the branch, by that route's own\ncontract.\n**APPEND-ONLY HOLDS, AND RULE 3's\
-  \ ANCESTRY CLAUSE IS WHY IT COSTS NOTHING.** The continued\nvalidity of a decision\
-  \ across the commits the lifecycle mandates after it is DERIVED at ADMISSION, by\n\
-  ancestry (rule 3) — NEVER by re-recording the decision. A recorded `ceiling_decision`\
-  \ is never edited,\nre-issued or superseded to track a moved subject, by the Controller\
-  \ or by anyone else; the row stays\nexactly as written and the admission asks git\
-  \ whether the CURRENT subject CONTAINS the revision that\nrow names.\n**A RE-SHIP\
-  \ AFTER A GOVERNED TESTS RUN STAYS ON THE SAME ROW (SPEC-1038).** A re-ship on a\
-  \ card with\nANY runner-marked governed run (`tests_passed` or `tests_failed`) recorded\
-  \ after its NEWEST\n`audit_post_completed` (journal order, never second-resolution\
+  \ its SPEC-0077 audit-currency gate unchanged and reads nothing here.\nA ceiling\
+  \ row that holds NO residual (a GREEN one) gives `audit decide` nothing to bind:\
+  \ the card's\nowner-reset commit past it, citing the owner's directive, takes the\
+  \ ONE pass of SPEC-1018's\n«Owner-reset commit, no residual» row instead, and a\
+  \ RED or YELLOW on that pass is an ordinary\nceiling row with residuals that this\
+  \ route then governs.\n\n**THE ADMISSION PRECONDITION ON A TERMINAL-BEARING PASS\
+  \ — RETIRED (SPEC-1038).** <workshop-spec> refused a\nterminal-bearing pass while\
+  \ the engine's own Stage-6 ledger provably did not cover the audited\ncommit (its\
+  \ items (a)-(d)). Under the post-audit Tests order every card runs its governed\n\
+  test run AFTER audit-post, so a missing run before a terminal-bearing pass is the\
+  \ normal ordering:\nno pass is refused on ledger coverage, and no `stage6-evidence-stale`\
+  \ refusal exists. The coverage\nobligation that precondition protected is carried\
+  \ at Closure by SPEC-1038 §Tests «Closure-time\ncoverage», the one home of that\
+  \ check (not restated here). An auditor\nfinding that asserts missing test proof\
+  \ for a card is not a substantive RED (SPEC-1040, the\npost-audit packet clause).\
+  \ TERMINALITY ITSELF IS UNCHANGED: a substantive RED terminalizes exactly\nas before,\
+  \ and an ALREADY-terminal stage keeps saying TERMINAL. There is one order for every\
+  \ card\nfrom the moment the land that activates this spec and SPEC-1038 together\
+  \ reaches it — an engine\ncard at that land, a consumer's card once that engine\
+  \ version serves the consumer (SPEC-1038\n§Tests «One order for every card»; owner,\
+  \ option A,\nevents.jsonl#ts=); passes recorded before that land were judged under\
+  \ <workshop-spec>\nand are not re-judged.\nDecisions from `main`'s journal are visible\
+  \ to an audit running in the card's worktree through the\nEXISTING SPEC-0168 folded\
+  \ corpus (`_folded_journal_events`: worktree journal ∪ main journal); the packet\
+  \ ADMITS a folded row by type CLASS (SPEC-0168 rule 2),\nso `ceiling_decision` is\
+  \ REGISTERED as a task-subject evidence class in that reader and the\n`--on-decisions`\
+  \ admission reads the same corpus — no new transport, one explicit registration.\n\
+  \n### 4. Custody — a decision binds to its ceiling row and is SPENT by the pass\n\
+  A `ceiling_decision` binds to ONE `ceiling_ref` + fingerprint (computed at the ceiling\
+  \ row's\n`subject_revision`) and STAYS bound there while a `fix`'s new revision\
+  \ is audited — the new revision is\nexactly what the decision names, so it never\
+  \ invalidates the decision that admits the pass. The\n`--on-decisions` pass consumes\
+  \ the decisions: a later RED\nat the same stage is a NEW ceiling row (new fingerprints,\
+  \ no inherited decisions) — and by rule 3 it\nis terminal, so it is reached only\
+  \ through the one admitted pass. A `fix` never makes any revision\nother than its\
+  \ named `evidence_revision` auditable; `accept` never carries across revisions at\n\
+  audit-POST — at audit-PRE an all-`accept`/`defer` set is plan-fingerprint-agnostic\
+  \ (rule 3),\nso a plan edited after the ceiling pass is answered at ADMISSION, never\
+  \ by a re-recorded decision. Done-but-\nunlanded cards take rules 2-3 under `--reaudit-after-close`\
+  \ exactly as the rework-in-place route does\ntoday (QUEUE §Prematurely-closed-unlanded);\
+  \ the subject is HEAD of the branch, by that route's own\ncontract.\n**APPEND-ONLY\
+  \ HOLDS, AND RULE 3's ANCESTRY CLAUSE IS WHY IT COSTS NOTHING.** The continued\n\
+  validity of a decision across the commits the lifecycle mandates after it is DERIVED\
+  \ at ADMISSION, by\nancestry (rule 3) — NEVER by re-recording the decision. A recorded\
+  \ `ceiling_decision` is never edited,\nre-issued or superseded to track a moved\
+  \ subject, by the Controller or by anyone else; the row stays\nexactly as written\
+  \ and the admission asks git whether the CURRENT subject CONTAINS the revision that\n\
+  row names.\n**A RE-SHIP AFTER A GOVERNED TESTS RUN STAYS ON THE SAME ROW (SPEC-1038).**\
+  \ A re-ship on a card with\nANY runner-marked governed run (`tests_passed` or `tests_failed`)\
+  \ recorded after its NEWEST\n`audit_post_completed` (journal order, never second-resolution\
   \ `ts` — SPEC-1038 §Tests) does NOT open a new ceiling row: its re-audit is the\
   \ next pass on the SAME\nrow as the audit it reopens, so repeated fixes after Tests\
   \ reach the ceiling and this spec's\ndecision route — or, ONCE, after a GREEN rule-3\
@@ -188,19 +192,21 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ an explicit\n`stage Commit` included, and never by that run's verdict, so a green\
   \ run on an unaudited fix\ncannot reset the row. The new-row rule (SPEC-1041 «At-ceiling\
   \ edge cases», the successor of <workshop-spec>) keeps\ngoverning only the GREEN\
-  \ second ship: a re-ship after a GREEN audit-post with no governed run\nsince it.\n\
-  \n### 5. No-answer\nAn auditor response with no payload (timeout, transport failure,\
-  \ empty stdout) on the `--on-decisions`\npass is the EXISTING no-outcome class (<workshop-spec>\
-  \ `is_no_data_verdict`): ABORT/environmental, never\nGREEN, never a spent pass,\
-  \ the decisions untouched. ONE attempt per trigger; a retry is an explicit\nController\
-  \ re-invocation of the same verb, never automatic.\n\n### 6. Retirements (CHARTER\
-  \ §P1 F3 — a POSITIVE list; nothing outside it changes)\nThe retired list and its\
-  \ refusals are homed in <workshop-spec> §Audit-loop ceiling. `audit consult\n--on-demand`\
-  \ (the BELOW-ceiling technical-fork pick, <workshop-spec>) is not on the list and\
-  \ is unchanged. Retired flags survive only as refusal\nshims (print the pointer,\
-  \ exit nonzero) until this contract's plan is `realized`, then are deleted.\nALSO\
-  \ RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication consult\
-  \ and with it\nevery episode a plan gate could open — so the `malformed-exhausted`\
+  \ second ship: a re-ship after a GREEN audit-post with no governed run\nsince it,\
+  \ of a commit that GREEN does not already cover, on a row not past the ceiling —\
+  \ the\naudit door (its `--preview` included) and the `task commit --reship` door\
+  \ read that one predicate.\n\n### 5. No-answer\nAn auditor response with no payload\
+  \ (timeout, transport failure, empty stdout) on the `--on-decisions`\npass is the\
+  \ EXISTING no-outcome class (<workshop-spec> `is_no_data_verdict`): ABORT/environmental,\
+  \ never\nGREEN, never a spent pass, the decisions untouched. ONE attempt per trigger;\
+  \ a retry is an explicit\nController re-invocation of the same verb, never automatic.\n\
+  \n### 6. Retirements (CHARTER §P1 F3 — a POSITIVE list; nothing outside it changes)\n\
+  The retired list and its refusals are homed in <workshop-spec> §Audit-loop ceiling.\
+  \ `audit consult\n--on-demand` (the BELOW-ceiling technical-fork pick, <workshop-spec>)\
+  \ is not on the list and is unchanged. Retired flags survive only as refusal\nshims\
+  \ (print the pointer, exit nonzero) until this contract's plan is `realized`, then\
+  \ are deleted.\nALSO RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication\
+  \ consult and with it\nevery episode a plan gate could open — so the `malformed-exhausted`\
   \ episode terminal is UNREACHABLE\nfor a plan gate, asserted by a `graph conformance`\
   \ probe that reads the SAME retirement carrier the\nrefusal shim reads; the plan-gate\
   \ `--owner-reset` continuation on the FSM-advancing gate verb, whose\nbasis WAS\

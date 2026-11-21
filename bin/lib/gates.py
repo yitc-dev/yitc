@@ -164,7 +164,9 @@ def red_run_after_last_commit(rows, bookkeeping_kinds=()) -> bool:
             continue
         if ev.get("type") == "commit_landed":
             data = ev.get("data")
-            if not (isinstance(data, dict) and data.get("kind") in bookkeeping_kinds):
+            kind = data.get("kind") if isinstance(data, dict) else None
+            # T-14706 — a non-string kind is not a bookkeeping kind (and must not be hashed).
+            if not (isinstance(kind, str) and kind in bookkeeping_kinds):
                 last_commit = i
         v = governed_run_verdict(ev)
         if v:

@@ -118,31 +118,31 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ changes a threshold by a card editing that section, never through\n  the project\
   \ door (rule 7).\n  DECLARATION — the project's `yitc-ops.yaml`, in the section\
   \ the key's governing spec registers\n  through its `concern:` block (for the admission\
-  \ keys: `admission:`, SPEC-1045), read from the MAIN\n  checkout, then the built-in\
-  \ default. As for THRESHOLD, the environment is not read and the machine\n  file\
-  \ never carries one.\n  PERFORMANCE and BINDING — environment > machine file > built-in\
-  \ default; the environment stays the\n  deterministic test seam (BINDING's own resolution\
-  \ as SPEC-0202 defines).\n  VETO — a closed-set key one of whose values disables\
-  \ a mechanism (for the admission:\n  `YITC_ADMISSION_ENGINE`, value `off`) is read\
-  \ toward that value: it takes the disabling value when\n  ANY source above says\
-  \ so, whatever the others say, so a process environment can never keep a\n  mechanism\
-  \ on after `config set` turned it off. Its other values keep the ordinary order.\
-  \ A key is a\n  VETO only when its governing spec names it so.\n\nRULE 5 — THE `thresholds:`\
-  \ SECTION. An opt-in `yitc-ops.yaml` section registered by this spec's\n`concern:`\
-  \ block (SPEC-0128 rule 3; the additive route SPEC-0093 rule 1 provides). A mapping\
-  \ from\ninventory names of THRESHOLD class to values. An absent or malformed section\
-  \ (not a mapping, e.g. a\nlist) or an absent key means the built-in default; a key\
-  \ that is unknown, not THRESHOLD class, or\noutside its band is ignored with one\
-  \ report-only line naming it and the built-in default stands.\nNothing in the section\
-  \ ever fails a land. A DECLARATION section follows the same absent / malformed /\n\
-  unknown handling: an entry that is unknown, not DECLARATION class, or outside its\
-  \ declared set or\nshape is ignored with one report-only line, and the built-in\
-  \ default stands.\n\nRULE 6 — THE VALUE IN FORCE IS RECORDED. `config set` journals\
-  \ `config_changed` (key, old, new,\nclass) as before; from the project door (rule\
-  \ 7) the row also carries `scope: project`. The row a run already writes names every\
-  \ opened BUDGET that bounded it, value and\nsource, whether the run passed, failed\
-  \ or was ended by it (for the land-verify per-file bound: the\nland and Stage-6\
-  \ rows' bound-in-force fields `verify_test_timeout_s` / `verify_test_timeout_source`,\n\
+  \ keys: `admission:`, <workshop-spec>), read from the MAIN\n  checkout, then the\
+  \ built-in default. As for THRESHOLD, the environment is not read and the machine\n\
+  \  file never carries one.\n  PERFORMANCE and BINDING — environment > machine file\
+  \ > built-in default; the environment stays the\n  deterministic test seam (BINDING's\
+  \ own resolution as SPEC-0202 defines).\n  VETO — a closed-set key one of whose\
+  \ values disables a mechanism (for the admission:\n  `YITC_ADMISSION_ENGINE`, value\
+  \ `off`) is read toward that value: it takes the disabling value when\n  ANY source\
+  \ above says so, whatever the others say, so a process environment can never keep\
+  \ a\n  mechanism on after `config set` turned it off. Its other values keep the\
+  \ ordinary order. A key is a\n  VETO only when its governing spec names it so.\n\
+  \nRULE 5 — THE `thresholds:` SECTION. An opt-in `yitc-ops.yaml` section registered\
+  \ by this spec's\n`concern:` block (SPEC-0128 rule 3; the additive route SPEC-0093\
+  \ rule 1 provides). A mapping from\ninventory names of THRESHOLD class to values.\
+  \ An absent or malformed section (not a mapping, e.g. a\nlist) or an absent key\
+  \ means the built-in default; a key that is unknown, not THRESHOLD class, or\noutside\
+  \ its band is ignored with one report-only line naming it and the built-in default\
+  \ stands.\nNothing in the section ever fails a land. A DECLARATION section follows\
+  \ the same absent / malformed /\nunknown handling: an entry that is unknown, not\
+  \ DECLARATION class, or outside its declared set or\nshape is ignored with one report-only\
+  \ line, and the built-in default stands.\n\nRULE 6 — THE VALUE IN FORCE IS RECORDED.\
+  \ `config set` journals `config_changed` (key, old, new,\nclass) as before; from\
+  \ the project door (rule 7) the row also carries `scope: project`. The row a run\
+  \ already writes names every opened BUDGET that bounded it, value and\nsource, whether\
+  \ the run passed, failed or was ended by it (for the land-verify per-file bound:\
+  \ the\nland and Stage-6 rows' bound-in-force fields `verify_test_timeout_s` / `verify_test_timeout_source`,\n\
   and a declared layer's `timeout_s` / `timeout_source`). The duty is an opened budget's:\
   \ the audit\ntimeouts stay BINDING (rule 3(b)). A result or a report-only signal\
   \ that an opened\nTHRESHOLD decided names that threshold value and its source on\
@@ -287,7 +287,6 @@ cites:
 - SPEC-0084
 - CHARTER.md#principle-1
 - SPEC-0186
-- SPEC-1045
 requires: []
 supersedes: null
 activation_owner_task: null
@@ -324,10 +323,10 @@ implements_signature:
   bin/lib/cli.py#cmd_config_set: 892b3ecb784c1965faf00d3c54bc4d9784893b7fb07fe21250a09d330c69be61
   bin/lib/debt.py#_lane_bound: 09607422d04a15cbe2870c596c7d96421c17f394a592a71914e8f2d801bc6b8f
   bin/lib/machine_settings.py#ENTRYPOINTS: 7bdf6b9e29cc3e6d932c42a3698852b03a1ff29d273cee9b60c1c3ccff8247d0
-  bin/lib/machine_settings.py#INVENTORY: 5c8d9015c8cb0ef6d20db65b5e3d9441b962476ae24d387dd8538431b31ab1eb
+  bin/lib/machine_settings.py#INVENTORY: c42d66638a7ba3ac6375486418e588ba502693b9af26d2266fea8527c316b7d6
   bin/lib/machine_settings.py#_refuse_gate: dbce067d64b1b76a2f863ac73392118f9d149f42caa82b59c29db9336a733839
-  bin/lib/machine_settings.py#admission_settings: 9ceb7f27b872f90617a88eac66f25e52053e6af8f780c34c8a8616ddb3a4bc90
-  bin/lib/machine_settings.py#admission_switch: 956af3582090e20665537c05022d425a91f47ab88d9052cc448269b5f1b05e87
+  bin/lib/machine_settings.py#admission_settings: 2042ce6146ab53a2d4a6a6a7bf7ee5a34a17a0cf3ed46d75bba5ea9201519337
+  bin/lib/machine_settings.py#admission_switch: 66ffdbd634d73800f1dd948a34852c98d53d53dbdf427c988394f6bc9d93e5dd
   bin/lib/machine_settings.py#applied: 19d08eec15506a060363305ace7742a238fc0a0bf52792df4640fe83561cb944
   bin/lib/machine_settings.py#in_force: 1fe1a6e2f54a6bc0b9586248d8160d2639049ae2221f13b257e1f46af7b28016
   bin/lib/machine_settings.py#load: b54b77b69340f21b531159b64006aba1d807419c1c6b3a3afe8c86c89ce1fd63
@@ -336,4 +335,4 @@ implements_signature:
   bin/lib/machine_settings.py#say_notes: 29f7cd98e2e92d966f0bb000379ebfe8ee248ec033bcc0948c01849948daba5e
   bin/lib/machine_settings.py#set_project_threshold: 537fe9f67ce7392e401f4c4cdc5045b88b5f1ce9be4c3811e3db715be1c84fa9
   bin/lib/machine_settings.py#set_value: bb6f67d78b6a4e9eec1f00fbf9994f2c49d49c786fe8c251012e9512605548e4
-  bin/lib/machine_settings.py#verify_switches: 543327fb2009086ffb9f64cc8ef0f895b949d789ae796170dc23d2036bada695
+  bin/lib/machine_settings.py#verify_switches: 2f1046949f3d9af4fd5514e4a194c63cfaa8d57c1704fe5815712c5518e8db7e

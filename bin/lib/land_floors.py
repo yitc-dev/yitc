@@ -1975,10 +1975,110 @@ def _floor_diff_bookkeeping_only(worktree: Path, base_ref, _run_git_cap, allowli
     return bool(paths) and all(_path_is_bookkeeping(p, allowlist) for p in paths)
 
 
+#: T-14743 (SPEC-0163 §4b) — the one floor atom the dependencies memo applies to.
+_FLOOR_MEMO_ATOM = "dependencies"
+
+
+def _floor_memo_declared_inputs(entry) -> "list | None":
+    """T-14743 — the `verify.floor.dependencies.inputs` paths of the TRUSTED BASE's entry, or None
+    (no memo) when the list is absent, empty, or any entry is not a literal repo-relative file path
+    (a glob character, an absolute path, a `..` part, an empty part)."""
+    raw = (entry or {}).get("inputs") if isinstance(entry, dict) else None
+    if not isinstance(raw, list) or not raw:
+        return None
+    out = []
+    for p in raw:
+        if not isinstance(p, str) or not p or p != p.strip() or any(c in p for c in "*?[]{}\\"):
+            return None
+        if p.startswith("/") or any(part in ("", ".", "..") for part in p.split("/")):
+            return None
+        out.append(p)
+    return sorted(set(out))
+
+
+def _floor_memo_key(worktree: Path, cmd: str, declared: list, inventory, program_bytes: list,
+                    _run_git_cap, *, _FLOOR_MANIFEST_LOCKS=_FLOOR_MANIFEST_LOCKS) -> "str | None":
+    """T-14743 — the memo key of a dependencies command over its inputs, or None (no memo: the
+    command runs). The inputs are the declared paths plus every `_FLOOR_MANIFEST_LOCKS` manifest or
+    lock name in the one tracked inventory. CONSERVATIVE (owner_directive events.jsonl#ts=
+    2026-11-20T17:27:31Z): every input must be a TRACKED path whose bytes on disk are its index blob —
+    a declared input that is git-ignored, untracked, a directory, absent or modified turns the memo
+    OFF, so a file git does not hold is never fingerprinted. Any read fault answers None."""
+    try:
+        if inventory is None or not declared or _run_git_cap is None:
+            return None
+        tracked = set(inventory)
+        names = {m for m, _ in _FLOOR_MANIFEST_LOCKS} | {lk for _, locks in _FLOOR_MANIFEST_LOCKS for lk in locks}
+        inputs = sorted(set(declared) | {p for p in tracked if p.rsplit("/", 1)[-1] in names})
+        if any(p not in tracked for p in declared):
+            return None
+        r = _run_git_cap(["ls-files", "-s", "-z", "--", *inputs], worktree)
+        if getattr(r, "returncode", 1) != 0:
+            return None
+        index = {}
+        for rec in (r.stdout or "").split("\0"):
+            if not rec:
+                continue
+            meta, _, path = rec.partition("\t")
+            parts = meta.split()
+            if len(parts) != 3 or parts[2] != "0" or not parts[0].startswith("100"):
+                return None                            # a symlink, gitlink or conflict entry: no memo
+            index[path] = parts[1]
+        pairs = []
+        for p in inputs:
+            blob = index.get(p)
+            f = Path(worktree) / p
+            if blob is None or f.is_symlink() or not f.is_file():
+                return None
+            data = f.read_bytes()
+            algo = hashlib.sha256 if len(blob) == 64 else hashlib.sha1
+            if algo(b"blob %d\0" % len(data) + data).hexdigest() != blob:
+                return None                            # differs from its index entry
+            pairs.append([p, blob])
+        doc = {"v": 1, "command": cmd, "declared": declared,
+               "programs": [hashlib.sha256(b).hexdigest() for b in program_bytes], "inputs": pairs}
+        return hashlib.sha256(json.dumps(doc, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    except Exception:                                  # noqa: BLE001 — unknown: the command runs
+        return None
+
+
+def _floor_memo_prior(worktree: Path, key: str, base_ref, _run_git_cap, *,
+                      _FLOOR_MEMO_ATOM=_FLOOR_MEMO_ATOM) -> "dict | None":
+    """T-14743 — the prior green run of the dependencies command under `key`: the NEWEST ok
+    `land_completed` row of the worktree's logical journal whose kernel-floor `passed` atoms hold a
+    REAL (not itself memoized) run of it with `inputs == key`, found by the shared whole-history
+    locator (`journal.locate_event`, newest-first), AND whose exact bytes are on main at the trusted
+    base (`_floor_journal_row_on_main` is True — a candidate-written row never counts). `{ts, branch}`
+    or None (no prior: the command runs). Only the newest match is judged: when it is not on main the
+    answer is None, never an older row. Never raises."""
+    def _is_prior(ev) -> bool:
+        d = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+        return (ev.get("type") == "land_completed" and d.get("status") == "ok"
+                and any(isinstance(ly, dict) and ly.get("layer") == "kernel-floor" and ly.get("outcome") == "passed"
+                        and any(isinstance(a, dict) and a.get("atom") == _FLOOR_MEMO_ATOM and a.get("inputs") == key
+                                and a.get("exit") == 0 and "memo" not in a for a in (ly.get("atoms") or []))
+                        for ly in (d.get("consumer_verify_layers") or [])))
+    try:
+        found = journal_mod.locate_event(Path(worktree) / "events.jsonl", key, _is_prior)
+        if not found:
+            return None
+        ev, seg, off = found
+        with open(seg, "rb") as fh:
+            fh.seek(off)
+            line = fh.readline().decode("utf-8").rstrip("\n")
+        if _floor_journal_row_on_main(line, ev.get("ts"), worktree, base_ref, _run_git_cap, {}) is True:
+            return {"ts": ev.get("ts"), "branch": (ev.get("data") or {}).get("branch")}
+        return None
+    except Exception:                                  # noqa: BLE001 — unknown: the command runs
+        return None
+
+
 def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_seconds,
                             base_ref=None, _run_git_cap=None, candidate_floor=None, repairs_out=None,
                             passed_out=None, *, _FLOOR_ATOMS=_FLOOR_ATOMS, _floor_command_env, _floor_trusted_executable,
-                            _floor_repair_kind, _run_layer_command, _layer_kill, _append_event=None) -> list:
+                            _floor_repair_kind, _run_layer_command, _layer_kill, _append_event=None,
+                            inventory=None, _FLOOR_MEMO_ATOM=_FLOOR_MEMO_ATOM,
+                            _floor_memo_key=None, _floor_memo_prior=None) -> list:
     """Every declared `verify.floor.<atom>.command` — run BESIDE its kernel check, on every branch
     and under every profile. ADDITIVE BY CONSTRUCTION: a command exiting 0 rescues nothing (the
     kernel atoms above have already spoken), and a non-zero exit is its own refusal.
@@ -2160,6 +2260,31 @@ def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_se
                 out.append(refusal)
                 continue
             materialized = next((a for a in argv if isinstance(a, str) and a.startswith(tmpdir)), None)
+            # T-14743 (SPEC-0163 §4b) — THE DEPENDENCIES MEMO: the command is not re-run when its
+            # command, trusted-base program bytes and declared inputs equal a green run on main at
+            # this base. Undeclared, unknown or any differing input -> the command runs, as before.
+            memo_key = None
+            _memo_key_fn = _floor_memo_key or globals()["_floor_memo_key"]
+            _memo_prior_fn = _floor_memo_prior or globals()["_floor_memo_prior"]
+            declared = _floor_memo_declared_inputs(entry) if atom == _FLOOR_MEMO_ATOM else None
+            if declared and base_ref:
+                try:
+                    progs = [Path(materialized).read_bytes()] if materialized else []
+                except OSError:
+                    progs = None
+                if progs is not None:
+                    memo_key = _memo_key_fn(worktree, cmd, declared, inventory, progs, _run_git_cap)
+            if memo_key:
+                prior = _memo_prior_fn(worktree, memo_key, base_ref, _run_git_cap)
+                if prior:
+                    print(f"land(floor): `verify.floor.{atom}.command` NOT re-run — its command, "
+                          f"trusted-base program and declared inputs equal the green run recorded on "
+                          f"main at {prior.get('ts')} ({prior.get('branch')}); the floor holds on that "
+                          f"proof (SPEC-0163 §4b, T-14743).")
+                    if passed_out is not None:
+                        passed_out.append({"atom": atom, "command": cmd, "exit": 0, "inputs": memo_key,
+                                           "memo": prior})
+                    continue
             # T-14085 (public issue #166): the verify layers' group-reaping launch — the atom leads
             # its own session, and at the bound its WHOLE process group is reaped, so a grandchild
             # (`npm audit` under a node script) neither outlives the land nor holds the pipes open.
@@ -2238,5 +2363,8 @@ def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_se
             out.append(f"land(floor): `verify.floor.{atom}.command` FAILED (exit {r.returncode}): "
                        f"{cmd!r}\n{tail}")
         elif passed_out is not None:
-            passed_out.append({"atom": atom, "command": cmd, "exit": r.returncode})
+            rec = {"atom": atom, "command": cmd, "exit": r.returncode}
+            if memo_key and len(attempts_ms) == 1:         # T-14743: the next land can match this run
+                rec["inputs"] = memo_key
+            passed_out.append(rec)
     return out

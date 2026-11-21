@@ -396,6 +396,7 @@ CLOSE_STDIN_RECOGNISED_KEYS = PROSE_BEARING_CLOSE_FIELDS + ("probes", "probes_de
 # argv shows the short form — the two-signal scan is why the short flag needs no separate row.
 COMMIT_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("message", "--message", "message", None),
+    ("void_reason", "--reason", "void_reason", None),   # T-14738 — the `--void` mode's journal prose
 )
 
 # --- T-11165 (E-0054): the same shape across the rest of the `task` verb family ------------------
@@ -9867,6 +9868,23 @@ def _probe_moment_refusal(subject: str) -> str:
             f"nothing; it only has to say when it comes back.")
 
 
+def _carried_moment_hint(key: str, carried) -> str:
+    """T-14714 (X-2464) — the one sentence a SPELLED-moment refusal adds when the card already
+    records a moment for that criterion. PURE. "" when the card carries none for `key`, so every
+    refusal for a criterion with no carried moment stays byte-identical. The merged moment guard in
+    `cmd_task_close` already admits the bare key in that case (ALREADY-CARRIED moments count); this
+    only says so at the moment a caller re-spelled the moment and got it wrong."""
+    if not isinstance(carried, dict) or key not in carried:
+        return ""
+    m = carried[key]
+    if isinstance(m, dict) and (m.get("awaits") or m.get("due_by")):
+        shown = str(m.get("awaits") or m.get("due_by"))
+    else:
+        shown = repr(m)
+    return (f"\nThe card already records a moment for {key}: {shown} — pass the bare key "
+            f"`--probe-deferred {key}` and the recorded moment is kept; it needs no re-spelling.")
+
+
 @functools.wraps(closure_evidence._settle_evidence_unresolved)
 def _settle_evidence_unresolved(*args, **kw):
     kw = {**{"_cross_settle_evidence_unresolved": _cross_settle_evidence_unresolved,
@@ -10328,6 +10346,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                    _task_commit_landed_chain=None,
                    _bookkeeping_commit_authored_paths=None, _BOOKKEEPING_COMMIT_KINDS=None,
                    _live_probe_settled_unresolved=None, _require_post_ship_observation=None,
+                   _owner_directive_unresolved=None,
                    _p8_exit_status_only_surface=None, _settle_evidence_unresolved_host=None,
                    _selfcommit_posture=None, _scoped_selfcommit_preflight=None,
                    _scoped_selfcommit=None, _governance_surface_globs_arg=None,
@@ -10401,6 +10420,17 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
         import yaml
     except ImportError:
         _die("PyYAML required for `task close` (pip install pyyaml)")
+
+    # T-14744 — a monotonic lap clock over the top-level gate sections of the forward close; the laps
+    # ride `task_closed` as `gate_secs` {section: secs} + `gate_total_secs` (additive outcome facts,
+    # SPEC-0025). Timing only: no gate is removed, reordered or made conditional on it.
+    gate_secs: dict = {}
+    _lap_at = [time.monotonic()]
+
+    def _lap(name: str) -> None:
+        _now = time.monotonic()
+        gate_secs[name] = round(_now - _lap_at[0], 3)
+        _lap_at[0] = _now
 
     tid = (args.task or "").strip()
     if not TASK_ID_RE.match(tid) or not tid.startswith("T-"):
@@ -10514,6 +10544,42 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             flag_prefix="--settle-live-probe")
     except ValueError as _e:
         _die(f"task close: {_e}")
+    # T-14742 (X-2510) — the `superseded` terminal is the URL-ASSERTION discharge, never a waiver one:
+    # it is lifted out of `lp_terminal` HERE, so the waiver arm below never sees it and the waiver
+    # vocabulary (`_SETTLE_TERMINAL_RESULTS`) stays unreachable|falsified. Its two citations are
+    # refused BY FLAG NAME before any write, on any status (SPEC-0094 §3).
+    lp_superseded = None
+    _sup_by = getattr(args, "settle_live_probe_superseded_by", None)
+    _sup_dir = getattr(args, "settle_live_probe_directive", None)
+    if lp_terminal is not None and lp_terminal.get("result") == "superseded":
+        _sup_by_s = str(_sup_by).strip() if _sup_by is not None else ""
+        _sup_dir_s = str(_sup_dir).strip() if _sup_dir is not None else ""
+        _missing = [f for f, v in (("--settle-live-probe-superseded-by", _sup_by_s),
+                                   ("--settle-live-probe-directive", _sup_dir_s)) if not v]
+        if _missing:
+            _die(f"task close: --settle-live-probe-terminal superseded REQUIRES {' and '.join(_missing)} "
+                 f"— the terminal is admitted only citing the done card that removed what the "
+                 f"assertion checks AND the owner_directive row that decided it (SPEC-0094 §3, "
+                 f"T-14742). Nothing was written. Full form: `bin/yitc-v2 task close <T-id> --settle-live-probe-terminal superseded --settle-live-probe-reason <why> --settle-live-probe-superseded-by T-NNNN --settle-live-probe-directive events.jsonl#ts=<ISO>`.")
+        if not re.fullmatch(r"T-\d+", _sup_by_s):
+            _die(f"task close: --settle-live-probe-superseded-by must be a task id `T-NNNN`; got "
+                 f"{_sup_by_s!r}. Nothing was written. Full form: `bin/yitc-v2 task close <T-id> --settle-live-probe-terminal superseded --settle-live-probe-reason <why> --settle-live-probe-superseded-by T-NNNN --settle-live-probe-directive events.jsonl#ts=<ISO>`.")
+        lp_superseded = {"result": "superseded", "reason": lp_terminal["reason"],
+                         "superseded_by": _sup_by_s, "directive": _sup_dir_s}
+        lp_terminal = None
+    elif _sup_by is not None or _sup_dir is not None:
+        _die("task close: --settle-live-probe-superseded-by / --settle-live-probe-directive are the "
+             "citations of `--settle-live-probe-terminal superseded` ONLY — passed without it they "
+             "would be dropped silently (SPEC-0094 §3, T-14742). Nothing was written. Full form: "
+             "`bin/yitc-v2 task close <T-id> --settle-live-probe-terminal superseded --settle-live-probe-reason <why> --settle-live-probe-superseded-by T-NNNN --settle-live-probe-directive events.jsonl#ts=<ISO>`.")
+    if lp_superseded is not None and (lp_settled is not None
+                                      or getattr(args, "live_probe_outcome_result", None) is not None
+                                      or getattr(args, "settle_live_probe_attested", False)):
+        _die("task close: --settle-live-probe-terminal superseded settles a url ASSERTION and is "
+             "MUTUALLY EXCLUSIVE with --settle-live-probe-evidence/-probed-at/-method, "
+             "--live-probe-outcome-* and --settle-live-probe-attested — one discharge, one claim "
+             "(SPEC-0094 §3, T-14742). Nothing was written. Run them as separate calls, e.g. "
+             "`bin/yitc-v2 task close <T-id> --settle-live-probe-terminal superseded --settle-live-probe-reason <why> --settle-live-probe-superseded-by T-NNNN --settle-live-probe-directive events.jsonl#ts=<ISO>`.")
     if lp_settled is not None and lp_terminal is not None:
         _die("task close: --settle-live-probe-terminal (no proof can arrive) and "
              "--settle-live-probe-evidence/-probed-at/-method (here is the proof) are MUTUALLY "
@@ -10586,6 +10652,12 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                 if _live_probe_settled_terminal({"settled_by": lp_settled}) else
                 f"--live-probe-settled-evidence {lp_settled['evidence']} --live-probe-settled-probed-at "
                 f"{lp_settled['probed_at']} --live-probe-settled-method \"{lp_settled['method']}\"`."))
+    if lp_superseded and current_status != "done":
+        _die(f"{tid} status={current_status!r} — --settle-live-probe-terminal superseded discharges "
+             f"the url assertion of an ALREADY-DONE card whose closure has LANDED (T-14742, "
+             f"SPEC-0094 §3). This card is not closed yet: change its `live_probe` in its own build "
+             f"instead (`bin/yitc-v2 task update {tid} --help` names the --live-probe-* setters). "
+             f"Nothing was written.")
     # T-13568 — the ATTESTED OUTCOME leg is the same DONE-card route: its only consumer sits in the
     # done branch below. On a still-open card the triple was parsed and then dropped at a zero exit, so
     # the caller read success while no reading was recorded (the E-0057 silent-drop shape). Refuse
@@ -11115,6 +11187,130 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                     _append_event("commit_landed", tid, {"commit": short, "kind": "live_probe_settle_link"})
                     print(f"  live_probe settlement self-committed to main {short} — main land-clean "
                           f"(T-11162: a settle from main must not wedge later lands)")
+        # T-14742 (X-2510) — the SUPERSEDED terminal of a URL ASSERTION (SPEC-0094 §3). A done card's
+        # assertion whose subject a LATER owner-decided card removed can never pass again (<project>
+        # T-1185: body_contains data_notice, removed by T-1231), and the waiver arm above refuses it
+        # as "not a waiver". Same admission-then-grammar-then-resolution order, same no-overwrite
+        # bound, same posture fork and `task_live_probe_declared` carrier as that arm — no new event
+        # type, no new git wrapper. Every refusal runs BEFORE any write.
+        if lp_superseded:
+            _sp_cur = task.get("live_probe")
+            if not isinstance(_sp_cur, dict) or "url" not in _sp_cur or any(
+                    k in _sp_cur for k in ("none", "attested", "unprobeable")):
+                _what = ("no `live_probe` at all" if _sp_cur is None else
+                         "a `none` WAIVER — a waiver takes `--settle-live-probe-terminal "
+                         "unreachable|falsified`, never superseded"
+                         if isinstance(_sp_cur, dict) and "none" in _sp_cur else
+                         "a `live_probe` that is not a url assertion")
+                _die(f"{tid}: --settle-live-probe-terminal superseded discharges a url ASSERTION "
+                     f"(`live_probe: {{url: …}}`), and this card carries {_what} (SPEC-0094 §3, "
+                     f"T-14742). Nothing was written. A waiver settles with `bin/yitc-v2 task close "
+                     f"{tid} --settle-live-probe-terminal unreachable|falsified --settle-live-probe-reason <why>`.")
+            if _sp_cur.get("settled_by") is not None:
+                if _sp_cur["settled_by"] == lp_superseded:
+                    print(f"{tid} (done) — url assertion already settled superseded by "
+                          f"{lp_superseded['superseded_by']} (idempotent, no change)")
+                else:
+                    _die(f"{tid}: this assertion is ALREADY settled ({_sp_cur['settled_by']!r}) — a "
+                         f"discharge is not re-writable behind different citations (the T-11413 "
+                         f"no-back-dating bound). Nothing was written. Read the recorded settle with "
+                         f"`bin/yitc-v2 journal query --type task_live_probe_declared --task {tid}`.")
+            else:
+                _sup = lp_superseded["superseded_by"]
+                if _sup == tid:
+                    _die(f"{tid}: a card cannot be superseded by itself — cite the LATER card that "
+                         f"removed what this assertion checks. Nothing was written. Full form: `bin/yitc-v2 task close <T-id> --settle-live-probe-terminal superseded --settle-live-probe-reason <why> --settle-live-probe-superseded-by T-NNNN --settle-live-probe-directive events.jsonl#ts=<ISO>`.")
+                # LANDED = `status: done` in what `main` SAYS about the card, read through the ONE
+                # reader of that (`_card_status_on_main`, T-12328 — the attested writer's admission
+                # reads the same). A done card only in a working tree is NOT landed, and an
+                # undeterminable `main` refuses: no fallback to the working tree (audit-pre finding
+                # fp1:eec1014b5c8753c5).
+                # The card's PATH comes from this checkout when it is here, else from `main`'s own
+                # tree: an older worktree need not carry a card that landed after it branched
+                # (audit-post finding fp1:f88c2f96e46735db).
+                _sup_err = None
+                _sup_path = _find_task_yaml(_sup)
+                if _sup_path is None and _run_git_cap is not None:
+                    _ls = _run_git_cap(["ls-tree", "--name-only", "main", "tasks/"], REPO_ROOT)
+                    if getattr(_ls, "returncode", 1) == 0:
+                        _hit = next((ln.strip() for ln in (_ls.stdout or "").splitlines()
+                                     if ln.strip().startswith(f"tasks/{_sup}-")
+                                     and ln.strip().endswith(".yaml")), None)
+                        _sup_path = (REPO_ROOT / _hit) if _hit else None
+                    else:
+                        _sup_err = "what `main` says about it could not be read"
+                if _sup_err:
+                    pass
+                elif _sup_path is None:
+                    _sup_err = f"no card {_sup} exists in this checkout or on `main`"
+                elif _run_git_cap is None:
+                    _sup_err = "no git reader is wired into this close"
+                else:
+                    _sup_status, _sup_det = _card_status_on_main(
+                        _sup_path, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap)
+                    if not _sup_det:
+                        _sup_err = "what `main` says about it could not be read"
+                    elif _sup_status is None:
+                        _sup_err = f"{_sup} is absent from `main` — it has not landed"
+                    elif _sup_status != "done":
+                        _sup_err = (f"{_sup} is `status: {_sup_status}` on `main` — only a done, "
+                                    f"landed card can supersede an assertion")
+                if _sup_err:
+                    _die(f"{tid}: --settle-live-probe-superseded-by {_sup} is not admitted — "
+                         f"{_sup_err} (SPEC-0094 §3, T-14742). Nothing was written. See what `main` "
+                         f"holds with `git log main --oneline -- tasks/{_sup}-*.yaml`.")
+                _sp_new = dict(_sp_cur)
+                _sp_new["settled_by"] = lp_superseded
+                _err = _live_probe_declaration_error(_sp_new)
+                if _err:
+                    _die(f"{tid}: the composed `live_probe.settled_by` is malformed — {_err} "
+                         f"(SPEC-0094 §3). Nothing was written. Full form: `bin/yitc-v2 task close <T-id> --settle-live-probe-terminal superseded --settle-live-probe-reason <why> --settle-live-probe-superseded-by T-NNNN --settle-live-probe-directive events.jsonl#ts=<ISO>`.")
+                if _owner_directive_unresolved is None:
+                    _die(f"{tid}: --settle-live-probe-directive cannot be verified — this close has no "
+                         f"owner-directive resolver wired. Refusing fail-closed rather than recording "
+                         f"an unverified owner decision (T-14742). Nothing was written. This is an "
+                         f"engine wiring fault — escalate to the owner.")
+                _dir_err = _owner_directive_unresolved(lp_superseded["directive"], [tid, _sup])
+                if _dir_err:
+                    _die(f"{tid}: --settle-live-probe-directive {lp_superseded['directive']} does not "
+                         f"authorize this settle — {_dir_err}. It must resolve to an owner_directive "
+                         f"row covering {tid} or {_sup}, resolved the way `audit decide` resolves one "
+                         f"(SPEC-1039 rule 2; SPEC-0094 §3, T-14742). Nothing was written. Find the "
+                         f"row with `bin/yitc-v2 journal query --type owner_directive --grep {_sup}`.")
+                _sp_wired = None not in (
+                    _selfcommit_posture, _scoped_selfcommit_preflight, _scoped_selfcommit)
+                _sp_posture = _selfcommit_posture() if _sp_wired else (
+                    "worktree" if _in_writing_worktree() else "degraded")
+                _sp_rel = str(task_path.relative_to(REPO_ROOT))
+                if _sp_posture == "main":
+                    _scoped_selfcommit_preflight("task close --settle-live-probe", [_sp_rel])
+                task["live_probe"] = _sp_new
+                write_text_atomic(task_path, _dump_state_yaml(task))
+                print(f"{tid} (done) — discharged url assertion as SUPERSEDED by {_sup} "
+                      f"(owner row {lp_superseded['directive']}): {lp_superseded['reason']} "
+                      f"(SPEC-0094 §3 terminal, T-14742; NEVER CHARTER Principle 8 adoption evidence)")
+                _append_event("task_live_probe_declared", tid, {
+                    "form": "assertion-superseded",
+                    "url": _sp_cur.get("url"), "replaced": True,
+                    "settled_by": lp_superseded,
+                    "governing_contract": _governing_contract_for("close"),
+                })
+                _sp_msg = (f"chore({tid}): closure-time link — url assertion settled superseded by "
+                           f"{_sup} (--settle-live-probe-terminal superseded, T-14742)")
+                if _sp_posture == "worktree":
+                    _, short = _commit_worktree(_sp_rel, _sp_msg,
+                                                pathspecs=[_sp_rel, *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT)])
+                    _append_event("commit_landed", tid, {"commit": short, "kind": "live_probe_settle_link"})
+                    print(f"  live_probe settlement committed {short} — worktree land-clean (T-11413)")
+                elif _sp_posture == "main":
+                    short = _scoped_selfcommit(
+                        "task close --settle-live-probe", [_sp_rel],
+                        _sp_msg + "\n\n"
+                        "Sanctioned direct-to-main self-commit (T-11162 / T-11413 posture): a settle\n"
+                        "runs on an already-DONE card, which by construction has no writing worktree.\n\n"
+                        "from: SPEC-0094 §3 + AGENTS-SESSIONS §Writes-happen-in-a-worktree EXCEPTION")
+                    _append_event("commit_landed", tid, {"commit": short, "kind": "live_probe_settle_link"})
+                    print(f"  live_probe settlement self-committed to main {short} — main land-clean")
         # T-11674 (X-1130) — RECORDING AN ATTESTED OUTCOME (the SIXTH late-linkage mode on this branch).
         # SPEC-0094 §4b lets a card declare a live proof the PROJECT itself runs; `liveprobe --report`
         # GRADES that reading and emits the row, and THIS is where the reading reaches the card the
@@ -11614,7 +11810,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
         # T-13086 — after the settle legs, name the carriers of THIS card the lens still holds, read
         # off the SAME `_view_overdue_recheck` predicate, so one call can settle the rest.
         if _view_overdue_recheck is not None and (
-                settle_pairs or pso_settle or pso_terminal or lp_settled or lp_outcome or lp_attested):
+                settle_pairs or pso_settle or pso_terminal or lp_settled or lp_outcome or lp_attested
+                or lp_superseded):
             for _line in _remaining_carriers_report(tid, _view_overdue_recheck()):
                 print(_line)
         if _wont_do_settle:
@@ -11743,6 +11940,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
 
     # T-11551 — pointer advance (Audit-post->Closure forward; hygiene Commit->Closure). Runs after the
     # closeable-status check above, so a non-closeable card never moves its pointer.
+    _lap("preamble")
     gates.advance_stage_pointer(
         task, "Closure", task_path=task_path, yaml_mod=yaml, verb="task close",
         _write_task_transition=_write_task_transition, _append_event=_append_event)
@@ -11818,6 +12016,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
              "here. The reason text is never machine-judged — what is required is that the choice "
              "be MADE and recorded, not that it be graded.)")
 
+    _lap("stage-verification-artifact")
     _require_reads("stage", {"stage": "Closure", "verb": "task close", "action": "closure"})
 
     # T-11174 — UNSEEN-AMENDMENT readiness: the card this session is about to declare done must still
@@ -11957,6 +12156,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # family never reaches the refusal and every existing close is unchanged.
     # T-12985: plus the store items filed FOR this card (`card_tied_items` route b) — resolved by the
     # host through a FAIL-OPEN store read, so an unreadable store never blocks nor hangs a close.
+    _lap("read-gate-amendment")
     _ss_filed = list((_cross_filed_for_ids or (lambda _t: []))(task) or [])
     _ss_triggers = cross.card_store_check_triggers(task, _ss_filed)
     _ss_missing = _shared_store_evidence_missing(task, _ss_filed)
@@ -12378,6 +12578,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # run (the hygiene `--batch-close` route, a bookkeeping-only card). No tree is compared here: the
     # land credits a run only for the tree it tested (SPEC-0065 condition 2). The reader is host-wired;
     # a caller that wires none cannot show the fact, so the close refuses (fail-closed).
+    _lap("cross-audit-post")
     if _closure_coverage_gap is None:
         _die(f"{tid}: closure REFUSED — this caller wires no Closure-time coverage reader, so whether a "
              f"green governed run follows the card's last substantive commit cannot be shown "
@@ -12432,9 +12633,11 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             if _sep:
                 _decl = _probe_moment_declaration(_moment)
                 if _decl is None:
-                    _die(f"{tid}: {_probe_moment_refusal(f'stdin probes_deferred entry {d!r}: '
-                                                         f'{_moment.strip()!r} is not a moment any '
-                                                         f'reader can decide')}")
+                    _refusal = (_probe_moment_refusal(f'stdin probes_deferred entry {d!r}: '
+                                                      f'{_moment.strip()!r} is not a moment any '
+                                                      f'reader can decide')
+                                + _carried_moment_hint(_k, task.get('probe_moments')))
+                    _die(f"{tid}: {_refusal}")
                 probe_moments[_k] = _decl
     for arg in (args.probe or []):
         k, v = _parse_probe(arg)
@@ -12451,8 +12654,10 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
         if _sep:
             _decl = _probe_moment_declaration(_moment)
             if _decl is None:
-                _die(f"{tid}: {_probe_moment_refusal(f'--probe-deferred {arg!r}: {_moment.strip()!r} '
-                                                     f'is not a moment any reader can decide')}")
+                _refusal = (_probe_moment_refusal(f'--probe-deferred {arg!r}: {_moment.strip()!r} '
+                                                  f'is not a moment any reader can decide')
+                            + _carried_moment_hint(_k, task.get('probe_moments')))
+                _die(f"{tid}: {_refusal}")
             probe_moments[_k] = _decl
     for d in deferred:
         probes.setdefault(d, "deferred")
@@ -12525,6 +12730,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # T-14109 (SPEC-1042 rule 6) — a card whose diff touches a pre-deploy check carries a deferred
     # stand probe, registered here. Only a host handing the parsed declaration reaches it — none does
     # before the turn-on card T-14114 — so every close today skips this block.
+    _lap("closure-coverage-probes")
     if _pre_deploy_stand is not None:
         _pd = _pre_deploy_stand(task)
         if _pd:
@@ -12670,6 +12876,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # forgotten the way Part F was. Rides the EXISTING task_closed carrier — NO new event type
     # (extend-the-verb, D-0050/D-0033). Computed with exclude_tid=tid so it is independent of whether
     # `done` has been persisted; deduped once-per-plan via prior task_closed payloads (LOW-8).
+    _lap("pre-deploy-stand-adoption")
     plan_finalization_pending = _closing_task_pending_finalization_plans(task, tid)
     if plan_finalization_pending:
         slugs = ", ".join(e["plan"] for e in plan_finalization_pending)
@@ -12757,6 +12964,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # ONCE per close and only when a takeback row survives `_takeback_resign_only`'s cheap checks
     # (every governance path a spec, none of them a pending activation). `_dr` is the card's diff
     # range; it is computed here, once, for this reader and the two further down.
+    _lap("plan-finalization-cases")
     _dr = _task_diff_range(sha)
     _spec_rev_memo: dict = {}
 
@@ -12958,6 +13166,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # (plan-born). The helper is idempotent + resume-complete (it flips the supersedes target FIRST, then
     # the spec active), so a crash between the done-write and here leaves done+unactivated, healed on the
     # next `task close` by `_recover_close_tail` (which re-runs this idempotently).
+    _lap("diff-range-spec-drift-write")
     activated_specs, superseded_specs = _activate_task_proposed_specs(tid)
 
     # T-0455 (FP5) — dangling-activated-spec recurrence PREVENTION (mirror of the T-0298 WARN above).
@@ -12997,9 +13206,13 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             tid, [], check_failed=True, is_consumer=_is_consumer,
             commit_route=_post_close_commit_route))
 
+    _lap("activation")
     # Emit task_closed event с structured probes payload
     _append_event("task_closed", tid, {
         "commit": audit.recorded_sha(sha, repo_root=REPO_ROOT),
+        # T-14744 — per-section lap timing of this close (secs, monotonic) and their sum
+        "gate_secs": dict(gate_secs),
+        "gate_total_secs": round(sum(gate_secs.values()), 3),
         "probe_passed": _closed_probe_passed,
         "probes": [{"ac": k, "result": v} for k, v in probes.items()],
         "governing_contract": _governing_contract_for("close"),  # delivery-observability (T-0272/SPEC-0013)
@@ -14137,20 +14350,23 @@ def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: s
     and no assembler — every waiter decides from the same rows. `_append_event=None` writes no row
     (the run is then invisible to the order, but still obeys it).
 
-    T-14023 (SPEC-1029 rule 5) — THE OPT-IN LOAD HOLD. With `YITC_STAGE6_LOAD_BOUND` set
-    (`_stage6_load_settings`), the run that holds the next place in order starts only on a CPU busy
-    share under the bound, read over a window that began at or after the newest start, and once the
-    spacing since that start has passed (`_Stage6LoadHold`). Unset, nothing here reads the host.
-    `_load_hold` is the test seam: a settings dict, or a factory taking the slot directory.
+    T-14745 (SPEC-1029 rule 5, SPEC-1063 rule 1) — THE HOST GATE. Every local Stage-6 run the queue
+    did not admit — a slot count set or not — takes the ONE host authority (`host_admission.Hold`):
+    the run that holds the next place in order starts only when the host grants it (machine-wide
+    order, start lag, free usable threads, memory). It replaces the opt-in load hold of T-14023. A
+    process already inside an admitted heavy run (`host_admission.inside_admitted`) asks no gate.
+    `_load_hold` is the test seam: a factory taking the slot directory, or False for no gate.
 
-    T-14197 (SPEC-1029 rule 5, SPEC-1045 rule 2) — a run the repo's admission queue ADMITTED (the
+    T-14197 (SPEC-1029 rule 5, SPEC-1063 rule 2) — a run the repo's admission queue ADMITTED (the
     queue is switched on and this process passed it) is not ordered again here: the order above and
     its load hold are not consulted, a null context."""
     from lib import admission as _admission
     if _admission.admitted() is not None:
         return contextlib.nullcontext()
+    from lib import host_admission as _host
     n = limits.get("max_concurrent")
-    if not n:
+    gated = _load_hold is not False and not _host.inside_admitted()
+    if not n and not gated:
         return contextlib.nullcontext()
     from lib import worktree as _wt            # lazy: the circular-import idiom used in this module
     key = root
@@ -14160,23 +14376,23 @@ def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: s
         except Exception:                      # an unresolvable main checkout: key on the run's root
             key = root
     hold = None
-    load = _stage6_load_settings() if _load_hold is None else _load_hold
-    if callable(load):                         # a test seam: a factory taking the slot directory
-        hold = load
-    elif load is not None:
-        hold = (lambda slot_dir: _Stage6LoadHold(load, slot_dir))
+    if callable(_load_hold):                   # a test seam: a factory taking the slot directory
+        hold = _load_hold
+    elif gated:
+        hold = (lambda slot_dir: _host.Hold(_host.settings_now(key), repo=key, task=tid))
     return _stage6_ordered_admission(_wt, Path(key), n, label=label, tid=tid, mark=mark,
                                      _append_event=_append_event, _load_hold=hold)
 
 
 @contextlib.contextmanager
-def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _append_event,
+def _stage6_ordered_admission(_wt, key: Path, n, *, label, tid, mark, _append_event,
                               _load_hold=None):
     """T-14006 — the body of the ordered Stage-6 admission (see `_stage6_local_admission`).
 
-    T-14023 — `_load_hold` (a factory taking the Stage-6 slot directory, None = no hold, the T-14006
-    body exactly): the run that holds the next place in order also waits for the host's CPU
-    (`_Stage6LoadHold`), and a slot it locks is kept only once the hold commits its start."""
+    `_load_hold` (a factory taking the Stage-6 slot directory, None = no hold, the T-14006 body
+    exactly): the run that holds the next place in order also waits for the host gate (T-14745,
+    `host_admission.Hold`), and a slot it locks is kept only once the hold commits its start. With no
+    slot count (`n` None) the order and the host gate admit the run alone, with no slot pool."""
     journal = key / "events.jsonl"
     hold = None
     if _load_hold is not None:
@@ -14212,8 +14428,10 @@ def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _appe
             _emit("stage6_waiting", dict(me, state="waiting", slots=n))
 
     def _held_by_load():
-        # T-14023 — asked only by the run no live waiter ranks ahead of; a change of what holds the
-        # run (or of the reading's availability) is journaled at once, the reading rides every beat
+        # asked only by the run no live waiter ranks ahead of; a change of what holds the run at the
+        # host gate is journaled at once, the reading rides every beat (T-14023, T-14745)
+        if hasattr(hold, "w"):
+            hold.w.rec["mark"] = bool(me.get("queue_jump"))   # the queue-jump mark keeps its meaning there
         ok = hold.ready()
         before = _stage6_load_phase(me) if me.get("wait_reason") == "load" else None
         if ok:
@@ -14229,6 +14447,8 @@ def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _appe
     def _may_take():
         _refresh_mark()
         if _stage6_waiters_ahead(journal, me, _wt=_wt):
+            if hold is not None and hasattr(hold, "w"):
+                hold.w.stand_down()            # waiting on its own repository's order: it blocks nobody
             return False
         return True if hold is None else _held_by_load()
 
@@ -14246,6 +14466,11 @@ def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _appe
                       f"{_stage6_load_text(me.get('load') or {})}; waited {int(waited)}s",
                       file=sys.stderr, flush=True)
                 return
+            if not n:
+                print(f"{label}: waiting for its turn in the local Stage-6 order; waited {int(waited)}s"
+                      + (f", {me.get('position', 0)} ahead in order" if me.get("position") else ""),
+                      file=sys.stderr, flush=True)
+                return
             print(f"{label}: waiting for a local Stage-6 slot — all {n} held "
                   f"(YITC_VENUE_STAGE6_MAX_CONCURRENT={n}); waited {int(waited)}s"
                   + (f", {me.get('position', 0)} ahead in order" if me.get("position") else ""),
@@ -14257,7 +14482,8 @@ def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _appe
     t0 = time.monotonic()
     try:
         while not state["admitted"]:
-            with _wt._verify_admission(key, n, on_wait=_on_wait, pool="stage6", may_take=_may_take):
+            with (_wt._verify_admission(key, n, on_wait=_on_wait, pool="stage6", may_take=_may_take) if n
+                  else _stage6_unslotted(_may_take, _on_wait)):
                 if hold is not None and not hold.commit():
                     # T-14023: the start is refused — journal WHY at once, before the next sample
                     me["wait_reason"] = "load"
@@ -14272,267 +14498,33 @@ def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _appe
                 _emit("stage6_admitted", row)
                 yield
     finally:
+        if hold is not None and hasattr(hold, "close"):
+            hold.close()
         if not state["admitted"]:
             _emit("stage6_waiting", dict(me, state="left", slots=n))
 
 
-# ── T-14023 (SPEC-1029 rule 5) — the opt-in load hold on the local Stage-6 slot ────────────────
-def _stage6_load_settings(env=None) -> "dict | None":
-    """THE ONE READ SITE of the four Stage-6 load keys (`machine_settings.INVENTORY`, PERFORMANCE):
-    environment, then the machine settings file, then the inventoried default. A value `coerce`
-    refuses (out of band, not a number) is ignored and the default stands. Returns None — no hold,
-    nothing read from the host — while YITC_STAGE6_LOAD_BOUND has no valid value."""
-    from lib import machine_settings as _ms    # deferred: keeps the hot import graph unchanged
-    env = os.environ if env is None else env
-
-    def _val(name):
-        knob = _ms.BY_NAME[name]
-        raw = env.get(name)
-        if raw is not None and str(raw).strip() != "":
-            try:
-                return _ms.coerce(knob, str(raw).strip())
-            except _ms.SettingsRefused:
-                pass
-        try:
-            v = _ms.get_value(name)
-        except Exception:                      # noqa: BLE001 — a settings fault never gates a run
-            v = None
-        return knob.default if v is None else v
-
-    bound = _val("YITC_STAGE6_LOAD_BOUND")
-    if bound is None:
-        return None
-    cpus = _val("YITC_STAGE6_LOAD_CPU_SET")
-    return {"bound": float(bound), "window_s": float(_val("YITC_STAGE6_LOAD_WINDOW_S")),
-            "spacing_s": float(_val("YITC_STAGE6_LOAD_SPACING_S")),
-            "cpu_set": (str(cpus).strip() or None) if cpus is not None else None}
+@contextlib.contextmanager
+def _stage6_unslotted(may_take, on_wait, poll: float = 2.0):
+    """T-14745 — the admission of a local Stage-6 run with no slot count: it waits until `may_take()`
+    (its place in order and the host gate) says it may start; nothing is held but the host grant."""
+    t0 = time.monotonic()
+    while not may_take():
+        on_wait(time.monotonic() - t0)
+        time.sleep(poll)
+    yield
 
 
-def _stage6_parse_cpu_set(text) -> "list | None":
-    """`"0-3,8"` → [0, 1, 2, 3, 8]; None/blank → None (every online CPU). Malformed RAISES ValueError."""
-    if text is None or not str(text).strip():
-        return None
-    out = set()
-    for part in str(text).split(","):
-        part = part.strip()
-        lo, sep, hi = part.partition("-")
-        a, b = int(lo), int(hi) if sep else int(lo)
-        if a < 0 or b < a:
-            raise ValueError(f"bad CPU range {part!r}")
-        out.update(range(a, b + 1))
-    return sorted(out)
-
-
-def _stage6_cpu_sample(cpus=None, *, _path="/proc/stat"):
-    """One /proc/stat read → (busy, total) jiffies: the aggregate `cpu` line (every online CPU) when
-    `cpus` is None, else the sum of the named `cpuN` lines. idle = idle + iowait; total = the first 8
-    fields (user nice system idle iowait irq softirq steal — guest time is already inside user).
-    RAISES on an unreadable file, a short or unparsable line, or a named CPU that is absent."""
-    with open(_path, encoding="ascii") as fh:
-        lines = fh.read().splitlines()
-    rows = {}
-    for line in lines:
-        f = line.split()
-        if f and f[0].startswith("cpu"):
-            rows[f[0]] = f[1:]
-    names = ["cpu"] if cpus is None else [f"cpu{c}" for c in cpus]
-    busy = total = 0
-    for name in names:
-        f = rows.get(name)
-        if f is None or len(f) < 8:
-            raise ValueError(f"/proc/stat has no usable {name} line")
-        v = [int(x) for x in f[:8]]
-        t = sum(v)
-        busy += t - v[3] - v[4]
-        total += t
-    return busy, total
-
-
-def _stage6_iso(t: float) -> str:
-    return _dt.datetime.fromtimestamp(t, _dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
+# ── T-14745 (SPEC-1029 rule 5, SPEC-1063 rule 1) — what holds a run at the host gate ────────────
 def _stage6_load_phase(me: dict) -> str:
-    """What holds a load-held run: unavailable | refused | sampling | over | spacing — a change is
+    """What holds a run at the host gate (behind | lag | threads | memory | unreadable) — a change is
     journaled at once."""
-    r = me.get("load") or {}
-    if "unavailable" in r:
-        return "unavailable"
-    if "refused" in r:
-        return "refused"
-    if r.get("busy_share") is None:
-        return "sampling"
-    return "spacing" if r.get("spacing_left_s") else "over"
+    return str((me.get("load") or {}).get("reason") or "unreadable")
 
 
 def _stage6_load_text(r: dict) -> str:
     """The one-line reading for the minute stderr line."""
-    if "unavailable" in r:
-        return f"CPU reading unavailable ({r['unavailable']}), bound {r.get('bound')}"
-    if "refused" in r:
-        return f"start refused ({r['refused']}), re-reading the CPU, bound {r.get('bound')}"
-    if r.get("busy_share") is None:
-        return f"sampling the CPU over {r.get('window_s')}s, bound {r.get('bound')}"
-    txt = f"busy share {r['busy_share']} vs bound {r.get('bound')} (load1 {r.get('load1')})"
-    if r.get("spacing_left_s"):
-        txt += f", {r['spacing_left_s']}s of spacing left since the newest start"
-    return txt
-
-
-class _Stage6LoadHold:
-    """T-14023 (SPEC-1029 rule 5) — may the run that holds the next Stage-6 place start on the host's
-    CPU now? Non-blocking: `ready()` is asked once per admission poll and carries a two-sample window
-    across polls, so a held run keeps its place and its rows beat as before.
-
-    `ready()`: no first sample, or one whose window began before `last_start` → take a first sample,
-    hold. Window not elapsed → hold. Else the second sample gives the busy share; at or over the bound
-    → hold, the next window starts from this sample; spacing since `last_start` not passed → hold;
-    else CLEARED — `reading` is what the start is judged on. Any read/parse fault → hold, with the
-    reading named unavailable, never a share of zero.
-    `commit()`, with a slot held: under the flock on `last_start.lock`, re-read `last_start`; a start
-    after the cleared window's start, or the spacing not passed → refuse (the caller leaves the slot
-    and waits on); else write `last_start` = now and admit. `last_start` survives the run's end. A
-    lock or write fault refuses too, the reading named unavailable: a start that cannot be recorded
-    would let the next one skip its spacing. Every refusal ends the window whole (`_reset`), so the
-    next attempt waits a full window through the admission poll — never a tight retry."""
-
-    def __init__(self, settings: dict, slot_dir: Path, *, _sample=None, _clock=None, _loadavg=None):
-        self.s = dict(settings)
-        self.dir = Path(slot_dir)
-        self._sample = _sample or _stage6_cpu_sample
-        self._clock = _clock or time.time
-        self._loadavg = _loadavg or os.getloadavg
-        self._first = None                     # (window start, busy, total)
-        self._cleared_at = None                # when a cleared reading was taken
-        self.reading = self._base()
-
-    def _base(self) -> dict:
-        return {"bound": self.s["bound"], "window_s": self.s["window_s"],
-                "cpus": self.s.get("cpu_set") or "all"}
-
-    def _take(self):
-        cpus = _stage6_parse_cpu_set(self.s.get("cpu_set"))
-        return self._sample(cpus)
-
-    def last_start(self) -> "float | None":
-        p = self.dir / "last_start"
-        try:
-            text = p.read_text(encoding="ascii").strip()
-        except FileNotFoundError:
-            return None
-        except OSError:
-            text = ""
-        try:
-            v = float(text)
-            if math.isfinite(v):
-                return v
-        except ValueError:
-            pass
-        try:
-            return p.stat().st_mtime           # corrupt / non-finite content: its write time, conservative
-        except OSError:
-            return None
-
-    def _reset(self) -> None:
-        """Every refusal ends the window whole: the next ask starts a new first sample."""
-        self._first = None
-        self._cleared_at = None
-
-    def _unavailable(self, e) -> bool:
-        self._reset()
-        self.reading = dict(self._base(), unavailable=f"{type(e).__name__}: {e}"[:200])
-        return False
-
-    def _fresh(self, now: float, last: "float | None") -> bool:
-        """THE one test of a cleared reading, asked by `ready()` and again by `commit()`: taken no
-        longer than one window ago, on a window that began at or after the newest start, and the
-        spacing since that start has passed."""
-        return (self._cleared_at is not None and self._first is not None
-                and now - self._cleared_at <= self.s["window_s"]
-                and (last is None or (self._first[0] >= last and now - last >= self.s["spacing_s"])))
-
-    def ready(self) -> bool:
-        now = self._clock()
-        try:
-            last = self.last_start()
-            if self._cleared_at is not None:
-                if self._fresh(now, last):
-                    return True
-                self._reset()                  # too old, or a start landed after it: a new full window
-            if self._first is None or (last is not None and self._first[0] < last):
-                busy, total = self._take()
-                self._first = (now, busy, total)
-                self.reading = dict(self._base(), busy_share=None, window_start=_stage6_iso(now))
-                return False
-            if now - self._first[0] < self.s["window_s"]:
-                return False
-            busy, total = self._take()
-            t0, b0, n0 = self._first
-            if total - n0 <= 0:
-                raise ValueError("no CPU time elapsed between the two /proc/stat samples")
-            share = (busy - b0) / (total - n0)  # judged unrounded; the row shows it rounded
-            if not 0.0 <= share <= 1.0:
-                raise ValueError(f"busy share {share!r} outside 0..1 (a /proc/stat counter went back)")
-            try:
-                load1 = round(float(self._loadavg()[0]), 2)
-            except Exception:                  # noqa: BLE001 — load1 is recorded, never judged
-                load1 = None
-            self.reading = dict(self._base(), busy_share=round(share, 4), window_start=_stage6_iso(t0),
-                                load1=load1)
-            self._first = (now, busy, total)   # the next window starts from this sample
-            if share >= self.s["bound"]:
-                return False
-            if last is not None and now - last < self.s["spacing_s"]:
-                self.reading["spacing_left_s"] = round(self.s["spacing_s"] - (now - last), 1)
-                return False
-            self._first = (t0, b0, n0)         # the cleared window, checked again at commit
-            self._cleared_at = now
-            return True
-        except Exception as e:                 # noqa: BLE001 — unreadable: hold, never read as zero
-            return self._unavailable(e)
-
-    def commit(self) -> bool:
-        if self._cleared_at is None or self._first is None:
-            return False
-        fd = None
-        try:
-            self.dir.mkdir(parents=True, exist_ok=True)
-            fd = lockfile.open_flock_target(self.dir / "last_start.lock", 0o666)
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            now = self._clock()
-            if not self._fresh(now, self.last_start()):
-                self._reset()                  # stale by now, or a peer started after this window
-                self.reading = dict(self._base(), busy_share=None, refused="the reading went stale "
-                                    "or a newer start landed before this one could start")
-                return False
-            self._write_last_start(now)        # a start that cannot be recorded does not start
-            return True
-        except Exception as e:                 # noqa: BLE001 — a lock or write fault: hold, re-take
-            self._unavailable(RuntimeError(f"cannot record the Stage-6 start ({type(e).__name__}: {e})"))
-            return False
-        finally:
-            if fd is not None:
-                os.close(fd)
-
-    def _write_last_start(self, now: float) -> None:
-        p = self.dir / "last_start"
-        tmp = None
-        try:
-            fd, tmp = tempfile.mkstemp(dir=str(self.dir), prefix=".last_start-")
-            with os.fdopen(fd, "w", encoding="ascii") as fh:
-                fh.write(f"{now:.6f}\n")
-            os.chmod(tmp, 0o666)
-            os.replace(tmp, p)
-            tmp = None
-        except OSError:
-            with open(p, "w", encoding="ascii") as fh:   # a peer's directory: write the file in place
-                fh.write(f"{now:.6f}\n")
-        finally:
-            if tmp is not None:
-                try:
-                    os.unlink(tmp)             # never leave a temp file behind a failed replace
-                except OSError:
-                    pass
+    return str(r.get("says") or "host gate: held")
 
 
 def _stage6_waiters_ahead(journal: Path, me: dict, *, now=None, _wt=None, _alive=None, _scan=None) -> list:
@@ -14637,11 +14629,27 @@ def _stage6_local_run_width(governor, limits: dict, budget: "dict | None" = None
     return _stage6_local_workers(w, limits) if w and w > 0 else None
 
 
-def _stage6_width_budget():
+def _stage6_width_budget(grow_bound=None):
     """T-13971 — the width budget a local Stage-6 run enters (`worktree._verify_width_budget` at the
-    host's fixed ceiling). One seam, so a test can stub the reading."""
+    host's fixed ceiling). One seam, so a test can stub the reading. T-14746: `grow_bound` lets the
+    run grow mid-run up to it (SPEC-0132 §1c)."""
     from lib import worktree as _wt           # lazy: the circular-import idiom used in this module
-    return _wt._verify_width_budget(_wt._verify_worker_ceiling())
+    if grow_bound is None:
+        return _wt._verify_width_budget(_wt._verify_worker_ceiling())
+    return _wt._verify_width_budget(_wt._verify_worker_ceiling(), grow_bound=grow_bound)
+
+
+def _stage6_grow_bound(limits: dict):
+    """T-14746 — the bound a local Stage-6 run may grow to: the host's worker bound now, and only
+    when no Stage-6 width fraction is set (a set fraction keeps its width). Any fault: no growth."""
+    if limits.get("workers_fraction") is not None:
+        return None
+    try:
+        from lib import worktree as _wt
+        b = int(_wt._verify_worker_bound())
+    except Exception:                         # noqa: BLE001
+        return None
+    return b if b > 0 else None
 
 
 def _stage6_budget_applies(budget) -> bool:
@@ -15523,6 +15531,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # alike, so its decision cannot sit in the sweep arm the kernel decision sits in. The host
         # takes the plan (rule 4) only when the pass routes, over the same working tree it ships.
         _s6_cres = _s6_cpresel = None
+        # T-14114 / T-14717 (SPEC-1051 rule 2): the pre-deploy declaration of THIS tree's contract, read
+        # ONCE — handed to the layer guard below, and to the consumer plan a routed pass ships.
+        from lib import land_verify_legs as _lvl_pd
+        _s6_pd_kw = _lvl_pd._pre_deploy_contract_kw(root) if root is not None else {}
         if _is_consumer_build is not None and _is_consumer_build():
             def _s6_take_plan():
                 _gp: dict = {}
@@ -15530,11 +15542,15 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 _pb, _ = ((None, None) if _whole else
                           _stage6_subject_base(root, _run_git_cap=_run_git_cap,
                                                _is_consumer_build=_is_consumer_build))
+                # T-14717 (SPEC-1051 rule 2, SPEC-1059 rule 4): the plan is taken with the pre-deploy
+                # declaration a local pass hands the guard (T-14114), so the guard's ONE skip read is
+                # made here and travels in the plan (`pre_deploy_skip`) for the box to apply as read.
+                _pd_kw = _s6_pd_kw
                 if _pb:
                     _consumer_zero_probe_guard(root, _pb, working_tree=True, one_card_candidate=True,
-                                               plan_out=_gp)
+                                               plan_out=_gp, **_pd_kw)
                 else:
-                    _consumer_zero_probe_guard(root, plan_out=_gp)
+                    _consumer_zero_probe_guard(root, plan_out=_gp, **_pd_kw)
                 if "layers" not in _gp:
                     # the guard returned before its plan (no declared layers, a section waiver, a
                     # malformed section): ship an EMPTY plan over this tree, and the box's guard
@@ -15577,6 +15593,14 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 print(_line)
             print(f"{tid} task test --run: the pass ran on the consumer venue "
                   f"({_s6_cres['outcome']}, {len(_s6_cres['cand'])} failure(s))")
+            if _s6_cres["outcome"] != remote_verify.OUTCOME_GREEN:
+                # T-14709 — a view of SPEC-1059 rule 6 on a red routed pass: the route that tells a
+                # box difference from a failure of the change. Print only; the verdict is unchanged.
+                print(f"{tid} task test --run: next - the failures were produced on the box; to tell "
+                      "a difference of the box environment from a failure of the change, re-run the "
+                      "same commit with `task test --run --placement local` (SPEC-1059 rule 6); a unit "
+                      "that needs a file or tool the box lacks is the project's to provision through "
+                      "its `verify.venue` declaration or to run with that flag.")
             if selection_summary:
                 print(_stage6_selection_note(selection_summary))
         elif _have_tests and not delegated:
@@ -15874,10 +15898,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 with _stage6_local_admission(root, _s6_limits, _main_worktree=_main_worktree,
                                              tid=tid, mark=_s6_mark_live, _append_event=_append_event):
                     # measured AFTER the slot is held: a wait cannot hand the run a stale width
-                    with _stage6_width_budget() as _wb:
+                    with _stage6_width_budget(_stage6_grow_bound(_s6_limits)) as _wb:
                         _s6_budget = dict(_wb)
                         _s6_w = _stage6_local_run_width(_verify_worker_governor, _s6_limits, _wb)
                         bad = _local_verify(presel=_stage6_presel, workers=_s6_w)
+                        _s6_budget = dict(_wb)   # T-14746: the width changes ride the row
             # T-12271 — a ROUTED pass reports off its PARTITION, never off the rule-8 probe leg's
             # metrics (which are all `_sel_metrics` holds on that branch). `partition=None` on the
             # unrouted path keeps that reading byte-identical.
@@ -15947,8 +15972,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # T-14114 (SPEC-1042 rule 2): the Stage-6 run leaves out the units of a pre-deploy class this
         # tree's contract declares, as the land's candidate leg does — nothing when it declares none.
         if root is not None:
-            from lib import land_verify_legs as _lvl
-            _guard_kw.update(_lvl._pre_deploy_contract_kw(root))
+            _guard_kw.update(_s6_pd_kw)
         # T-13971 (SPEC-0132 §1c): a CONSUMER's local layers are sized by the width budget too; the
         # engine's own guard runs no layer, so it keeps the plain governor call.
         _s6_layer_budget = bool(_s6_glimits) or bool(_is_consumer_build and _is_consumer_build()
@@ -15966,6 +15990,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     _guard_kw["workers"] = _stage6_local_workers(_verify_worker_governor(), _s6_glimits)
             if _s6_cres is not None:
                 # T-13976 — the layers ran on the box; its layer runner's record IS this run's guard.
+                # T-14735 — each executed layer's log the box kept is written HERE, under the name a
+                # host Stage-6 layer log gets, and the rows name it (`output_log`).
+                from lib import worktree as _s6_box_wt
+                _s6_box_wt._consumer_box_layer_logs_to_host(_guard_kw.get("layer_log_ctx"), _s6_cres,
+                                                     _s6_cres.get("layer_logs"))
                 cguard = _s6_cres["guard"]
             elif _s6_base:
                 # T-13907 (SPEC-1030 rule 4): the Tests-stage run is the candidate run of ONE card.
@@ -19448,6 +19477,26 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # A new leg does not get to be born carrying a retired escape. Past the ceiling the route is
         # the SPEC-0204 one — `audit decide` per residual, then the ONE bounded `--on-decisions` pass.
         prior_reship = _count_audit_passes(tid, "post")
+        # T-14732 (<project> X-2501) — ONE reading of the ceiling count for this door and the audit
+        # door (its `--preview` included): at and past the ceiling the door asks the SAME predicate
+        # that opens a reship ceiling row (T-12444 / A6, with the T-14732 conjuncts (e)/(f)), asked here
+        # before the commit exists. It used to be asked only in [ceiling, ceiling+1), so the two doors
+        # counted one card differently. Unreadable journal or record → no row (the door's own
+        # fail-closed direction); below the ceiling nothing is asked (unchanged).
+        _opens_row = False
+        if prior_reship >= AUDIT_PASS_CEILING:
+            try:
+                _a6_rows = (_task_events_for(tid, audit.RESHIP_A6_ROW_TYPES)
+                            if _task_events_for is not None else None)
+            except Exception:      # noqa: BLE001 — an unreadable journal opens nothing (fail-closed)
+                _a6_rows = None
+            try:
+                _rs_prior = _prior_audit_record(tid, "post") if _prior_audit_record is not None else None
+            except Exception:      # noqa: BLE001 — an unreadable record opens nothing (fail-closed)
+                _rs_prior = None
+            _opens_row = audit.reship_reaudit_opens_new_row(_rs_prior, _a6_rows, prior_passes=prior_reship,
+                                                            ceiling=AUDIT_PASS_CEILING,
+                                                            resolve_sha=_git_resolve_sha)
         # T-14090 (SPEC-1041 «Rule 4 — custody») — ONE exception past ceiling+1, the TEST-FOUND FIX:
         # the GREEN being superseded is the card's GREEN rule-3 pass and the newest governed Tests run
         # after it is red (yitc#168). The SAME window predicate the audit door reads (no second
@@ -19455,7 +19504,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # `audit post --commit <new>` is the ONE test-found-fix pass, admitted once. Rows come from the
         # injected single fold (`_task_events_for`); with it or the resolver unwired, nothing opens.
         _tff_why, _tff_facts = None, None
-        if prior_reship >= AUDIT_PASS_CEILING + 1:
+        if prior_reship >= AUDIT_PASS_CEILING + 1 and not _opens_row:
             try:
                 _tff_rows = (_task_events_for(tid, audit.TEST_FOUND_FIX_ROW_TYPES)
                              if _task_events_for is not None and _git_resolve_sha is not None else None)
@@ -19470,18 +19519,28 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                     _tff_why = (f"record_not_at_green: the superseded audit-post record pins "
                                 f"{str(hazard[1] or '')[:12]}, not the GREEN pass's commit "
                                 f"{_tff_facts['prior_commit'][:12]}")
-        if prior_reship >= AUDIT_PASS_CEILING + 1 and _tff_why:
+        if prior_reship >= AUDIT_PASS_CEILING + 1 and not _opens_row and _tff_why:
             _die(audit.RETIRED_AUDIT_SURFACES["spent-budget-bypass"] + "\n\n"
                  + f"`--reship` refused: {prior_reship} audit-post passes are recorded for {tid}, "
                    f"which is past the {AUDIT_PASS_CEILING}-pass ceiling, and this leg has no "
                    f"one-pass-wide arm — the reset such an arm would depend on is retired.\n\n"
                  + audit.RETIRED_CEILING_POINTER
                  + f"\n\nTest-found fix (T-14090) not admitted — {_tff_why}.")
-        if prior_reship >= AUDIT_PASS_CEILING + 1 and _tff_facts and _tff_facts.get("ordinary"):
+        if _opens_row:
+            print(f"# --reship at {prior_reship} passes: the REQUIRED re-audit opens a NEW ceiling "
+                  f"row — it is pass 1 of that row, an ORDINARY pass (no governed Tests run is "
+                  f"recorded since the GREEN audit-post; T-12444, SPEC-1039 §4 A6). REQUIRED next: "
+                  f"`yitc-v2 audit post --task {tid} --commit <new>` — no `ceiling_decision` is "
+                  f"needed, and `--on-decisions` would refuse as below the ceiling.",
+                  file=sys.stderr)
+        elif prior_reship >= AUDIT_PASS_CEILING + 1 and _tff_facts and _tff_facts.get("ordinary"):
             # T-14529 (<project> X-2249) — the GREEN is the ORDINARY ceiling row: its audit is the row's
             # empty-set `--on-decisions` pass (SPEC-1041 «Rule 3», T-14191), never a test-found-fix pass.
-            print(f"# --reship past the ceiling: a governed Tests run went red after {tid}'s GREEN "
-                  f"ORDINARY ceiling row (T-14529); REQUIRED next: `yitc-v2 audit post --task {tid} "
+            # T-14732 (X-2501) — a GREEN governed run opens it as well as a red one: the run is the
+            # ground, and that one bounded pass judges whether the fix meets the acceptance.
+            print(f"# --reship past the ceiling: a governed Tests run ({_tff_facts.get('run') or 'red'}) "
+                  f"is recorded after {tid}'s GREEN "
+                  f"ORDINARY ceiling row (T-14529, T-14732); REQUIRED next: `yitc-v2 audit post --task {tid} "
                   f"--on-decisions --sweep '<where you looked for the same defect class and what you "
                   f"found>'`, the row's ONE bounded empty-set pass on this fix (SPEC-1041 «Rule 3»).",
                   file=sys.stderr)
@@ -19491,38 +19550,16 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"--task {tid} --commit <new>`, the ONE test-found-fix pass (SPEC-1041 «Rule 4 — "
                   f"custody»). A RED there, or a further red Tests run after it, ends audit-post.",
                   file=sys.stderr)
-        if AUDIT_PASS_CEILING <= prior_reship < AUDIT_PASS_CEILING + 1:   # T-14090: past it, the banner above
-            # T-14543 (X-2279) — which step the audit door will ADMIT is decided by the SAME predicate
-            # that opens a reship ceiling row (T-12444 / A6), asked here before the commit exists; the
-            # WARN used to read the pass count alone and named the decisions route on a state whose
-            # re-audit opens a new row (where `--on-decisions` then refuses as below the ceiling).
-            # Unreadable journal or record → the decisions text (the door's own fail-closed direction).
-            try:
-                _a6_rows = (_task_events_for(tid, audit.RESHIP_A6_ROW_TYPES)
-                            if _task_events_for is not None else None)
-            except Exception:      # noqa: BLE001 — an unreadable journal opens nothing (fail-closed)
-                _a6_rows = None
-            try:
-                _rs_prior = _prior_audit_record(tid, "post") if _prior_audit_record is not None else None
-            except Exception:      # noqa: BLE001 — an unreadable record opens nothing (fail-closed)
-                _rs_prior = None
-            if audit.reship_reaudit_opens_new_row(_rs_prior, _a6_rows):
-                print(f"# --reship at {prior_reship} passes: the REQUIRED re-audit opens a NEW ceiling "
-                      f"row — it is pass 1 of that row, an ORDINARY pass (no governed Tests run is "
-                      f"recorded since the GREEN audit-post; T-12444, SPEC-1039 §4 A6). REQUIRED next: "
-                      f"`yitc-v2 audit post --task {tid} --commit <new>` — no `ceiling_decision` is "
-                      f"needed, and `--on-decisions` would refuse as below the ceiling.",
-                      file=sys.stderr)
-            else:
-                # The WARN's job is to say plainly that the REQUIRED re-audit is past the ceiling and
-                # closure deadlocks without one, and to name the route that now admits it. Naming a
-                # retired flag here would send the reader to a refusal (SPEC-0204 rule 6).
-                print(f"# WARN --reship at {prior_reship} passes: the REQUIRED re-audit is pass "
-                      f"{prior_reship + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
-                      f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
-                      f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
-                      f"{tid} --on-decisions --sweep '<where you looked for the same defect class and what you found>'` runs it (SPEC-0204 rules 2-3). Without that, closure "
-                      f"deadlocks (E-0008).", file=sys.stderr)
+        elif AUDIT_PASS_CEILING <= prior_reship < AUDIT_PASS_CEILING + 1:
+            # The WARN's job is to say plainly that the REQUIRED re-audit is past the ceiling and
+            # closure deadlocks without one, and to name the route that now admits it. Naming a
+            # retired flag here would send the reader to a refusal (SPEC-0204 rule 6).
+            print(f"# WARN --reship at {prior_reship} passes: the REQUIRED re-audit is pass "
+                  f"{prior_reship + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
+                  f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
+                  f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
+                  f"{tid} --on-decisions --sweep '<where you looked for the same defect class and what you found>'` runs it (SPEC-0204 rules 2-3). Without that, closure "
+                  f"deadlocks (E-0008).", file=sys.stderr)
         print(f"# --reship: committing a FURTHER in-scope ship for {tid} over its GREEN audit-post "
               f"({len(authored)} authored path(s): {', '.join(authored[:5])}"
               f"{' …' if len(authored) > 5 else ''}). The superseded GREEN verdict is "
@@ -20023,6 +20060,11 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # T-9403 / E-0030 — journal-observable owner-authorized continuation (additive-optional, the
         # same shape as the audit verb's owner_reset carrier T-0469); absent on every ordinary commit.
         event_data["owner_reset"] = True
+        # T-14750 — the owner directive that authorizes this commit, as given (additive-optional, absent
+        # when not passed). `audit post` resolves it before it admits the ONE owner-reset pass.
+        _ord = getattr(args, "directive", None)
+        if isinstance(_ord, str) and _ord.strip():
+            event_data["owner_directive"] = _ord
     _append_event("commit_landed", tid, event_data)
 
     # T-10258 — surface the spec THIS diff staled to the ONE session that staled it, at the LAST seam

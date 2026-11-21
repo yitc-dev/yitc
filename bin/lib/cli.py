@@ -374,7 +374,7 @@ plan_mod = _LazyLib("plan")  # deferred (T-11320)  # plan verb family (T-9341) �
 
 # === T-9351: task verb-family extracted to bin/lib/task.py — host residue ===
 task_mod = _LazyLib("task")  # deferred (T-11320)  # task verb family (T-9351) — host residue below
-admission_mod = _LazyLib("admission")  # deferred: only a switched-on `task test` / `journal query --admission` loads it (T-14195, SPEC-1045)
+admission_mod = _LazyLib("admission")  # deferred: only a switched-on `task test` / `journal query --admission` loads it (T-14195, SPEC-1063)
 init_mod = _LazyLib("init")  # deferred (T-11320)  # cmd_init consumer-scaffold verb (T-9380) — host residue below
 deploy_mod = _LazyLib("deploy")  # deferred (T-11540)  # cmd_deploy verb (T-9390, SPEC-0094 §1) — host residue below
 debt_mod = _LazyLib("debt")  # deferred (T-11320)  # post-deploy proof-obligation fold (T-10296, SPEC-0149)
@@ -642,7 +642,7 @@ def cmd_journal_admission(args: argparse.Namespace) -> None:
         _slot_dir=slot_dir,
         _reservation_path=lambda m: worktree_mod._land_reservation_path(m, _verify_slot_dir=slot_dir),
         _proc_cwd=_proc_cwd_name, _locks_readable=lambda: os.access("/proc/locks", os.R_OK),
-        _queue_report=lambda: admission_mod.report(main))   # T-14195: the SPEC-1045 queue, while switched on
+        _queue_report=lambda: admission_mod.report(main))   # T-14195: the SPEC-1063 queue, while switched on
 
 
 # SPEC-0136 §2 governance-surface classifier for the dispatch-plan advisor: a change's blast-radius (not
@@ -1203,6 +1203,31 @@ def _live_probe_settled_unresolved(lp, tid=None) -> "str | None":
                                                   path, None, since=_since, lock=True, must=_must))
     return (task_mod._live_probe_settled_evidence_unresolved(lp, _events, tid=tid)
             or task_mod._live_probe_attested_outcome_unresolved(lp, _events, tid))
+def _owner_directive_unresolved(locator: str, tids: list) -> "str | None":
+    # T-14742 (X-2510) — the owner-row half of the `--settle-live-probe-terminal superseded` admission,
+    # resolved the way `audit decide` resolves its `--directive` (SPEC-1039 rule 2): the SAME resolver
+    # (`audit._resolve_owner_directive` — locator form, owner_directive type, delegation chain,
+    # same-second ambiguity), over the SAME cross-instance fold the settle siblings above read (this
+    # checkout UNION main, SPEC-0168 rule 7). Coverage is asked of each card in `tids` in order (the
+    # settled card, then the superseding one): the owner decided the REMOVAL, which may name either.
+    # Returns None when one covers, else the refusal axis for the FIRST card.
+    _events = task_mod._folded_journal_events(EVENTS_PATH=EVENTS_PATH,
+                                              _event_dedup_key=_event_dedup_key,
+                                              _main_events_path=_main_events_path(),
+                                              lines_of=lambda path: journal_mod.typed_lines(
+                                                  path, ("owner_directive",), since=None,
+                                                  lock=True))
+    _now = _utc_now_iso()
+    first = None
+    for _t in tids:
+        _row, _axis = audit._resolve_owner_directive(_events, locator, _t, decision_ts=_now,
+                                                     decision_pos=len(_events))
+        if _axis is None:
+            return None
+        first = first or _axis
+    return first
+
+
 def _settle_evidence_unresolved(locator: str, tid: str = None, flag: str = "--settle-evidence",
                                 row_check=None) -> "str | None":
     # T-11107 (X-0885) — the RESOLUTION half of the deferred-probe settlement, bound to the journal
@@ -1942,7 +1967,7 @@ def _warn_unanswered_issue_refs_after_close(tid) -> None:
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
     with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
-        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _cross_next_step_missing=_cross_next_step_missing, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped, _manifest_path=_manifest_path)
+        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _owner_directive_unresolved=_owner_directive_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _cross_next_step_missing=_cross_next_step_missing, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped, _manifest_path=_manifest_path)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -2103,17 +2128,17 @@ def cmd_task_test(args: argparse.Namespace) -> None:
     if getattr(args, "then_land", False) and not getattr(args, "_t14598_run_only", False):
         return _cmd_task_test_then_land(args)   # T-14598: the run, then the continuation
     task_mod.refuse_kernel_local_placement(args, kernel=not _is_consumer_build(), _die=_die)   # T-13975: SPEC-1059 rule 6
-    # T-14195 (SPEC-1045 rule 2 (a), (j)) — `--run` and `--own` enter the repo's admission queue FIRST:
+    # T-14195 (SPEC-1063 rule 2 (a), (j)) — `--run` and `--own` enter the repo's admission queue FIRST:
     # before the temporary activation below and before `remote_verify.route`. The switch is read ONCE,
     # here; switched off, the statements of `_admitted` run exactly as they did before.
     if getattr(args, "exclusive", False) and (not getattr(args, "run", False) or getattr(args, "own", False)):
         _die(f"{args.task}: `task test --exclusive` is a form of --run only — `yitc-v2 task test {args.task} "
-             f"--run --exclusive` (SPEC-1045 rule 2 (a))")
+             f"--run --exclusive` (SPEC-1063 rule 2 (a))")
 
     def _admitted(_append_event):
         # the `task test` body (pre-T-14195 `cmd_task_test` after its placement check), with the journal
         # writer the caller hands it: the host's own, or — admitted by the queue — one that stamps the
-        # Stage-6 result rows (SPEC-1045 rule 2 (e))
+        # Stage-6 result rows (SPEC-1063 rule 2 (e))
         if getattr(args, "own", False):
             # T-14034: the own-tests check is its own function, never a branch of the Stage-6 path below.
             return task_mod.cmd_task_test_own(
@@ -2141,7 +2166,7 @@ def cmd_task_test(args: argparse.Namespace) -> None:
             # again after the wait (the card may move while queued): a run the stage refuses writes its
             # `read_gate_refused` and takes no ticket, slot, sync or quick set.
             _stage6_stage_decision(args.task)
-            # T-14483 (SPEC-1045 rule 2 (o)) — a card whose change carries no code owes no governed run
+            # T-14483 (SPEC-1063 rule 2 (o)) — a card whose change carries no code owes no governed run
             # (SPEC-1038 §Closure-time coverage), so its run takes no ticket and runs nothing.
             why = None if any(getattr(args, f, False) for f in ("full", "whole", "exclusive")) \
                 else _stage6_run_not_owed(args.task)
@@ -2159,7 +2184,7 @@ def cmd_task_test(args: argparse.Namespace) -> None:
                 args=args, eligible=None if own else functools.partial(_admission_eligible, adm["main"], args.task),
                 stage_check=None if own else functools.partial(_stage6_stage_decision, args.task)
                 ) as admitted:
-            # T-14197 (SPEC-1045 rule 2 (a), (d), (m)) — THE ADMISSION STEPS, after the pass and BEFORE
+            # T-14197 (SPEC-1063 rule 2 (a), (d), (m)) — THE ADMISSION STEPS, after the pass and BEFORE
             # `_admitted`, so the temporary activation's snapshot is taken after the sync; a stop code ends
             # the run with no full verify, 0 ends it on the sync's proof.
             _LAST_SCREEN.clear()
@@ -2183,7 +2208,7 @@ def cmd_task_test(args: argparse.Namespace) -> None:
                 _admission_after_run(args, adm["main"])
             return out
     if getattr(args, "exclusive", False):
-        print(f"{args.task} task test --run --exclusive: the admission queue is off here (SPEC-1045 rule 3); "
+        print(f"{args.task} task test --run --exclusive: the admission queue is off here (SPEC-1063 rule 3); "
               f"the run is not held exclusive", file=sys.stderr)
     return _admitted(_append_event)
 
@@ -2224,7 +2249,7 @@ def _stage6_prepared_tree(tid):
 
 
 def _admission_switch_once() -> dict:
-    """T-14195 — THE SWITCH (SPEC-1045 rule 3), read once per `task test`: the MAIN checkout's
+    """T-14195 — THE SWITCH (SPEC-1063 rule 3), read once per `task test`: the MAIN checkout's
     `admission.mode` and the machine VETO. The main checkout is the worktree on `main`, else the parent
     of the git common directory (the source's own resolution); neither leaves the queue off."""
     try:
@@ -2236,14 +2261,14 @@ def _admission_switch_once() -> dict:
         rec = admission_mod.switch(main)
     except Exception as e:             # noqa: BLE001 — a switch that cannot be read never stops a run
         print(f"task test: the admission switch could not be read ({type(e).__name__}: {e}); the queue is "
-              f"off for this run (SPEC-1045 rule 3)", file=sys.stderr)
+              f"off for this run (SPEC-1063 rule 3)", file=sys.stderr)
         return {"on": False, "main": None}
     rec["main"] = main
     return rec
 
 
 def _admission_eligible(main, tid) -> "tuple[bool, str]":
-    """T-14197 (SPEC-1045 rule 2 (b)) — a light run's prediction: the post-sync proof's ONE predicate,
+    """T-14197 (SPEC-1063 rule 2 (b)) — a light run's prediction: the post-sync proof's ONE predicate,
     its part that holds before the merge (`_post_sync_premise` + the hand-resolved-merge check)."""
     names, prem = worktree_mod._post_sync_premise(REPO_ROOT, main, tid)
     if names is None and prem is None:
@@ -2276,7 +2301,7 @@ _LAST_SCREEN: dict = {}
 
 
 def _record_screen_red(tid, seen, secs, append) -> None:
-    """T-14529 (SPEC-1045 rule 2 (d)) — a quick-first screen (or post-sync proof) that stops the run RED
+    """T-14529 (SPEC-1063 rule 2 (d)) — a quick-first screen (or post-sync proof) that stops the run RED
     records the card's `tests_failed` row, `leg: candidate` + `screen: quick-first`, on the card's journal
     through the run's own writer: a red governed run like any other, so the test-found-fix window
     (`gates.governed_run_verdict`) and the `return` move read it. Never raises; the exit is unchanged."""
@@ -2336,7 +2361,7 @@ def _admission_run_steps(args, main) -> "int | None":
 
 
 def _admission_land_preview(tid, main) -> list:
-    """T-14197 (SPEC-1045 rule 2 (m)) — the land's own predicates that can stop a land after a green run
+    """T-14197 (SPEC-1063 rule 2 (m)) — the land's own predicates that can stop a land after a green run
     and need no run, each as (name, fn -> (refuses, detail)), called in-process exactly as the land calls
     them (no journal row of their own, no reproduction run): the merge probe, a known-broken `main`
     record, the decisions content-freeze, the spec hand-edit guard, the won't-do rationale guard, the
@@ -2422,7 +2447,11 @@ def _admission_after_run(args, main) -> None:
         candidate = None
         before = worktree_mod._worktree_disk_tree(W, _run_git_cap)       # the tree on disk before the window
         with contextlib.redirect_stdout(sys.stderr), _stage6_prepared_tree(tid) as prepare:
-            prepare()
+            # T-14744: with no spec flipped the graph on disk is the one the run's own prepare() built over
+            # this same tree, so the tail reuses it; a flip (the run's window restored the bytes) or an
+            # absent graph file prepares again, as before.
+            if getattr(prepare, "flipped", None) or not GRAPH_PATH.exists():
+                prepare()
             try:
                 after = worktree_mod._worktree_disk_tree(W, _run_git_cap) if before else None
                 changed = (worktree_mod._diff_name_paths(W, before, after, _run_git_cap=_run_git_cap)
@@ -2456,7 +2485,7 @@ def _admission_after_run(args, main) -> None:
 
 
 def _admission_sweep_runs(root: "Path | None" = None) -> bool:
-    """T-14195 (SPEC-1045 rule 2 (o)) — whether this checkout's run executes the engine's test sweep: a
+    """T-14195 (SPEC-1063 rule 2 (o)) — whether this checkout's run executes the engine's test sweep: a
     declared sweep directory exists and no declared layer covers it (the two in-process deciders the
     Stage-6 run itself asks). Any failure reads as a sweep that runs — the run is then never no-layer.
     T-14196: `root` names a land's branch checkout (default: this checkout)."""
@@ -2505,7 +2534,7 @@ def _task_commit_read_scope(card=None):
     walk instead of folding the live segment beside the body's. The body's own `with` then re-enters it
     (`scan_scope` yields an installed scope holding the path) and its `_set_read_horizon` is a no-op."""
     needles = tuple(r for r in _carried_session_refs() if json.dumps(r)[1:-1] == r)
-    with journal_mod.scan_scope(EVENTS_PATH, needles=needles, remainder=True, keep={"commit_landed": None},
+    with journal_mod.scan_scope(EVENTS_PATH, needles=needles, remainder=True, keep={"commit_landed": None, COMMIT_LANDED_VOIDED: None},
                                 reducers={"spec0161_type_keys": debt_mod.debt_spec0161.TypeKeysReducer}) as scope:
         def _set_read_horizon(card: dict) -> None:
             tid, since = (card or {}).get("id"), audit.audit_task_horizon(card)
@@ -2524,6 +2553,8 @@ def cmd_task_commit(args: argparse.Namespace) -> None:
     """T-13295 (SPEC-0190 rule 10) — THE WIRING SITE of task commit's ONE-PASS ReadScope
     (`_task_commit_read_scope`); since T-14445 the invocation-level wrapper opens it first, and this
     `with` re-enters it."""
+    if getattr(args, "void", None):
+        return _task_commit_void(args)   # T-14738 — its own mode: no commit, one journal row
     with _task_commit_read_scope() as _set_read_horizon:
         with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: never commit a transient Stage-6 activation
             return task_mod.cmd_task_commit(args, _set_read_horizon=_set_read_horizon, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _audit_commit_shift_hazard=_audit_commit_shift_hazard, _bookkeeping_only_custody_shift=_bookkeeping_only_custody_shift, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _commit_worktree=_commit_worktree, _count_audit_passes=_count_audit_passes, _die=_die, _dump_state_yaml=_dump_state_yaml, _governing_contract_for=_governing_contract_for, _load_task_for_transition=_load_task_for_transition, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, write_text_atomic=write_text_atomic, _write_task_transition=_write_task_transition, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _red_fix_authored_paths=_red_fix_authored_paths, _card_repair_staged_card=_card_repair_staged_card, _folded_audit_post_hazard=_folded_audit_post_hazard, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _prior_audit_record=_prior_audit_record, _red_cause_is_card_record=_red_cause_is_card_record, _lifecycle_bookkeeping_path=_forecast_excluded_path, _worktree_dirty_paths=_worktree_dirty_paths, _worktree_path_statuses=_worktree_path_statuses, _zero_ship_diff_bookkeeping=_zero_ship_diff_bookkeeping, _reverify_spec_signature=_reverify_spec_signature, _run_git_cap=_run_git_cap, _anchor_moved_since=_anchor_moved_since, _stage_pointer_facts=_stage_pointer_facts, _task_events_for=_task_events_for, _git_resolve_sha=_git_resolve_sha, _drop_non_card_drift=_commit_seam_drift)
@@ -11820,6 +11851,21 @@ def _venue_external_action(args, target: str, action: str, *, channel: str = "py
     })
 
 
+def _venue_seed_repo():
+    """The repository whose seed record this verb reads and writes (T-14708): None for the kernel,
+    else the consumer's git common dir — the value its venue record names as `serves`. Raises
+    `venue.VenueError` when a consumer's common dir does not resolve: a consumer verb never falls
+    back to the kernel's seed."""
+    if not _is_consumer_build():
+        return None
+    common = _git_common_dir(REPO_ROOT)
+    if common is None:
+        raise venue.VenueError(
+            f"this repository's git common dir did not resolve (`git rev-parse --git-common-dir` in "
+            f"{REPO_ROOT}), so its seed record cannot be named; nothing was read or written")
+    return str(common)
+
+
 def cmd_venue_raise(args: argparse.Namespace) -> None:
     """Create the box from the seed SNAPSHOT, wait for it, measure the fingerprint, run the readiness
     probe — and DELETE it again if either fails, because a started hour is billed whole (the recipe's
@@ -11837,12 +11883,14 @@ def cmd_venue_raise(args: argparse.Namespace) -> None:
     # wins, else the candidate, else the recorded seed (`venue seed`), else a refusal naming what to
     # record and where. Nothing here ever lists the provider's snapshots and picks one by description.
     try:
-        image, image_source, role = venue.resolve_seed_snapshot(args.from_image, env=os.environ)
+        repo = _venue_seed_repo()
+        image, image_source, role = venue.resolve_seed_snapshot(args.from_image, env=os.environ,
+                                                                repo=repo)
     except venue.VenueError as exc:
         _die(f"venue raise: {exc}")
         return
     if role == "candidate":
-        candidate, _reason = venue.read_seed_candidate(os.environ)
+        candidate, _reason = venue.read_seed_candidate(os.environ, repo)
         print(f"venue raise: seed snapshot {image} (source: {image_source}) — CANDIDATE: a GREEN "
               f"readiness probe promotes it to canonical")
         fingerprint, server_id, ip, failure, quota = _venue_raise_once(args, image, t0,
@@ -11857,24 +11905,24 @@ def cmd_venue_raise(args: argparse.Namespace) -> None:
                 image, main_sha,
                 f"auto-promoted by venue raise: server {server_id} readiness probe GREEN (T-12885)",
                 getattr(args, "task", None),
-                extra={"promoted_from": "candidate", "verifying_server_id": server_id})
+                extra={"promoted_from": "candidate", "verifying_server_id": server_id}, repo=repo)
             if record is None:
                 return
-            venue.clear_seed_candidate(os.environ)
+            venue.clear_seed_candidate(os.environ, repo)
             print(f"  CANDIDATE PROMOTED: snapshot {image} is now the canonical seed "
-                  f"({venue.resolve_seed_path(os.environ)})"
+                  f"({venue.resolve_seed_path(os.environ, repo)})"
                   + (f", replacing {previous}" if previous and previous != image else ""))
             _venue_publish_hint(args, ip, server_id, image)
             return
-        canonical, _r = venue.read_seed(os.environ)
+        canonical, _r = venue.read_seed(os.environ, repo)
         _append_event("venue_seed_candidate_rejected", getattr(args, "task", None), {
             "snapshot_id": image, "reason": failure, "server_id": server_id,
             "path": image_source, "canonical": (canonical or {}).get("snapshot_id")})
-        venue.clear_seed_candidate(os.environ)
+        venue.clear_seed_candidate(os.environ, repo)
         print(f"venue raise: CANDIDATE {image} REJECTED ({failure}) — cleared; falling back to the "
               f"canonical seed", file=sys.stderr)
         try:
-            image, image_source, role = venue.resolve_seed_snapshot(None, env=os.environ)
+            image, image_source, role = venue.resolve_seed_snapshot(None, env=os.environ, repo=repo)
         except venue.VenueError as exc:
             _die(f"venue raise: {exc}")
             return
@@ -11891,6 +11939,18 @@ def cmd_venue_raise(args: argparse.Namespace) -> None:
 def _venue_publish_hint(args, ip, server_id, image) -> None:
     print(f"  publish it: bin/yitc-v2 venue publish --box {ip} --server-id {server_id} "
           f"--snapshot-id {image}" + (f" --task {args.task}" if args.task else ""))
+
+
+def _venue_seed_rebuild_command() -> str:
+    """T-14729 — the command that rebuilds THIS repository's seed, named when a raise's box refuses the
+    venue key (a seed older than the dedicated key): a consumer's image build, else the kernel recipe."""
+    if _is_consumer_build():
+        return f"bin/yitc-v2 -C {REPO_ROOT} venue seed --build --provision <path>"
+    # the kernel recipe, located (not spelled) so the hint is the repository-relative path the
+    # owner runs from the root, whatever directory holds it
+    found = sorted(ENGINE_ROOT.glob("*/venue-seed-recipe.sh"))
+    rel = os.path.relpath(found[0], ENGINE_ROOT) if found else "venue-seed-recipe.sh"
+    return f"{rel} seed"
 
 
 def _venue_raise_once(args, image, t0, *, keep_box) -> tuple:
@@ -11928,7 +11988,8 @@ def _venue_raise_once(args, image, t0, *, keep_box) -> tuple:
         print(f"  torn down server {server_id} after {why} (HTTP {status})", file=sys.stderr)
 
     try:
-        waited = venue.wait_ready(ip, timeout=(args.ready_timeout or venue.WAIT_READY_TIMEOUT))
+        waited = venue.wait_ready(ip, timeout=(args.ready_timeout or venue.WAIT_READY_TIMEOUT),
+                                  stale_seed_rebuild=_venue_seed_rebuild_command())
     except venue.VenueError as exc:
         _teardown("a bounded-wait refusal")
         return None, server_id, ip, str(exc), False
@@ -11979,39 +12040,41 @@ def _venue_raise_once(args, image, t0, *, keep_box) -> tuple:
     return fingerprint, server_id, ip, None, False
 
 
-def _record_canonical_seed(snapshot_id, main_sha, note, task, extra=None) -> tuple:
+def _record_canonical_seed(snapshot_id, main_sha, note, task, extra=None, *, repo=None) -> tuple:
     """THE ONE canonical-seed writer (T-12668, T-12885): build -> write -> journal
     `venue_seed_recorded` with the WHOLE record + path + previous (+ `extra` provenance keys — the
     raise's auto-promotion names its verifying server). Returns (record, previous); on a refused
-    write it dies and returns (None, previous)."""
-    seed, _reason = venue.read_seed(os.environ)
+    write it dies and returns (None, previous). `repo` keys the record (T-14708; None = the kernel)."""
+    seed, _reason = venue.read_seed(os.environ, repo)
     previous = seed["snapshot_id"] if seed else None
     record = venue.build_seed(
         snapshot_id=snapshot_id, clone_main_sha=main_sha,
         recorded_at=_utc_now_iso(), session_ref=_resolve_session_ref(), task=task, note=note)
     try:
-        venue.write_seed(record, os.environ)
+        venue.write_seed(record, os.environ, repo)
     except venue.VenueError as exc:
         _die(f"venue seed: {exc}")
         return None, previous
     # THE WHOLE RECORD, not a subset — the same reason `venue_published` spreads its record: the
     # journal is the durable copy once the file is overwritten by the next promotion.
     _append_event("venue_seed_recorded", task, dict(
-        record, path=str(venue.resolve_seed_path(os.environ)), previous=previous, **(extra or {})))
+        record, path=str(venue.resolve_seed_path(os.environ, repo)), previous=previous, **(extra or {})))
     return record, previous
 
 
-def _venue_record_seed_candidate(snapshot_id, main_sha, *, task, note, session_ref=None) -> None:
+def _venue_record_seed_candidate(snapshot_id, main_sha, *, task, note, session_ref=None,
+                                 repo=None) -> None:
     """THE seed-candidate writer (T-12885): `venue seed --candidate` and the teardown refresh leg of
     `venue delete` (T-14265) both record through it — the file, then `venue_seed_candidate_recorded`.
     Raises `venue.VenueError` when the file cannot be written. `venue delete` passes the
-    `session_ref` it resolved before its first mutation (T-14312); without it the ref is resolved here."""
-    seed, _reason = venue.read_seed(os.environ)
-    cpath = venue.resolve_seed_candidate_path(os.environ)
+    `session_ref` it resolved before its first mutation (T-14312); without it the ref is resolved here.
+    `repo` keys the candidate (T-14708; None = the kernel, which the refresh leg always writes)."""
+    seed, _reason = venue.read_seed(os.environ, repo)
+    cpath = venue.resolve_seed_candidate_path(os.environ, repo)
     record = venue.build_seed(snapshot_id=snapshot_id, clone_main_sha=main_sha,
                               recorded_at=_utc_now_iso(), session_ref=session_ref or _resolve_session_ref(),
                               task=task, note=note)
-    venue.write_seed_candidate(record, os.environ)
+    venue.write_seed_candidate(record, os.environ, repo)
     _append_event("venue_seed_candidate_recorded", task,
                   dict(record, path=str(cpath), canonical=seed["snapshot_id"] if seed else None))
     print(f"venue seed candidate recorded: snapshot {record['snapshot_id']} -> {cpath} — the "
@@ -12033,8 +12096,14 @@ def cmd_venue_seed(args: argparse.Namespace) -> None:
         _die("venue seed: --provision names the build's provisioning script and needs --build: "
              "`bin/yitc-v2 -C <consumer> venue seed --build --provision <path>`")
         return
-    seed, reason = venue.read_seed(os.environ)
-    path = venue.resolve_seed_path(os.environ)
+    try:
+        repo = _venue_seed_repo()
+    except venue.VenueError as exc:
+        _die(f"venue seed: REFUSED — {exc}. Run it against the repository's own checkout: "
+             f"`bin/yitc-v2 -C <path> venue seed`")
+        return
+    seed, reason = venue.read_seed(os.environ, repo)
+    path = venue.resolve_seed_path(os.environ, repo)
     candidate_id = getattr(args, "candidate", None)
     if candidate_id is not None:
         if args.snapshot_id is not None:
@@ -12042,23 +12111,23 @@ def cmd_venue_seed(args: argparse.Namespace) -> None:
             return
         try:
             _venue_record_seed_candidate(candidate_id, args.main_sha,
-                                         task=getattr(args, "task", None), note=args.note)
+                                         task=getattr(args, "task", None), note=args.note, repo=repo)
         except venue.VenueError as exc:
             _die(f"venue seed: {exc}")
         return
     if args.snapshot_id is None:
         if reason:
             print(f"venue seed: {reason}", file=sys.stderr)
-        candidate, cand_reason = venue.read_seed_candidate(os.environ)
+        candidate, cand_reason = venue.read_seed_candidate(os.environ, repo)
         if cand_reason:
             print(f"venue seed: {cand_reason}", file=sys.stderr)
         if candidate is not None:
             print(f"venue seed: CANDIDATE snapshot {candidate['snapshot_id']} pending — "
-                  f"{venue.resolve_seed_candidate_path(os.environ)} (the next bare `venue raise` "
+                  f"{venue.resolve_seed_candidate_path(os.environ, repo)} (the next bare `venue raise` "
                   f"verifies and promotes it)")
         if seed is None:
             print(f"venue seed: NO canonical seed snapshot is recorded ({path}) — a bare "
-                  f"`venue raise` REFUSES until one is; {venue.seed_record_hint(os.environ)}")
+                  f"`venue raise` REFUSES until one is; {venue.seed_record_hint(os.environ, repo)}")
             return
         print(f"venue seed: snapshot {seed['snapshot_id']} — {path}")
         print(f"  clone main@{(seed.get('clone_main_sha') or '?')[:12]} · recorded "
@@ -12066,7 +12135,7 @@ def cmd_venue_seed(args: argparse.Namespace) -> None:
               + (f" · {seed['note']}" if seed.get("note") else ""))
         return
     record, previous = _record_canonical_seed(args.snapshot_id, args.main_sha, args.note,
-                                              getattr(args, "task", None))
+                                              getattr(args, "task", None), repo=repo)
     if record is None:
         return
     print(f"venue seed recorded: snapshot {record['snapshot_id']} -> {path}"
@@ -12087,6 +12156,7 @@ def _venue_seed_build(args) -> None:
              "--snapshot-id <id>`")
         return
     try:
+        repo = _venue_seed_repo()
         pre = venue.build_preflight(repo_root=REPO_ROOT, engine_root=ENGINE_ROOT,
                                     provision=args.provision, env=os.environ)
     except venue.VenueError as exc:
@@ -12117,14 +12187,15 @@ def _venue_seed_build(args) -> None:
         f"no engine: each pass ships its own)",
         getattr(args, "task", None),
         extra={"built_by": "venue seed --build", "built_for": str(pre["repo_root"]),
-               "provision": built["provision_rel"], "build_server_id": built["server_id"]})
+               "provision": built["provision_rel"], "build_server_id": built["server_id"]},
+        repo=repo)
     if record is None:
         return
-    print(f"venue seed --build: snapshot {record['snapshot_id']} recorded as the canonical seed "
-          f"({venue.resolve_seed_path(os.environ)})"
+    print(f"venue seed --build: snapshot {record['snapshot_id']} recorded as this repository's "
+          f"canonical seed ({venue.resolve_seed_path(os.environ, repo)})"
           + (f", replacing {previous}" if previous and previous != record["snapshot_id"] else "")
           + f"; the build box {built['server_id']} is deleted")
-    candidate, _cand_reason = venue.read_seed_candidate(os.environ)
+    candidate, _cand_reason = venue.read_seed_candidate(os.environ, repo)
     if candidate is not None:
         print(f"  note: a seed CANDIDATE ({candidate['snapshot_id']}) is pending and a bare "
               f"`venue raise` tries it FIRST; `bin/yitc-v2 venue raise --from-image "
@@ -12318,11 +12389,12 @@ def _venue_publish_under_reservation(args, fingerprint: dict, _rv, *, serves=Non
           f"{host_main[:12]} (push_s={push_s})")
     # REPORT ONLY (T-12668): a box that verified from a snapshot OTHER than the recorded seed is the
     # keep-until-verified step done — say so, and name the promotion; never promote silently.
-    seed, _seed_reason = venue.read_seed(os.environ)
+    seed, _seed_reason = venue.read_seed(os.environ, serves)
     if seed is None or seed["snapshot_id"] != str(record["snapshot_id"]):
         print(f"  note: this box verified from snapshot {record['snapshot_id']}; the recorded seed is "
               f"{seed['snapshot_id'] if seed else 'ABSENT'}. Once you trust it, promote it: "
-              f"bin/yitc-v2 venue seed --snapshot-id {record['snapshot_id']}")
+              f"bin/yitc-v2 {'-C <this repository> ' if serves else ''}venue seed "
+              f"--snapshot-id {record['snapshot_id']}")
     if push_s > venue.REFRESH_BOUND_S:
         # A WARN, NOT A REFUSAL: the clone is healed and the box is correct to publish. What the
         # measurement says is that the SNAPSHOT is stale — both numbers formatted from their single
@@ -12418,7 +12490,7 @@ def cmd_venue_delete(args: argparse.Namespace) -> None:
                 server_id, env=os.environ,
                 on_mutation=lambda target, action: _venue_external_action(args, target, action),
                 record_candidate=lambda image_id, main_sha: _venue_record_seed_candidate(
-                    image_id, main_sha, task=task, session_ref=session_ref,
+                    image_id, main_sha, task=task, session_ref=session_ref, repo=None,  # kernel leg
                     note="teardown refresh (SPEC-1029 rule 6) — unverified until the next bare "
                          "venue raise"))
         except venue.VenueError as exc:
@@ -12477,8 +12549,9 @@ def cmd_venue_show(args: argparse.Namespace) -> None:
     path = venue.resolve_record_path(os.environ)
     if reason:
         print(f"venue show: {reason}", file=sys.stderr)
-    seed, _seed_reason = venue.read_seed(os.environ)
-    seed_line = (f"seed snapshot: {seed['snapshot_id']} ({venue.resolve_seed_path(os.environ)})"
+    seed_repo = (record or {}).get("serves") or None   # T-14708: the seed of the repository served
+    seed, _seed_reason = venue.read_seed(os.environ, seed_repo)
+    seed_line = (f"seed snapshot: {seed['snapshot_id']} ({venue.resolve_seed_path(os.environ, seed_repo)})"
                  if seed else "seed snapshot: NONE recorded — `venue seed` to record/show")
     if record is None:
         print(f"venue show: NO venue is published ({path}) — every kernel verify pass runs LOCALLY.")
@@ -13591,7 +13664,7 @@ def _selfcommit_window_open(entries: "list[str]") -> None:
     if w.get("stack") is None:
         root = _main_worktree(REPO_ROOT) or REPO_ROOT
         stack = contextlib.ExitStack()
-        # T-14595 (SPEC-0051 §A window, SPEC-1045 rule 2 (r)): the window opens holding repo.lock only
+        # T-14595 (SPEC-0051 §A window, SPEC-1063 rule 2 (r)): the window opens holding repo.lock only
         # after a look UNDER it found no gated deploy standing; it waits (bounded) or refuses while one
         # stands, and takes no land reservation, so an ordinary land never holds it (SPEC-0184 s10).
         # Nothing is written yet, so a refusal here writes nothing.
@@ -13628,7 +13701,7 @@ def _qj_take_land_reservation(on_wait):
     the re-decision under the reservation re-opens it for the write and the commit."""
     _selfcommit_window_close()
     # T-14591: through the ONE self-commit route, so a queue-jump never takes the reservation while a
-    # gated deploy is queued or running (SPEC-1045 rule 2 (r))
+    # gated deploy is queued or running (SPEC-1063 rule 2 (r))
     return _land_reservation_after_deploys(_main_worktree(REPO_ROOT) or REPO_ROOT,
                                            lambda waited, _why: on_wait(waited))
 
@@ -13655,7 +13728,7 @@ def _deploy_standing_at(root):
 
 
 def _land_reservation_after_deploys(root, on_wait=None):
-    """T-14591 (SPEC-0051 §A window, SPEC-1045 rule 2 (r)) — the ONE way a scoped self-commit takes the
+    """T-14591 (SPEC-0051 §A window, SPEC-1063 rule 2 (r)) — the ONE way a scoped self-commit takes the
     land reservation: wait while a gated deploy stands, take the reservation, and look again UNDER it —
     a deploy filed meanwhile makes it release and wait again, so a self-commit never moves main after
     a deploy's ticket is filed; one that starts after we hold it meets the deploy's in-flight check
@@ -13712,7 +13785,7 @@ def _selfcommit_enter_after_deploys(root, stack) -> None:
     if resv is not None and held.get(str(resv / "repo.lock")):
         why = _deploy_standing_at(root)
         if why:
-            _die(f"scoped self-commit: REFUSED — {why} (SPEC-1045 rule 2 (r)): nothing moves main while a "
+            _die(f"scoped self-commit: REFUSED — {why} (SPEC-1063 rule 2 (r)): nothing moves main while a "
                  f"gated deploy stands, and this one already holds repo.lock, so it cannot wait. Nothing "
                  f"was written; re-run the same `bin/yitc-v2 …` command once the deploy has ended "
                  f"(`bin/yitc-v2 journal query --type deploy_completed` shows it) (T-14595, SPEC-0051).")
@@ -13732,14 +13805,14 @@ def _selfcommit_enter_after_deploys(root, stack) -> None:
         waited = time.monotonic() - t0
         if waited >= limit:
             _die(f"scoped self-commit: REFUSED — {why} past the land park limit ({int(limit)} s): nothing "
-                 f"moves main while a gated deploy stands (SPEC-1045 rule 2 (r)). Nothing was written; "
+                 f"moves main while a gated deploy stands (SPEC-1063 rule 2 (r)). Nothing was written; "
                  f"re-run the same `bin/yitc-v2 …` command once the deploy has ended "
                  f"(`bin/yitc-v2 journal query --type deploy_completed` shows it) (T-14595, SPEC-0051).")
             return
         if said[0] is None or waited - said[0] >= 30:
             said[0] = waited
             print(f"  waiting ({int(waited)} s): {why} — this scoped self-commit writes once the deploy has "
-                  f"ended (T-14595, SPEC-1045 rule 2 (r)).", file=sys.stderr)
+                  f"ended (T-14595, SPEC-1063 rule 2 (r)).", file=sys.stderr)
         time.sleep(min(2.0, max(0.05, limit - waited)))
 
 
@@ -14860,14 +14933,33 @@ def _recorded_commit_landed(tid: str, *, commit: "str | None" = None) -> dict | 
     whole history in one walk, exactly as before)."""
     if not EVENTS_PATH.exists():
         return None
-    rec = None
-    for e in journal_mod.iter_rows(EVENTS_PATH, types=("commit_landed",),
+    live: "list[dict]" = []
+    # T-14738 — the SAME walk, its types widened by the void row: a void retires the EARLIER rows it
+    # names (`_sha_prefix_match`); a later re-record of the same sha survives.
+    for e in journal_mod.iter_rows(EVENTS_PATH, types=("commit_landed", COMMIT_LANDED_VOIDED),
                                    since=journal_mod.task_floor(EVENTS_PATH, tid),
                                    pred=lambda e: e.get("task_id") == tid):
         d = e.get("data") or {}
-        if d.get("commit") and (commit is None or str(d.get("commit")) == commit):
-            rec = d   # keep scanning — last commit_landed wins (task commit is callable xN)
+        if e.get("type") == COMMIT_LANDED_VOIDED:
+            live = [r for r in live if not _sha_prefix_match(str(r.get("commit")), d.get("commit"))]
+        elif d.get("commit"):
+            live.append(d)
+    rec = None
+    for d in live:
+        if commit is None or str(d.get("commit")) == commit:
+            rec = d   # last commit_landed wins (task commit is callable xN)
     return rec
+
+
+#: T-14738 — the journal row a governed `task commit --void` writes (SPEC-1022 §void).
+COMMIT_LANDED_VOIDED = "commit_landed_voided"
+
+
+def _sha_prefix_match(a: str, b: str) -> bool:
+    """The bidirectional prefix compare the chain already uses for a short recorded sha vs a full one
+    (`audit.ship_span_commits._same`); a value under 7 chars matches nothing."""
+    a, b = str(a or "").strip(), str(b or "").strip()
+    return len(a) >= 7 and len(b) >= 7 and (a.startswith(b) or b.startswith(a))
 
 
 def _recorded_commit_sha(tid: str) -> str | None:
@@ -14899,17 +14991,130 @@ def _task_commit_landed_chain(tid: str) -> "list[tuple[str, str | None]]":
     chain: "list[tuple[str, str | None]]" = []
     if not EVENTS_PATH.exists():
         return chain
-    # T-13330 — declared, task-scoped (see `_recorded_commit_landed` above).
-    for e in journal_mod.iter_rows(EVENTS_PATH, types=("commit_landed",),
+    # T-13330 — declared, task-scoped (see `_recorded_commit_landed` above); T-14738 — a row a
+    # governed void retired is left out, exactly as `_recorded_commit_landed` leaves it out.
+    for e in journal_mod.iter_rows(EVENTS_PATH, types=("commit_landed", COMMIT_LANDED_VOIDED),
                                    since=journal_mod.task_floor(EVENTS_PATH, tid),
                                    pred=lambda e: e.get("task_id") == tid):
         data = e.get("data") or {}
         c = data.get("commit")
+        if e.get("type") == COMMIT_LANDED_VOIDED:
+            chain = [(s, k) for s, k in chain if not _sha_prefix_match(s, c)]
+            continue
         if not c:
             continue
         k = data.get("kind")
         chain.append((str(c), str(k) if k else None))
     return chain
+
+
+_VOID_VERDICTS = frozenset({"GREEN", "YELLOW", "RED"})   # an ABORT / a preview renders no verdict
+_HEX_TOKEN_RE = re.compile(r"\b[0-9a-f]{7,40}\b")
+
+
+def _void_named_by_audit(tid: str, full: str) -> "str | None":
+    """T-14738 AC2(c) — where an audit VERDICT, a ceiling decision or a recorded audit span names
+    `full` (any 7..40-hex token it starts with), else None. Read: this task's verdict-bearing journal
+    rows (audit_pre/post_completed with a GREEN/YELLOW/RED verdict — their `commit`, `audited_span`,
+    `custody_repin_span`, trails — and every `ceiling_decision` row) plus the saved
+    decisions/<tid>-audit-{pre,post}.yaml whose verdict is one of those. A preview row or an ABORT
+    judged nothing and is not read. An unreadable verdict file returns a refusal location (fail-closed:
+    unanswered is never "not named")."""
+    def _names(blob: str) -> bool:
+        return any(full.startswith(t) for t in _HEX_TOKEN_RE.findall(blob))
+    if EVENTS_PATH.exists():
+        # the existing task-row view (`_task_events_for`) — no journal reader of its own
+        for e in _task_events_for(tid, ("audit_pre_completed", "audit_post_completed", "ceiling_decision")):
+            d = e.get("data") or {}
+            if e.get("type") != "ceiling_decision" and str(d.get("verdict") or "").upper() not in _VOID_VERDICTS:
+                continue
+            if _names(json.dumps(d, default=str)):
+                return f"the journal's {e.get('type')} row at {e.get('ts')}"
+    for stage in ("pre", "post"):
+        p = _audit_yaml_path(tid, stage)
+        if not p or not Path(p).exists():
+            continue
+        where = str(Path(p).relative_to(REPO_ROOT)) if str(p).startswith(str(REPO_ROOT)) else str(p)
+        try:   # the loader the close gate reads it with (gates._require_audit_post_for_commit)
+            text = Path(p).read_text(encoding="utf-8")
+            rec = state.load_str(text)
+        except Exception as exc:   # noqa: BLE001 — unreadable / undecodable / unparseable: unanswered
+            return f"{where} (unreadable: {type(exc).__name__}) — cannot prove it does not name the commit"
+        if not isinstance(rec, dict):
+            return f"{where} (not a mapping) — cannot prove it does not name the commit"
+        if str(rec.get("verdict") or "").upper() in _VOID_VERDICTS and (
+                _names(text) or _names(json.dumps(rec, default=str))):
+            return where
+    return None
+
+
+def _task_commit_void(args) -> None:
+    """T-14738 (SPEC-1022 §Void of an undone commit) — `task commit <task> --void <sha> --reason <text>`.
+    Retires ONE commit_landed row whose commit was undone on the unlanded branch, by appending one
+    `commit_landed_voided` row; the chain readers then leave the row out. NO commit is made. Every
+    admission condition is a POSITIVE git or journal answer; an unanswered question refuses."""
+    tid = str(args.task or "").strip()
+    raw = str(args.void or "").strip()
+    pre = f"task commit --void refused ({tid} {raw}):"
+    if getattr(args, "from_stdin", False):   # the shell-proof route for the reason (SPEC-0209 rule 5)
+        _fields = textutil.stdin_mapping_ingest(
+            args, task_mod.COMMIT_STDIN_CONFLICTING_ARGV_FLAGS, stdin_text=sys.stdin.read(), die=_die,
+            carries="the void reason", recognised=("void_reason",), argv_dests=set(vars(args)),
+            verb="task commit --void")
+        args.void_reason = _fields.get("void_reason")
+    reason = str(getattr(args, "void_reason", None) or "").strip()
+    for flag in ("message", "absorb", "fix_red", "reship", "card_repair"):
+        if getattr(args, flag, None):
+            _die(f"{pre} --void is its own mode and makes no commit — drop --{flag.replace('_', '-')}: `yitc-v2 task commit {tid} --void {raw} --reason '<why>'`.")
+    if not reason:
+        _die(f"{pre} --reason is required: the void row records why this commit's row is retired — "
+             f"`yitc-v2 task commit {tid} --void {raw} --reason '<why>'`.")
+    tp = _find_task_yaml(tid)
+    card = _read_yaml(tp) if tp else None
+    if not isinstance(card, dict) or card.get("status") != "in-progress":
+        _die(f"{pre} the card must exist and be in-progress (found "
+             f"{(card or {}).get('status') if isinstance(card, dict) else 'no card'}); see "
+             f"`yitc-v2 task show {tid}`.")
+    br = _run_git_cap(["rev-parse", "--abbrev-ref", "HEAD"], REPO_ROOT)
+    if br.returncode != 0 or br.stdout.strip() != f"task/{tid}":
+        _die(f"{pre} run it from the task worktree — the checkout's branch is "
+             f"{br.stdout.strip() or 'unknown'!r}, not 'task/{tid}', so 'the task branch HEAD' "
+             f"cannot be asked: `cd <the task/{tid} worktree>` and re-run "
+             f"`yitc-v2 task commit {tid} --void {raw} --reason '<why>'`.")
+    rp = (_run_git_cap(["rev-parse", "--verify", "--quiet", f"{raw}^{{commit}}"], REPO_ROOT)
+          if re.fullmatch(r"[0-9a-f]{7,40}", raw) else None)
+    full = rp.stdout.strip() if rp is not None and rp.returncode == 0 else ""
+    if not full:
+        _die(f"{pre} git cannot answer for {raw!r}: it does not resolve to exactly one commit in this "
+             f"repository (absent, ambiguous, or not a 7..40-hex sha). A void needs a commit git can "
+             f"prove is off both the branch and main; find the full sha with `git reflog` and re-run "
+             f"`yitc-v2 task commit {tid} --void <full sha> --reason '<why>'`.")
+    rows = [c for c, _k in _task_commit_landed_chain(tid) if _sha_prefix_match(c, full)]
+    if not rows:
+        _die(f"{pre} no live commit_landed row of {tid} names {full[:12]} (never recorded, or already "
+             f"voided) — there is nothing to void; list the card's rows with "
+             f"`yitc-v2 journal query --type commit_landed --task {tid}`.")
+    for ref, leg in (("HEAD", "(a)"), ("main", "(b)")):
+        r = _run_git_cap(["merge-base", "--is-ancestor", full, ref], REPO_ROOT)
+        if r.returncode == 0:
+            where = "the task branch HEAD" if ref == "HEAD" else "main"
+            _die(f"{pre} {leg} {full[:12]} is reachable from {where} — its work is present, so custody "
+                 f"must keep reading it. A void retires only a commit that was undone; audit the "
+                 f"present work instead: `yitc-v2 audit post --task {tid}`.")
+        if r.returncode != 1:
+            _die(f"{pre} (d) git cannot answer whether {full[:12]} is an ancestor of {ref} (exit "
+                 f"{r.returncode}: {(r.stderr or '').strip()[:200]}) — an unanswered question is never "
+                 f"a 'no'. Check the repository (`git -C <worktree> merge-base --is-ancestor {full[:12]} {ref}`) and "
+                 f"re-run once git answers.")
+    named = _void_named_by_audit(tid, full)
+    if named:
+        _die(f"{pre} (c) {full[:12]} is named by an audit verdict, ceiling decision or recorded audit "
+             f"span ({named}) — audited work is never voided; custody must not slide back past it. "
+             f"Escalate: `yitc-v2 blocked-on-land {tid} <reason>`, or ask the owner.")
+    _append_event(COMMIT_LANDED_VOIDED, tid, {"commit": full, "recorded": rows[-1], "reason": reason})
+    print(f"{tid}: commit_landed row {rows[-1]} voided ({full[:12]} is on neither task/{tid} nor main, "
+          f"and no audit names it). Custody and the ship span no longer read it.\n"
+          f"next: `yitc-v2 audit post --task {tid}` on the current custody commit.")
 
 
 def _recorded_commit_kind(tid: str) -> "str | None":
@@ -15825,7 +16030,10 @@ def _ac_probe_evidence_events_for(task: dict, touched_paths=None, excluded_types
                 d = ev.get("data") or {}
                 if et == "external_audit_completed" and d.get("stage") != "ad-hoc":
                     continue
-                cands = {subj, d.get("target_id"), d.get("plan")}
+                # T-14706 (X-2451) — `data` is free-form: a target_id / plan that is not a string
+                # (a dict, a list) is not a candidate at all, so it can neither tie nor raise on the
+                # set build. The row's own task_id slot still ties it.
+                cands = {subj} | {v for v in (d.get("target_id"), d.get("plan")) if isinstance(v, str)}
                 cands.discard(None)
                 if tid in cands or (cites & cands):
                     out.append(ev)
@@ -15849,7 +16057,8 @@ def _ac_probe_evidence_events_for(task: dict, touched_paths=None, excluded_types
                     if followup_state is None:
                         followup_state = followup_mod._fold(
                             EVENTS_PATH, journal_mod.segment_fold_lines)
-                    cur = followup_state.get(fdata.get("followup_id"))
+                    _fid = fdata.get("followup_id")      # T-14706: a non-string id has no fold record
+                    cur = followup_state.get(_fid) if isinstance(_fid, str) else None
                     if cur:
                         merged = dict(fdata)
                         merged.update({"status": cur.get("status"),
@@ -18258,7 +18467,9 @@ _ONLY_PATHS_LOCK_RETRIES = 10   # T-14619 — bounded retry on a concurrent help
 def _commit_only_paths(from_ref: str, msg: str, paths: list, *, before_commit=None, verify_from=None):
     """T-14619 — the `work commit <paths>` arm of `_commit_worktree`: commit the named paths ALONE.
 
-    `git add -- <paths>` (so a new untracked file can be named) then `git commit --only -- <set>`:
+    `git add -- <paths>` (so a new untracked file can be named; a path already staged as a deletion by
+    `git rm` is not re-added, and a path git does not know at all is refused — T-14739) then
+    `git commit --only -- <set>`:
     git builds the commit from HEAD plus the set, so whatever ANOTHER helper staged stays staged and
     stays out. The set is the named paths plus `events.jsonl` when it differs from HEAD — the journal
     receipt. A path whose realpath is not inside the worktree is refused, naming every such path,
@@ -18295,8 +18506,24 @@ def _commit_only_paths(from_ref: str, msg: str, paths: list, *, before_commit=No
     for attempt in range(_ONLY_PATHS_LOCK_RETRIES):
         if attempt:
             time.sleep(0.1 + 0.05 * attempt)
-        add = _git(["add", "--", *rel])
-        if add.returncode != 0:
+        # T-14739 — a path already staged as a deletion (`git rm`: gone from disk AND index, still in
+        # HEAD) is not re-added (`git add` refuses it: pathspec did not match) but stays in the commit
+        # set, so `commit --only` records the deletion. A path git does not know at all is refused.
+        to_add, unknown = [], []
+        for p in rel:
+            if (os.path.lexists(os.path.join(root, p))
+                    or _git(["ls-files", "--error-unmatch", "--", p]).returncode == 0):
+                to_add.append(p)
+            elif _git(["cat-file", "-e", f"HEAD:{p}"]).returncode != 0:
+                unknown.append(p)
+        if unknown:
+            if rollback is not None:
+                rollback()
+            _die(f"work commit: path(s) git does not know (not on disk, not in the index, not in HEAD) "
+                 f"refused: {', '.join(unknown)}. Nothing was staged or committed; re-run naming paths that exist "
+                 "or that git tracks: `bin/yitc-v2 work commit <paths> --from <ref> -m <msg>`.")
+        add = _git(["add", "--", *to_add]) if to_add else None
+        if add is not None and add.returncode != 0:
             if _locked(add):
                 continue
             _die(f"git add failed: {(add.stderr or add.stdout).strip()} — nothing was committed; fix the "
@@ -19432,7 +19659,7 @@ def _commit_is_substantive(sha: str) -> bool:
 
 
 def _stage6_run_not_owed(tid: str) -> "str | None":
-    """T-14483 (SPEC-1045 rule 2 (o)) — why `tid` owes no governed Stage-6 run, or None when it may owe
+    """T-14483 (SPEC-1063 rule 2 (o)) — why `tid` owes no governed Stage-6 run, or None when it may owe
     one: no `commit_landed` of the card is substantive (`gates._last_substantive_commit` with
     `_commit_is_substantive` — the SAME fact Closure-time coverage reads) AND every path this checkout
     changes against its merge-base with main — committed, uncommitted and untracked
@@ -20443,6 +20670,19 @@ def cmd_audit(args: argparse.Namespace) -> None:
     return None if recorded else out
 
 
+def _audit_main_events_kw(fn) -> dict:
+    """T-14750 — `{"_main_events_path": _main_events_path}` when `fn` (a `cmd_audit`) declares that
+    keyword, else `{}`: every audit gets main's journal resolver, and a pinned pre-change `cmd_audit`
+    whose signature lacks it keeps the keyword roster it accepts (T-13471). An unreadable signature
+    reads as «lacks it»."""
+    import inspect as _inspect   # noqa: PLC0415 — lazy: this module's import set is curated (T-11540)
+    try:
+        params = _inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return {}
+    return {"_main_events_path": _main_events_path} if "_main_events_path" in params else {}
+
+
 def _cmd_audit_dispatch(args: argparse.Namespace, consult: bool = False) -> None:
     # T-13293 (SPEC-0190 rule 10) — THE WIRING SITE of audit pre's ONE-PASS ReadScope: every journal view
     # a TASK `audit pre` composes is served from one horizon-bounded walk (a pass-through otherwise).
@@ -20465,8 +20705,10 @@ def _cmd_audit_dispatch(args: argparse.Namespace, consult: bool = False) -> None
             return _cmd_audit_consult_scoped(args)
         # T-13542 — the SPEC-0168 main-journal resolver rides ONLY the --followup field edit that reads
         # it, so every other audit call keeps the roster a pinned pre-change `cmd_audit` accepts (T-13471).
-        _followup_kw = {"_main_events_path": _main_events_path} if getattr(args, "followup", None) else {}
-        return audit.cmd_audit(args, **_followup_kw, _ceiling_decision_events_for=_ceiling_decision_events_for, _zero_ship_diff_extra_paths=_zero_ship_diff_extra_paths, _latest_event_for=_latest_event_for, _file_has_symbol_space=_file_has_symbol_space, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _capacity_retry_hint=_capacity_retry_hint, _with_repo_lock=_with_repo_lock, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH, _ac_probe_evidence_events_for=_ac_probe_evidence_events_for, _file_followup=_consult_file_successor, _plan_gate_lens=_consult_plan_gate_lens, _red_cause_is_card_record=_red_cause_is_card_record, _audit_scrutiny_spend_note=_audit_scrutiny_note_for, _packet_evidence_record=task_mod._packet_evidence_record, P8_EVIDENCE_TYPES=P8_EVIDENCE_TYPES, _event_task_id=task_mod._event_task_id, _auditor_outage_park=_auditor_outage_park, _work_batch_next_hint=_work_batch_next_hint, _commit_worktree=_commit_worktree, _in_writing_worktree=_in_writing_worktree, _worktree_dirty_paths=_worktree_dirty_paths, _archive_task_audits=_archive_task_audits, _git_mv_tracked=_git_mv_tracked, AUDIT_NO_READ_TOOLING_RETRIES=AUDIT_NO_READ_TOOLING_RETRIES, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, PLANS_DIR=PLANS_DIR, PLAN_FINALIZATION_LENS_VERSION=PLAN_FINALIZATION_LENS_VERSION, TASK_AUDIT_LENS_VERSION=TASK_AUDIT_LENS_VERSION, REPO_ROOT=REPO_ROOT, TASK_ID_RE=TASK_ID_RE, _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _audit_ceiling_blocked=_audit_ceiling_blocked, _auto_rebuild_graph=_auto_rebuild_graph, _build_audit_prompt=_build_audit_prompt, _classify_inert_paths=_classify_inert_paths, _consult_basis=_consult_basis, _count_audit_passes=_count_audit_passes, _decision_realization_block=_decision_realization_block, _die=_die, _find_decision_yaml=_find_decision_yaml, _find_task_yaml=_find_task_yaml, _get_audit_post_diff=_get_audit_post_diff, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _governing_rule_pointer=_governing_rule_pointer, _invoke_auditor=_invoke_auditor, _is_no_read_tooling_abort=_SELF._is_no_read_tooling_abort, _load_draft=_load_draft, _parse_audit_verdict=_SELF._parse_audit_verdict, _parse_consult_result=_parse_consult_result, _plan_content_hash=_plan_content_hash, _plan_corpus_signature=_plan_corpus_signature, _plan_fsm_line=_plan_fsm_line, _plan_gate_recorded_signature=_plan_gate_recorded_signature, _plan_realization_block=_plan_realization_block, _plan_target_scenario_lines=_plan_target_scenario_lines, _plan_task_carrier=_plan_task_carrier, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _prior_audit_record=_prior_audit_record, _read_consult_adjudication=_read_consult_adjudication, _recorded_commit_sha=_recorded_commit_sha, _recorded_commit_kind=_recorded_commit_kind, _recorded_commit_landed=_recorded_commit_landed, _custody_commit_landed=_custody_commit_landed, _reject_id_shaped_plan_slug=_reject_id_shaped_plan_slug, _task_commit_landed_chain=_task_commit_landed_chain, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _require_plan_finalized=_require_plan_finalized, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, _write_task_transition=_write_task_transition, _require_writing_worktree=_require_writing_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _require_ship_custody_repin=_require_ship_custody_repin, _ship_custody_repin_check=_ship_custody_repin_check, _governed_land_evidence=_governed_land_evidence, _require_preshipped_deliverable=_require_preshipped_deliverable, _require_settlement_sweep=_require_settlement_sweep, _require_post_ship_observation=_require_post_ship_observation, _require_land_emitted_event=_require_land_emitted_event, _require_activation_gated_radius=_require_activation_gated_radius, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _resolve_prompt_file=_resolve_prompt_file, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, _verdict_exit_code=_SELF._verdict_exit_code, write_text_atomic=write_text_atomic)
+        # T-14750 — passed on EVERY audit whose `cmd_audit` accepts it (the owner-reset-pass arm resolves the
+        # cited owner_directive across both SPEC-0168 instances; a Controller's owner row lives on main).
+        # A pinned pre-T-13542 `cmd_audit` lacks the keyword, so its roster stays as it was (T-13471).
+        return audit.cmd_audit(args, **_audit_main_events_kw(audit.cmd_audit), _ceiling_decision_events_for=_ceiling_decision_events_for, _zero_ship_diff_extra_paths=_zero_ship_diff_extra_paths, _latest_event_for=_latest_event_for, _file_has_symbol_space=_file_has_symbol_space, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _capacity_retry_hint=_capacity_retry_hint, _with_repo_lock=_with_repo_lock, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH, _ac_probe_evidence_events_for=_ac_probe_evidence_events_for, _file_followup=_consult_file_successor, _plan_gate_lens=_consult_plan_gate_lens, _red_cause_is_card_record=_red_cause_is_card_record, _audit_scrutiny_spend_note=_audit_scrutiny_note_for, _packet_evidence_record=task_mod._packet_evidence_record, P8_EVIDENCE_TYPES=P8_EVIDENCE_TYPES, _event_task_id=task_mod._event_task_id, _auditor_outage_park=_auditor_outage_park, _work_batch_next_hint=_work_batch_next_hint, _commit_worktree=_commit_worktree, _in_writing_worktree=_in_writing_worktree, _worktree_dirty_paths=_worktree_dirty_paths, _archive_task_audits=_archive_task_audits, _git_mv_tracked=_git_mv_tracked, AUDIT_NO_READ_TOOLING_RETRIES=AUDIT_NO_READ_TOOLING_RETRIES, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, PLANS_DIR=PLANS_DIR, PLAN_FINALIZATION_LENS_VERSION=PLAN_FINALIZATION_LENS_VERSION, TASK_AUDIT_LENS_VERSION=TASK_AUDIT_LENS_VERSION, REPO_ROOT=REPO_ROOT, TASK_ID_RE=TASK_ID_RE, _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _audit_ceiling_blocked=_audit_ceiling_blocked, _auto_rebuild_graph=_auto_rebuild_graph, _build_audit_prompt=_build_audit_prompt, _classify_inert_paths=_classify_inert_paths, _consult_basis=_consult_basis, _count_audit_passes=_count_audit_passes, _decision_realization_block=_decision_realization_block, _die=_die, _find_decision_yaml=_find_decision_yaml, _find_task_yaml=_find_task_yaml, _get_audit_post_diff=_get_audit_post_diff, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _governing_rule_pointer=_governing_rule_pointer, _invoke_auditor=_invoke_auditor, _is_no_read_tooling_abort=_SELF._is_no_read_tooling_abort, _load_draft=_load_draft, _parse_audit_verdict=_SELF._parse_audit_verdict, _parse_consult_result=_parse_consult_result, _plan_content_hash=_plan_content_hash, _plan_corpus_signature=_plan_corpus_signature, _plan_fsm_line=_plan_fsm_line, _plan_gate_recorded_signature=_plan_gate_recorded_signature, _plan_realization_block=_plan_realization_block, _plan_target_scenario_lines=_plan_target_scenario_lines, _plan_task_carrier=_plan_task_carrier, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _prior_audit_record=_prior_audit_record, _read_consult_adjudication=_read_consult_adjudication, _recorded_commit_sha=_recorded_commit_sha, _recorded_commit_kind=_recorded_commit_kind, _recorded_commit_landed=_recorded_commit_landed, _custody_commit_landed=_custody_commit_landed, _reject_id_shaped_plan_slug=_reject_id_shaped_plan_slug, _task_commit_landed_chain=_task_commit_landed_chain, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _require_plan_finalized=_require_plan_finalized, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, _write_task_transition=_write_task_transition, _require_writing_worktree=_require_writing_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _require_ship_custody_repin=_require_ship_custody_repin, _ship_custody_repin_check=_ship_custody_repin_check, _governed_land_evidence=_governed_land_evidence, _require_preshipped_deliverable=_require_preshipped_deliverable, _require_settlement_sweep=_require_settlement_sweep, _require_post_ship_observation=_require_post_ship_observation, _require_land_emitted_event=_require_land_emitted_event, _require_activation_gated_radius=_require_activation_gated_radius, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _resolve_prompt_file=_resolve_prompt_file, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, _verdict_exit_code=_SELF._verdict_exit_code, write_text_atomic=write_text_atomic)
 
 
 # T-0361: filename-safe slug for an ad-hoc consult verdict (kebab + bare T-/D-/SPEC- ids — the
@@ -28252,8 +28494,13 @@ def _require_plan_decomposition_ready(slug: str, fm: dict, body: str) -> None:
     return plan_mod._require_plan_decomposition_ready(slug, fm, body, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, SPECS_DIR=SPECS_DIR, SPEC_ABANDONED_TERMINAL=SPEC_ABANDONED_TERMINAL, _die=_die, _plan_content_hash=_plan_content_hash, _read_yaml=_read_yaml)
 
 
+def _plan_cut_outside_state(tid: str):
+    # T-14715 (SPEC-0070 §3) — the ONE outside-target state reader; the fleet fold is resolved at call time.
+    return plan_mod._cut_outside_state(tid, TASKS_DIR=TASKS_DIR, _read_yaml=_read_yaml, _dispatch_status_events=_dispatch_status_events)
+
+
 def _plan_card_set_context(slug: str) -> str:
-    return plan_mod._plan_card_set_context(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml)
+    return plan_mod._plan_card_set_context(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _outside_state=_plan_cut_outside_state)
 
 
 def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
@@ -28266,7 +28513,7 @@ def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
         _die(f"plan stage executing {slug}: refused before any auditor call — "
              f"{_plan_obligations_unavailable_reasons(_obl['unavailable'])}. Repair the named read, then "
              f"re-run `yitc-v2 plan stage executing {slug}`.")
-    return plan_mod._require_plan_decomposition_fidelity(slug, fm, body, owner_reset=owner_reset, on_decisions=on_decisions, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, TASKS_DIR=TASKS_DIR, _die=_die, _plan_card_set_context=_plan_card_set_context, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record, _plan_content_hash=_plan_content_hash, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _run_plan_gate_audit=_run_plan_gate_audit)
+    return plan_mod._require_plan_decomposition_fidelity(slug, fm, body, owner_reset=owner_reset, on_decisions=on_decisions, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, TASKS_DIR=TASKS_DIR, _die=_die, _plan_card_set_context=_plan_card_set_context, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record, _plan_content_hash=_plan_content_hash, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _run_plan_gate_audit=_run_plan_gate_audit, _outside_state=_plan_cut_outside_state)
 
 
 def _plan_postcheck_exempt_specs(slug: str) -> frozenset:
@@ -28922,7 +29169,7 @@ def _plan_owner_words(slug, fm, body, earlier_tags=()) -> dict:
 
 
 def cmd_plan_show(args: argparse.Namespace) -> None:
-    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build, _owner_words=_plan_owner_words, DECISIONS_DIR=DECISIONS_DIR, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record)
+    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build, _owner_words=_plan_owner_words, DECISIONS_DIR=DECISIONS_DIR, _plan_card_set_fingerprint=_plan_card_set_fingerprint_vs_record, _outside_state=_plan_cut_outside_state)
 
 
 def cmd_scenario_new(args: argparse.Namespace) -> None:
@@ -34334,7 +34581,7 @@ def _cmd_land_scoped(args: argparse.Namespace) -> None:
         _require_help_read("land")   # T-9786 (X-0158): scan the verb inventory this session first
     if getattr(args, "recheck_known_broken", False):
         # T-14351 (SPEC-0181 rule 2 (g)) — the recheck of main's open known-broken records: no branch, no
-        # land body; it enters the admission queue through its own untied run entry (SPEC-1045 rule 2 (s)).
+        # land body; it enters the admission queue through its own untied run entry (SPEC-1063 rule 2 (s)).
         sys.exit(worktree_mod.land_recheck_known_broken(
             args, REPO_ROOT=REPO_ROOT, _main_worktree=_main_worktree, _run_git_cap=_run_git_cap,
             _append_event=_append_event,
@@ -34351,7 +34598,7 @@ def _cmd_land_scoped(args: argparse.Namespace) -> None:
         _onboarding_seam_nudge("land")   # SPEC-0147 §5 station I rides this existing seam
         return out
 
-    # T-14196 (SPEC-1045 rule 2 (a), (j)) — a real land enters the repo's admission queue FIRST, before
+    # T-14196 (SPEC-1063 rule 2 (a), (j)) — a real land enters the repo's admission queue FIRST, before
     # `worktree.cmd_land` and so before it asks for the land reservation (SPEC-0184 rule 1). A
     # `land --task` re-exec child inherits its parent's pass (popped here, so the child's own children
     # never see it). Switched off, the statement below runs exactly as it did before.
@@ -34394,7 +34641,7 @@ def _admission_is_a_land(args: argparse.Namespace) -> bool:
 
 
 def _admission_land_inherited() -> "dict | None":
-    """T-14196 — the pass a `land --task` re-exec child inherits from its admitted parent (SPEC-1045:
+    """T-14196 — the pass a `land --task` re-exec child inherits from its admitted parent (SPEC-1063:
     the land is admitted once, by the process that waits for it). Popped at once on every land, and
     taken ONLY by the addressed child: the record names the admitting process, the branch, the git common
     dir and a one-time token, and the child takes it only when its checkout is on that branch of that
@@ -34425,7 +34672,7 @@ def _admission_common_dir(root) -> "str | None":
 
 @contextlib.contextmanager
 def _admission_land_stamp(record: dict):
-    """T-14196 (SPEC-1045 rule 2 (e)) — while an admitted land runs, every `land_completed` row carries
+    """T-14196 (SPEC-1063 rule 2 (e)) — while an admitted land runs, every `land_completed` row carries
     admission: engine, the queue revision, the config hash and the pass timestamp. Every emitter of the
     row (the integrate pipeline's injected writer, the abort residue) reads this module's writer at call
     time, so the writer is bound to the stamping one for the land's life and given back after."""
@@ -34440,7 +34687,7 @@ def _admission_land_stamp(record: dict):
 
 def _admission_land_target(args: argparse.Namespace, main) -> "tuple[dict, bool]":
     """T-14196 — the land the queue admits (`admission.land_entry`'s target) and whether this process
-    re-execs its land into the branch's worktree. The engine's deciders are bound here (SPEC-1045 rule 2
+    re-execs its land into the branch's worktree. The engine's deciders are bound here (SPEC-1063 rule 2
     (b)): the land's conflict oracle, its Stage-6 credit answer, the inert classifier, the test-sweep
     predicate and the layer runner."""
     main = Path(main)

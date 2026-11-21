@@ -753,9 +753,9 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ HEAD. A later `known_broken_recheck` row, written by `bin/yitc-v2 land\n     \
   \ --recheck-known-broken` (`-C <repo>` in a consumer) — a run on main's head, in\
   \ a scratch checkout\n      of that commit and inside the project's admission queue\
-  \ (SPEC-1045 rule 2 (s)), of ONLY what the\n      open records name: a test file's\
-  \ record runs its file, with no isolated re-run; a layer record\n      runs its\
-  \ declared layer whole. The row names that head as a full commit id and addresses\
+  \ (<workshop-spec> rule 2 (s)), of ONLY what the\n      open records name: a test\
+  \ file's record runs its file, with no isolated re-run; a layer record\n      runs\
+  \ its declared layer whole. The row names that head as a full commit id and addresses\
   \ each\n      record by its observation identity — the `since`, `last_seen` and\
   \ `seen` the record had when the\n      run read it. It clears a pair only when\
   \ it addresses that pair exactly once with the identity\n      the record has NOW\
@@ -1004,11 +1004,11 @@ init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: 7dd22f85b24807ddd6d2971843cfde667abb94387a80dac963253076dbe89127
   bin/lib/debt_adoption.py#open_known_broken: e490852f3539bd4f1e288eab904c4262ca89ad8ebd5e29b7938925242931f6d0
-  bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
+  bin/lib/verify_runner.py#_run_verify_tests: a7bd59a4edffa8aaadeb82458bbca0bf497bb54b9c95a235d179841767d6fb8b
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 8e63877be5ef495e5079ba0ec8abd99ab9cd52e4640ccd1567a0e1d02359b86b
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0
   bin/lib/verify_runner.py#_shadow_select: f7b52a060007abef5e5d9964362dbee0d4c5cb7308c744b86ec94da9e5ea4963
   bin/lib/verify_runner.py#governed_selection: cea15af5b8c5d8ddd19594b1062d030f0dc38e85ac329616aaf960e7c8c1d20c
   bin/lib/worktree.py#_known_broken_recheck_run: cb822136c971d17b35ece230d41acfcd89def5ee469304eace8b4ac88bb67555
-  bin/lib/worktree.py#land_recheck_known_broken: 781cdffa4e9551c32e4ed53d5d237d5068c91a35b057c220f37a47000891b2f3
+  bin/lib/worktree.py#land_recheck_known_broken: e75b2194919b7065ccab290acd73f32ce66b5c54a7208fb2df2ae1a9b77ed706

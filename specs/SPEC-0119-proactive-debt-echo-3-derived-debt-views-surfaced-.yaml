@@ -336,20 +336,21 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ `awaits` ref (`T-NNNN` / `X-NNNN` /\n   `events.jsonl#type=<t>[@after=<ISO ts>]`,\
   \ the SPEC-0095 §Armed shape) — stored as the ONE\n   sibling mapping `probe_moments:`\
   \ beside `probes:` (schema home SPEC-0028); a BARE key is\n   REFUSED at every close-time\
-  \ door onto that mapping, naming both accepted forms. DUE is decided\n   by the\
-  \ SAME predicate the followup `armed → fired` fold reads (`followup.arrived_ids`\
-  \ /\n   `event_after_arrived`), never a second one. So the headline names what a\
-  \ reader can act on\n   TODAY and the rest rides a «(N deferred, not yet due)» TAIL\
-  \ — and, exactly as in the fourth\n   clause, the pending count MOVES SLOT but never\
-  \ DISAPPEARS: with zero due the line still PRINTS\n   («no deferred probe is due\
-  \ — N awaiting their moment»), because filtering the view down to due\n   would\
-  \ headline the right number by making every not-yet-due obligation silently vanish,\
-  \ which\n   is the failure this rule exists to prevent. A LEGACY key-only deferral\
-  \ reads DUE — it names no\n   moment, so «now» is the only truthful reading of it,\
-  \ and DUE is the safe direction. The prior\n   ground for headlining the whole set\
-  \ from deferral — that a deferred probe carried NO due date\n   at all, so there\
-  \ was no moment at which a delayed line would start printing — is RETIRED: after\n\
-  \   this change it does carry one, and the unbounded from-deferral headline that\
+  \ door onto that mapping, naming both accepted forms, unless the card\n   already\
+  \ records a moment for that criterion (SPEC-0015). DUE is decided\n   by the SAME\
+  \ predicate the followup `armed → fired` fold reads (`followup.arrived_ids` /\n\
+  \   `event_after_arrived`), never a second one. So the headline names what a reader\
+  \ can act on\n   TODAY and the rest rides a «(N deferred, not yet due)» TAIL — and,\
+  \ exactly as in the fourth\n   clause, the pending count MOVES SLOT but never DISAPPEARS:\
+  \ with zero due the line still PRINTS\n   («no deferred probe is due — N awaiting\
+  \ their moment»), because filtering the view down to due\n   would headline the\
+  \ right number by making every not-yet-due obligation silently vanish, which\n \
+  \  is the failure this rule exists to prevent. A LEGACY key-only deferral reads\
+  \ DUE — it names no\n   moment, so «now» is the only truthful reading of it, and\
+  \ DUE is the safe direction. The prior\n   ground for headlining the whole set from\
+  \ deferral — that a deferred probe carried NO due date\n   at all, so there was\
+  \ no moment at which a delayed line would start printing — is RETIRED: after\n \
+  \  this change it does carry one, and the unbounded from-deferral headline that\
   \ ground justified\n   surfaced 94 cards / 96 probes on 2026-09-04, most of whose\
   \ readings could not be taken that day. It adds NO new collaborator and NO new call\
   \ site — the clause reads the view the echo\n   already folds — and NOTHING but\
@@ -4306,7 +4307,7 @@ implements_signature:
   bin/lib/debt.py#debt_row_count: 0a05acb80ffe2d51dcf17d4926b0cb4309e7d7b48d202e4888c8a48db8bb4721
   bin/lib/debt.py#debt_row_verb: ca9f0835c8b2c4f611ec33e8002a7a8b3a8f39bb7dd94eba2598e79c24f6ee6c
   bin/lib/debt.py#declared_outcome_invariants: 9594d38181a31a793ef59d36967ff941af57c3abb0eab84872041c7738188de6
-  bin/lib/debt.py#late_findings_per_pass: 5e45863430cb1c0bd3d50731a2f4d9d926e75586aa9955fe302573823bb1f0d1
+  bin/lib/debt.py#late_findings_per_pass: b753446ae25da06e6f26c37fe92b072a383d8dfc7a2221f3c9b87f1638f5c4cb
   bin/lib/debt.py#load_sensitive_carded: 137a30f7f45d0c8ce00de25fc2811ce18fa88a98eabd8de275add90174b1f85d
   bin/lib/debt.py#load_sensitive_file_seconds: 03f3355ab1b1214016eca1d06744b8ac3bbf43b386c006483b2fafbc96210e2e
   bin/lib/debt.py#load_sensitive_fingerprint: 136fee48b1b0dab262584ed8976538bb0ad08525529b4a29fc4e89ca1f37667a
@@ -4401,7 +4402,7 @@ implements_signature:
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: b04fc58a17b449e9f9faab3b326db0b20d9e2a4673337f25c688d2e2ec8204e4
+  bin/lib/views.py#_render_debt_echo: e7fabf23c4b9680d266e6fbb8848a269cf026b7fd3877a6a93a27c21ea618a0d
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

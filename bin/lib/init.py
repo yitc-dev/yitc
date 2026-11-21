@@ -1310,10 +1310,10 @@ def engine_declaration_errors(ops) -> list:
     if "post_sync_set" in ver and not (isinstance(pss, list) and pss and all(
             isinstance(f, str) and f.startswith("tests/") and f.endswith(".py") for f in pss)):
         errs.append(f"verify: `verify.post_sync_set` is {pss!r} — the engine's form is a non-empty list "
-                    "of tests/*.py files (SPEC-1045)")
+                    "of tests/*.py files (SPEC-1063)")
     for k in ("sync_at_stage6_admission", "post_sync_set_first"):
         if k in ver and not isinstance(ver[k], bool):
-            errs.append(f"verify: `verify.{k}` is {ver[k]!r}, not true or false (SPEC-1045)")
+            errs.append(f"verify: `verify.{k}` is {ver[k]!r}, not true or false (SPEC-1063)")
     if "layers" in ver:
         lys = ver["layers"]
         if not (isinstance(lys, list) and len(lys) == 1 and isinstance(lys[0], dict)
@@ -2857,6 +2857,7 @@ def scaffold_staleness(REPO_ROOT, ENGINE_ROOT, templates) -> "tuple[list, dict]"
         # consumer's own init commit then answers it, and a copy neither source vouches for is
         # reported UNDETERMINED — never a "carries local lines" claim nothing proved.
         if (_is_unmodified_launcher(local)
+                or _scaffold_is_release_render(ENGINE_ROOT, rel, local, kernel)
                 or not _scaffold_refresh_refusal(ENGINE_ROOT, rel, local, kernel, (), repo_root=REPO_ROOT,
                                              check_pins=False)):
             kinds[rel] = "BEHIND"
@@ -2949,6 +2950,72 @@ def heal_legacy_private_scaffolds(REPO_ROOT, *, apply: bool = True) -> "list[str
                 os.close(fd)
             os.close(dfd)
     return lines
+
+
+def _release_render_matches(local: str, kernel_text: str) -> bool:
+    """T-14725 (X-2474) — is `local` EXACTLY what a release cut renders from `kernel_text`? The two text
+    arms release.strip_published_text applies to a YAML scaffold: the comment-line strip
+    (`release._strip_comment_lines`) and the older spec re-dump (`release._strip_spec_values`). An exact
+    comparison of the whole text, never a parse of the copy: any line the project wrote — a comment, a
+    value, a key a parse would erase — makes the copy differ from every render."""
+    if local == kernel_text:
+        return True
+    from lib import release as _release
+    for render in (_release._strip_comment_lines, _release._strip_spec_values):
+        try:
+            if local == render(kernel_text):
+                return True
+        except Exception:               # a blob the renderer cannot take is simply not this render
+            continue
+    return False
+
+
+def _scaffold_is_release_render(ENGINE_ROOT, rel: str, consumer_text: str, kernel_text: str) -> bool:
+    """T-14725 (X-2474) — the report-only staleness view's release ancestry: is the consumer's YAML
+    scaffold the release render of the current kernel copy or of any engine blob at `rel` (bounded by
+    `_ANCESTRY_REV_CAP` revisions, read in ONE `cat-file --batch`)? True reads BEHIND; False keeps the
+    existing verdict. Never consulted by a write (`_scaffold_refresh_refusal` is unchanged)."""
+    if not rel.endswith((".yaml", ".yml")):
+        return False
+    if _release_render_matches(consumer_text, kernel_text):
+        return True
+    import subprocess
+    from pathlib import Path
+    if not (Path(ENGINE_ROOT) / ".git").exists():
+        return False
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    try:
+        r = subprocess.run(["git", "-C", str(ENGINE_ROOT), "rev-list", f"--max-count={_ANCESTRY_REV_CAP}",
+                            "--all", "--", rel], capture_output=True, text=True, timeout=60,
+                           env=_git_env._git_child_env())
+        revs = r.stdout.split() if r.returncode == 0 else []
+        if not revs:
+            return False
+        b = subprocess.run(["git", "-C", str(ENGINE_ROOT), "cat-file", "--batch"],
+                           input="".join(f"{rev}:{rel}\n" for rev in revs).encode("utf-8"),
+                           capture_output=True, timeout=60, env=_git_env._git_child_env())
+    except (OSError, subprocess.SubprocessError):
+        return False
+    out, seen, i = b.stdout, set(), 0
+    while i < len(out):
+        nl = out.find(b"\n", i)
+        if nl < 0:
+            break
+        head = out[i:nl].split()
+        i = nl + 1
+        if len(head) != 3:                  # `<name> missing` — that revision has no blob at `rel`
+            continue
+        size = int(head[2])
+        blob, i = out[i:i + size], i + size + 1
+        if head[0] in seen:
+            continue
+        seen.add(head[0])
+        try:
+            if _release_render_matches(consumer_text, blob.decode("utf-8")):
+                return True
+        except UnicodeDecodeError:
+            continue
+    return False
 
 
 def _scaffold_is_init_written(REPO_ROOT, rel: str, consumer_text: str):
@@ -4502,13 +4569,13 @@ def _consumer_carrier_skew(ops: dict) -> list:
     return labels
 
 
-#: T-14193 — the SPEC-1045 admission section (the literal is machine_settings.ADMISSION_SECTION; init.py
+#: T-14193 — the SPEC-1063 admission section (the literal is machine_settings.ADMISSION_SECTION; init.py
 #: back-imports nothing by design, the BORN_OPS_TERMINATOR shape).
 _ADMISSION_SECTION = "admission"
 
 
 def _admission_reseed_fragment(fragment: str):
-    """SPEC-1045 rule 3 (T-14193): the born `admission:` section as a RE-SEED delivers it into an
+    """SPEC-1063 rule 3 (T-14193): the born `admission:` section as a RE-SEED delivers it into an
     EXISTING carrier — `mode: off`, never the born `engine`: an engine upgrade never switches an
     existing project on, the project switches itself. A fresh birth takes the born template whole
     (`mode: engine`). The result is PROVED by parsing it: its `admission.mode` must read off (YAML
@@ -4603,7 +4670,7 @@ def _update_ops_carrier(ops_path, write_text_atomic, cli_form: str = "bin/yitc-v
         if name in mandatory:
             continue                                 # slice-1 mandatory — never auto-added (fail-closed if missing)
         if name not in ops:                          # an EXTENSIBLE section the consumer's carrier lacks
-            if name == _ADMISSION_SECTION:           # T-14193 — an existing project is born OFF (SPEC-1045 r3)
+            if name == _ADMISSION_SECTION:           # T-14193 — an existing project is born OFF (SPEC-1063 r3)
                 fragment = _admission_reseed_fragment(fragment)
                 if fragment is None:
                     continue                         # not provably off: never switch a project on
@@ -8495,7 +8562,7 @@ def born_verify_seed(repo_root) -> "dict | None":
     """The seeded `verify.layers` of a birth: the T-10531 pytest layer and the T-14279 self-contained
     frontend vitest layer. The frontend layer is added only where the born section is not the T-14221
     tests-exist waiver — a `layers:` list there would claim a verify that skips those tests. Splitting
-    Python packages into layers of their own is a first-steps item, never born (T-14317, SPEC-1045)."""
+    Python packages into layers of their own is a first-steps item, never born (T-14317, SPEC-1063)."""
     seed = _born_verify_layers_seed(repo_root, None)
     fe = _born_frontend_vitest_layer(repo_root)
     if fe is not None and (seed is not None or _detect_test_dir(repo_root) is None):
@@ -11334,6 +11401,18 @@ class _DryRunPlan:
         real = self.repo_root / name
         if real.exists():
             p.write_text(real.read_text(encoding="utf-8"), encoding="utf-8")
+        if name == CONSUMER_OPS_CONTRACT:
+            # T-14725 (X-2476): the carrier's `units_file:` siblings are read BESIDE it (state.load_ops),
+            # so they travel into the scratch with it — else every dry run of a consumer that adopted
+            # `units_file` (T-14448) refuses «cannot be read». Copied, never recorded: nothing to write.
+            import re as _re
+            from lib import state as _state
+            for sib in (sorted(real.parent.iterdir()) if real.parent.is_dir() else ()):
+                if _re.fullmatch(_state.OPS_UNITS_FILE_RE, sib.name) and sib.is_file():
+                    try:
+                        (p.parent / sib.name).write_bytes(sib.read_bytes())
+                    except OSError:
+                        pass                # unreadable: the materialize refuses it as a real run would
         return p
 
     def _rel(self, path) -> str:

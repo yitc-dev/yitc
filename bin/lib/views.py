@@ -7544,6 +7544,15 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"the literal `pass` (not `green`/`ok`) and `evidence` (a CI url / log ref) is REQUIRED; "
                 f"any other payload clears nothing (SPEC-0152 rule 24).{_nm_clause} "
                 f"See `bin/yitc-v2 debt`.")
+        # T-14710: a pre-deploy class whose listed order names no unit yet has nothing to run — named
+        # apart, with the one remedy that exists (SPEC-0152 rule 24, SPEC-1051 rule 7)
+        _ul = [str(c.get("class")) for c in ((_ut.get("listing_no_unit") or [])
+               if isinstance(_ut, dict) else []) if isinstance(c, dict) and c.get("class")]
+        if _ul:
+            lines.append(
+                f"debt: {len(_ul)} pre-deploy class(es) list no unit yet — {', '.join(_ul)} — nothing "
+                f"to run; the weekly review's `bin/yitc-v2 pre-deploy list --write` adds members "
+                f"(SPEC-1051 rule 7; SPEC-0152 rule 24). See `bin/yitc-v2 debt`.")
     # UNDECLARED-SUBJECT-VERIFY-LAYERS view (SPEC-0152 rule 16 subject_globs / SPEC-0119, T-10575): the
     # OPTIONAL injected fold over the carrier — EXECUTABLE verify.layers with no `subject_globs:` yet. UNLIKE
     # every sibling above this is NOT owed debt: subject_globs is OPT-IN and fail-closed (absent → the layer

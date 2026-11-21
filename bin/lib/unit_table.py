@@ -407,6 +407,36 @@ def skip_same(a, b) -> bool:
     return SKIP_UNAVAILABLE not in (ia, ib) and ia == ib
 
 
+def _skip_members(rec):
+    """The files a skip record leaves out (`units` + `held`, or the request form's key list) as a
+    frozenset; None where the record carries no membership (an identity-only form) or none reads.
+    Call only on a record whose `skip_identity` is available. Pure."""
+    if "key" in rec:
+        return frozenset(rec["key"][1])
+    full = expand_skip(rec)
+    if any(k in full for k in ("units", "held", "kept")):
+        files = [_files_of(full.get(k)) for k in ("units", "held")]
+        return None if None in files else frozenset(files[0] + files[1])
+    return None if "identity" in rec else frozenset()
+
+
+def skip_covers(ran, land) -> bool:
+    """T-14734 (SPEC-1051 rule 2, SPEC-0065 §Bound (4)) — did a run whose skip record is `ran` run every
+    unit a land whose skip record is `land` would run? True when the two name the same set
+    (`skip_same`), or when both read available under one identity version and every file the run left
+    out the land leaves out too (the run's set a subset of the land's). Never when either is absent or
+    unavailable, nor when a record carries no membership to compare (an identity-only form proves
+    equality only). The state is not compared: membership answers the question. Pure."""
+    if skip_same(ran, land):
+        return True
+    ir, il = skip_identity(ran), skip_identity(land)
+    if ir is None or il is None or SKIP_UNAVAILABLE in (ir, il) \
+            or ir.split(":", 1)[0] != il.split(":", 1)[0]:
+        return False
+    mr, ml = _skip_members(ran), _skip_members(land)
+    return mr is not None and ml is not None and mr <= ml
+
+
 def skip_request(rec):
     """The request form of a skip record (`{state, identity}`; `{state, key}` with SKIP off), None for
     no record. Pure."""

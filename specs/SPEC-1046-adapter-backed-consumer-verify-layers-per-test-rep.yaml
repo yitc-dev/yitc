@@ -664,7 +664,7 @@ implements_signature:
   bin/lib/unit_table.py#encode: c79aec22f78edb3f6b8f56f0301718adfe5d0321c8552816432735920361d218
   bin/lib/unit_table.py#expand: 143910f22e33829115b1fac782a5f4d40935f3ddc0f65bfc47dd463cffc21b80
   bin/lib/views.py#_view_test_layout_hotspots: 0ad3f5f4c2b474a225ea8117b38138d5b2f6ec7cb28caf433953d2ce67a9f05d
-  bin/lib/worktree.py#_consumer_zero_probe_guard: a384e4d1d02074b2dd9403a990170953d4bba71c571f9d2343f6c4886e3c4821
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 4965c3caece1c0ad6ba40e762d3802b75852f17edd0e2d27918e037ba5418eaf
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37
   bin/lib/worktree.py#_layer_timeout_rerun_eligible: ef1df4094d8c6c5aa4cb94382312eddff0b87f1c73c4896a22186003f512ff28
   bin/lib/worktree.py#_timed_out_layer_failing_tests: 86db91c4eac1c5373a2ed4444571bbe26390ac24443d121d14bfc324cd219e23

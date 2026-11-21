@@ -1,6 +1,6 @@
-# Release v2.31.0
+# Release v2.32.0
 
-Source commit: `57cf11746199c7d65999d57af6d9891d38762cbc`
+Source commit: `d805f171419ae7ffaaa40cdbff4bafb8ff299c1c`
 
 ## Proposals this release answers
 
@@ -242,55 +242,56 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag. No opt-in key was added to a kernel spec's carrier section either.
+1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1063 — Resource admission - one bounded queue per repo for Stage-6 runs, own-tests checks and lands; planning lands wait after the run unless the project declares immediately
+  turn on: yitc-ops.yaml `admission.admission`
+  read: `yitc-v2 graph query --kernel SPEC-1063`
 
 ## What changed
 
-43 task(s) closed since the previous release tag, in close order:
+40 task(s) closed since the previous release tag, in close order:
 
-- T-14648 — Stamp the unobserved-version capture as kernel self-telemetry and stop session start re-capturing it in the same checkout after the journal cut (fix) — events.jsonl#ts=2026-11-16T22:17:20Z
-- T-14637 — Stop journal query --land-cycle counting the setup-to-attempt gap twice (fix) — events.jsonl#ts=2026-11-16T23:04:00Z
-- T-14646 — Give the discipline-ratio view its fourth kind and a read-check headline that a few unreceipted refusals cannot null (fix) — events.jsonl#ts=2026-11-16T23:36:16Z
-- T-14639 — Retire the bench regular-refresh row from the weekly operational-hygiene checklist (docs) — events.jsonl#ts=2026-11-16T23:45:17Z
-- T-14656 — Deliver the filing and Controller doctrine specs once per context, then a pointer (infra) — events.jsonl#ts=2026-11-17T08:13:33Z
-- T-14655 — Print only the readiness block from audit pre/post --preview and leave the packet in a file read on demand (infra) — events.jsonl#ts=2026-11-17T08:41:36Z
-- T-14661 — Admit the provider compaction marker for the client versions observed since 2.1.307 (fix) — events.jsonl#ts=2026-11-17T09:31:54Z
-- T-14660 — Refuse a registered host project name in engine code at land, not only at release publish (fix) — events.jsonl#ts=2026-11-17T10:11:51Z
-- T-14662 — Keep the pre-deploy skip for covered units after pre-deploy list --write (fix) — events.jsonl#ts=2026-11-17T11:17:49Z
-- T-14663 — Regenerate the manifest spec-code map when closing a card activates a spec (fix) — events.jsonl#ts=2026-11-17T14:43:42Z
-- T-14672 — Run a project-declared plan check at the plan checkpoints and refuse before any auditor call when it fails or cannot run (feature) — events.jsonl#ts=2026-11-17T16:25:44Z
-- T-14680 — Let a cross item already resolved by a done local task be closed without --force (fix) — events.jsonl#ts=2026-11-17T17:20:33Z
-- T-14682 — Read a file many cards of one cut must edit as a modularity hint in the decomposition guidance and pre-check (feature) — events.jsonl#ts=2026-11-17T17:54:48Z
-- T-14678 — Keep a consumer pinned to a pre-cut engine release from being stranded by a journal another engine cut (fix) — events.jsonl#ts=2026-11-17T18:10:54Z
-- T-14683 — Give the merge-integration audit a governed route when its resolution context exceeds the fixed 300 KB diff cap (fix) — events.jsonl#ts=2026-11-17T18:33:41Z
-- T-14681 — Keep a land batch from merging a foreign branch into a bookkeeping-only pause land (fix) — events.jsonl#ts=2026-11-17T19:16:02Z
-- T-14665 — Make the worktree new contract delivery survive a reader that keeps only the tail (fix) — events.jsonl#ts=2026-11-17T19:37:22Z
-- T-14666 — Let the Controller stop a dead worker's detached governed run through a verb (fix) — events.jsonl#ts=2026-11-17T19:53:43Z
-- T-14673 — Derive one plan-stage obligation view for session delivery, plan-gate auditor packets and verdict freshness, with catch-up of late-activated rules (feature) — events.jsonl#ts=2026-11-17T20:10:37Z
-- T-14679 — Re-run once a Stage-6 verify layer that timed out with no failing test, recorded as load (feature) — events.jsonl#ts=2026-11-17T20:29:14Z
-- T-14664 — Credit this session's seed receipt for -C plan-worktree verbs and never name another session's marker as yours (fix) — events.jsonl#ts=2026-11-17T20:46:53Z
-- T-14670 — Exclude the archive journal day partitions from the audit-post shipped diff (fix) — events.jsonl#ts=2026-11-17T21:15:36Z
-- T-14667 — Make task update --replace-all refuse when it replaced fewer occurrences than the field holds (fix) — events.jsonl#ts=2026-11-17T21:39:04Z
-- T-14668 — Map <provider-model> in the context-window table (fix) — events.jsonl#ts=2026-11-17T21:53:25Z
-- T-14686 — Finish the plan aggregate audit in parts with the over-inclusive anchor rule - every intent or criteria heading-shaped line rides every part (fix) — events.jsonl#ts=2026-11-17T22:12:38Z
-- T-14669 — Name the watcher arming primitive one way in AGENTS-SESSIONS and the monitoring pattern (docs) — events.jsonl#ts=2026-11-17T22:41:26Z
-- T-14689 — Never point at or anchor on the per-user pinned engine copy - session start names the stable engine CLI; host_home and the baked engine path look past the copy (fix) — events.jsonl#ts=2026-11-17T22:57:49Z
-- T-14671 — Select test_t14472 when patterns/inspection-criteria-roster.md changes (fix) — events.jsonl#ts=2026-11-17T23:13:29Z
-- T-14688 — Ask the SPEC-0035 rule 10(a) trial-or-postcheck routing at the specs-to-trial gate (fix) — events.jsonl#ts=2026-11-17T23:56:32Z
-- T-14690 — Restate the SPEC-0034 big-plan checklist_pass rule as the report-only finding practice shows it to be (docs) — events.jsonl#ts=2026-11-18T00:05:57Z
-- T-14657 — Slice stage delivery - the audit-post overlay table leaves Audit-pre, SPEC-1038 Tests/resume/hygiene/FSM detail leaves Plan (refactor) — events.jsonl#ts=2026-11-18T04:15:14Z
-- T-14676 — Keep a worker's governed run from being lost in a long admission wait, and record the audit-ceiling halt kind (fix) — events.jsonl#ts=2026-11-18T04:15:23Z
-- T-14696 — Let task commit --fix-red supersede a RED recorded on the sync-merge audit-post pass (fix) — events.jsonl#ts=2026-11-18T07:51:21Z
-- T-14694 — Stop a second dispatch of the same task launched seconds after the first (fix) — events.jsonl#ts=2026-11-18T08:34:44Z
-- T-14695 — Make followup drop resolve the same P8 evidence refs the event verb accepts, and name why each ref fails (fix) — events.jsonl#ts=2026-11-18T08:50:20Z
-- T-14693 — Keep comments when init --refresh-scaffolds rewrites a YAML scaffold (fix) — events.jsonl#ts=2026-11-18T09:08:05Z
-- T-14698 — Union the declared always-run set into the own-tests check for a consumer that delegates its tests to a layer (fix) — events.jsonl#ts=2026-11-18T09:33:19Z
-- T-14697 — Stale a plan's anchor on a due plan-stage spec only when its normative content changes (fix) — events.jsonl#ts=2026-11-18T10:24:51Z
-- T-14699 — Restate SPEC-0034's obligation-digest implementation note as the normative digest (docs) — events.jsonl#ts=2026-11-18T11:03:47Z
-- T-14700 — State one plan-or-card boundary question for plan-check rounds, and keep clerical defects of process records report-only at plan gates (docs) — events.jsonl#ts=2026-11-18T11:38:18Z
-- T-14703 — Keep a pinned engine copy read-only to its own runs, and name a worktree whose engine pin differs from main's (fix) — events.jsonl#ts=2026-11-18T13:10:20Z
-- T-14702 — Give a plan gate a route when its subject moved after the ceiling decisions were recorded (fix) — events.jsonl#ts=2026-11-18T13:41:42Z
-- T-14704 — Keep the decomposition-fidelity gate packet within the auditor's input budget (fix) — events.jsonl#ts=2026-11-18T14:59:15Z
+- T-14706 — Stop audit post crashing on a journal row whose plan or target_id is not a string (fix) — events.jsonl#ts=2026-11-18T17:46:25Z
+- T-14705 — Tell the session to run session start in a new worktree before any governed verb there, in the worktree-new hint and the spike helper brief (docs) — events.jsonl#ts=2026-11-18T18:25:18Z
+- T-14708 — Keep a consumer's venue seed apart from the kernel's, so a consumer image build never replaces the kernel seed (fix) — events.jsonl#ts=2026-11-18T18:59:28Z
+- T-14707 — Hint the round after a RED plain plan check, and ask for the sweep statement on a plan-gate fix decision (feature) — events.jsonl#ts=2026-11-18T20:43:21Z
+- T-14710 — Record a pre-deploy class that lists no unit as empty rather than outcome fail on a passed run, and stop the unexecuted-class debt line telling the project to run it (fix) — events.jsonl#ts=2026-11-19T08:44:47Z
+- T-14709 — Name the --placement local re-run on a red venue-routed consumer pass, and state in the machine-settings inventory that the local Stage-6 order and its load hold are not consulted for a run the admission queue admitted (fix) — events.jsonl#ts=2026-11-19T09:08:04Z
+- T-14711 — Judge the landed audit-ceiling pause plan only on commits that descend from the pause commit, and name the Controller's own re-opened worktree as such at dispatch (fix) — events.jsonl#ts=2026-11-19T10:27:20Z
+- T-14715 — Name each requires target outside a plan's cut that is not done, with its state, in the cut-set pre-check, the decomposition-fidelity packet and plan show (fix) — events.jsonl#ts=2026-11-19T11:04:14Z
+- T-14714 — State in task close help and in the refusal of a deferred-probe moment that a moment the card already records needs no re-spelling (fix) — events.jsonl#ts=2026-11-19T12:04:35Z
+- T-14717 — Make a consumer Stage-6 pass routed to the venue apply and record the same pre-deploy skip set a local pass records, so its land credits it (fix) — events.jsonl#ts=2026-11-19T14:33:29Z
+- T-14720 — Give a consumer Stage-6 pass on the venue box the same per-unit isolated retry of a failed unit that a host pass gets, and record it as on the host (fix) — events.jsonl#ts=2026-11-19T16:15:58Z
+- T-14712 — Tell the editor and the activation owner when an active spec amended in place has a waiting proposed successor that must carry the amend (fix) — events.jsonl#ts=2026-11-19T17:53:16Z
+- T-14722 — Give admission.planning_lands the fixed default after-run through a successor of SPEC-1045, with its mention review and the successor's anchor signatures in the same card (fix) — events.jsonl#ts=2026-11-19T18:28:54Z
+- T-14723 — Credit a passed-partial verify layer whose left-out units are exactly the pre-deploy skip set the land computes, whatever the layer's selection mode (fix) — events.jsonl#ts=2026-11-19T18:46:06Z
+- T-14718 — Let every OS user of the repository a consumer venue serves read its record and reach the box with the one venue key, readable by the repository's group (fix) — events.jsonl#ts=2026-11-19T19:02:46Z
+- T-14726 — Deliver the plan-draft-documents pointer to how the seam and rights documents reach the cut at the decomposition stage entry (docs) — events.jsonl#ts=2026-11-19T19:13:40Z
+- T-14725 — Make init dry-run carry the carrier's units-file siblings, and read a scaffold copy equal to a published release render as behind, not diverged (fix) — events.jsonl#ts=2026-11-19T20:04:00Z
+- T-14724 — Refuse a second concurrent audit pre or audit post on the same task while one is running (fix) — events.jsonl#ts=2026-11-19T20:33:42Z
+- T-14728 — State in plan-draft-documents that a draft document contradicting a carried registry item is an owner question before plan accept (docs) — events.jsonl#ts=2026-11-19T20:47:01Z
+- T-14729 — Authorize the binding's venue key for the box user at every raise, so a seed taken before the dedicated key still raises, and name a stale seed when it does not (fix) — events.jsonl#ts=2026-11-19T22:50:37Z
+- T-14727 — Keep a plan registry item's owner_row add-only - refuse before the auditor a plan whose body replaces or removes an earlier owner row (fix) — events.jsonl#ts=2026-11-19T23:17:46Z
+- T-14737 — Restore main to green - the plan cut-outside state reader added by reads the fleet journal fold once per outside target with no recorded reason, and the tripwire fails on main (fix) — events.jsonl#ts=2026-11-20T11:23:51Z
+- T-14734 — Credit a Stage-6 run at land when every unit the land would run was run - the run's pre-deploy skip set a subset of the land's - instead of requiring the two skip sets to be equal (fix) — events.jsonl#ts=2026-11-20T12:37:49Z
+- T-14730 — Give the Stage-6 working-tree snapshot commit the engine's commit identity, so a consumer venue pass does not end INDETERMINATE for a user with no git identity of their own (fix) — events.jsonl#ts=2026-11-20T13:11:53Z
+- T-14736 — Refuse a venue raise before any server is created when the seed image's disk is larger than the chosen server type's disk, naming both sizes (fix) — events.jsonl#ts=2026-11-20T13:46:06Z
+- T-14735 — Bring each executed verify layer's clipped output of a consumer Stage-6 box pass back to the host, under the name a failing host layer's log already gets, and name it on the layer row (feature) — events.jsonl#ts=2026-11-20T14:37:26Z
+- T-14732 — Make the reship door and the audit-post preview read one ceiling count, and name one governed route for an in-scope fix that a green Tests run past the ceiling shows is needed (fix) — events.jsonl#ts=2026-11-20T15:10:47Z
+- T-14733 — Make the admission-sync stop message name the governed order after a hand-resolved merge - the Stage-6 run at the merged HEAD first, then audit-post (fix) — events.jsonl#ts=2026-11-20T15:50:27Z
+- T-14731 — End a card's green hold when that card files another Stage-6 run, so its further runs wait in arrival order instead of passing ahead of every other run of the repository (fix) — events.jsonl#ts=2026-11-20T16:17:57Z
+- T-14739 — Let work commit with a path list commit a path removed by git rm, instead of failing at git add with pathspec did not match (fix) — events.jsonl#ts=2026-11-20T17:37:27Z
+- T-14747 — Restore main to green on the new host - tests that read a multi-part spec by the first unsorted directory match read the wrong part where the directory order differs (fix) — events.jsonl#ts=2026-11-20T21:42:33Z
+- T-14740 — Name --recut in the plan gate decision route hint and in the refusal when a plan already at executing is re-entered at executing (fix) — events.jsonl#ts=2026-11-20T22:41:21Z
+- T-14741 — Put the expected value into the audit decide evidence refusal journal row, and name what the resolved owner row covers in the directive_not_covering refusal (fix) — events.jsonl#ts=2026-11-20T22:53:59Z
+- T-14742 — Give an assertion live_probe a governed superseded terminal when a later owner-decided card removed what it asserts, citing that card and the owner row (feature) — events.jsonl#ts=2026-11-20T23:17:27Z
+- T-14743 — Cut the engine time of a credited consumer land - reuse the admission credit answer, skip the unchanged dependency-lockfile floor, and split verify_prep and other into timed sub-phases (feature) — events.jsonl#ts=2026-11-20T23:34:08Z
+- T-14744 — Cut the engine time between a green Stage-6 run and land start - thin the task test --run credit tail, and time task close and the pre-land phases (feature) — events.jsonl#ts=2026-11-20T23:47:54Z
+- T-14738 — Let a void of an undone task commit restore chain of custody - a governed, journaled void of a commit_landed row whose sha git proves is on neither the task branch nor main and that no audit names (fix) — events.jsonl#ts=2026-11-21T07:33:38Z
+- T-14749 — Order heavy verify starts machine-wide by wait time and gate them on measured free threads and memory, so one project alone takes the whole machine and several share it without overload (feature) — events.jsonl#ts=2026-11-21T07:47:47Z
+- T-14750 — Give an owner-reset commit past an exhausted audit-post ceiling one audit pass when the ceiling row holds no residual, so an owner-authorized test-found fix can close (fix) — events.jsonl#ts=2026-11-21T08:15:51Z
+- T-14746 — Let a running kernel verify run take more parallel test files when the machine has free threads, instead of keeping the width it was granted at start (feature) — events.jsonl#ts=2026-11-21T08:48:37Z
 
 ## Trust surfaces
 

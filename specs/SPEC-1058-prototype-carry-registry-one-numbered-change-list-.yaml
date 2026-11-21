@@ -16,6 +16,8 @@ implements:
 - bin/lib/plan.py#_proto_carried_by
 - bin/lib/plan.py#_plan_prototype_earlier_plans
 - bin/lib/plan.py#_plan_registry_judged_view
+- bin/lib/plan.py#plan_owner_rows_lost
+- bin/lib/plan.py#_plan_owner_rows_check
 body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spike,\
   \ SPEC-0205), checks it there, and asks\nfor it in production. The carry must bring\
   \ over everything the owner kept and nothing else.\n\nThe CARRY REGISTRY is one\
@@ -39,7 +41,16 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ added | changed | removed | supporting` · `surface` · `what` ·\n`locators: [path:line,\
   \ …]` · `disposition: carry | not-carried | carried-by-plan <slug>` · `owner_row:`\
   \ (required for `not-carried`, and for any item added, or changed in any field —\n\
-  `what`, `locators`, `disposition` — after the owner's read-back).\n- Granularity:\
+  `what`, `locators`, `disposition` — after the owner's read-back).\n- **Owner rows\
+  \ are add-only.** Once an item carries an `owner_row` in the body the last recorded\n\
+  \  `plan check` judged, a later body may add a row beside it but never replace or\
+  \ remove it, nor drop\n  the item with its row. `plan check` and the change check\
+  \ (SPEC-1061) refuse such a body before any\n  auditor call, naming each item and\
+  \ the lost row; the earlier body is the one that check's record\n  names, read back\
+  \ from the history. A recorded body the history does not hold (an uncommitted edit\n\
+  \  between checks) is not compared by `plan check`: one report-only line says so\
+  \ (owner choice,\n  events.jsonl#ts=); the change check keeps its SPEC-1061 §2 anchor\
+  \ refusal.\n  With no recorded check there is nothing to compare.\n- Granularity:\
   \ one item never bundles two things the owner could see or test separately; a change\
   \ no\n  owner sees (formatting, a helper) is a `supporting` item naming the item\
   \ it serves in `what`.\n- The BASE is the merge-base of main and the prototype tag\
@@ -260,6 +271,11 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ on such a lineage): <project> X-2376 ask 4 — one prototype lineage forced a second\
   \ theme\nto be folded into the first plan. A heavier design (inherited expected\
   \ states, re-decisions) was\ntried in a kernel plan on 2026-11-15 and withdrawn.\n\
+  The §2 add-only owner rows were added in place by (a body that keeps its rows is\
+  \ judged\nexactly as before; only a replaced or removed row, a case the rule did\
+  \ not address, gains an\nanswer): <project> X-2489 — a batch edit replaced 23 earlier\
+  \ owner rows, decision rows of\nnot-carried items among them, with a later «ok»\
+  \ row, caught by a helper before the audit and by\nnothing mechanical. Owner: `events.jsonl#ts=`.\n\
   \n## Verification\n- VP1: a malformed registry and a changed base-diff path that\
   \ no item locates each refuse\n  `plan stage accepted`; a formatting-only path as\
   \ a `supporting` item passes; the accept packet of\n  an opted-in plan carries the\
@@ -308,7 +324,14 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ no\n  writer card and is left out of the verifier walk; naming a missing plan\
   \ or the plan itself refuses\n  `plan stage accepted` naming the slug; a second\
   \ plan on the lineage of an accepted plan is\n  admitted with such an item naming\
-  \ it and refused without one (tests/test_registry_carried_by_plan.py).\n"
+  \ it and refused without one (tests/test_registry_carried_by_plan.py).\n- VP10 (§2\
+  \ add-only owner rows): after a recorded check, a body replacing one item's owner\
+  \ row and\n  removing another's is refused by `plan check` and by the change check\
+  \ before any auditor call,\n  naming both items and rows (differential: without\
+  \ the comparison the same body reaches the\n  auditor); a row added beside the kept\
+  \ one passes, a never-checked plan is not refused, an item\n  dropped with its row\
+  \ is refused; a recorded body absent from the history is reported, not refused (owner\
+  \ option B)\n  (tests/test_t14727_owner_row_add_only.py).\n"
 cites:
 - SPEC-0205
 - SPEC-0070
@@ -328,9 +351,11 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_carry_block: c5fafc6da92efc4b71437e5003f6f6f1a028d92c2b18eb116f5584a42e089626
+  bin/lib/plan.py#_plan_owner_rows_check: 84d8821ef797e357cda9a06952e7046c4266c694f816a6554cd19952e9a92ddf
   bin/lib/plan.py#_plan_prototype_owner_risk_block: 5ca4d4e9397b75c4b3f72b0c76432d233228fc58883cdc0e8738e0db703f0cdd
   bin/lib/plan.py#_plan_prototype_owner_risk_rows: 36695c96f2b015f573e26d5a4dc93273893fdd373f53e8d9fa336eb8f9e4977e
   bin/lib/plan.py#_plan_registry_judged_view: 8f969544d83b5c5cfafe7c36e85ea71ebcbccb9ddbe64992767e8a6cabb6be72
-  bin/lib/plan.py#cmd_plan_show: d87cd559b25e20cbdb0f3a44cbfa0727b72d90f357bc7f596bd77006cae6121b
-  bin/lib/plan.py#cmd_plan_stage: 04eedba70690a04f2e3fabd3b2dd4bfe9cff5a2f9603207dc7fcee69ce4b8b5f
+  bin/lib/plan.py#cmd_plan_show: db923a386eba5c86ddc906fcd50525981a6293a72dc4715c8fa0b54fb158ef18
+  bin/lib/plan.py#cmd_plan_stage: fd3778a2d907109e2ebedec99f98d71727cca05325676757df93f850e0290556
   bin/lib/plan.py#owner_words_reconciliation: 2a961682437d3a5cb5154d203e9e7d2e34fb2096fbfc2ff0303256592ea2d59d
+  bin/lib/plan.py#plan_owner_rows_lost: 1d1dcca0fd2dd15520cc0eba672ecb83b2234ab5ee3ba060c16137e305439e36

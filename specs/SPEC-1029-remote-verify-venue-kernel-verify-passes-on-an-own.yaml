@@ -46,8 +46,8 @@ implements:
 - bin/lib/task.py#_stage6_queue_jump
 - bin/lib/task.py#_stage6_ordered_admission
 - bin/lib/task.py#_stage6_waiters_ahead
-- bin/lib/task.py#_stage6_load_settings
-- bin/lib/task.py#_Stage6LoadHold
+- bin/lib/task.py#_stage6_local_admission
+- bin/lib/host_admission.py#Hold
 body: "## Scenario\n\nThe owner opens ONE extra interactive session — the compute-controller\
   \ — and gives it one cue\n(«поднимай вычисления»). That session raises a compute\
   \ box from a prepared snapshot, checks it, and\nPUBLISHES it as the machine's verify\
@@ -97,16 +97,21 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   **The seed record — the sibling that OUTLIVES the venue record.** The canonical\
   \ seed\nsnapshot the box is raised from has ONE recorded home: a second machine-scoped\
   \ record in the same\ncoordination home, naming that id and its provenance — and\
-  \ nothing else (no verdict, no result,\nrule 1's discipline). It is a sibling rather\
-  \ than a field of the venue record because the venue\nrecord is cleared at every\
-  \ unpublish while the seed id must survive a teardown to be read by the\nnext raise,\
-  \ and because the teardown refresh (rule 6) ROTATES the id at every window — an\n\
-  unrecorded id was tolerable while it was fixed, not once it moves. **Only the seed\
-  \ verb writes it**\n(`venue seed` and the raise's auto-promotion, both through ONE\
-  \ writer), and promotion follows\nVERIFICATION, never precedes it. **THE CANDIDATE\
-  \ :** the teardown refresh leg (rule 6)\nrecords its new, UNVERIFIED image as the\
-  \ seed CANDIDATE — a third sibling in the same home, same\nschema, written only\
-  \ by `venue seed --candidate` and journaled as **`venue_seed_candidate_recorded`**.\n\
+  \ nothing else (no verdict, no result,\nrule 1's discipline). **Per repository:**\
+  \ the seed record and its candidate are kept for the\nrepository they serve — the\
+  \ kernel's under their own names, a consumer's beside them under names\nkeyed by\
+  \ the git common dir its venue record names as `serves` (SPEC-1059 rule 6). A seed\
+  \ verb run\nfor one repository (the kernel, or `-C <path>`) reads and writes that\
+  \ repository's seed only, so a\nbare raise never resolves another repository's image.\
+  \ It is a sibling rather than a field of the venue record because the venue\nrecord\
+  \ is cleared at every unpublish while the seed id must survive a teardown to be\
+  \ read by the\nnext raise, and because the teardown refresh (rule 6) ROTATES the\
+  \ id at every window — an\nunrecorded id was tolerable while it was fixed, not once\
+  \ it moves. **Only the seed verb writes it**\n(`venue seed` and the raise's auto-promotion,\
+  \ both through ONE writer), and promotion follows\nVERIFICATION, never precedes\
+  \ it. **THE CANDIDATE :** the teardown refresh leg (rule 6)\nrecords its new, UNVERIFIED\
+  \ image as the seed CANDIDATE — a third sibling in the same home, same\nschema,\
+  \ written only by `venue seed --candidate` and journaled as **`venue_seed_candidate_recorded`**.\n\
   A raise given no explicit image raises FROM the candidate when one is recorded:\
   \ on a GREEN readiness\nprobe it promotes the candidate to canonical itself (`venue_seed_recorded`\
   \ naming\n`promoted_from: candidate` and the verifying server) and clears it; on\
@@ -675,61 +680,53 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ marked pass run by a\nlowered process records that process's priority, not zero;\
   \ for a routed pass it is the\npriority the box leg measured of itself. An unmarked\
   \ pass's row says «not live». No event\ntype is added, and a land's row is unchanged.\n\
-  **Locally, a pass may also wait for the host's CPU — opt-in.** While the machine\
-  \ setting\n`YITC_STAGE6_LOAD_BOUND` (a CPU busy share, a fraction) is set, the pass\
-  \ whose turn it is in the\norder above starts only when the host's CPU busy share\
-  \ — read from two samples\n`YITC_STAGE6_LOAD_WINDOW_S` apart, over the CPUs `YITC_STAGE6_LOAD_CPU_SET`\
-  \ names (empty: every\nonline CPU) — is under the bound, and `YITC_STAGE6_LOAD_SPACING_S`\
-  \ has passed since the newest local\nStage-6 start. A reading counts only when its\
-  \ window began at or after that newest start; a reading\nwhose window began before\
-  \ it is refused and taken again. The newest start is kept in the local\nStage-6\
-  \ slot directory, written under a lock at each start and never removed when a pass\
-  \ ends, so a\npass that ends early still spaces the next start. A reading that cannot\
-  \ be taken holds the pass; it\nis never read as zero. A pass held by the CPU keeps\
-  \ its place in the order, so no pass behind it\nstarts in its place. Its `stage6_waiting`\
-  \ rows carry `wait_reason: load` and the reading — the busy\nshare, the bound, the\
-  \ window start and load1, or the reading named unavailable — and its\n`stage6_admitted`\
-  \ row carries the reading the start was judged on. The hold is part of the local\n\
-  Stage-6 slot, so it applies only while `YITC_VENUE_STAGE6_MAX_CONCURRENT` is set;\
-  \ with the bound\nunset nothing reads the host's CPU and the rows are as before.\
-  \ The keys' defaults and bands are\ntheir `machine_settings.INVENTORY` entries.\n\
-  **In a repository with the SPEC-1045 admission queue switched on,** a Stage-6 run\
-  \ is admitted by\nthat queue at the start of `task test`, before the routing decision;\
-  \ for a run the queue admitted,\nthe order of waiting passes above and its CPU wait\
-  \ are not consulted.\n\n### 6. Box lifecycle — raised on one owner cue, published\
-  \ after a readiness probe, deleted on the idle condition\n**The venue is OPTIONAL,\
-  \ and its hosting provider is a CONFIG BINDING, never rule text (CHARTER §P4b).**\
-  \ These rules speak of a remote verify box; WHICH provider rents it — the API\n\
-  endpoint, the token secret name, the box class, the location and the ssh key — is\
-  \ declared in the\nmachine's venue binding (`bin/venue-config.yaml`, read at call\
-  \ time by `bin/lib/venue.py`), which\nstays with the workshop that wrote it and\
-  \ does not travel. A machine with NO complete binding has\nnot adopted the venue:\
-  \ `venue show` says so plainly and exits 0, every provider call refuses by\nname,\
-  \ and the routing seams IGNORE any record present, so every verify pass runs locally\
-  \ (rule 2's\nunpublished branch). When the venue pays and how to switch it on:\n\
-  `patterns/verify-venue-when-it-pays.md`.\nThe box is owned by the **compute-controller\
-  \ session** — an ordinary interactive Controller the\nowner starts, whose owner-authorized\
-  \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
-  \ Its verbs: **`venue raise`** (create from the snapshot, wait for ssh, run the\n\
-  readiness probe — fingerprint + `nofile` + the test deps the kernel declares in\
-  \ its own `yitc-ops.yaml` (<workshop-spec> rules 1 and 6) — and emit an `external_action`\n\
-  `from:` the session's card, <workshop-spec>), **`venue publish`** (mirror the host's\
-  \ main onto the box\nclone, THEN write rule 1's record; refused when the probe or\
-  \ the mirror failed), **`venue unpublish`** (remove the record — the explicit break-glass\
-  \ and the\nfirst step of every delete), **`venue delete`** (the whole teardown:\
-  \ unpublish, the refresh leg below by default, then destroy the box + its key; `external_action`).\n\
-  **`publish` ESTABLISHES the clone's main mirror before it publishes.** A clone main\n\
-  behind the host's is not an unready box, but rule 3's per-request mirror heals it\
-  \ on the box's\nfirst request **ONLY while that delta push fits the 900 s transport\
-  \ ceiling** the push runs under\n — past it every request times out instead. So\
-  \ the heal is no longer left to the first\nland: `publish` runs rule 3's OWN mirror\
-  \ state machine (`remote_verify.mirror_main_to_box`,\nextracted from `ship_trees`,\
-  \ never a raw forced push) at the unpublished→published transition, and\nthe record\
-  \ exists only once the invariant holds. Rule 3's per-request mirror is UNCHANGED\
-  \ — host\nmain keeps advancing after publication.\n**THE STALENESS BOUNDS — two\
-  \ quantities on one axis (delta-push seconds), each with its\nderivation.** (i)\
-  \ **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose delta\
-  \ push takes longer is STALE and is refreshed at the next teardown (the refresh\
+  **Locally, a pass waits for the host gate.** A local pass the repo's admission queue\
+  \ did not admit —\n`YITC_VENUE_STAGE6_MAX_CONCURRENT` set or not — starts, once\
+  \ its turn in the order above has come,\nonly on the grant of the ONE host resource-admission\
+  \ authority (SPEC-1063 rule 1): machine-wide\norder, start lag, free usable threads\
+  \ and the memory the live starts hold. With no slot count the\norder and the grant\
+  \ alone admit it. A pass held there keeps its place in the order, so no pass\nbehind\
+  \ it starts in its place. Its `stage6_waiting` rows carry `wait_reason: load` and\
+  \ the gate's\nreading — what holds it, the measured free usable threads and the\
+  \ need, or the reading named\nunreadable — and its `stage6_admitted` row carries\
+  \ the reading the start was granted on. A process\ninside an admitted heavy run\
+  \ asks no grant. Its numbers are machine settings (SPEC-1063 rule 4).\n**In a repository\
+  \ with the <workshop-spec> admission queue switched on,** a Stage-6 run is admitted\
+  \ by\nthat queue at the start of `task test`, before the routing decision; for a\
+  \ run the queue admitted,\nthe order of waiting passes above and its CPU wait are\
+  \ not consulted.\n\n### 6. Box lifecycle — raised on one owner cue, published after\
+  \ a readiness probe, deleted on the idle condition\n**The venue is OPTIONAL, and\
+  \ its hosting provider is a CONFIG BINDING, never rule text (CHARTER §P4b).** These\
+  \ rules speak of a remote verify box; WHICH provider rents it — the API\nendpoint,\
+  \ the token secret name, the box class, the location and the ssh key — is declared\
+  \ in the\nmachine's venue binding (`bin/venue-config.yaml`, read at call time by\
+  \ `bin/lib/venue.py`), which\nstays with the workshop that wrote it and does not\
+  \ travel. A machine with NO complete binding has\nnot adopted the venue: `venue\
+  \ show` says so plainly and exits 0, every provider call refuses by\nname, and the\
+  \ routing seams IGNORE any record present, so every verify pass runs locally (rule\
+  \ 2's\nunpublished branch). When the venue pays and how to switch it on:\n`patterns/verify-venue-when-it-pays.md`.\n\
+  The box is owned by the **compute-controller session** — an ordinary interactive\
+  \ Controller the\nowner starts, whose owner-authorized standing batch is the land\
+  \ seam (`patterns/compute-controller-\nsession.md`). Its verbs: **`venue raise`**\
+  \ (create from the snapshot, wait for ssh, run the\nreadiness probe — fingerprint\
+  \ + `nofile` + the test deps the kernel declares in its own `yitc-ops.yaml` (<workshop-spec>\
+  \ rules 1 and 6) — and emit an `external_action`\n`from:` the session's card, <workshop-spec>),\
+  \ **`venue publish`** (mirror the host's main onto the box\nclone, THEN write rule\
+  \ 1's record; refused when the probe or the mirror failed), **`venue unpublish`**\
+  \ (remove the record — the explicit break-glass and the\nfirst step of every delete),\
+  \ **`venue delete`** (the whole teardown: unpublish, the refresh leg below by default,\
+  \ then destroy the box + its key; `external_action`).\n**`publish` ESTABLISHES the\
+  \ clone's main mirror before it publishes.** A clone main\nbehind the host's is\
+  \ not an unready box, but rule 3's per-request mirror heals it on the box's\nfirst\
+  \ request **ONLY while that delta push fits the 900 s transport ceiling** the push\
+  \ runs under\n — past it every request times out instead. So the heal is no longer\
+  \ left to the first\nland: `publish` runs rule 3's OWN mirror state machine (`remote_verify.mirror_main_to_box`,\n\
+  extracted from `ship_trees`, never a raw forced push) at the unpublished→published\
+  \ transition, and\nthe record exists only once the invariant holds. Rule 3's per-request\
+  \ mirror is UNCHANGED — host\nmain keeps advancing after publication.\n**THE STALENESS\
+  \ BOUNDS — two quantities on one axis (delta-push seconds), each with its\nderivation.**\
+  \ (i) **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose\
+  \ delta push takes longer is STALE and is refreshed at the next teardown (the refresh\
   \ leg\nbelow). It is a refresh TRIGGER, derived as ~2.5× the measured fresh-snapshot\
   \ band of 42–48 s\n(the AC2 ceiling), deliberately far below the point of failure\
   \ — 7.5× under the\ntransport ceiling. It is declared ONCE where it is measured\
@@ -965,7 +962,11 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ probe answers yes for the local arm. The order reuses the land queue's rule —\
   \ a\nlive mark first, then the oldest wait — on the same grounds: journal rows and\
   \ local decisions, no\nticket file and no assembler. The venue's admission class\
-  \ was left as it was.\n\n## Implementation notes\n\n- **The local Stage-6 waiter\
+  \ was left as it was.\n\nThe per-repository seed record (rule 1) was added by in\
+  \ place, as an additive extension\n(SPEC-1037 §7): on 2026-11-18 a consumer image\
+  \ build recorded its image as THE machine seed,\nreplacing the kernel's, and a consumer\
+  \ raise would have resolved the kernel's candidate. The\nkernel's own files and\
+  \ behaviour are unchanged.\n\n## Implementation notes\n\n- **The local Stage-6 waiter\
   \ rows.** A waiting local Stage-6 pass journals\n  `stage6_waiting` (task, `since`,\
   \ `wait_id`, pid, `queue_jump`, position, `state`) in the main\n  checkout's journal\
   \ before its first attempt, re-beats it inside the land queue's freshness window\n\
@@ -1043,17 +1044,18 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/cli.py#cmd_venue_publish: 4513ac7984b575d38a6d1de0eefa70593459bd4689393a3a4b8116dc3837c6f5
+  bin/lib/host_admission.py#Hold: 0dba9fe9ddf1cb1213cac28754cbd6c77d368e7850326c7bc14a39b06462cfc0
   bin/lib/remote_verify.py#ParkedPreship: 0faeee925227453f0ad571bcd11393c1729e55ad23ce78bff9819a8bcfbdb1ac
   bin/lib/remote_verify.py#SHIP_PUSH_TIMEOUT_S: 2c319cde46aece5469cebfff02bfbe21ddf7659aefe0dc7fb7065d49809596ef
   bin/lib/remote_verify.py#box_lease_prologue: 8a31ad7adfefee5c38e06ab222f997b7b2beeb9386c810e4230eceeb89d1af78
   bin/lib/remote_verify.py#derive_remote_w: 5bc98f158f768fb598533c9379027e9808ab5230667bca97fbb0cf88fdc97578
   bin/lib/remote_verify.py#execute_remote_verify: 64dff88a11a5216cecb1781fde8c318f0f40ffe165afb0888ebf8e2f5b0a852a
   bin/lib/remote_verify.py#local_probe_set: 854ec715e1a8aae300f37e1d5666fdc8e801b7ea37b9400026c4c2cab3472524
-  bin/lib/remote_verify.py#mirror_main_to_box: 1fcceadda609d63361391c2a2c2a3f834d3a258b3b9f4bf4de4e0bd4d2d3bf2e
+  bin/lib/remote_verify.py#mirror_main_to_box: 42a0078b032fdf2b88f8f273b4f1d948a5797ae54382521cb6e8eb51fc373f6e
   bin/lib/remote_verify.py#partition_suite: 0157fe314af49fc3c6543be06928ee894f6f7098cc18fc055f3472bd4e5fe3bd
   bin/lib/remote_verify.py#preship_admit: 5fa44842a23c92be738f37da9edaf4ce9c5335d3d19a859e8e577988002fbf57
   bin/lib/remote_verify.py#route: 53c1bb6e53a1dad368b8ec2bb98fdbf89200c440518dd07ad222086b53caf486
-  bin/lib/remote_verify.py#ship_trees: 459a2c93cc9099edc3f64877224cd07eb0d3e557780f00059a4a95f0407482b0
+  bin/lib/remote_verify.py#ship_trees: 6f40f54c3bef805d94cb6526d5c0d5eba40fd5628e13c8035fc9f8c9de6a45e1
   bin/lib/remote_verify.py#validate_envelope: a8e909c647215b15cd9c084d2b4f194c72a87ef7c85d18736d5688071dae6374
   bin/lib/remote_verify.py#venue_decision: 1575b1011c703cacb1c13ec4e9320ddfa079806c1d77442383d079cb0a1061f1
   bin/lib/remote_verify.py#venue_max_requests: 750fd2a701e6ee5f98f42f5e4d1e6ceef694655f18003b1166086332be48e87e
@@ -1061,24 +1063,23 @@ implements_signature:
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
   bin/lib/remote_verify.py#venue_stage6_max_concurrent: dfac55993dc902c71631b899025885aa3646f70e0ea5cfdf337c094874ea8b6b
   bin/lib/remote_verify.py#wait_legs: ebad62a4b2551bae1e882200870e45fd8446bee8da7fdd791d66885089899a1e
-  bin/lib/task.py#_Stage6LoadHold: c0aabb79172ed03848e34a4ef6ad0acdf222423b5ea0a95f223eb7a27cf0cc5a
-  bin/lib/task.py#_stage6_load_settings: e4510fd89662ef665da8f1fab0393f3e26bbda46adf7fe32131a09b564891d58
-  bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
+  bin/lib/task.py#_stage6_local_admission: bf59d894af56e498078073bf82cd793f1df1a63586d4fb2b6d95acff2732179b
+  bin/lib/task.py#_stage6_ordered_admission: f6fce59e9b0bf1e71a05e7205305c3a483551b30cb91f0d2528aecabecd5376f
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
   bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
-  bin/lib/task.py#cmd_task_test: 6545d2b1cd2555eb414731e02ba65370cb92b045a2dda1f424d46596ba335945
+  bin/lib/task.py#cmd_task_test: 930d0b1d04b5922be7e30e285ccf74c29cabb29d867543adb1164bb56449ce09
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
-  bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd
+  bin/lib/venue.py#create_server: 73239919118ef4da7f19cd03982cf99711f3496e883b7e95ea921ef3ca575fe7
   bin/lib/venue.py#delete_server: 388fcce4ebe8a6d3c1fe726b9d5f1af13234b089e9aad45dbc70412d0151a6b3
   bin/lib/venue.py#main_mirror_state: 6369f46a53cbbd1ca2bda6984e87d1edb7c940591b24ee6345ebd098b07120a9
   bin/lib/venue.py#probe_readiness: 8aedbe79c199b938629a467be7d9d36fbe47c2e371f0b95580910bf5cc1feed1
   bin/lib/venue.py#read_record: f1629b1c5e2e8add73bf1e067b15eef287a1c96a45b0c7322e85800b3e49e01f
   bin/lib/venue.py#resolve_record_path: 231f50071cfee672ad49319cf14cc522e92e7513c49953e5b588350662a0b64b
   bin/lib/venue.py#teardown_refresh: 3ef38e26cfece1075edaa9a19bccdbfc0176b990b6b15e1d79183968cb627d84
-  bin/lib/venue.py#write_record: 7912907c3306fb349ce5bfb0ebf1ffcc198646ed643abc23c8c163afc54e074e
+  bin/lib/venue.py#write_record: ecac4b93ed723c1901c8408ede5fd0037e200b062b0fbccc16e0a2388dec341c
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
-  bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
+  bin/lib/verify_runner.py#_run_verify_tests: a7bd59a4edffa8aaadeb82458bbca0bf497bb54b9c95a235d179841767d6fb8b
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: 7ae56210b64072a7184f4dd8047963b1dc0e9bb5b81a95e3167fc679a2a40898
+  bin/lib/worktree.py#_land_integrate: 5f526c9b0b586da90399e70e9dff5b2b32d227cbbb6b6fc70762d4ece3be7b8c

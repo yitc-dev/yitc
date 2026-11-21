@@ -39,11 +39,17 @@ If neither is true, stop here — do not switch it on.
 
 ## How to switch it on
 
-1. Write a provider binding file, `bin/venue-config.yaml`, with six keys: `provider`, `api_base`,
-   `token_secret`, `server_type`, `location`, `ssh_key` (the file itself documents them). It is never
-   shipped in a release, so each install writes its own. The token goes in your secrets dir under the
-   file name `token_secret` names — never in the binding.
+1. Write a provider binding file, `bin/venue-config.yaml`, with seven keys: `provider`, `api_base`,
+   `token_secret`, `server_type`, `location`, `ssh_key`, `ssh_key_file` (the file itself documents them).
+   It is never shipped in a release, so each install writes its own. The token goes in your secrets dir
+   under the file name `token_secret` names — never in the binding.
+   The venue logs in to the box with its OWN key, never a person's: create one keypair for it in your
+   secrets dir (`ssh-keygen -t ed25519 -N "" -f <secrets>/<ssh_key_file>`), give the private half the
+   group of the repository the venue serves and mode 0640 so every OS user of that repository can use
+   it, and register the public half with the provider under the name `ssh_key` gives. The venue copies
+   the private half into a 0600 file of the running user for each call and removes it after.
 2. Prepare a box snapshot with the engine's test dependencies, and record it: `bin/yitc-v2 venue seed`.
+   A snapshot built before the key was registered does not accept it — build a fresh one.
 3. For a working window: `bin/yitc-v2 venue raise`, then `bin/yitc-v2 venue publish`. Delete the box
    with `bin/yitc-v2 venue delete` when the window ends.
 

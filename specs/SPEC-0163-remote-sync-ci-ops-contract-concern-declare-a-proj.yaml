@@ -163,12 +163,28 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   scripts were BOTH considered and REJECTED by the same ruling: the sandbox is a platform\
   \ this\nmethodology does not want to own (CHARTER §P1 F1/F3), and trusting the candidate\
   \ is the weakness\nitself. Reusing the merge-base read the layer-identity check\
-  \ already performs adds no new\nmechanism.\n\n### 4c. A BRANCH-WRITTEN JOURNAL ROW\
-  \ has a governed route out — `journal redact` (X-1507)\nRule 4a makes the secrets\
-  \ atom unwaivable and scans the branch's ADDED lines with NO path\nexclusion, and\
-  \ `events.jsonl` (with its `archive/events-*.jsonl` segments) is one of those paths.\n\
-  So a row THIS BRANCH WROTE carrying a credential-shaped token had NO route out at\
-  \ all: the journal\nis append-only, the floor cannot be waived, a project `verify.floor.<atom>.command`\
+  \ already performs adds no new\nmechanism.\nTHE DEPENDENCIES MEMO — THE SAME PROVEN\
+  \ INPUTS ARE NOT RE-RUN. The floor still holds on\nevery land; what a land may skip\
+  \ is only a second RUN of the `dependencies` command over inputs a\ngreen run already\
+  \ passed. The command is not re-run when ALL hold: the project DECLARES the files\n\
+  the command reads (`verify.floor.dependencies.inputs`, read from the TRUSTED BASE\
+  \ like the command,\nshape in SPEC-0093 rule 27); the command string, the trusted-base\
+  \ bytes of its materialized\nprogram, and the blob of every declared input and of\
+  \ every dependency manifest and lockfile in the\ntracked tree equal those of a green\
+  \ run of it recorded on an ok land row whose exact bytes are on\n`main` at the trusted\
+  \ base (a branch-written row never counts). CONSERVATIVE: every declared input\n\
+  must be a tracked, unmodified file — one that is git-ignored, untracked, a directory,\
+  \ absent or\nmodified turns the memo OFF for that land. No declaration, a malformed\
+  \ one, any differing input, or\na prior result that cannot be read means the command\
+  \ RUNS. The memo never applies to the\n`secrets` or `probes` atoms. A file the command\
+  \ reads that the project did not declare is the\nproject's declared responsibility.\
+  \ A skipped run is recorded on the land row as the atom passed\nwith the prior land\
+  \ it relied on.\n\n### 4c. A BRANCH-WRITTEN JOURNAL ROW has a governed route out\
+  \ — `journal redact` (X-1507)\nRule 4a makes the secrets atom unwaivable and scans\
+  \ the branch's ADDED lines with NO path\nexclusion, and `events.jsonl` (with its\
+  \ `archive/events-*.jsonl` segments) is one of those paths.\nSo a row THIS BRANCH\
+  \ WROTE carrying a credential-shaped token had NO route out at all: the journal\n\
+  is append-only, the floor cannot be waived, a project `verify.floor.<atom>.command`\
   \ is ADDITIVE\nonly, and the land-seam rotation writes a NEW archive file every\
   \ line of which is diff-added. The\nmeasured consequence (<project>, 2026-09-19)\
   \ is a DONE card with a GREEN audit-post that\ncannot land, with its whole plan\

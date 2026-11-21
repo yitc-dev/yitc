@@ -154,11 +154,13 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \n**THE MOMENT REQUIREMENT.** A probe deferred at closure MUST name the moment it\
   \ returns —\n`--probe-deferred <AC>:<due_by ISO-date | awaits T-NNNN|X-NNNN|events.jsonl#type=<t>[@after=<ISO\
   \ ts>]>`,\nstored in the sibling mapping `probe_moments:` — and a BARE key is REFUSED\
-  \ at every close-time door\nonto `probes:`; the RETURNING SURFACE above then headlines\
-  \ only the DUE ones (SPEC-0119 rule 3, the\nsingle home of the reporting half).\
-  \ This constrains only WHEN a deferral is reported, never WHETHER\none is allowed:\
-  \ deferring is still the honest move, still cheap, and still gates nothing.\n\n\
-  **SETTLING it later → SPEC-1011 (index).** Recording the result once that evidence\
+  \ at every close-time door\nonto `probes:`, unless the card already records a moment\
+  \ for that criterion (declared at filing or by\nan earlier close): that bare key\
+  \ is admitted and the recorded moment is kept; the RETURNING SURFACE above then\
+  \ headlines only the DUE ones (SPEC-0119 rule 3, the\nsingle home of the reporting\
+  \ half). This constrains only WHEN a deferral is reported, never WHETHER\none is\
+  \ allowed: deferring is still the honest move, still cheap, and still gates nothing.\n\
+  \n**SETTLING it later → SPEC-1011 (index).** Recording the result once that evidence\
   \ exists is done on the\ndone card with `task close --settle-probe`. Its procedure\
   \ — what a settlement records, the three\nrefusals, the two non-pass terminals —\
   \ is the reference SPEC-1011: read it first (`graph query SPEC-1011`),\nfrom its\

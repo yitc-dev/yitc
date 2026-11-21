@@ -5984,10 +5984,20 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                 # The permit is DETERMINED, never asserted, and is now checked ABOVE (T-0362, the
                 # double-claim incident). No new flag (the guard must not key on the operator's word),
                 # no new event type, no new store.
-                print(f"dispatch: re-dispatching {task} into its PRESERVED confirmed-dead orphan "
-                      f"worktree {live[task]} (class {cls}"
-                      f"{'/' + _cdetail if _cdetail else ''}; dead holder {_dead_ref}; no live "
-                      f"process, "
+                # T-14711 (X-2463) — text only: a holder stamp that is THIS dispatching session's
+                # own ref is the Controller's prescribed re-open (`ceiling_pre_decide_order`), not a
+                # dead holder; the liveness read and the hand-over above/below are unchanged.
+                _own_ref = _own_session_ref() if _own_session_ref else None
+                _head = (f"dispatch: re-dispatching {task} into its PRESERVED worktree {live[task]} "
+                         f"— the Controller's own re-open (holder stamp {_dead_ref} is this "
+                         f"dispatching session's own), handed to the worker (class {cls}"
+                         f"{'/' + _cdetail if _cdetail else ''}; "
+                         if _dead_ref and _dead_ref == _own_ref else
+                         f"dispatch: re-dispatching {task} into its PRESERVED confirmed-dead orphan "
+                         f"worktree {live[task]} (class {cls}"
+                         f"{'/' + _cdetail if _cdetail else ''}; dead holder {_dead_ref}; no live "
+                         f"process, ")
+                print(_head
                       + (f"cwd holders {[h['pid'] for h in _orphans]} are ORPHANS of that "
                          f"terminally-over session (T-12683 — reaped by the adopt); "
                          if _orphans else "no live cwd holder; ")

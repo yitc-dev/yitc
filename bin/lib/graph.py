@@ -856,6 +856,8 @@ def _mention_review_currency(root, task_id: str, analysis, main_tip: str, *, _ru
             continue
         reviewed = _mention_review_lineage(snap_heads, y, target=rec_target)["lineage"]
         new_ids = [i for i in now["lineage"] if i not in reviewed]
+        own = _mention_review_own_changes(root, reviewed[1:], snap, main_tip, snap_heads, tip_heads,
+                                          _run_git_cap=_run_git_cap)
         renamed, changed = {}, []                       # new path -> old path; paths whose class is
         fields = [f for f in (diff.stdout or "").split("\0")]   # fixed by path alone are never searched
         i = 0
@@ -890,10 +892,16 @@ def _mention_review_currency(root, task_id: str, analysis, main_tip: str, *, _ru
                 fresh.append(r)
         if not new_ids and now["effective"] == rec_target and not fresh and now["note"]:
             lines.append(f"{tag} {now['note']}; no new or changed live mention since snapshot {snap[:12]}.")
+            lines.extend(own)
             continue
         if now["note"]:
             lines.append(f"{tag} {now['note']}.")
         if not new_ids and now["effective"] == rec_target and not fresh:
+            if own:                                     # T-14712: the target's own text moved on main
+                lines.append(f"{tag} TARGET TEXT CHANGED since snapshot {snap[:12]} (target {rec_target}); "
+                             f"main brought no lineage change and no new or changed live mention:")
+                lines.extend(own)
+                continue
             lines.append(f"{tag} current — snapshot {snap[:12]} target {rec_target}; main brought no lineage "
                          f"change and no new or changed live mention since.")
             continue
@@ -906,9 +914,40 @@ def _mention_review_currency(root, task_id: str, analysis, main_tip: str, *, _ru
             lines.append(f"    new or changed mention: {r['path']}:{r['line']}: {r['text'].strip()[:160]}")
         if len(fresh) > 30:
             lines.append(f"    … and {len(fresh) - 30} more new or changed mention(s) in main's changes")
+        lines.extend(own)
         lines.append(f"    decide each, then record them and `mention review snapshot: {main_tip[:12]} target: "
                      f"{now['effective']}` in the Analysis (report-only; `land` does not refuse on it).")
     return lines
+
+
+def _mention_review_own_changes(root, ids, snap, main_tip, snap_heads, tip_heads, *, _run_git_cap) -> list:
+    """T-14712 (SPEC-1037 §7 carry duty): report-only lines naming the commits of main since `snap` that
+    changed the OWN spec file of each id in `ids` (the reviewed target and its earlier ancestors) — an
+    in-place amend of an active target its proposed successor must carry. [] when none changed; one
+    COULD NOT MEASURE line for an id whose history git could not read. The file is followed across a
+    rename by passing both its snapshot and its main path."""
+    out = []
+    for sid in ids:
+        paths = sorted({h["path"] for h in ((snap_heads or {}).get(sid), (tip_heads or {}).get(sid))
+                        if h and h.get("path")})
+        if not paths:
+            continue
+        log = _run_git_cap(["log", "--format=%h %s", f"{snap}..{main_tip}", "--", *paths], root)
+        if log.returncode != 0:
+            out.append(f"    COULD NOT MEASURE whether main changed {sid}'s own file ({', '.join(paths)}) "
+                       f"since {snap[:12]} — compare it by hand.")
+            continue
+        commits = [c for c in (log.stdout or "").splitlines() if c.strip()]
+        if not commits:
+            continue
+        out.append(f"    target's own text changed: {sid} ({paths[-1]}) in {len(commits)} main commit(s) since "
+                   f"{snap[:12]} — compare with the successor and carry what it needs (SPEC-1037 §7), then "
+                   f"record a new snapshot line:")
+        for c in commits[:10]:
+            out.append(f"      {c[:150]}")
+        if len(commits) > 10:
+            out.append(f"      … and {len(commits) - 10} more commit(s)")
+    return out
 
 
 def _non_active_implementers(index: dict, spec_ids) -> dict:

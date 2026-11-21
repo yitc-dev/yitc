@@ -1534,7 +1534,8 @@ class FoldReducer:
                     _closing_tid = _branch[len("task/"):]
             if isinstance(_closing_tid, str) and _closing_tid:
                 self._closing.setdefault(_closing_tid, set()).add(_sref)
-        if data.get("followup_id"):
+        _fid = data.get("followup_id")
+        if isinstance(_fid, str) and _fid:   # T-14706: a non-string id keys no item (it is hashed below)
             self._followup.append((str(ts or ""), seq, ev))
 
     # ── T-13309 — the summary protocol (see the class docstring) ───────────────────────────────────────

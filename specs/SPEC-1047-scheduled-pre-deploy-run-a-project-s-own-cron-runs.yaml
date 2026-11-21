@@ -50,13 +50,13 @@ body: "## Scenario\nA project that declares pre-deploy classes (SPEC-1051) adds 
   \ one waits or runs is simply another run in the queue (rule 3),\n  with its own\
   \ `run_ref`.\n\n### 3. The queue — the run takes its place in the project's common\
   \ queue of runs and lands\n- The run needs the project's admission queue switched\
-  \ on (SPEC-1045 rule 3). Where it is off, the\n  command refuses before anything\
+  \ on (<workshop-spec> rule 3). Where it is off, the\n  command refuses before anything\
   \ runs, names the switch (`admission.mode: engine`, and the machine\n  veto `YITC_ADMISSION_ENGINE`\
   \ when that is what holds it off), and writes no class row.\n- Switched on, the\
   \ run files its ticket at its own start and is admitted as a run, in the order the\n\
-  \  project declares, as SPEC-1045 rule 2 (p) states: tied to no card, it takes none\
-  \ of the card steps\n  (no sync at admission, no quick step, no land preview, no\
-  \ green hold, no run-plus-land unit, no\n  credit answer), runs what rule 4 names,\
+  \  project declares, as <workshop-spec> rule 2 (p) states: tied to no card, it takes\
+  \ none of the card steps\n  (no sync at admission, no quick step, no land preview,\
+  \ no green hold, no run-plus-land unit, no\n  credit answer), runs what rule 4 names,\
   \ holds BUSY shared while it runs and ends its ticket in one\n  terminal row. It\
   \ never takes the land reservation and never moves `main`.\n\n### 4. What the run\
   \ executes — the deploy's pre-deploy run, unchanged\n- Subject and content are SPEC-1051\
@@ -71,8 +71,8 @@ body: "## Scenario\nA project that declares pre-deploy classes (SPEC-1051) adds 
   \ row per pre-deploy class, shaped exactly as a SPEC-1051 rule-4 row (its\n  `evidence:`\
   \ naming the run log, its `run_outcome` the whole run's result, every layer included),\
   \ plus\n  `run_kind: scheduled`, with no `target`, and with the admission fields\
-  \ SPEC-1045 rule 2 (e) puts on\n  every Stage-6 result row. A row's `outcome` is\
-  \ that class's own result; `run_outcome` is the whole\n  run's. A deploy's pre-deploy\
+  \ <workshop-spec> rule 2 (e) puts on\n  every Stage-6 result row. A row's `outcome`\
+  \ is that class's own result; `run_outcome` is the whole\n  run's. A deploy's pre-deploy\
   \ rows stay as SPEC-1051 rule 4 states, with no `run_kind`.\n- Where the runner\
   \ writes a `pre_deploy_run_started` row (SPEC-1051 rule 4, a contract with\n  `reuse_run:`),\
   \ a scheduled run's start row carries `run_kind: scheduled` too.\n- A row of either\
@@ -186,15 +186,13 @@ body: "## Scenario\nA project that declares pre-deploy classes (SPEC-1051) adds 
   \ and writes no class row; with them it runs.\n"
 cites:
 - SPEC-1051
-- SPEC-1045
 - SPEC-0142
 - SPEC-0190
 - SPEC-0119
 - SPEC-0132
 - SPEC-0109
 - SPEC-0094
-requires:
-- SPEC-1045
+requires: []
 supersedes: null
 activation_owner_task: null
 proposed_by: scheduled-run-of-a-project-s-pre-deploy-class-on-m
@@ -206,4 +204,4 @@ implements_signature:
   bin/lib/debt.py#red_scheduled_run: 48d48c95d31d088c3fbb49504afec8ca11b2b217e48d4cbbba059e62c594a375
   bin/lib/deploy.py#_pre_deploy_deploy_rows: 3ae4e06e9f54e29fe2c017ac87bf4858024a4d40576a20683e00cb36c3056ad5
   bin/lib/deploy.py#_pre_deploy_scheduled_history: 3cf19bd3228b69c71a054b4faa151a89c8e8a54bb54b9cdc7b3a84d4857992d9
-  bin/lib/deploy.py#_scheduled_run: f1c4b5d3419c76ebf6c22544bad08dc9f467e9d7f3f2b8f25e863b6679bb4797
+  bin/lib/deploy.py#_scheduled_run: 2fb5cb36501cf3a562a7accec384d3aa29d3b88759aca01d7312735792ee0243

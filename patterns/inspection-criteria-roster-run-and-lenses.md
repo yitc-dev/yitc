@@ -467,7 +467,7 @@ over the lens window (the last week), never restate or rebuild them here.
   is recorded in the run that made it, which resets the clock. A repo without the file records `no lane`.
 - **Reading 4 — WAITING AND SLOTS.** Over the window's verify runs: the RUNNING wall per Stage-6 run and
   per land, what repeats inside them, and which files cost most — never the wall spent waiting weighed
-  against the wall spent running, since queue wait follows from run and land walls (SPEC-1045). A wait is
+  against the wall spent running, since queue wait follows from run and land walls (<workshop-spec>). A wait is
   named only as a malfunction: the queue still while nothing runs, or a process in it dead or killed. A
   candidate that would run more runs at the same time is filed only with a measurement that the cards
   reach main sooner than with serial runs and land credit. Also the worker slots the runs used against

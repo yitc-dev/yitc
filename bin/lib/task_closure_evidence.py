@@ -3053,6 +3053,38 @@ def _ts_locator_ambiguity(wanted: str, matched, tid, flag: str = "--settle-evide
             f"citation names no single row (T-13342). Cite an unambiguous locator instead: {alt}")
 
 
+_ASSERTION_SUPERSEDED_KEYS = ("result", "reason", "superseded_by", "directive")
+
+
+def _assertion_superseded_grammar_error(lp) -> "str | None":
+    """T-14742 — grammar of a url ASSERTION's `settled_by` (SPEC-0094 §3 superseded terminal). PURE.
+
+    ABSENT -> None (every assertion without it is judged exactly as before). PRESENT -> it must be
+    exactly {result: superseded, reason, superseded_by: T-NNNN, directive: events.jsonl#ts=<ISO>}:
+    the two citations are the whole admission, so a hand-written one missing either is an error,
+    never a silent discharge. Resolution (done card on main, owner row) is the settle verb's."""
+    if "settled_by" not in lp:
+        return None
+    sb = lp.get("settled_by")
+    if not isinstance(sb, dict) or sb.get("result") != "superseded":
+        return ("an assertion's `settled_by:` must be the SUPERSEDED terminal {result: superseded, "
+                "reason, superseded_by, directive} (SPEC-0094 §3) — the proof triple and the "
+                "unreachable|falsified terminals settle a WAIVER, never an assertion")
+    extra = sorted(set(sb) - set(_ASSERTION_SUPERSEDED_KEYS))
+    if extra:
+        return f"`settled_by` of a superseded assertion carries unknown key(s) {extra}"
+    reason = sb.get("reason")
+    if not (isinstance(reason, str) and reason.strip()):
+        return "`settled_by.reason:` must be non-empty text — why the assertion can no longer hold"
+    if not (isinstance(sb.get("superseded_by"), str) and re.fullmatch(r"T-\d+", sb["superseded_by"])):
+        return "`settled_by.superseded_by:` must be the task id `T-NNNN` of the done card that removed the subject"
+    d = sb.get("directive")
+    if not (isinstance(d, str) and d.startswith("events.jsonl#ts=") and len(d) > len("events.jsonl#ts=")):
+        return ("`settled_by.directive:` must be the `events.jsonl#ts=<ISO>` locator of the "
+                "owner_directive row that decided the removal")
+    return None
+
+
 def _live_probe_declaration_error(lp, *, _is_iso_date, _live_probe_attested_grammar_error, _live_probe_settled_grammar_error, _security_dialect_error) -> "str | None":
     """Validate a PRESENT `live_probe` against the SPEC-0094 §3/§4 + SPEC-0028 grammar. Returns an error
     STRING if malformed, else None. ABSENCE is not handled here (the deploying-project presence
@@ -3107,6 +3139,9 @@ def _live_probe_declaration_error(lp, *, _is_iso_date, _live_probe_attested_gram
                 return (f"`expect_location:` requires a redirect `expect_status:` in "
                         f"{sorted(_REDIRECT_STATUSES)} (it asserts the Location header of an immediate "
                         f"redirect, the SPEC-0094 §4 no-follow dialect); got {es}")
+        _sup_err = _assertion_superseded_grammar_error(lp)
+        if _sup_err:
+            return _sup_err
         return _security_dialect_error(lp)
     if is_attested:
         # SPEC-0094 §4b — a live proof the PROJECT already runs (an authenticated probe, a headless-browser

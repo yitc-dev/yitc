@@ -1,10 +1,11 @@
 ---
 name: admission-queue
 class: technique
-sourced_from: <durable artifact> (activation owner of SPEC-1045, plan port-cryptochart-s-settled-admission-queue-into-th). The worked example is cryptochart's settled queue, its ops/deploy/wait-for-room.py at the pinned source revision SPEC-1045 ## Rationale names (its THE SETTINGS table read there), and the values issue 197 on the kernel's public tracker reports in force; the kernel's own values are the engine's built-in defaults (`bin/yitc-v2 config list`).
+sourced_from: <durable artifact> (activation owner of <workshop-spec>, plan port-cryptochart-s-settled-admission-queue-into-th). The worked example is cryptochart's settled queue, its ops/deploy/wait-for-room.py at the pinned source revision <workshop-spec> ## Rationale names (its THE SETTINGS table read there), and the values issue 197 on the kernel's public tracker reports in force; the kernel's own values are the engine's built-in defaults (`bin/yitc-v2 config list`) except the keys its yitc-ops.yaml declares.
 applies_to: switching a repository onto the engine's resource-admission queue, choosing its keys, and keeping the land's Stage-6 credit while the queue is on.
 cites:
-  - SPEC-1045
+  - SPEC-1063
+  - <workshop-spec>
   - SPEC-1031
   - SPEC-0152
   - SPEC-0065
@@ -19,7 +20,7 @@ cites:
 > card's run pulling `main` first and taking the project's quick checks, a green run holding the repo
 > for that card's own land, and bookkeeping and credit-ready lands passing at once. It decides WHEN
 > started work takes the repo's verify resources, never WHICH work exists. This page adds no rule: the
-> queue's rules are SPEC-1045 (`bin/yitc-v2 graph query SPEC-1045`), the setting classes SPEC-1031, the
+> queue's rules are SPEC-1063 (`bin/yitc-v2 graph query SPEC-1063`), the setting classes SPEC-1031, the
 > two `verify:` switches and the quick set SPEC-0152 rule 16 — on any difference those win.
 
 ## 1. The switch
@@ -32,7 +33,7 @@ admission:
 ```
 
 and the machine has not vetoed it (`YITC_ADMISSION_ENGINE=off` in the environment or the machine
-settings file reads it off — SPEC-1045 rule 3). Switched off, every entry point behaves exactly as its
+settings file reads it off — SPEC-1063 rule 3). Switched off, every entry point behaves exactly as its
 own spec states and no row gains a field.
 
 **Switching an existing project on: finish the tasks, switch, go on.** A process reads the switch once,
@@ -52,7 +53,7 @@ an existing project switches itself on as above. What a new project does next: �
 
 The project DECLARES (in `admission:` — non-numeric, deciding only WHEN its work is admitted):
 
-| key | what it decides | engine default (the kernel's) | cryptochart |
+| key | what it decides | engine default | cryptochart |
 |---|---|---|---|
 | `mode` | the switch | `off` (born `engine`) | its own script today; it switches to `engine` after the release |
 | `order` | the classes' order of passing | `light, land-mark, land, run-mark, run-light, run` | the same sequential order (#197 comment 4) |
@@ -60,7 +61,7 @@ The project DECLARES (in `admission:` — non-numeric, deciding only WHEN its wo
 | `light_layers` | layers a light land may run | `deps, static, ops, integrity` | the same (its own layer names) |
 | `planning.paths` | where a planning land's changes lie | `plans/ ideas/ specs/ scenarios/ docs/ tasks/ decisions/ lessons/` | the same |
 | `planning.branches` | a planning land's branch prefixes | `work/` | the same |
-| `planning_lands` | `after-run` (held by another card's unit and hold) or `immediately` | `immediately` with a non-empty `verify.layers`, else `after-run` | the source's planning land: `after-run` |
+| `planning_lands` | `after-run` (held by another card's unit and hold) or `immediately` | `after-run`; `immediately` only when the project declares it | the source's planning land: `after-run` |
 | `green_hold` | hold the repo for a green card's land | `on` | on (GREEN_HOLD 900 s, #197) |
 | `run_land_unit` | a card's run and land as one unit | `on` | on (RUN_LAND_UNIT 1, #197) |
 
@@ -79,9 +80,9 @@ its source, `config set` changes one on this host:
 
 | key | engine default (the kernel's) | cryptochart's source value |
 |---|---|---|
-| `YITC_ADMISSION_THRESHOLD_PCT` | 30 | 30 |
 | `YITC_ADMISSION_WINDOW_S` / `_SAMPLE_S` / `_EMPTY_SAMPLE_S` | 90 / 3 / 3 | 90 / 3 / 3 |
-| `YITC_ADMISSION_POLL_S` / `_SPACING_S` / `_STEP_S` | 15 / 60 / 0.25 | 15 / 60 / 0.25 |
+| `YITC_ADMISSION_POLL_S` / `_STEP_S` | 15 / 0.25 | 15 / 0.25 |
+| `YITC_HOST_START_LAG_S` / `_RESERVE_THREADS` / `_NEED_THREADS` / `_RUN_AGING_S` — the host authority (SPEC-1063 rule 1), replacing the source's THRESHOLD and SPACING | 60 / 12 / 36 / 600 | — (the source's THRESHOLD 30, SPACING 60) |
 | `YITC_ADMISSION_RUNS_AHEAD` | 8 | 8 |
 | `YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT` | 10 | 10 |
 | `YITC_ADMISSION_PIN` / `_LIGHT_PIN` | empty (no pinning) | `2-15,18-31` / empty — its host's CPUs |
@@ -93,15 +94,16 @@ its source, `config set` changes one on this host:
 | `YITC_ADMISSION_ENGINE` (the veto) | `auto` | — |
 
 Not ported, so no key: the source's batch size (the engine admits ONE land at a time — a rule), its
-release lock and gate, land groups and refusal span (SPEC-1045 rule 2). A host tunes the PERFORMANCE
+release lock and gate, land groups and refusal span (SPEC-1063 rule 2). A host tunes the PERFORMANCE
 numbers for itself (`config set`, e.g. a higher threshold on a host whose land verifies are wide); the
 built-in defaults above stay the engine's.
 
 **The kernel's own declaration** (its `yitc-ops.yaml`, SPEC-0186 rule 6): `admission: mode: engine`
 and its quick set as test files, the engine's form beside its one suite layer — five whole-repo test
 files a sync from `main` can break (the spec anchors resolve, their signatures are current, the
-manifest and the graph's spec-to-code map regenerate, the scenario corpus holds). Every other key is
-the default.
+manifest and the graph's spec-to-code map regenerate, the scenario corpus holds), `planning.paths`
+narrowed to the inert prefixes, and `planning_lands: immediately` ( — the value it had
+before the default became `after-run`). Every other key is the default.
 
 ## 3. The card order that keeps the credit
 
@@ -136,7 +138,7 @@ permitting) instead of running the full verify again.
 ## 5. First setup in a new project
 
 What a project does once, after its first `init`, so the queue does its whole job. The rules stay in
-their homes: the queue SPEC-1045, the quick set and the two `verify:` switches SPEC-0152 rule 16, who
+their homes: the queue SPEC-1063, the quick set and the two `verify:` switches SPEC-0152 rule 16, who
 sets which value SPEC-1031.
 
 1. **On once verify is confirmed.** The born `yitc-ops.yaml` declares `admission: mode: engine` and, in

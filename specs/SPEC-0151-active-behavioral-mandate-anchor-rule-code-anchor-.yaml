@@ -71,5 +71,5 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#_anchor_rule_warnings: a5461ecd23b90abaff2c0b903334e66057ff46380a6ae0b5c1f9c369c91408b5
   bin/lib/plan.py#_birth_plan_draft_specs: 66cfd74ced72e6278232fd8af0aa71ea363332de73c9123972803db23db8f3df
-  bin/lib/spec.py#_warn_anchor_rule: fc24faf3a714432bedf10f52aaa97eb3589b5a44d013cd2b1ce346f987877e5f
+  bin/lib/spec.py#_warn_anchor_rule: b05a4adfbb8cb3d7cea516e68e5418fc1d03cb7efbc78c583e0039dabe7e2544
   bin/lib/spec.py#anchor_rule_violation: 3f83f3569ad48b547b46f918d3482d643f6b03d813ce01ebe2bdd8aafb815320

@@ -140,6 +140,12 @@ _VERIFY_OUTCOMES_SCHEMA = 1
 # (`worktree._layer_failing_files`).
 VERIFY_RERUN_FILES_ENV = "YITC_VERIFY_RERUN_FILES"
 
+# T-14746 (SPEC-0132 §1c) — the growth object of the width budget this verify runs under, set by
+# `worktree._verify_width_budget(grow_bound=...)` for its `with` body. A ContextVar: only the thread
+# that entered the budget sees it, so a sibling leg running beside it never grows.
+import contextvars as _contextvars   # noqa: E402
+WIDTH_GROWTH: "_contextvars.ContextVar" = _contextvars.ContextVar("yitc_verify_width_growth", default=None)
+
 
 # ── T-11537 (SPEC-0152 rule 16) — a routed tests/** layer must be able to COVER the routed surface ──
 #
@@ -1477,7 +1483,7 @@ def governed_selection(test_files, *, select: bool = True, journal_path=None, te
 
 
 def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | None = None,
-                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, _timeout_class=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, queue_jump: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None, _priority_starved=None) -> list:
+                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, _timeout_class=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, queue_jump: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None, _priority_starved=None, width_growth=None) -> list:
     """Run every `tests/test_*.py` as an isolated subprocess (canonical V2 test interface — exit 0 =
     pass, tests/README.md §Run all tests / T-0039) CONCURRENTLY (T-0274). Preserves the old serial
     loop's contract:
@@ -2276,10 +2282,87 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
                       file=sys.stderr, flush=True)
         hb_thread = threading.Thread(target=_heartbeat, daemon=True)
         hb_thread.start()
+    # ── T-14746 (SPEC-0132 §1c) — GROW-ONLY WIDTH ───────────────────────────────────────────────
+    # With no growth object the pool is today's: `workers` threads, every file straight to `_run_one`.
+    # With one, the pool has room up to the growth cap, but a file STARTS only while fewer than the
+    # gate's width are running; a controller thread asks the growth object ONCE per cadence tick for
+    # a wider gate (it reads the host, never per test file) and only ever raises it. A file already
+    # running is never touched.
+    _growth = width_growth if width_growth is not None else WIDTH_GROWTH.get()
+    if _growth is not None and not (isinstance(workers, int) and workers > 0):
+        _growth = None
+    _width_changes: list = []
+
+    class _WidthGate:
+        def __init__(self, width):
+            self.cv = threading.Condition()
+            self.width, self.running, self.left = int(width), 0, 0
+
+        def enter(self):
+            with self.cv:
+                while self.running >= self.width:
+                    self.cv.wait()
+                self.running += 1
+                self.left -= 1
+
+        def leave(self):
+            with self.cv:
+                self.running -= 1
+                self.cv.notify_all()
+
+        def raise_to(self, w):
+            with self.cv:
+                if w > self.width:
+                    self.width = int(w)
+                    self.cv.notify_all()
+
+    _gate = _WidthGate(workers) if _growth is not None else None
+
+    def _gated(tf):
+        _gate.enter()
+        try:
+            _run_one(tf)
+        finally:
+            _gate.leave()
+
+    def _pool_map(files):
+        if _gate is None:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as _ex:
+                list(_ex.map(_run_one, files))
+            return
+        with _gate.cv:
+            _gate.left = len(files)
+        _gstop = threading.Event()
+        _t0 = time.monotonic()
+
+        def _grow_loop():
+            while not _gstop.wait(float(_growth.cadence_s)):
+                with _gate.cv:
+                    _w, _left = _gate.width, _gate.left
+                try:
+                    _new = int(_growth.offer(_w, _left))
+                except Exception:      # noqa: BLE001 — a growth fault keeps the running width
+                    return
+                if _new > _w:
+                    _gate.raise_to(_new)
+                    _width_changes.append({"t_s": round(time.monotonic() - _t0, 1), "from": _w, "to": _new})
+
+        _gt = threading.Thread(target=_grow_loop, daemon=True)
+        _gt.start()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=max(int(workers), int(_growth.cap))) as _ex:
+                list(_ex.map(_gated, files))
+        finally:
+            _gstop.set()
+            _gt.join(timeout=5)
+        if metrics_out is not None:
+            metrics_out["width_growth"] = {"start": int(workers), "end": _gate.width,
+                                           "changes": list(_width_changes)}
+
     try:
         submit_t[0] = time.monotonic()   # T-10071: queue-wait baseline (real clock) — set just before dispatch
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
-            list(ex.map(_run_one, _pool_files))      # T-12358: the pool never sees a listed file
+        _pool_map(_pool_files)                       # T-12358: the pool never sees a listed file
         # ── T-12377 — THIS LEG'S POOL HAS DRAINED: SAY SO, UNCONDITIONALLY ───────────────────────
         # The marker is written BEFORE `if failures` and whether or not this leg will retry, because
         # the sibling leg's retry is what waits on it — a green leg that stayed silent would hold its
@@ -2380,8 +2463,7 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
                     if _resume:
                         _box_names.update({tf: f"resume{_i}" for _i, tf in enumerate(_resume)})
                         submit_t[0] = time.monotonic()
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex2:
-                            list(ex2.map(_run_one, _resume))
+                        _pool_map(_resume)
                     _flaky_retry_record = {"rows": _rows, "resumed": len(_resume)}
                 else:
                     _flaky_retry_record = {"rows": _rows}
@@ -5534,7 +5616,7 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
     # T-14222 — THE HOST CPU WINDOW IS AN AMBIENT ROUTE SURFACE TOO: the admission queue's machine
     # VETO (`machine_settings.ADMISSION_VETO`) is set OFF for every child, allowlisted or not, and
     # AFTER the base scrub, so neither an ambient `auto` nor an ambient `off` from the launcher decides
-    # it. A fixture consumer born `admission.mode: engine` (SPEC-1045 rule 3) otherwise sends its real
+    # it. A fixture consumer born `admission.mode: engine` (SPEC-1063 rule 3) otherwise sends its real
     # `land` / `task test --run` through the queue, which waits for a quiet window on the REAL host.
     # MEASURED (2026-10-26, T-14198 land abort): under the land verify's own load that wait outlasted
     # the 300 s per-file bound (tests/test_spike_mode_hint.py, cpu/wall 0.048); with the veto off the
@@ -5642,4 +5724,7 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
     # T-14388 — a consumer a test bears is judged by the engine under test, never main's install
     # (`init._engine_install_root`). A test proving the real-use durable bake pops it (T-10530).
     env["YITC_BAKE_INVOKING_ENGINE"] = "1"
+    # T-14745 (SPEC-1063 rule 1) — a test child is part of the verify that runs it: a run or land a
+    # fixture drives asks the host gate nothing (the BUSY hand-down idiom). A test ABOUT the gate pops it.
+    env["YITC_HOST_GRANT"] = "inside-verify"
     return env

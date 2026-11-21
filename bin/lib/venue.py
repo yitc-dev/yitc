@@ -29,11 +29,13 @@ provider's status/code/message, so no refusal path can carry it either (AC4).
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -66,11 +68,16 @@ SEED_SOURCE_FLAG = "--from-image"
 
 # ── The provider (rule 6) — a CONFIG BINDING, never a constant (T-13000) ────────────────────────
 TOKEN_FILE_ENV = "VENUE_TOKEN_FILE"
+KEY_FILE_ENV = "VENUE_KEY_FILE"
 CONFIG_ENV = "YITC_VENUE_CONFIG"
 #: The engine's own binding file. Resolved beside THIS module's bin/, so it is the ENGINE's binding
 #: whichever repo a `-C` session reads; `YITC_VENUE_CONFIG` overrides (a test's temp file).
 CONFIG_DEFAULT = Path(__file__).resolve().parent.parent / "venue-config.yaml"
-BINDING_KEYS = ("provider", "api_base", "token_secret", "server_type", "location", "ssh_key")
+#: `ssh_key_file` (T-14718) names the PRIVATE half of the venue's own dedicated key under the host's
+#: secrets dir: every venue ssh authenticates with it alone (`remote_verify.venue_run`), never with the
+#: running user's own identity, so a binding without it is incomplete and the venue is not configured.
+BINDING_KEYS = ("provider", "api_base", "token_secret", "server_type", "location", "ssh_key",
+                "ssh_key_file")
 BOX_USER = "dev"
 API_TIMEOUT = 60
 
@@ -160,6 +167,19 @@ def token_path(env=None) -> "str | None":
         return override
     b = binding(env)
     return str(host_paths.host_home() / "secrets" / b["token_secret"]) if b else None
+
+
+def key_path(env=None) -> "str | None":
+    """T-14718 — the venue's private ssh key: `VENUE_KEY_FILE` wins; else the binding's `ssh_key_file`
+    under the host's secrets dir (the `token_path` derivation); None when unbound. The file is shared
+    by the served repository's group (0640), so it is never handed to ssh directly — ssh refuses a
+    group-readable key — but copied per call by `remote_verify` into a 0600 file of the running user."""
+    env = os.environ if env is None else env
+    override = (env.get(KEY_FILE_ENV) or "").strip()
+    if override:
+        return override
+    b = binding(env)
+    return str(host_paths.host_home() / "secrets" / b["ssh_key_file"]) if b else None
 
 
 def provider_configured(env=None) -> bool:
@@ -277,18 +297,37 @@ def record_transition_lock(env=None):
     return _held()
 
 
+def _record_gid(record: dict, path: Path) -> int:
+    """The group the record is shared with: the served repository's (`serves`, its git common dir),
+    else — a kernel record, or a `serves` path that is gone — the group of the record's own directory."""
+    for candidate in (record.get("serves"), str(path.parent)):
+        if candidate:
+            try:
+                return os.stat(candidate).st_gid
+            except OSError:
+                continue
+    return os.getegid()
+
+
 def write_record(record: dict, env=None) -> Path:
-    """Atomic (tmp + os.replace) and 0600 — the record carries an ssh identity and a box address."""
-    return _write_json(resolve_record_path(env), record, 0o600)
+    """Atomic (tmp + os.replace), 0640, group = the served repository's (T-14718; was 0600): every OS
+    user of that repository reads it and routes to the box (X-2469: a second user read no 0600 record
+    and waited on the host). It carries a box address and a provider key NAME, never a key; nothing is
+    world-readable."""
+    path = resolve_record_path(env)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return _write_json(path, record, 0o640, gid=_record_gid(record, path))
 
 
-def _write_json(path: Path, obj: dict, mode: int) -> Path:
+def _write_json(path: Path, obj: dict, mode: int, gid: "int | None" = None) -> Path:
     """The ONE atomic JSON writer the machine-scoped venue files use (tmp + os.replace).
 
     `mode` is set on the tmp before the swap, so a rewrite never keeps an older file's mode. The
     seed files take the coordination store's shared file mode (`cross.SHARED_FILE_MODE`, T-14536):
     the store is shared by its OS group, and a file only its writer can read breaks every other
-    reader of the store (the host backup among them). Only the record stays 0600 — see `write_record`.
+    reader of the store (the host backup among them). The record is 0640 with the served repository's
+    group (`gid`, set on the tmp before the swap like the mode; a group this identity may not give
+    refuses, and nothing is written) — see `write_record`.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".venue-", suffix=".tmp")
@@ -296,6 +335,12 @@ def _write_json(path: Path, obj: dict, mode: int) -> Path:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(obj, fh, indent=2, sort_keys=True)
             fh.write("\n")
+        if gid is not None and os.stat(tmp).st_gid != gid:
+            try:
+                os.chown(tmp, -1, gid)
+            except PermissionError:
+                raise VenueError(f"cannot give {path} the group {gid} of the repository it serves "
+                                 f"(this identity is not in that group) — NOTHING was written") from None
         os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
@@ -347,9 +392,32 @@ def build_record(*, box, server_id, snapshot_id, fingerprint, published_at,
 
 
 # ── Seed record ───────────────────────────────────────────────────────────────────────────────
-def resolve_seed_path(env=None) -> Path:
-    """Beside the venue record, under the SAME override — derived, never a second literal."""
-    return resolve_record_path(env).parent / SEED_FILENAME
+#: THE SEED RECORD IS KEPT PER REPOSITORY (T-14708). `repo` names the repository a seed serves: None for
+#: the kernel (its files keep their names byte-identical), else a consumer's git common dir — the SAME
+#: value a consumer venue record carries as `serves`. A consumer's files sit beside the kernel's, their
+#: names keyed by `seed_key(repo)`, so a consumer image build never replaces the kernel seed and a
+#: consumer raise never resolves the kernel's image (or the reverse).
+def seed_key(repo=None) -> str:
+    """'' for the kernel (repo None); else `.<slug>-<sha12>` — the slug is the repository's directory
+    name for a reader, the hash of the full `repo` string keeps two repositories of one name apart."""
+    if repo is None:
+        return ""
+    text = str(repo)
+    path = Path(text)
+    name = path.parent.name if path.name == ".git" else path.name
+    slug = re.sub(r"[^a-z0-9-]+", "-", name.lower()).strip("-")[:30] or "repo"
+    return f".{slug}-{hashlib.sha256(text.encode('utf-8')).hexdigest()[:12]}"
+
+
+def _keyed(filename: str, repo=None) -> str:
+    stem, dot, ext = filename.rpartition(".")
+    return f"{stem}{seed_key(repo)}{dot}{ext}"
+
+
+def resolve_seed_path(env=None, repo=None) -> Path:
+    """Beside the venue record, under the SAME override — derived, never a second literal; keyed by
+    the repository it serves (T-14708; the kernel's name unchanged)."""
+    return resolve_record_path(env).parent / _keyed(SEED_FILENAME, repo)
 
 
 def build_seed(*, snapshot_id, clone_main_sha, recorded_at, session_ref, task=None,
@@ -398,20 +466,21 @@ def _read_seed_file(path: Path, what: str) -> tuple:
     return obj, ""
 
 
-def read_seed(env=None) -> tuple:
+def read_seed(env=None, repo=None) -> tuple:
     """(seed | None, reason). MISSING, unreadable, unparseable and MALFORMED all read ABSENT, and
     every non-missing case carries a reason naming the path and the defect. Fail-closed in the
     direction that matters here: an absent/malformed seed means `venue raise` REFUSES, never picks."""
-    return _read_seed_file(resolve_seed_path(env), "seed record")
+    return _read_seed_file(resolve_seed_path(env, repo), "seed record")
 
 
-def write_seed(seed: dict, env=None) -> Path:
-    """Atomic + 0600, the venue record's own writer. Refuses a malformed seed at the door."""
+def write_seed(seed: dict, env=None, repo=None) -> Path:
+    """Atomic, at the store's shared mode, through the writer the venue record uses too (`_write_json`).
+    Refuses a malformed seed at the door."""
     defect = _seed_defect(seed)
     if defect:
         raise VenueError(f"refusing to write a seed record that {defect}")
     from lib import cross   # deferred, as this module's other lib reads
-    return _write_json(resolve_seed_path(env), seed, cross.SHARED_FILE_MODE)
+    return _write_json(resolve_seed_path(env, repo), seed, cross.SHARED_FILE_MODE)
 
 
 # ── The seed CANDIDATE (T-12885) ──────────────────────────────────────────────────────────────
@@ -422,40 +491,41 @@ def write_seed(seed: dict, env=None) -> Path:
 SEED_CANDIDATE_FILENAME = "verify-seed-candidate.json"
 
 
-def resolve_seed_candidate_path(env=None) -> Path:
-    return resolve_record_path(env).parent / SEED_CANDIDATE_FILENAME
+def resolve_seed_candidate_path(env=None, repo=None) -> Path:
+    return resolve_record_path(env).parent / _keyed(SEED_CANDIDATE_FILENAME, repo)
 
 
-def read_seed_candidate(env=None) -> tuple:
+def read_seed_candidate(env=None, repo=None) -> tuple:
     """(candidate | None, reason) — the same fail-closed reader as the canonical record."""
-    return _read_seed_file(resolve_seed_candidate_path(env), "seed candidate")
+    return _read_seed_file(resolve_seed_candidate_path(env, repo), "seed candidate")
 
 
-def write_seed_candidate(seed: dict, env=None) -> Path:
+def write_seed_candidate(seed: dict, env=None, repo=None) -> Path:
     defect = _seed_defect(seed)
     if defect:
         raise VenueError(f"refusing to write a seed candidate that {defect}")
     from lib import cross   # deferred, as this module's other lib reads
-    return _write_json(resolve_seed_candidate_path(env), seed, cross.SHARED_FILE_MODE)
+    return _write_json(resolve_seed_candidate_path(env, repo), seed, cross.SHARED_FILE_MODE)
 
 
-def clear_seed_candidate(env=None) -> bool:
+def clear_seed_candidate(env=None, repo=None) -> bool:
     """Remove the candidate; True when one was removed (missing is not an error)."""
     try:
-        resolve_seed_candidate_path(env).unlink()
+        resolve_seed_candidate_path(env, repo).unlink()
         return True
     except FileNotFoundError:
         return False
 
 
-def seed_record_hint(env=None) -> str:
+def seed_record_hint(env=None, repo=None) -> str:
     """WHAT to record and WHERE — the one sentence every seed refusal ends with."""
-    return (f"record the canonical seed snapshot with `bin/yitc-v2 venue seed --snapshot-id <id>` "
-            f"(writes {resolve_seed_path(env)}); an explicit `venue raise {SEED_SOURCE_FLAG} <id>` "
+    verb = "bin/yitc-v2 -C <this repository> venue seed" if repo is not None else "bin/yitc-v2 venue seed"
+    return (f"record the canonical seed snapshot with `{verb} --snapshot-id <id>` "
+            f"(writes {resolve_seed_path(env, repo)}); an explicit `venue raise {SEED_SOURCE_FLAG} <id>` "
             f"overrides it for verifying a NEW snapshot before promoting it")
 
 
-def resolve_seed_snapshot(explicit, env=None) -> tuple:
+def resolve_seed_snapshot(explicit, env=None, repo=None) -> tuple:
     """(snapshot_id, source, role) — the raise's ONE resolution site (T-12668 AC1-AC3, T-12885).
 
     An explicit id WINS (role `explicit`, source = the flag name); else a well-formed CANDIDATE
@@ -463,19 +533,20 @@ def resolve_seed_snapshot(explicit, env=None) -> tuple:
     recorded canonical seed (role `canonical`, source = its path); else `VenueError` naming what to
     record and where. A MALFORMED candidate never blocks a raise: it is named in the source and the
     canonical seed is used. It never lists provider snapshots: choosing among them by description is
-    exactly the archaeology that raised a broken clone on 2026-09-16."""
+    exactly the archaeology that raised a broken clone on 2026-09-16. Only `repo`'s own records are
+    read (T-14708): a consumer never resolves the kernel's candidate or canonical, nor the reverse."""
     env = os.environ if env is None else env
     if explicit is not None and str(explicit).strip():
         return str(explicit).strip(), SEED_SOURCE_FLAG, "explicit"
-    candidate, cand_reason = read_seed_candidate(env)
+    candidate, cand_reason = read_seed_candidate(env, repo)
     if candidate is not None:
-        return candidate["snapshot_id"], str(resolve_seed_candidate_path(env)), "candidate"
-    seed, reason = read_seed(env)
+        return candidate["snapshot_id"], str(resolve_seed_candidate_path(env, repo)), "candidate"
+    seed, reason = read_seed(env, repo)
     if seed is None:
-        path = resolve_seed_path(env)
+        path = resolve_seed_path(env, repo)
         lead = reason or f"no canonical seed snapshot is recorded (no seed record at {path})"
-        raise VenueError(f"{lead} — REFUSING to pick a snapshot; {seed_record_hint(env)}")
-    source = str(resolve_seed_path(env))
+        raise VenueError(f"{lead} — REFUSING to pick a snapshot; {seed_record_hint(env, repo)}")
+    source = str(resolve_seed_path(env, repo))
     if cand_reason:
         source += f"; IGNORED {cand_reason}"
     return seed["snapshot_id"], source, "canonical"
@@ -528,7 +599,9 @@ def _error_of(parsed) -> tuple:
     return str(err.get("code") or "unknown"), str(err.get("message") or "no message")
 
 
-def ssh_key_id(*, env=None, name: "str | None" = None):
+def provider_ssh_key(*, env=None, name: "str | None" = None) -> dict:
+    """The provider's record of the binding's ssh key — its id and its PUBLIC half (`public_key`),
+    read by the one GET the raise already makes. The private key is never read here (T-14729)."""
     name = name or _require_binding(env)["ssh_key"]
     status, parsed = _api("GET", f"/ssh_keys?name={name}", env=env)
     if status != 200:
@@ -537,7 +610,42 @@ def ssh_key_id(*, env=None, name: "str | None" = None):
     keys = parsed.get("ssh_keys") or []
     if not keys:
         raise VenueError(f"ssh key {name!r} is not in the provider project — upload it first")
-    return keys[0].get("id")
+    return keys[0] or {}
+
+
+def ssh_key_id(*, env=None, name: "str | None" = None):
+    return provider_ssh_key(env=env, name=name).get("id")
+
+
+_PUBLIC_KEY_PREFIXES = ("ssh-", "ecdsa-", "sk-")
+
+
+def authorize_box_user_key(public_key: str, *, user: str = BOX_USER) -> str:
+    """T-14729 — the first-boot `user_data` every raise sends: append the binding key's PUBLIC half to
+    the box user's authorized_keys, once (`grep -qxF` makes a repeat boot or a fresh seed that already
+    carries the key a no-op). A seed snapshotted before the dedicated venue key (T-14718) authorizes
+    only the old key for the box user, and the provider's own key injection reaches root alone; cloud-init
+    runs this on the new server's first boot, so a seed of any age raises with the venue key.
+    Refuses a value that is not one public-key line, so nothing but a public key reaches the script."""
+    key = (public_key or "").strip()
+    if (not key.startswith(_PUBLIC_KEY_PREFIXES) or "\n" in key or "\r" in key or "'" in key
+            or len(key.split()) < 2):
+        raise VenueError("the provider's record of the venue ssh key carries no usable public key "
+                         "line, so the box user cannot be authorized for it; nothing was raised")
+    ak = f"/home/{user}/.ssh/authorized_keys"
+    return "\n".join((
+        "#!/bin/sh",
+        "set -eu",
+        f"mkdir -p /home/{user}/.ssh",
+        f"touch {ak}",
+        f"if ! grep -qxF '{key}' {ak}; then",
+        # a last line with no newline would swallow the key into it (audit-post RED T-14729 #1)
+        f"  if [ -s {ak} ] && [ -n \"$(tail -c1 {ak})\" ]; then printf '\\n' >> {ak}; fi",
+        f"  printf '%s\\n' '{key}' >> {ak}",
+        "fi",
+        f"chown -R {user}:{user} /home/{user}/.ssh",
+        f"chmod 700 /home/{user}/.ssh && chmod 600 {ak}",
+        ""))
 
 
 QUOTA_REFUSAL_ORDER = (
@@ -546,6 +654,51 @@ QUOTA_REFUSAL_ORDER = (
     "  2. bin/yitc-v2 venue raise --from-image <snapshot-id>\n"
     "NOT retrying into the limit — a retry cannot succeed while a box of this class is live."
 )
+
+
+def _disk_gb(value) -> "float | None":
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def image_disk_fit(image, server_type: str, *, env=None) -> None:
+    """T-14736 — before a raise POSTs /servers, refuse a seed SNAPSHOT whose disk is larger than the
+    chosen server type's disk: the provider will not create a server whose disk is smaller than the
+    image's `disk_size`, and finding that out after the create call is late (X-2495). Two reads —
+    `GET /images/{id}` (`image.disk_size`) and `GET /server_types?name=<type>` (`server_types[0].disk`),
+    both in GB. Only a snapshot id (all digits) is checked; a bare image NAME (the image build) is not.
+    A read that fails does not block the raise: one line says the check could not be made, and the
+    provider's own refusal stays the backstop."""
+    if not str(image).isdigit():
+        return
+    try:
+        status, parsed = _api("GET", f"/images/{image}", env=env)
+        if status != 200:
+            raise VenueError("GET /images/{} answered HTTP {} ({})".format(
+                image, status, ": ".join(_error_of(parsed))))
+        disk_size = _disk_gb(((parsed or {}).get("image") or {}).get("disk_size"))
+        if disk_size is None:
+            raise VenueError(f"image {image} carries no numeric disk_size")
+        status, parsed = _api("GET", f"/server_types?name={server_type}", env=env)
+        if status != 200:
+            raise VenueError("GET /server_types answered HTTP {} ({})".format(
+                status, ": ".join(_error_of(parsed))))
+        types = (parsed or {}).get("server_types") or []
+        disk = _disk_gb((types[0] or {}).get("disk")) if types else None
+        if disk is None:
+            raise VenueError(f"server type {server_type!r} has no numeric disk in the provider's answer")
+    except (VenueError, AttributeError, TypeError, LookupError) as exc:
+        # an answer of an unexpected shape (a list where a mapping was, a bare number) is a read
+        # that could not be made, exactly like a transport fault (audit-post RED T-14736)
+        reason = str(exc) if isinstance(exc, VenueError) else f"unexpected answer shape: {exc!r}"
+        print(f"venue raise: could not check that seed image {image} fits server type {server_type} "
+              f"({reason[:200]}) - raising without the check", file=sys.stderr)
+        return
+    if disk_size > disk:
+        raise VenueError(
+            f"seed image {image} has a {disk_size:g} GB disk, larger than the {disk:g} GB disk of "
+            f"server type {server_type} - the provider cannot raise it there; nothing was created. "
+            f"Raise on a type whose disk is at least {disk_size:g} GB, or rebuild the seed on "
+            f"{server_type}")
 
 
 def create_server(name: str, image: str, *, env=None, server_type: "str | None" = None,
@@ -557,16 +710,21 @@ def create_server(name: str, image: str, *, env=None, server_type: "str | None" 
     which raises a BARE image to SEED it — the recipe's `create_box ... WITH_USER_DATA` — and tags the
     box with its run's own label, so a box whose create response is lost can still be found and
     deleted. This stays the ONE creation path, so the build meets the same quota refusal.
+    Any other create (a raise) sends `authorize_box_user_key(<the key's public half>)` as its
+    `user_data` (T-14729); a provider record with no public key sends none, as before.
 
     On HTTP 403 `resource_limit_exceeded` raises `VenueQuotaRefused` carrying the recipe's exact
     snapshot -> delete -> raise order and does NOT retry: a retry cannot succeed while a box of this
     class is live, so retrying only spends time inside a billed hour."""
     b = _require_binding(env)
     server_type, location = server_type or b["server_type"], location or b["location"]
-    key_id = ssh_key_id(env=env, name=ssh_key or b["ssh_key"])
+    image_disk_fit(image, server_type, env=env)        # T-14736: refuse before anything is created
+    key = provider_ssh_key(env=env, name=ssh_key or b["ssh_key"])
+    if user_data is None and (key.get("public_key") or "").strip():
+        user_data = authorize_box_user_key(key["public_key"])
     body = {
         "name": name, "server_type": server_type, "image": image, "location": location,
-        "ssh_keys": [key_id],
+        "ssh_keys": [key.get("id")],
         "labels": {"purpose": "remote-verify-venue", "recipe": "venue-verb", **(labels or {})},
     }
     if user_data is not None:
@@ -755,7 +913,7 @@ def server_ip(server_id, *, env=None) -> str:
 def _refresh_box(ip: str, script: str, *args: str, timeout: float):
     """ONE ssh round of the leg: `bash -s -- <args>` reading `script` on stdin."""
     command = "bash -s --" + "".join(f" {a}" for a in args)
-    return subprocess.run(remote_verify.ssh_argv(ip, command, user=BOX_USER), input=script,
+    return remote_verify.venue_run(remote_verify.ssh_argv(ip, command, user=BOX_USER), input=script,
                           text=True, capture_output=True, timeout=timeout)
 
 
@@ -1058,15 +1216,15 @@ def render_build_plan(steps: list) -> str:
 def _box_run(ip: str, payload: bytes, *, user: str = BOX_USER, timeout: float):
     """ONE ssh round to the build box: `bash -s` reading the step's text (or the project's
     provisioning script) on stdin, as `user`. Bytes in, bytes out — a script is never re-encoded."""
-    return subprocess.run(remote_verify.ssh_argv(ip, "bash -s", user=user), input=payload,
+    return remote_verify.venue_run(remote_verify.ssh_argv(ip, "bash -s", user=user), input=payload,
                           capture_output=True, timeout=timeout)
 
 
 def _push_clone(argv: list, *, timeout: float):
     """The full-history clone push (host git, the SPEC-0188 rule 7 child env + the venue ssh opts)."""
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
-    env = dict(os.environ, GIT_SSH_COMMAND="ssh " + " ".join(remote_verify.SSH_OPTS))
-    return subprocess.run(argv, text=True, capture_output=True, timeout=timeout,
+    env = dict(os.environ, GIT_SSH_COMMAND=remote_verify.VENUE_GIT_SSH)
+    return remote_verify.venue_run(argv, text=True, capture_output=True, timeout=timeout,
                           env=_git_env._git_child_env(env))
 
 
@@ -1373,7 +1531,8 @@ def _cleanup_build_box(server_id, nonce, provider, row, say, *, env=None, attemp
 
 # ── Bounded wait + readiness probe ────────────────────────────────────────────────────────────
 def wait_ready(ip: str, *, user: str = BOX_USER, interval: "float | None" = None,
-               timeout: float = WAIT_READY_TIMEOUT, _sleep=time.sleep, _now=time.monotonic) -> float:
+               timeout: float = WAIT_READY_TIMEOUT, stale_seed_rebuild: "str | None" = None,
+               _sleep=time.sleep, _now=time.monotonic) -> float:
     """THE bounded wait — polls `test -f ~/CLOUD-INIT-DONE` over ssh until it succeeds or the
     deadline passes. Returns the elapsed seconds; raises `VenueError` at the bound. No unbounded
     loop and no silent retry exists in this module.
@@ -1382,14 +1541,20 @@ def wait_ready(ip: str, *, user: str = BOX_USER, interval: "float | None" = None
     bound whose expiry DECLARES the box not ready) deliberately does not: the first is a latency
     value, the second is the verdict, and SPEC-0193 rule 4 refuses the second by class. The
     resolution happens HERE rather than as a module-level default, which is bound once at import and
-    would never observe a later `config set`."""
+    would never observe a later `config set`.
+
+    T-14729 — `stale_seed_rebuild` (given by `venue raise` only): when the bound passes and the last
+    observation is the box refusing the venue key (`Permission denied (publickey`), the refusal says
+    the seed predates the dedicated venue key and names that rebuild command instead of the bare ssh
+    error. A publickey refusal BEFORE the bound is not a verdict: the first-boot authorization may not
+    have run yet, so the wait goes on."""
     if interval is None:
         interval = wait_ready_interval()
     t0 = _now()
     last = ""
     while True:
         try:
-            r = subprocess.run(remote_verify.ssh_argv(ip, "test -f ~/CLOUD-INIT-DONE", user=user),
+            r = remote_verify.venue_run(remote_verify.ssh_argv(ip, "test -f ~/CLOUD-INIT-DONE", user=user),
                                text=True, capture_output=True, timeout=max(10.0, interval * 4))
             if r.returncode == 0:
                 return _now() - t0
@@ -1397,6 +1562,12 @@ def wait_ready(ip: str, *, user: str = BOX_USER, interval: "float | None" = None
         except subprocess.TimeoutExpired:
             last = "ssh probe timed out"
         if _now() - t0 >= timeout:
+            if stale_seed_rebuild and "Permission denied (publickey" in last:
+                raise VenueError(
+                    f"bounded wait exceeded at seam 'ready' — the box refused the venue ssh key for "
+                    f"user {user} for {timeout:g}s: the seed snapshot predates the dedicated venue key "
+                    f"(T-14718) and the first-boot key authorization did not reach it. Rebuild the "
+                    f"seed: {stale_seed_rebuild} (last observed: {last})")
             raise VenueError(f"bounded wait exceeded at seam 'ready' — no success within {timeout:g}s "
                              f"(last observed: {last or '<no output>'})")
         _sleep(interval)
@@ -1442,7 +1613,7 @@ def measure_fingerprint(ip: str, *, user: str = BOX_USER, timeout: float = 60) -
     """The venue's fingerprint = `remote_verify.probe_fingerprint` (REUSED, not re-spelled) plus the
     clone/cloud-init rows that reader does not measure."""
     fp = dict(remote_verify.probe_fingerprint(ip, user=user, timeout=timeout))
-    r = subprocess.run(remote_verify.ssh_argv(ip, _CLONE_SCRIPT, user=user),
+    r = remote_verify.venue_run(remote_verify.ssh_argv(ip, _CLONE_SCRIPT, user=user),
                        text=True, capture_output=True, timeout=timeout)
     if r.returncode != 0:
         raise VenueError(f"the clone probe did not run on the box (rc={r.returncode}): "

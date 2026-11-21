@@ -89,9 +89,9 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ behaviour — same events, same commits, same tokens. This is what makes the\nmechanism\
   \ self-disabling where it is not needed, with no flag and no per-repo branch (CHARTER\
   \ §P1 —\nno second code path to choose between). A repo is never named in this logic;\
-  \ only its queue depth is.\n\n**IN A REPO SWITCHED ON BY SPEC-1045, A LAND ASKS\
-  \ FOR THE RESERVATION ONLY AFTER THE ADMISSION QUEUE\nADMITS IT.** There `land`\
-  \ enters the repo's admission queue first (`bin/yitc-v2 graph query\nSPEC-1045`),\
+  \ only its queue depth is.\n\n**IN A REPO SWITCHED ON BY <workshop-spec>, A LAND\
+  \ ASKS FOR THE RESERVATION ONLY AFTER THE ADMISSION QUEUE\nADMITS IT.** There `land`\
+  \ enters the repo's admission queue first (`bin/yitc-v2 graph query\n<workshop-spec>`),\
   \ and only a land the queue has let pass reaches the land reservation; the reservation,\n\
   batch formation, the member checks, the rule-9 yield and the folds are unchanged,\
   \ and a repo the\nqueue is off for lands exactly as this rule states.\n\n**QUEUE\
@@ -2472,7 +2472,7 @@ implements_signature:
   bin/lib/land_reservation.py#_premerge_consumable: af6c740cdf9d4b517cd1dcd274163beacecfb6d4953dcacb6f9302300f0297ae
   bin/lib/land_reservation.py#_premerge_reservation_disposition: 8e439b9fd44ff3f9e447b8c4385ea718b33d7a5718c138be5ec23df05f0e2f26
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
-  bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
+  bin/lib/land_verify_legs.py#_verify_under_admission: f5fa18ec533c3b950556e538c5cfa81f916692e2cd1a3ac8866717a7dab78dc9
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: 7ae56210b64072a7184f4dd8047963b1dc0e9bb5b81a95e3167fc679a2a40898
+  bin/lib/worktree.py#_land_integrate: 5f526c9b0b586da90399e70e9dff5b2b32d227cbbb6b6fc70762d4ece3be7b8c
   bin/lib/worktree.py#cmd_land: 386f7edf5b15e086dbf94a282d871739d0cc9db843a307939536627f0c2fe0a0

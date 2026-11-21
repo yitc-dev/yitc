@@ -213,7 +213,10 @@ def landed_pause_plan_basis(tid, card_path, ceiling_ts, repo_root, working_plan,
             return False, "plan-changed-after-pause", None
         # --full-history: a merged side branch that changed the plan and changed it back is
         # TREESAME to its merge and plain history simplification would skip both commits.
-        r = git("rev-list", "--full-history", f"{pause}..HEAD", "--", rel)
+        # --ancestry-path (T-14711, X-2463): only commits that DESCEND from the pause commit and are
+        # ancestors of HEAD can be a change after the pause; a sibling branch's merge of a main
+        # older than the pause carries a pre-pause snapshot of this card and says nothing about it.
+        r = git("rev-list", "--full-history", "--ancestry-path", f"{pause}..HEAD", "--", rel)
         if r.returncode != 0:
             return False, "git rev-list failed", None
         for c in r.stdout.split():
@@ -235,7 +238,7 @@ def landed_pause_plan_basis(tid, card_path, ceiling_ts, repo_root, working_plan,
 # lib aliases, moved siblings). `audit._ceiling_inject(kw, name)` reads it at call time.
 # ---------------------------------------------------------------------------
 INJECTS = {
-    'cmd_audit_decide': ('AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS', 'AUDIT_DECIDE_STDIN_KEYS', 'EXPECTED_SESSION_REF_ENV', 'ON_DECISIONS_ABSORPTION_BASIS', '_accept_reason_quotes_directive', '_ceiling_row_of', '_currency_finding_index', '_decide_journal_view', '_directive_row_text', '_git_commit_on_a_branch', '_git_strict_descendant', '_late_finding_index', '_resolve_owner_directive', '_ship_contained_record_only', 'decision_names_subject', 'explicit_record_passes', 'late_finding_refs_by_fp', 'observe', 'on_decisions_admission', 'on_decisions_bind', 'plan_gate_synthetic_ceiling_row', 'prior_audit_record', 'residual_finding_records', 'row_residual_fingerprints', 'state', 'terminal_ceiling_row', 'textutil', 'validate_ceiling_payload'),
+    'cmd_audit_decide': ('AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS', 'AUDIT_DECIDE_STDIN_KEYS', 'EXPECTED_SESSION_REF_ENV', 'ON_DECISIONS_ABSORPTION_BASIS', '_accept_reason_quotes_directive', '_ceiling_row_of', '_currency_finding_index', '_decide_journal_view', '_directive_row_text', '_git_commit_on_a_branch', '_git_strict_descendant', '_late_finding_index', '_resolve_owner_directive', '_ship_contained_record_only', 'decision_names_subject', 'explicit_record_passes', 'late_finding_refs_by_fp', 'observe', 'on_decisions_admission', 'on_decisions_bind', 'plan_gate_synthetic_ceiling_row', 'prior_audit_record', 'residual_finding_records', 'row_residual_fingerprints', 'state', 'sweep_statement', '_warn_sweep_not_stated', 'terminal_ceiling_row', 'textutil', 'validate_ceiling_payload'),
     'on_decisions_admission': ('on_decisions_bind',),
     'on_decisions_absorption_grant': ('ON_DECISIONS_ABSORPTION_BASIS', '_ceiling_row_of', 'on_decisions_row_absorbable'),
     'on_decisions_bind': ('decision_names_subject',),
@@ -275,7 +278,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                      _cross_instance_events=None, _cross_instance_path=None,
                      _evidence_subject_refusal=None,
                      _find_receiving_task_yaml=None,
-                     _t12614_authored_paths=None, _t12614_prior_record=None, _t12926_card_cause=None, _t12926_chain=None, AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS, AUDIT_DECIDE_STDIN_KEYS, EXPECTED_SESSION_REF_ENV, ON_DECISIONS_ABSORPTION_BASIS, _accept_reason_quotes_directive, _ceiling_row_of, _currency_finding_index, _decide_journal_view, _directive_row_text, _git_commit_on_a_branch, _git_strict_descendant, _late_finding_index, _resolve_owner_directive, _ship_contained_record_only, decision_names_subject, explicit_record_passes, late_finding_refs_by_fp, observe, on_decisions_admission, on_decisions_bind, plan_gate_synthetic_ceiling_row, prior_audit_record, residual_finding_records, row_residual_fingerprints, state, terminal_ceiling_row, textutil, validate_ceiling_payload) -> None:
+                     _t12614_authored_paths=None, _t12614_prior_record=None, _t12926_card_cause=None, _t12926_chain=None, AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS, AUDIT_DECIDE_STDIN_KEYS, EXPECTED_SESSION_REF_ENV, ON_DECISIONS_ABSORPTION_BASIS, _accept_reason_quotes_directive, _ceiling_row_of, _currency_finding_index, _decide_journal_view, _directive_row_text, _git_commit_on_a_branch, _git_strict_descendant, _late_finding_index, _resolve_owner_directive, _ship_contained_record_only, decision_names_subject, explicit_record_passes, late_finding_refs_by_fp, observe, on_decisions_admission, on_decisions_bind, plan_gate_synthetic_ceiling_row, prior_audit_record, residual_finding_records, row_residual_fingerprints, state, terminal_ceiling_row, textutil, validate_ceiling_payload, sweep_statement=None, _warn_sweep_not_stated=None) -> None:
     """SPEC-0204 rule 2 — record ONE typed Controller decision for ONE residual of a ceiling row.
 
     `bin/yitc-v2 audit decide --task T-XXXX --stage pre|post --finding <fp>
@@ -935,6 +938,17 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                                 for c in cands)
                     + ". A `ts` locator is second-granular. Cite a covering row that is alone in "
                       "its second — record one by the route below and pass ITS locator.")
+            if axis == "directive-not-covering" and "covers_cards" in chain_diag:
+                # T-14741 (X-2508) — name what the resolved row covers and what it does not.
+                chain_extra = {k: chain_diag.get(k) for k in
+                               ("covers_cards", "covers_ids_in_text", "names_in_text",
+                                "card_plan_slug")}
+                _slug = chain_diag.get("card_plan_slug")
+                cause_line = (
+                    f" CAUSE: the resolved row lists cards {chain_extra['covers_cards']} and names "
+                    f"{chain_extra['names_in_text']} in its text; {target_id} ("
+                    + (f"decomposed_from {_slug}" if _slug else "cut from no plan")
+                    + ") is not among them.")
             _refuse(axis, why,
                     f"{target_id} — `--directive {locator}` did not resolve to an owner directive that "
                     f"authorizes this decision ({axis}). Rule 2: authority is proven by RESOLUTION, "
@@ -1208,7 +1222,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                                                    "Edit the plan body / filed card set")
                             + " «Already in the audited subject» "
                             f"is an `accept` with that reason, never a `fix` (SPEC-0204 rule 2).",
-                            {"evidence_revision": evidence, "subject_revision": subject_revision})
+                            {"evidence_revision": evidence, "subject_revision": subject_revision,
+                             "expected_fingerprint": current_fp})
                 if evidence != current_fp:
                     _subject = ("the FILED CARD SET, so a `fix` is a CUT edit"
                                 if _sig_field == "card_set_fingerprint"
@@ -1220,7 +1235,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                             f"satisfied in the audited subject» is an `accept` with that reason "
                             f"(SPEC-0204 rules 2-3 + rule 9(d); the strict-descendant clause is "
                             f"post-only and a content hash has no ancestry).",
-                            {"evidence_revision": evidence})
+                            {"evidence_revision": evidence, "expected_fingerprint": current_fp})
             elif stage == "pre":
                 if pre_fix_plan_source_unfound:
                     # T-13980 (X-2023): a LANDED audit-ceiling pause makes main's card provably the
@@ -1263,14 +1278,15 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                                "plan first, then record the `fix` against its fingerprint.")
                             + " «Already in the audited subject» "
                             f"is an `accept` with that reason, never a `fix` (SPEC-0204 rule 2).",
-                            {"evidence_revision": evidence, "subject_revision": subject_revision})
+                            {"evidence_revision": evidence, "subject_revision": subject_revision,
+                             "expected_fingerprint": current_fp})
                 if not current_fp or evidence != current_fp:
                     _refuse("evidence-not-plan-fingerprint", "evidence_is_not_the_plan_fingerprint",
                             f"{tid} audit-pre: a `fix` is an `implementation_plan` edit, so "
                             f"`--evidence` must be the card's CURRENT plan fingerprint "
                             f"({current_fp or 'unresolvable — the card carries no implementation_plan'}); "
                             f"got {evidence!r} (SPEC-0204 rules 2-3; the descendant clause is post-only).",
-                            {"evidence_revision": evidence})
+                            {"evidence_revision": evidence, "expected_fingerprint": current_fp})
             else:
                 # The ceiling row's subject (T-12367), already resolved to a full sha — never the
                 # task's latest `commit_landed`, whatever its kind.
@@ -1350,6 +1366,11 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
             "evidence_revision": evidence or None,
             "decided_by": decided_by,
         }
+        # T-14707 (SPEC-1039 rule 2, SPEC-1040 §Absorption sweep) — a PLAN-gate `fix` states its
+        # same-class sweep; absent -> `not stated`, countable, never a refusal. The key is optional
+        # (CEILING_DECISION_OPTIONAL_KEYS): written on that row only, absent on every other.
+        if is_plan and disposition == "fix":
+            payload["sweep"] = sweep_statement(getattr(args, "sweep", None))
         # (xi) THE WRITE-SITE HALF OF SPEC-0046 §A. C1 birthed the declaration + the pure validator; this
         # is its first caller. A payload the validator reports on is REFUSED, not written — a
         # `ceiling_decision` row missing a rule-2 key would be an unreadable decision that every later
@@ -1490,6 +1511,14 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                         {"evidence_revision": evidence})
 
         _append_event("ceiling_decision", (None if is_plan else tid), payload)
+    # T-14707 — the one loud line for a plan-gate `fix` without a sweep statement, and a note when
+    # --sweep was given where the row does not carry it (a task target, or accept/defer).
+    if "sweep" in payload and _warn_sweep_not_stated is not None:
+        _warn_sweep_not_stated(f"{target_id} {target_key} fix decision", payload["sweep"])
+    elif "sweep" not in payload and str(getattr(args, "sweep", None) or "").strip():
+        print("note: --sweep is recorded on a PLAN-gate `fix` decision only — not recorded on this row "
+              "(T-14707; the task route states it on `audit pre|post --on-decisions --sweep`).",
+              file=sys.stderr)
     print(f"{target_id} audit-{target_key}: ceiling decision recorded — {disposition} on "
           f"{finding_fp} @ {ceiling_ref} (directive {locator})"
           + (f"; plan read from {pre_fix_plan_source}" if pre_fix_plan_source else ""))
@@ -2560,10 +2589,11 @@ def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_
     reader, `gates.governed_run_verdict`) are injected; `rule3_bases` / `currency_basis` are the host's
     basis constants. Pure f(args); fail-closed on every unreadable input.
 
-    Returns `({"prior_commit", "red_run", "ordinary"}, None)` inside the window, else `(None, reason)`, the reason
-    NAMED. Checked in this order: spent (a test-found row exists) · merge-integration final · no prior
+    Returns `({"prior_commit", "red_run", "ordinary", "run"}, None)` inside the window, else `(None, reason)`, the
+    reason NAMED (`red_run` locates the newest governed run, `run` its verdict — green only on the ordinary
+    arm, T-14732). Checked in this order: spent (a test-found row exists) · merge-integration final · no prior
     verdict · the latest real verdict is not a GREEN rule-3 pass (or ordinary, `ordinary_opens`) · its commit unresolvable · its row not
-    in `rows` · no governed run after it · the newest such run is green."""
+    in `rows` · no governed run after it · the newest such run is green (rule-3 arm only)."""
     def _d(row):
         return row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
 
@@ -2611,10 +2641,13 @@ def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_
                           f"after the GREEN pass at {prior[:12]}"
                           + ("" if until is None else " and before the subject's commit"))
         i, v = runs[-1]
-        if v != "red":
+        # T-14732 (<project> X-2501) — on the ORDINARY arm (commit door only) a GREEN newest run opens the
+        # window too: the governed run is the ground, and the row's one bounded empty-set `--on-decisions`
+        # pass judges whether the fix meets the acceptance. The rule-3 (T-14090) arm keeps RED only.
+        if v != "red" and not _ordinary:
             return None, (f"newest_governed_run_green: the newest governed Tests run after the GREEN pass "
                           f"at {prior[:12]} is green — a green run admits nothing")
-        return {"prior_commit": prior, "ordinary": _ordinary,
+        return {"prior_commit": prior, "ordinary": _ordinary, "run": v,
                 "red_run": f"events.jsonl#ts={rows[i].get('ts')}"}, None
     except Exception as exc:      # noqa: BLE001 — an unreadable input is «not admitted», never a crash
         return None, f"window_unreadable: {type(exc).__name__}"
@@ -2671,6 +2704,117 @@ def test_found_fix_context(evidence) -> str:
         "Judge whether the subject still meets the card's acceptance, with particular attention to what "
         "changed since the GREEN commit. This pass is admitted ONCE; a RED here ENDS audit-post for this "
         "card, and a further red Tests run after it ends at the existing terminals.\n")
+
+
+
+#: T-14750 (SPEC-1018 «Exits from a spent GREEN», row «Owner-reset commit, no residual») — the `basis` the
+#: ONE audit-post pass on an owner-reset commit records when the ceiling row holds no residual, and the
+#: marker key naming its evidence. Like the test-found-fix basis beside it the one-shot bound is DERIVED
+#: from its presence (no counter). Unlike it the pass is NOT terminal: a RED or YELLOW on it is an ordinary
+#: ceiling row with residuals, so the `audit decide` route applies to it.
+OWNER_RESET_PASS_BASIS = "owner-reset-pass"
+OWNER_RESET_PASS_MARKER = "owner_reset_pass"
+
+
+def owner_reset_pass_row(stage_rows) -> "dict | None":
+    """T-14750 — the LATEST `(task, post)` completion row recorded by the owner-reset pass with a REAL
+    verdict (GREEN / YELLOW / RED), or None. A no-verdict ABORT spent no pass, so a retry stays admitted.
+    Pure f(rows); never raises."""
+    found = None
+    for r in stage_rows or ():
+        d = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
+        if (str(d.get("basis") or "") == OWNER_RESET_PASS_BASIS
+                and str(d.get("verdict") or "").strip().upper() in _MI_REAL_VERDICTS):
+            found = r
+    return found
+
+
+def owner_reset_pass_admission(tid, *, rows, stage_rows, custody_sha, resolve, strict_descendant,
+                               owner_rows, resolve_directive, currency_basis) -> tuple:
+    """T-14750 (SPEC-1018 «Exits from a spent GREEN», SPEC-1039 rule 3) — may ONE audit-post run past the
+    ceiling on the card's owner-reset commit (`task commit --absorb --owner-reset`, T-9403) when the
+    ceiling row holds NO residual for `audit decide` to bind?
+
+    `rows` are the card's rows in JOURNAL ORDER (its `commit_landed` and `external_audit_completed` rows);
+    `stage_rows` the REAL `(task, post)` completion rows, each the same object as in `rows`.
+    `owner_rows` is a ZERO-ARGUMENT callable returning the journal's `owner_directive` rows (taskless ones
+    included, both checkouts) — called only once every card-row check has passed, so no other audit pays
+    that read; it returns None when the journal cannot be read. `resolve_directive(owner_rows, locator)`
+    returns `(row, None)` or `(None, kind)` — the SPEC-1039 rule-2 resolver, injected.
+
+    Returns `(evidence, None)` when admitted, else `(None, reason)`, the reason NAMED. Checked in this
+    order: custody_unresolved · owner_reset_pass_spent · subject_commit_unrecorded · not_owner_reset_commit
+    · no_prior_verdict · ceiling_row_holds_residuals · prior_commit_unresolved ·
+    subject_not_descendant_of_green · owner_directive_missing · journal_unreadable ·
+    owner_directive_<kind>. Pure f(args); never raises."""
+    def _d(row):
+        return row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
+
+    try:
+        sub = resolve(str(custody_sha or "").strip()) if custody_sha else None
+        if not sub:
+            return None, "custody_unresolved: the recorded commit does not resolve"
+        spent = owner_reset_pass_row(stage_rows)
+        if spent is not None:
+            return None, (f"owner_reset_pass_spent: the owner-reset pass already ran for {tid} "
+                          f"({spent.get('ts')}, {_d(spent).get('verdict')}) — it is admitted once")
+        landed = None
+        for r in rows or ():
+            if (isinstance(r, dict) and r.get("type") == "commit_landed"
+                    and str(_d(r).get("commit") or "").strip()
+                    and resolve(str(_d(r).get("commit")).strip()) == sub):
+                landed = r
+        if landed is None:
+            return None, (f"subject_commit_unrecorded: no `commit_landed` row of {tid} names the subject "
+                          f"{sub[:12]}")
+        if _d(landed).get("owner_reset") is not True:
+            return None, (f"not_owner_reset_commit: the subject {sub[:12]} is not an owner-reset commit "
+                          f"(`task commit --absorb --owner-reset`)")
+        real = [r for r in (stage_rows or ())
+                if str(_d(r).get("basis") or "") != currency_basis
+                and str(_d(r).get("verdict") or "").strip().upper() in _MI_REAL_VERDICTS]
+        if not real:
+            return None, "no_prior_verdict: no recorded audit-post verdict for this card"
+        ld = _d(real[-1])
+        if str(ld.get("verdict") or "").strip().upper() != "GREEN":
+            return None, (f"ceiling_row_holds_residuals: the latest audit-post verdict is "
+                          f"{str(ld.get('verdict') or '').upper()} — its residuals take the SPEC-1039 route: "
+                          f"`yitc-v2 audit decide` per residual, then `yitc-v2 audit post --task {tid} "
+                          f"--on-decisions --sweep '<where you looked for the same defect class and what "
+                          f"you found>'`")
+        prior = resolve(str(ld.get("commit") or "").strip()) if ld.get("commit") else None
+        if not prior:
+            return None, f"prior_commit_unresolved: the GREEN pass's commit {ld.get('commit')!r} does not resolve"
+        if strict_descendant(prior, sub) is not True:
+            return None, (f"subject_not_descendant_of_green: the subject {sub[:12]} does not strictly "
+                          f"descend from the GREEN pass's commit {prior[:12]}")
+        locator = _d(landed).get("owner_directive")
+        if not isinstance(locator, str) or not locator.strip():
+            return None, (f"owner_directive_missing: the owner-reset commit {sub[:12]} cites no owner "
+                          f"directive (`task commit --absorb --owner-reset --directive "
+                          f"events.jsonl#ts=<ISO>`)")
+        corpus = owner_rows()
+        if corpus is None:
+            return None, "journal_unreadable: the journal's owner_directive rows could not be read"
+        row, kind = resolve_directive(list(corpus), locator)
+        if row is None:
+            return None, (f"owner_directive_{str(kind or 'unresolved').replace('-', '_')}: the cited owner "
+                          f"directive {locator} does not authorize this card ({kind})")
+        return {"prior_commit": prior, "owner_reset_commit": sub, "owner_directive": locator}, None
+    except Exception as exc:      # noqa: BLE001 — an unanswered question is a refusal
+        return None, f"admission_unreadable: {type(exc).__name__}"
+
+
+def owner_reset_pass_context(evidence) -> str:
+    """T-14750 — the packet CONTEXT block for an admitted owner-reset pass. Pure; never raises."""
+    ev = evidence if isinstance(evidence, dict) else {}
+    return (
+        "## Owner-reset commit past a spent GREEN (T-14750, SPEC-1018 «Exits from a spent GREEN»)\n\n"
+        f"This card's audit-post was GREEN at {ev.get('prior_commit')} with its ceiling spent and no residual. "
+        f"The subject {ev.get('owner_reset_commit')} was committed past that ceiling on the owner's word "
+        f"({ev.get('owner_directive')}), a strict descendant of the GREEN commit. Judge whether the subject "
+        "still meets the card's acceptance, with particular attention to what changed since the GREEN "
+        "commit. This pass is admitted ONCE; a RED or YELLOW here takes the ordinary ceiling route.\n")
 
 
 def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
@@ -4762,6 +4906,22 @@ def _late_finding_index(stage_rows, tid, stage, *, repo_root=None, finding_key_o
     return out
 
 
+def _directive_coverage_names(row, text) -> dict:
+    """T-14741 (X-2508) — what an `owner_directive` row COVERS, for the `directive-not-covering`
+    refusal: `covers_cards` (its `data.cards`, [] when absent or not a list), `covers_ids_in_text`
+    (the task ids its prose names) and `names_in_text` (every task id and kebab plan slug its prose
+    names). Read from the WHOLE prose, never an excerpt, so a name past any display cut is still
+    listed. The prose is split into maximal runs of the slug alphabet `_prose_names_token` bounds on,
+    and a run is kept WHOLE: `T-8888suffix` is one run, not an id. Diagnostic only — it never feeds
+    admission. Pure; never raises."""
+    data = row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
+    cards = data.get("cards")
+    runs = set(re.findall(r"[A-Za-z0-9_-]+", str(text or "")))
+    return {"covers_cards": [str(c) for c in cards] if isinstance(cards, list) else [],
+            "covers_ids_in_text": sorted(r for r in runs if re.fullmatch(r"T-\d+", r)),
+            "names_in_text": sorted(r for r in runs if "-" in r)}
+
+
 def _prose_names_token(text, token) -> bool:
     """Does `text` name `token` as a WHOLE token — bounded on BOTH sides by a non-slug character or
     the string edge?
@@ -5051,6 +5211,9 @@ def _resolve_owner_directive(rows, locator, tid, *, decision_ts, decision_pos=No
                 d["cited_ts"] = cited_ts
                 return "delegation-chain-broken"
         if not _directive_covers_task(row, tid, plan_slug=plan_slug):
+            # T-14741 — name what the row DOES cover, so the refusal can say why it misses.
+            d.update(_directive_coverage_names(row, _directive_row_text(row)))
+            d["card_plan_slug"] = plan_slug
             return "directive-not-covering"
         return None
 

@@ -67,40 +67,40 @@ body: "## Scenario\n\nAt session start the AI sees a small generated \"stage-agn
   \  run while that thread already holds it does not block on itself.\n- A window\
   \ that has to wait for a land's fast-forward says so on stderr before it waits.\n\
   - A window does not open while a gated deploy stands — from its ticket's filing\
-  \ to the end of its verb\n  (SPEC-1045 rule 2 (r)), or, with the project's queue\
-  \ off, while the land reservation's holder record\n  names a deploy. It looks under\
-  \ `repo.lock`; with a deploy standing it releases the lock, says so on\n  stderr\
-  \ and waits, and refuses with nothing written once the land park limit is spent.\
-  \ A member run\n  while its thread already holds `repo.lock` refuses at once instead\
-  \ of waiting. A land holding the\n  reservation does not hold a window back (SPEC-0184\
-  \ rule 10), and a land's own in-process member\n  takes no look. The deploy makes\
-  \ its revision check under the same `repo.lock` (SPEC-1051 rule 3).\n\n### Sync\
-  \ before the first land\nA branch's land can be refused for two causes that are\
-  \ both computable off the land queue: a merge\nconflict with `main`, and audit-currency.\
-  \ `land` computes them only at the front of the queue, after\nthe branch has waited\
-  \ for a verify-admission slot and taken a reservation. So:\n- Once the work is committed,\
-  \ and BEFORE your first `land`, run `bin/yitc-v2 worktree sync --task\n  T-XXXX`\
-  \ (`--work <slug>` for a work batch). It merges `main` into the worktree in place\
-  \ and\n  reports the complete blocker set — no reservation, no verify slot, `main`\
-  \ untouched, the worktree\n  intact.\n- Act on what it reports while still OFF the\
-  \ queue — resolve the conflict, take the re-audit — and\n  only THEN call `land`.\
-  \ A re-run is always safe: an already-current worktree is a clean no-op.\n- Read\
-  \ both phases, in the order the verb prints them: conflicts first, currency second,\
-  \ because\n  currency is judgeable only AFTER the merge. A clean conflict phase\
-  \ is not \"all clear\"; the\n  currency line prints on the no-op path too.\n- The\
-  \ bound: this removes the SECOND wait — a blocker found at the front of the queue\
-  \ that was\n  computable off it — and does NOT remove the race. `main` keeps moving\
-  \ while the branch re-audits,\n  and a fresh conflict raised by the land's own merge\
-  \ makes the branch dirty again.\nThe verb's own contract is `bin/lib/worktree.py#cmd_worktree_sync`;\
-  \ this section carries the\nordering only. A land of a repository whose journal\
-  \ is cut drains the journal into its partitions\nat the seam (SPEC-0190 rule 3);\
-  \ a journal is cut only by that repository's own `journal cut` run in\na worktree\
-  \ and landed like any other change.\n\n## Rationale\n\nHistory of this spec's rules\
-  \ is recorded in this section (placement rule: <workshop-spec> rule 3).\n\n### History\
-  \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
-  \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
-  - From «Post-/compact compaction-survival»: is the named downstream consumer of\n\
-  \  §5b generalization (the coherence invariant extended to ALL startup-delivered\
+  \ to the end of its verb\n  (<workshop-spec> rule 2 (r)), or, with the project's\
+  \ queue off, while the land reservation's holder record\n  names a deploy. It looks\
+  \ under `repo.lock`; with a deploy standing it releases the lock, says so on\n \
+  \ stderr and waits, and refuses with nothing written once the land park limit is\
+  \ spent. A member run\n  while its thread already holds `repo.lock` refuses at once\
+  \ instead of waiting. A land holding the\n  reservation does not hold a window back\
+  \ (SPEC-0184 rule 10), and a land's own in-process member\n  takes no look. The\
+  \ deploy makes its revision check under the same `repo.lock` (SPEC-1051 rule 3).\n\
+  \n### Sync before the first land\nA branch's land can be refused for two causes\
+  \ that are both computable off the land queue: a merge\nconflict with `main`, and\
+  \ audit-currency. `land` computes them only at the front of the queue, after\nthe\
+  \ branch has waited for a verify-admission slot and taken a reservation. So:\n-\
+  \ Once the work is committed, and BEFORE your first `land`, run `bin/yitc-v2 worktree\
+  \ sync --task\n  T-XXXX` (`--work <slug>` for a work batch). It merges `main` into\
+  \ the worktree in place and\n  reports the complete blocker set — no reservation,\
+  \ no verify slot, `main` untouched, the worktree\n  intact.\n- Act on what it reports\
+  \ while still OFF the queue — resolve the conflict, take the re-audit — and\n  only\
+  \ THEN call `land`. A re-run is always safe: an already-current worktree is a clean\
+  \ no-op.\n- Read both phases, in the order the verb prints them: conflicts first,\
+  \ currency second, because\n  currency is judgeable only AFTER the merge. A clean\
+  \ conflict phase is not \"all clear\"; the\n  currency line prints on the no-op\
+  \ path too.\n- The bound: this removes the SECOND wait — a blocker found at the\
+  \ front of the queue that was\n  computable off it — and does NOT remove the race.\
+  \ `main` keeps moving while the branch re-audits,\n  and a fresh conflict raised\
+  \ by the land's own merge makes the branch dirty again.\nThe verb's own contract\
+  \ is `bin/lib/worktree.py#cmd_worktree_sync`; this section carries the\nordering\
+  \ only. A land of a repository whose journal is cut drains the journal into its\
+  \ partitions\nat the seam (SPEC-0190 rule 3); a journal is cut only by that repository's\
+  \ own `journal cut` run in\na worktree and landed like any other change.\n\n## Rationale\n\
+  \nHistory of this spec's rules is recorded in this section (placement rule: <workshop-spec>\
+  \ rule 3).\n\n### History moved from the rule body\n\nEach entry is a passage moved\
+  \ word for word out of the rule text of the section it names;\nthe rule it explains\
+  \ stays there.\n\n- From «Post-/compact compaction-survival»: is the named downstream\
+  \ consumer of\n  §5b generalization (the coherence invariant extended to ALL startup-delivered\
   \ content).\n- From «Automated worktree terminators »: (: a dispatch brief naming\
   \ a path spared\n  it for its whole lifetime)\n\n### Sync before the first land\n\
   \ shipped the ordering as point 7 of the dispatched-worker preamble only, so it\
@@ -146,9 +146,9 @@ requires: []
 supersedes: null
 implements_signature:
   bin/lib/cli.py#_deploy_standing_at: 15ab048abfe99bab98076d000f0f79b5f4e1c4612d784e3e36874b2ab9addb2a
-  bin/lib/cli.py#_selfcommit_enter_after_deploys: a160b0525d439e6676f089e4ecf09cc8639466f1ef61efa08639420f166408d0
+  bin/lib/cli.py#_selfcommit_enter_after_deploys: 960f902fed94b27ac4f83839b4ad135520ed8d6278bc380d79777e304f03e04c
   bin/lib/cli.py#_selfcommit_window_close: 2c1ff903e911c775ff6d0be616f0749358087802573d000e9e84dc3ce4fbbadb
-  bin/lib/cli.py#_selfcommit_window_open: 229de0cc6fdfcf005107cbbeac043ff2fdc3e8dc294686c637c8a4a78f83a59c
+  bin/lib/cli.py#_selfcommit_window_open: a3fc1e474eeaa0e0a4586ac46d9950ad175318db286d630c436105c06e95ddff
   bin/lib/cli.py#_with_repo_lock_named: 1224e2a9df18cdc7e00d87355032f2119b8fa6782c54cc672d62f7428b23d53e
   bin/lib/worktree.py#_main_dirt_verdict: 051463fe76ee7e4881adaace5872309b9fd48b22859b7ad8d22e4ebe11db5215
   bin/lib/worktree.py#_selfcommit_held_paths: 0ce5cd8d51743eec72711d39b2e453ee9c6f099044fdce2fd8a233156e50caf1

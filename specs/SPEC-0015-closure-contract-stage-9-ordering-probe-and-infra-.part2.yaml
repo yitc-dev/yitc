@@ -108,84 +108,85 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ the audit-side owner reset, governed by a\nceiling-convergence consult — is RETIRED\
   \ by <workshop-spec> rule 6 and refuses: a pass on the new commit\nis admitted only\
   \ by the <workshop-spec> route (one `audit decide` per residual, then ONE `audit\
-  \ post\n--on-decisions` pass), and where that route admits none the commit stays\
-  \ un-re-pinned. It\nis structurally NON-STACKABLE: the escape commit folds the dirty\
-  \ audit-post YAML in and shifts the\nrecorded commit, dissolving the hazard this\
-  \ section requires, so a SECOND escape is REFUSED until a\nfurther audit-post pass\
-  \ has re-pinned custody. It is journal-observable (`commit_landed` `data.owner_reset:\n\
-  true`) and FAIL-CLOSED (no flag → the refusal stands). Full text: SPEC-1018 §Late\
-  \ finding after the\naudit-post budget is spent (kept in sync, not duplicated —\
-  \ P7).\n\nSECOND sanctioned exception — the Stage-8 RED IN-SCOPE-FIX leg (`task\
-  \ commit --fix-red`).\nThe mode-a carve-out above is the YELLOW branch ONLY (an\
-  \ absorption run against a RED is refused). The RED refusal PRESCRIBES «fix the\
-  \ RED cause in scope and re-audit the new commit», and\n`--fix-red` is that remedy\
-  \ as a verb. It EXTENDS the mode-a cycle rather than paralleling it: the\nsuperseded\
-  \ verdict is folded INTO the commit (never hand-deleted) and the follow-up `audit\
-  \ post\n--commit <new>` is EQUALLY REQUIRED to re-pin custody and carry the passes\
-  \ trail. What\ndiffers is the ADMITTING EVIDENCE, and only that. It is gated on\
-  \ FOUR conditions, every one derived,\nnone asserted: (i) the audit-POST hazard\
-  \ state (an audit-pre hazard does not qualify); (ii) the\nsuperseded verdict is\
-  \ exactly **RED** — never ABORT, which names no cause an in-scope fix could\naddress\
-  \ (its exit is the SPEC-0103 escalation), and never YELLOW, which remains `--absorb`'s;\
-  \ (iii)\nPOSITIVE proof the commit carries AUTHORED content, read through the SAME\n\
-  `_zero_ship_diff_bookkeeping` allow-list the second guard arm reads (`_red_fix_authored_paths`);\
-  \ and\n(iv) the REQUIRED re-audit is still within the ceiling, checked BEFORE the\
-  \ commit. The one-pass-wide\narm that once widened (iv) past an exhausted ceiling\
-  \ — `--fix-red --owner-reset`, the\nspent-budget bypass — is RETIRED by <workshop-spec>\
-  \ rule 6 and refuses: the audit-side owner reset it\nbootstrapped a subject for\
-  \ no longer exists. Past the ceiling the route is the <workshop-spec> one — one\n\
-  `audit decide` per residual, then ONE `audit post --on-decisions` pass. ONE case\
-  \ past (iv) is\nadmitted: AT the ceiling row, while no rule-3 pass (`--on-decisions`\
-  \ or its absorption re-audit)\nhas run for the card, `--fix-red` commits the in-scope\
-  \ fix, because the `fix` decision's\n`--evidence` must name that recorded commit\
-  \ (SPEC-1039 rule 2) and the `--on-decisions` pass is\nits re-audit (rule 3). Once\
-  \ such a pass has run, or the journal cannot be read, it refuses. Co-homed with\n\
-  <workshop-spec> §Audit-loop ceiling. The two flags are MUTUALLY EXCLUSIVE: a caller\
-  \ declares exactly one\ncycle. The commit is journal-marked (`commit_landed` `data.red_fix:\
-  \ true`).\n**THE GUARD IS NOT WEAKENED.** `--absorb` over a non-YELLOW verdict stays\
-  \ refused on every\npath, byte-unchanged; a FIXLESS RED absorption fails condition\
-  \ (iii) and is refused at THIS door too.\n**The failure DIRECTION is deliberately\
-  \ opposite to the second guard arm's, off the same primitive.**\n`_worktree_dirty_paths`\
-  \ returns `[]` on any git failure: the arm MISSES on that input, this leg\nREFUSES\
-  \ on it; a missing injection refuses identically. The one known over-admission (the\
-  \ collapsed\nbare `decisions/` row) is bounded by conditions (i), (ii) and (iv)\
-  \ holding simultaneously.\n**SCOPE BOUND — the leg is for a fix that SHIPS, and\
-  \ the refusal must ROUTE.** When a RED\ncause's ONLY honest fix is a correction\
-  \ to the task's OWN records (its card, its acceptance text, its\naudit YAML), that\
-  \ fix is BOOKKEEPING, and a bookkeeping-only commit cannot earn custody on the\n\
-  ORDINARY leg. Such a correction either RIDES a commit that also carries authored\
-  \ work, or takes the\nCARD-REPAIR ARM below, or — when the card has no shipping\
-  \ fix at all — the governed exit is the\nSPEC-0103 escalation. The refusal text\
-  \ NAMES every route.\n\n**THE CARD-REPAIR ARM (`task commit --fix-red --card-repair`)\
-  \ — and the retirement it\ncarries.** RETIRED (P1 F3): the escalate-only ending\
-  \ the SCOPE BOUND above used to have for a RED whose\nONLY named cause was the card's\
-  \ OWN record (its only terminal was park-mid-audit, recording a\nCOMPLETE card as\
-  \ `parked`).\n\nIt is an ARM of this leg, never a leg of its own: passed alone it\
-  \ is refused, `--absorb` stays\nincompatible, and it relaxes NONE of conditions\
-  \ (i), (ii) or (iv), which run first and unchanged. It\nreplaces condition (iii)\
-  \ ALONE, with a DIFFERENT positive proof rather than a weaker one. Its\nconjuncts\
-  \ are all DERIVED from the repo, never asserted by the flag, and fail-closed on\
-  \ any\nunprovable input (a missing injection, a git that cannot answer, an unreadable\
-  \ record):\n  (A) **SHAPE** — the staged set is EXACTLY the task's own lifecycle\
-  \ records (its card, its own\n      `decisions/<tid>-*.yaml`, `events.jsonl` — the\
-  \ `_zero_ship_diff_bookkeeping` allow-list reused\n      whole, so there is no second\
-  \ notion of \"the task's own records\") AND the CARD ITSELF is among\n      them.\
-  \ The audit YAMLs are INSIDE that set by necessity, not by indulgence: this leg's\
-  \ mechanic\n      is that the superseded RED verdict is FOLDED IN rather than hand-deleted,\
-  \ so a dirty\n      `decisions/<tid>-audit-post.yaml` is required to be there. A\
-  \ staged set carrying anything\n      authored is not this case and falls through\
-  \ to the ordinary leg, which already admits it.\n  (B) **A REAL AUDITED SHIP ALREADY\
-  \ EXISTS** — the commit the superseded RED verdict COVERS provably\n      carries\
-  \ authored content. The arm never claims the repair IS a ship; it proves there is\
-  \ one for\n      the repair to ride on. That is what makes it incapable of manufacturing\
-  \ authored work, and it\n      is why a card that has genuinely shipped nothing\
-  \ is refused here and routed to SPEC-0103.\n  (C) **THE RED'S CAUSE DERIVES TO THIS\
-  \ CARD'S OWN RECORD** — the superseded RED\n      must actually BE about the card.\n\
-  \n**RETIRED (P1 F3) — the KEYWORD TEST over auditor prose.** It is REPLACED by a\
-  \ DERIVATION from what the record REFERS TO, in two\nparts, BOTH required:\n  1.\
-  \ **No authored reference.** Every repo-path-shaped token in the record is lifecycle\
-  \ bookkeeping\n     for THIS card by the SAME `_zero_ship_diff_bookkeeping` allow-list\
-  \ conjunct (A) reads — no second\n     list. One authored path (`bin/lib/task.py:100`)\
+  \ post\n--on-decisions` pass) — or, when the ceiling row holds no residual, by the\
+  \ ONE pass of SPEC-1018's «Owner-reset commit, no residual» row on the owner directive\
+  \ the commit cites — and where neither admits one the commit stays un-re-pinned.\
+  \ It\nis structurally NON-STACKABLE: the escape commit folds the dirty audit-post\
+  \ YAML in and shifts the\nrecorded commit, dissolving the hazard this section requires,\
+  \ so a SECOND escape is REFUSED until a\nfurther audit-post pass has re-pinned custody.\
+  \ It is journal-observable (`commit_landed` `data.owner_reset:\ntrue`) and FAIL-CLOSED\
+  \ (no flag → the refusal stands). Full text: SPEC-1018 §Late finding after the\n\
+  audit-post budget is spent (kept in sync, not duplicated — P7).\n\nSECOND sanctioned\
+  \ exception — the Stage-8 RED IN-SCOPE-FIX leg (`task commit --fix-red`).\nThe mode-a\
+  \ carve-out above is the YELLOW branch ONLY (an absorption run against a RED is\
+  \ refused). The RED refusal PRESCRIBES «fix the RED cause in scope and re-audit\
+  \ the new commit», and\n`--fix-red` is that remedy as a verb. It EXTENDS the mode-a\
+  \ cycle rather than paralleling it: the\nsuperseded verdict is folded INTO the commit\
+  \ (never hand-deleted) and the follow-up `audit post\n--commit <new>` is EQUALLY\
+  \ REQUIRED to re-pin custody and carry the passes trail. What\ndiffers is the ADMITTING\
+  \ EVIDENCE, and only that. It is gated on FOUR conditions, every one derived,\n\
+  none asserted: (i) the audit-POST hazard state (an audit-pre hazard does not qualify);\
+  \ (ii) the\nsuperseded verdict is exactly **RED** — never ABORT, which names no\
+  \ cause an in-scope fix could\naddress (its exit is the SPEC-0103 escalation), and\
+  \ never YELLOW, which remains `--absorb`'s; (iii)\nPOSITIVE proof the commit carries\
+  \ AUTHORED content, read through the SAME\n`_zero_ship_diff_bookkeeping` allow-list\
+  \ the second guard arm reads (`_red_fix_authored_paths`); and\n(iv) the REQUIRED\
+  \ re-audit is still within the ceiling, checked BEFORE the commit. The one-pass-wide\n\
+  arm that once widened (iv) past an exhausted ceiling — `--fix-red --owner-reset`,\
+  \ the\nspent-budget bypass — is RETIRED by <workshop-spec> rule 6 and refuses: the\
+  \ audit-side owner reset it\nbootstrapped a subject for no longer exists. Past the\
+  \ ceiling the route is the <workshop-spec> one — one\n`audit decide` per residual,\
+  \ then ONE `audit post --on-decisions` pass. ONE case past (iv) is\nadmitted: AT\
+  \ the ceiling row, while no rule-3 pass (`--on-decisions` or its absorption re-audit)\n\
+  has run for the card, `--fix-red` commits the in-scope fix, because the `fix` decision's\n\
+  `--evidence` must name that recorded commit (SPEC-1039 rule 2) and the `--on-decisions`\
+  \ pass is\nits re-audit (rule 3). Once such a pass has run, or the journal cannot\
+  \ be read, it refuses. Co-homed with\n<workshop-spec> §Audit-loop ceiling. The two\
+  \ flags are MUTUALLY EXCLUSIVE: a caller declares exactly one\ncycle. The commit\
+  \ is journal-marked (`commit_landed` `data.red_fix: true`).\n**THE GUARD IS NOT\
+  \ WEAKENED.** `--absorb` over a non-YELLOW verdict stays refused on every\npath,\
+  \ byte-unchanged; a FIXLESS RED absorption fails condition (iii) and is refused\
+  \ at THIS door too.\n**The failure DIRECTION is deliberately opposite to the second\
+  \ guard arm's, off the same primitive.**\n`_worktree_dirty_paths` returns `[]` on\
+  \ any git failure: the arm MISSES on that input, this leg\nREFUSES on it; a missing\
+  \ injection refuses identically. The one known over-admission (the collapsed\nbare\
+  \ `decisions/` row) is bounded by conditions (i), (ii) and (iv) holding simultaneously.\n\
+  **SCOPE BOUND — the leg is for a fix that SHIPS, and the refusal must ROUTE.** When\
+  \ a RED\ncause's ONLY honest fix is a correction to the task's OWN records (its\
+  \ card, its acceptance text, its\naudit YAML), that fix is BOOKKEEPING, and a bookkeeping-only\
+  \ commit cannot earn custody on the\nORDINARY leg. Such a correction either RIDES\
+  \ a commit that also carries authored work, or takes the\nCARD-REPAIR ARM below,\
+  \ or — when the card has no shipping fix at all — the governed exit is the\nSPEC-0103\
+  \ escalation. The refusal text NAMES every route.\n\n**THE CARD-REPAIR ARM (`task\
+  \ commit --fix-red --card-repair`) — and the retirement it\ncarries.** RETIRED (P1\
+  \ F3): the escalate-only ending the SCOPE BOUND above used to have for a RED whose\n\
+  ONLY named cause was the card's OWN record (its only terminal was park-mid-audit,\
+  \ recording a\nCOMPLETE card as `parked`).\n\nIt is an ARM of this leg, never a\
+  \ leg of its own: passed alone it is refused, `--absorb` stays\nincompatible, and\
+  \ it relaxes NONE of conditions (i), (ii) or (iv), which run first and unchanged.\
+  \ It\nreplaces condition (iii) ALONE, with a DIFFERENT positive proof rather than\
+  \ a weaker one. Its\nconjuncts are all DERIVED from the repo, never asserted by\
+  \ the flag, and fail-closed on any\nunprovable input (a missing injection, a git\
+  \ that cannot answer, an unreadable record):\n  (A) **SHAPE** — the staged set is\
+  \ EXACTLY the task's own lifecycle records (its card, its own\n      `decisions/<tid>-*.yaml`,\
+  \ `events.jsonl` — the `_zero_ship_diff_bookkeeping` allow-list reused\n      whole,\
+  \ so there is no second notion of \"the task's own records\") AND the CARD ITSELF\
+  \ is among\n      them. The audit YAMLs are INSIDE that set by necessity, not by\
+  \ indulgence: this leg's mechanic\n      is that the superseded RED verdict is FOLDED\
+  \ IN rather than hand-deleted, so a dirty\n      `decisions/<tid>-audit-post.yaml`\
+  \ is required to be there. A staged set carrying anything\n      authored is not\
+  \ this case and falls through to the ordinary leg, which already admits it.\n  (B)\
+  \ **A REAL AUDITED SHIP ALREADY EXISTS** — the commit the superseded RED verdict\
+  \ COVERS provably\n      carries authored content. The arm never claims the repair\
+  \ IS a ship; it proves there is one for\n      the repair to ride on. That is what\
+  \ makes it incapable of manufacturing authored work, and it\n      is why a card\
+  \ that has genuinely shipped nothing is refused here and routed to SPEC-0103.\n\
+  \  (C) **THE RED'S CAUSE DERIVES TO THIS CARD'S OWN RECORD** — the superseded RED\n\
+  \      must actually BE about the card.\n\n**RETIRED (P1 F3) — the KEYWORD TEST\
+  \ over auditor prose.** It is REPLACED by a DERIVATION from what the record REFERS\
+  \ TO, in two\nparts, BOTH required:\n  1. **No authored reference.** Every repo-path-shaped\
+  \ token in the record is lifecycle bookkeeping\n     for THIS card by the SAME `_zero_ship_diff_bookkeeping`\
+  \ allow-list conjunct (A) reads — no second\n     list. One authored path (`bin/lib/task.py:100`)\
   \ refuses outright: that RED is `--fix-red`\n     PROPER's case, and a record-only\
   \ subject over it would move custody onto a commit that fixes\n     nothing. This\
   \ half carries the safety, and it needs no judgement about prose at all.\n  2. **At\

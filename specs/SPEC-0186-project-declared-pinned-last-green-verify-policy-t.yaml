@@ -137,15 +137,15 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   \ declares there is its own verify policy and, beside it, only: the `admission:`\n\
   section and the three `verify:` keys the admission queue reads — `post_sync_set`\
   \ in its non-layer\nform (a list of test files), `sync_at_stage6_admission` and\
-  \ `post_sync_set_first` (SPEC-1045); a\n`deploy:` whose `command:` is only the final\
-  \ publication of a release already cut; ONE\n`verify.layers` entry, its whole suite;\
-  \ ONE `moment: pre-deploy` class in `tests.classes`; its\nown `thresholds:` (SPEC-1031\
-  \ rule 4); and a `verify.venue` mapping naming what its suite needs on a\nverify\
-  \ box (<workshop-spec> rules 1 and 6), which the engine's own Stage-6 and land routing\
-  \ do not read. `init.engine_declaration_errors` is the one admission that\njudges\
-  \ which of these the file holds. The engine stays exempt from the consumer contract\
-  \ checks,\nso carrying these keys makes it no consumer of its ops contract. The\
-  \ engine is not a\nconsumer of its own ops contract, so every sweep that judges\
+  \ `post_sync_set_first` (<workshop-spec>); a\n`deploy:` whose `command:` is only\
+  \ the final publication of a release already cut; ONE\n`verify.layers` entry, its\
+  \ whole suite; ONE `moment: pre-deploy` class in `tests.classes`; its\nown `thresholds:`\
+  \ (SPEC-1031 rule 4); and a `verify.venue` mapping naming what its suite needs on\
+  \ a\nverify box (<workshop-spec> rules 1 and 6), which the engine's own Stage-6\
+  \ and land routing do not read. `init.engine_declaration_errors` is the one admission\
+  \ that\njudges which of these the file holds. The engine stays exempt from the consumer\
+  \ contract checks,\nso carrying these keys makes it no consumer of its ops contract.\
+  \ The engine is not a\nconsumer of its own ops contract, so every sweep that judges\
   \ a repository AS a consumer of that\ncontract excludes the engine by IDENTITY,\
   \ never by whether a file exists. Wherever this corpus says\nthe engine has «no\
   \ carrier» or «no ops contract», it is the CONSUMER ops contract that is meant.\n\
@@ -276,7 +276,6 @@ cites:
 - SPEC-0178
 - SPEC-0025
 - SPEC-0184
-- SPEC-1045
 - CHARTER.md#principle-1
 requires: []
 supersedes: null
@@ -313,7 +312,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_batch_members: 3c970df34d86702aedae15b56d933d16b56baf397cd94bc4b204417bcc565828
   bin/lib/debt.py#_consumer_carrier_posture: fc2959c23f71ad4af090acf4157fb0ede1b5ed6dcd59ef8f2a7df3fd9319e9e1
   bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
-  bin/lib/init.py#engine_declaration_errors: c412ae20127e6e7f9c2feb2fe460f04a78f3a52cb008d1d1c16fd3763f5e05b1
+  bin/lib/init.py#engine_declaration_errors: 384c584b37f73a3ef644703ad3565e7e48f5fd600e54f64df8d2f2e688a097c8
   bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc
   bin/lib/task.py#_verify_policy_stage6_credit: c40c97aedbc5d0ef2b7d051528dce313b6c27284402d16107aef77673de3b74f
-  bin/lib/worktree.py#_land_integrate: 7ae56210b64072a7184f4dd8047963b1dc0e9bb5b81a95e3167fc679a2a40898
+  bin/lib/worktree.py#_land_integrate: 5f526c9b0b586da90399e70e9dff5b2b32d227cbbb6b6fc70762d4ece3be7b8c

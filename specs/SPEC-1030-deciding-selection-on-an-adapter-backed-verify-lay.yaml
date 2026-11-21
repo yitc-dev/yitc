@@ -278,4 +278,4 @@ implements_signature:
   bin/lib/worktree.py#_stage6_partial_needs: 4513fc3c2e2bba51bfa6176a6669402fa1012a0b6c3112c66e2e0db6e867155a
   bin/lib/worktree.py#_stage6_partial_run_covers: 24f9eb8534350cdad31eb7c0a64f9a992555c00878e14158c92cb47c3c4871d2
   bin/lib/worktree.py#_stage6_partial_units: eaf70953620a1973473fc09ecf9654823aa2b276b7b25186423ef2407c3d262c
-  bin/lib/worktree.py#_stage6_row_covers_land: fefe94f2a86759e9355d5e796ceefe93200dc54b5d9e2b49722d42ae8f34a6d7
+  bin/lib/worktree.py#_stage6_row_covers_land: 5f3076059286e1c20db163ec712224be831da2572dbdb3eda442b6d51c3ebc1a

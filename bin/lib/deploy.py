@@ -3091,7 +3091,7 @@ def _pre_deploy_kernel_units(result, outcomes, listed) -> dict:
     return out
 
 
-def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
+def _pre_deploy_run_reading(result, guarding, whole_layers, empty=()) -> dict:
     """PURE — what SPEC-1042 rules 3-4 ask of the land runner's result over a pre-deploy run
     (`_consumer_zero_probe_guard` handed `pre_deploy={..., run: True}`, no base):
 
@@ -3117,7 +3117,13 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
     in the land row's shape `{layer, outcome, adapter: {units}}`. Its `outcome` is `pass` only when it
     has at least one own unit, every one passed (or was rescued), and no layer's membership could not
     be read (`unattributed` — a `list` that did not answer, or a membership refused as malformed):
-    a class none of whose units is SHOWN to have passed is not recorded as passing."""
+    a class none of whose units is SHOWN to have passed is not recorded as passing.
+
+    T-14710 (SPEC-1051 rule 4): `empty` names the LISTED classes whose declared `units:` names no file
+    (the born state of the listed order, rule 1). Such a class that owns no unit in the run — nothing
+    of it skipped, missing or unattributed — reads `outcome: empty` with a `reason` naming the empty
+    membership, never `fail`: nothing of it ran, so nothing failed. It is not `pass` either, so it
+    clears no SPEC-0152 rule-24 debt. Every other class reads as before."""
     res = result if isinstance(result, dict) else {}
     rows = [r for r in res.get("layers") or () if isinstance(r, dict)] \
         if isinstance(res.get("layers"), list) else []
@@ -3207,10 +3213,34 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
     run_passed = res.get("mode") == "layers" and not bad
     return {"run_outcome": "passed" if run_passed else "failed", "failing": failing, "rescued": rescued,
             "bad": bad,
-            "classes": {c: {"outcome": "pass" if got["ok"] and got["units"] else "fail",
+            "classes": {c: {"outcome": _pre_deploy_class_outcome(c, got, empty),
                             "consumer_verify_layers": got["layers"], "count": got["units"],
+                            **({"reason": PRE_DEPLOY_EMPTY_REASON}
+                               if _pre_deploy_class_outcome(c, got, empty) == "empty" else {}),
                             **({"unattributed": got["unattributed"]} if got["unattributed"] else {})}
                         for c, got in classes.items()}}
+
+
+#: T-14710 (SPEC-1051 rule 4) — why a listed class with an empty list records no pass and no fail
+PRE_DEPLOY_EMPTY_REASON = ("lists no unit: its declared `units:` list is empty (the born state of the "
+                           "listed order, SPEC-1051 rule 1) - nothing of it ran; `pre-deploy list` at "
+                           "the weekly review adds its members (SPEC-1051 rule 7)")
+
+
+def _pre_deploy_class_outcome(c, got, empty) -> str:
+    """T-14710 — `pass` / `fail` as before; `empty` for a class in `empty` that owns no unit in the
+    run and has nothing unattributed or not passed (SPEC-1051 rule 4). PURE."""
+    if got["ok"] and got["units"]:
+        return "pass"
+    if c in empty and not got["units"] and got["ok"] and not got["unattributed"] and not got["down"]:
+        return "empty"
+    return "fail"
+
+
+def _pre_deploy_empty_classes(decl) -> list:
+    """T-14710 — the listed classes of the declaration `decl` whose `units:` names no file. PURE."""
+    named = set((decl.get("listed") or {}).values()) if isinstance(decl, dict) else set()
+    return [c for c in (decl.get("listed_classes") or () if isinstance(decl, dict) else ()) if c not in named]
 
 
 class _PreDeployTee:
@@ -3604,7 +3634,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                 except Exception as exc:  # noqa: BLE001 — a runner fault is a red run, recorded
                     result = {"mode": "runner-raised", "layers": [],
                               "bad": [f"the land runner raised {exc!r}"]}
-            reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
+            reading = _pre_deploy_run_reading(result, guarding, decl["layers"], _pre_deploy_empty_classes(decl))
             passed = reading["run_outcome"] == "passed"
             contended, why, beside = False, "", []
             if reads and not passed:          # T-14106 — every reason of the red, and who ran beside it
@@ -3642,7 +3672,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                     again = {"mode": "runner-raised", "layers": [], "bad": [f"the land runner raised {exc!r}"]}
                 result = _pre_deploy_layer_rescue_merge(result, layer, again)
             if lone:
-                reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
+                reading = _pre_deploy_run_reading(result, guarding, decl["layers"], _pre_deploy_empty_classes(decl))
                 passed = reading["run_outcome"] == "passed"
         finally:
             allot.close()
@@ -3684,7 +3714,8 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
         for c, got in reading["classes"].items():
             lines.append(f"  class {c}: {got['outcome']} ({got['count']} unit(s) of its own"
                          + (f"; membership unreadable on layer(s) {', '.join(got['unattributed'])}"
-                            if got.get("unattributed") else "") + ")")
+                            if got.get("unattributed") else "")
+                         + (f"; {got['reason']}" if got.get("reason") else "") + ")")
         if last_fault:
             lines.append(f"  cards landed since {since_what}: UNKNOWN — the "
                          f"journal could not be read ({last_fault})")
@@ -3720,6 +3751,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                 **({"seq": history["next_seq"]} if history["next_seq"] else {}),
                 "consumer_verify_layers": unit_table.encode_layers(got["consumer_verify_layers"]),
                 **({"unattributed": got["unattributed"]} if got.get("unattributed") else {}),
+                **({"reason": got["reason"]} if got.get("reason") else {}),     # T-14710
                 **({"declaration_fingerprint": fingerprint} if fingerprint else {}),
                 **({"pre_deploy_reuse_bound": reuse_bound} if reuse_bound else {}),
                 **({"layer_worker_budget": workers} if isinstance(workers, int) else {}),   # T-14187
@@ -4482,7 +4514,7 @@ def release_order_targets(args, *, REPO_ROOT) -> list:
 def release_order_hold(names, *, candidate, main_wt, hold, append_event, recheck, _acquire_land_reservation,
                        _land_reservation_path, _flock_holder, _flock_holder_record_path, _proc_starttime):
     """SPEC-1051 rule 3 (T-14333) — the hold of a release order of `candidate` to `names`: the queue pass
-    first (the project's SPEC-1045 queue on: one `deploy` ticket, `admission.deploy_run_entry`), then the
+    first (the project's SPEC-1063 queue on: one `deploy` ticket, `admission.deploy_run_entry`), then the
     land reservation (`_pre_deploy_take_reservation`, its holder record naming the order) into `hold`, then
     the SPEC-0094 §6 question once (`recheck()` -> why main moved, or None). Refuses before any target:
     exit 3 when the reservation is not taken, 4 when main moved. Yields `{targets, record}` — the queue's
@@ -4518,7 +4550,7 @@ def release_order_hold(names, *, candidate, main_wt, hold, append_event, recheck
         switch = {"on": False}
     if switch.get("on"):
         print(f"deploy: the release order {order} enters the project's admission queue first in its order "
-              f"(SPEC-1045 rule 2 (r))")
+              f"(SPEC-1063 rule 2 (r))")
         with admission_queue.deploy_run_entry(main=main_wt, append_event=append_event) as record:
             _take()
             yield {"targets": list(names), "record": record}
@@ -4568,7 +4600,7 @@ def _pre_deploy_layer_costs(result) -> list:
 
 # ── T-14203 — THE SCHEDULED PRE-DEPLOY RUN (SPEC-1047 rules 2-6) ─────────────────────────────────
 # `deploy --scheduled-run`, fired by a project's own cron, runs on main's head the pre-deploy run a gated
-# deploy runs — unchanged, over every pre-deploy class — inside the project's SPEC-1045 queue, and
+# deploy runs — unchanged, over every pre-deploy class — inside the project's SPEC-1063 queue, and
 # deploys nothing: no command, no `deploy_*` row, no deploy lock, no land reservation. Its class rows
 # carry `run_kind: scheduled` and no `target`, and every deploy reader drops them.
 
@@ -4675,14 +4707,14 @@ def _scheduled_run(args, *, REPO_ROOT, _append_event, _main_worktree, _run_git_c
     `YITC_SESSION_REF` (`_session_contract()`; the SPEC-0142 §6 contract's other half, the `session start`
     prefix, is the seed-read chokepoint, which refuses before this verb runs); a checkout other than
     the project's MAIN checkout; `main` unresolvable; the candidate's contract unreadable or its
-    pre-deploy declaration refused; the SPEC-1045 queue switched off (naming `admission.mode: engine` and
+    pre-deploy declaration refused; the SPEC-1063 queue switched off (naming `admission.mode: engine` and
     the machine veto); rows this session could not record. A candidate contract declaring no pre-deploy
     class prints one line and exits 0, writing nothing.
 
     THE CANDIDATE is main's head when the command starts, a full commit id; the classes, the verify
     section and the adapter inventory are read from the candidate's own checkout (the classes here, the
     rest by the runner over its scratch checkout), so the working tree's `yitc-ops.yaml` and a `main`
-    that moves while the run waits change nothing. THE QUEUE: `admission.scheduled_run_entry` (SPEC-1045
+    that moves while the run waits change nothing. THE QUEUE: `admission.scheduled_run_entry` (SPEC-1063
     rule 2 (p)). THE RUN, once admitted: `_pre_deploy_run(run_kind="scheduled")` over every pre-deploy
     class, with the contended re-run once, its class rows stamped with the pass (`admission.stamping`,
     rule 2 (e)) and its «cards since» from the last passed scheduled run, read after the pass
@@ -5338,7 +5370,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     `_pre_deploy_main_journal` (lands, `_stage6_land_verifies_beside`) and the journals of
     `_live_task_worktrees()` then main (Stage-6 runs)) is run once more.
 
-    T-14325 (SPEC-1051 rule 3, SPEC-1045 rule 2 (r)) — BEFORE the run, the deploy enters the project's
+    T-14325 (SPEC-1051 rule 3, SPEC-1063 rule 2 (r)) — BEFORE the run, the deploy enters the project's
     admission queue as a `deploy` ticket when it is switched on (`admission.deploy_run_entry`, first in
     the order), and at its pass (queue off: at once; a reused run: where the run would start) takes the
     project's land reservation (`_acquire_land_reservation`, `_pre_deploy_take_reservation`, its holder
@@ -6054,7 +6086,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # written); nothing else starts a run and no earlier run's row stands in for this one.
     # T-14325 / SPEC-1051 rule 3 — FIRST PLACE AND A STILL MAIN FOR THE RUN. With the project's
     # admission queue on, the run enters it as a `deploy` ticket, which passes before every queued land
-    # and Stage-6 run (SPEC-1045 rule 2 (r)). At its pass (queue off: at once) the deploy takes the
+    # and Stage-6 run (SPEC-1063 rule 2 (r)). At its pass (queue off: at once) the deploy takes the
     # project's land reservation — the one lock a land holds through its verify and its move of `main` —
     # and holds it to the verb's end, so a land started during the run parks instead of voiding it. It
     # then asks the SPEC-0094 §6 question once before the run starts: a `main` that moved while the
@@ -6154,7 +6186,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                 sys.exit(3)
         if _switch.get("on"):
             print(f"deploy: the pre-deploy run of {expected_revision} enters the project's admission queue "
-                  f"first in its order (SPEC-1045 rule 2 (r))")
+                  f"first in its order (SPEC-1063 rule 2 (r))")
             # T-14595 (SPEC-1051 rule 3): the deploy stands to the end of its ship — its deploy-marked
             # RUNNING entry is closed by the verb's release (`_pre_deploy_release`), not when the run ends
             _entry = contextlib.ExitStack()

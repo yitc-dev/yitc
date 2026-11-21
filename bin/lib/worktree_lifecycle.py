@@ -4459,7 +4459,7 @@ def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, 
     rides the sync's own `worktree_synced` row; the land's Stage-6 credit reads a passed one on a
     `main-moved` refusal (T-14141, SPEC-0065 §Bound condition (1)).
 
-    T-14197 (SPEC-0152 rule 16 §post_sync_set, SPEC-1045 rule 2 (b)/(d)) — the carrier and newest-run
+    T-14197 (SPEC-0152 rule 16 §post_sync_set, SPEC-1063 rule 2 (b)/(d)) — the carrier and newest-run
     checks are `_post_sync_premise`, the ONE predicate a light run's prediction also asks; a project
     declaring no `verify.layers` names test FILES the engine's runner runs (`_post_sync_set_form`,
     `_run_set_files`); and while the admission queue is on, the set runs holding BUSY shared
@@ -4620,7 +4620,7 @@ def _post_sync_premise(W: "Path", main_wt: "Path", task: str) -> tuple:
     """T-14197 — the part of the post-sync proof's eligibility (SPEC-0152 rule 16 §post_sync_set) that
     holds before any merge: the quick set the MAIN checkout's carrier declares, and the card's newest
     Stage-6 verdict row in the worktree's journal being a green, runner-marked run. ONE predicate:
-    `_post_sync_proof` asks it first, and a light run's prediction (SPEC-1045 rule 2 (b)) asks it with
+    `_post_sync_proof` asks it first, and a light run's prediction (SPEC-1063 rule 2 (b)) asks it with
     `_post_sync_hand_merged`. Returns (None, None) when no set is declared; (names, reason) refused —
     `names` None when the carrier itself cannot be read or is malformed; else (names, {newest, data,
     tree, base})."""
@@ -7748,8 +7748,11 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         # forewarning. CUE-ONLY and fail-closed as before: nothing here auto-anchors or auto-fetches,
         # and nothing changes what the gate CREDITS.
         _hint_lines = _filing_read_gate_hint_lines(path) if _filing_read_gate_hint_lines else []
-        print("  ⚠ read-gate: FIRST, before `task file` / `spec new` or any gated verb in THIS")
-        print("    worktree (e.g. when filing from a Review session), run THESE, here:")
+        # T-14705 (X-2448): the cue names the governed verbs BEYOND filing — a spike helper handed the
+        # session ref ran `work commit` here and was refused UNBACKED (SPEC-0137) twice.
+        print("  ⚠ read-gate: FIRST, before ANY governed verb in THIS worktree — `work commit`,")
+        print("    `task commit`, `audit`, plan and spec verbs, filing (`task file` / `spec new`) —")
+        print("    and before a helper is handed this session's ref to commit here, run THESE, here:")
         for _cmd in (_hint_lines or ["bin/yitc-v2 session start"]):
             print(f"      {_cmd}")
         print("    The read receipt is recorded in the checkout where the command RAN — a run in")

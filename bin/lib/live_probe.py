@@ -348,6 +348,14 @@ def cmd_live_probe(args: argparse.Namespace, *, REPO_ROOT, ENGINE_ROOT, _append_
         _die(f"live-probe: {tid} declares a `none` waiver, not an executable assertion — nothing to "
              f"probe (SPEC-0094 §3/§4). The waiver is its declared non-adoption; no live GET to run.")
 
+    # T-14742 — an assertion SETTLED SUPERSEDED (SPEC-0094 §3) asserts something a later owner-decided
+    # card removed on purpose: a GET would only read the intended removal as a failure.
+    if isinstance(lp.get("settled_by"), dict) and lp["settled_by"].get("result") == "superseded":
+        _die(f"live-probe: {tid} — its assertion is settled SUPERSEDED by "
+             f"{lp['settled_by'].get('superseded_by')} (SPEC-0094 §3): what it checks was removed on "
+             f"purpose, so there is nothing to probe. Read the settle with "
+             f"`bin/yitc-v2 journal query --type task_live_probe_declared --task {tid}`.")
+
     # ESCALATION form (SPEC-0098 §2): a NAMED security property the deploy seam CANNOT assert read-only.
     # Fail-closed — un-probeable is NEVER a silent pass: emit security_live_probe_escalated (the owner-
     # escalation adoption-evidence) and exit non-zero (the property is NOT confirmed). No GET is run.

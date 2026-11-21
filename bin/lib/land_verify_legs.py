@@ -3516,15 +3516,48 @@ def _verify_under_admission(main_wt: Path, branch: "str | None", slots: int, run
     # measures exactly that into `wait_out`. A caller that passes a probe but no sink gets its own
     # local one rather than a second measurement — one clock, one span (CHARTER §P5).
     _wait_sink = wait_out if wait_out is not None else ([] if withdraw_probe is not None else None)
-    with _verify_admission(main_wt, slots, on_wait=on_wait, wait_out=_wait_sink):
-        # T-12258 (SPEC-0184 rule 16), OBSERVATION POINT (1) — THE AUTHORITY. Inside the `with`, so
-        # the slot flock is HELD, and BEFORE `run_verify()`, so this is the last instant before the
-        # verify is PAID. Past this line the land is ADMITTED and the never-interrupt invariant
-        # applies: no later path observes the request and no signal of any kind is ever sent.
+    # T-14745 (SPEC-1063 rule 1): a heavy start takes the ONE host gate — machine-wide order, start lag,
+    # free usable threads, memory. It is readied BEFORE the verify slot (nothing granted) and granted
+    # WITH the slot held, at the instant the verify starts, so no grant ages while a slot is awaited. A
+    # land the repository's queue admitted already holds its grant (as does any process inside an
+    # admitted run) and asks nothing here.
+    from lib import host_admission as _host
+    _host_said = {"reason": None, "t0": time.monotonic()}
+
+    def _host_held(r):
         if withdraw_probe is not None and withdraw_probe():
-            raise _LandWithdrawn("waiting_for_verify_admission_slot",
-                                 _wait_sink[-1] if _wait_sink else 0.0)
-        return run_verify()
+            raise _LandWithdrawn("waiting_for_verify_admission_slot", time.monotonic() - _host_said["t0"])
+        if r.get("reason") == _host_said["reason"]:
+            return
+        _host_said["reason"] = r.get("reason")
+        text = _host.says(r)
+        print(f"yitc-v2: land waits at the host gate — {text}", file=sys.stderr, flush=True)
+        _append_event("waiting_for_verify_admission_slot", task_id,
+                      {"branch": branch, "slots": slots, "pid": os.getpid(),
+                       "waited_s": int(time.monotonic() - _host_said["t0"]),
+                       "holder": {"resolved": False, "host_gate": True},
+                       "host_gate": {k: v for k, v in r.items() if k not in ("ok", "grant")}},
+                      events_path=main_wt / "events.jsonl")
+
+    _host_w = None if _host.inside_admitted() else _host.Waiter(repo=main_wt, task=task_id, kind="land")
+    try:
+        if _host_w is not None:
+            _host.wait_for_grant(main_wt, task_id, kind="land", on_held=_host_held, grant=False, waiter=_host_w)
+        with _verify_admission(main_wt, slots, on_wait=on_wait, wait_out=_wait_sink):
+            if _host_w is not None:
+                _host.wait_for_grant(main_wt, task_id, kind="land", on_held=_host_held, waiter=_host_w)
+            # T-12258 (SPEC-0184 rule 16), OBSERVATION POINT (1) — THE AUTHORITY. Inside the `with`, so
+            # the slot flock is HELD, and BEFORE `run_verify()`, so this is the last instant before the
+            # verify is PAID. Past this line the land is ADMITTED and the never-interrupt invariant
+            # applies: no later path observes the request and no signal of any kind is ever sent.
+            if withdraw_probe is not None and withdraw_probe():
+                raise _LandWithdrawn("waiting_for_verify_admission_slot",
+                                     _wait_sink[-1] if _wait_sink else 0.0)
+            return run_verify()
+    finally:
+        if _host_w is not None:
+            _host_w.leave()
+
 
 
 def _verify_duration_samples_from_journal(main_wt: Path, limit: int, *, _run_git_cap, _VERIFY_DURATION_SERIES_UNIT_MS, sampled: "list | None" = None, credited: "dict | None" = None) -> "list":
@@ -8616,6 +8649,13 @@ def _pre_deploy_skip_same(a, b) -> bool:
     """T-14569 — do two skip-set records (a run row's, a land's, a request's — any written shape) name
     the same set? Equal keys, neither unavailable (`unit_table.skip_same`). PURE."""
     return unit_table.skip_same(a, b)
+
+
+def _pre_deploy_skip_covers(ran, land) -> bool:
+    """T-14734 — did the run whose skip record is `ran` run every unit the land whose record is `land`
+    would run (the run's skip set a subset of the land's, or the same set)? `unit_table.skip_covers`.
+    PURE."""
+    return unit_table.skip_covers(ran, land)
 
 
 def _selection_set_key(names, *, rule_version, skip=None) -> "dict | None":

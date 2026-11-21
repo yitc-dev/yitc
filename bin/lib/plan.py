@@ -1974,7 +1974,10 @@ def _plan_shared_surfaces(cards: list, *, SPECS_DIR, _read_yaml) -> str:
             common = set.intersection(*[cites_by_tid.get(t, set()) for t in tids]) if tids else set()
             rendered = []
             for sid in sorted(s for s in common if _SPEC_ID_RE.match(s)):
-                p = next(SPECS_DIR.glob(f"{sid}-*.yaml"), None) or (SPECS_DIR / f"{sid}.yaml")
+                # T-14747: the BASE file, never a SPEC-0120 continuation part (it carries no status);
+                # the first unsorted glob match is the part on a host whose directory lists it first.
+                p = next((q for q in sorted(SPECS_DIR.glob(f"{sid}-*.yaml")) if not state.is_spec_part(q)),
+                         None) or (SPECS_DIR / f"{sid}.yaml")
                 d = (_read_yaml(p) if (p and p.exists()) else None)
                 if not isinstance(d, dict):
                     rendered.append(f"{sid} (missing)")
@@ -2055,7 +2058,7 @@ _VERIFIER_CARD_RE = re.compile(r"\bverif(?:y|ier|iers|ies|ication)\b", re.IGNORE
 _CONNECTED_PATH_RE = re.compile(r"\bconnected path\b|\bone path\b|\bpath through\b", re.IGNORECASE)
 
 
-def _plan_card_set_context(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, _read_yaml) -> str:
+def _plan_card_set_context(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, _read_yaml, _outside_state=None) -> str:
     """A compact, readable rendering of a plan's filed task CARD SET (the cut) for the gate-executing
     fidelity-audit prompt — so the auditor judges the CARDS-vs-plan (coverage / ordering / singular
     activation / probe quality / no reopened settled choice), not just the plan text. Read-only over
@@ -2107,9 +2110,26 @@ def _plan_card_set_context(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, 
                       "cites": list(d.get("cites") or [])})
     if not lines:
         return "(no task cards filed for this plan)"
+    # T-14715 (SPEC-0070 §3) — the same outside-target lines the pre-check prints, as context.
+    outside = _plan_outside_block(slug, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards,
+                                  _read_yaml=_read_yaml, _outside_state=_outside_state)
     return ("\n".join(lines) + "\n\n"
             + _plan_shared_surfaces(cards, SPECS_DIR=SPECS_DIR, _read_yaml=_read_yaml) + "\n\n"
-            + _plan_spec_activation(cards, slug, SPECS_DIR=SPECS_DIR, _read_yaml=_read_yaml))
+            + _plan_spec_activation(cards, slug, SPECS_DIR=SPECS_DIR, _read_yaml=_read_yaml)
+            + (f"\n\n## Requires targets outside the cut (report-only context, SPEC-0070 §3)\n\n{outside}"
+               if outside else ""))
+
+
+def _plan_outside_block(slug: str, *, TASKS_DIR, _plan_cut_cards, _read_yaml, _outside_state) -> str:
+    """T-14715 — the outside-target lines of a plan's cut as a `- ` list ("" when none / no reader), for the
+    fidelity packet and `plan show`. Exception-tolerant: report-only, never breaks its surface."""
+    if _outside_state is None:
+        return ""
+    try:
+        rows = _plan_cut_rows(slug, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml)
+        return "\n".join(f"- {l}" for l in _cut_outside_lines(rows, _outside_state))
+    except Exception:
+        return ""
 
 
 _CUT_CREATES_RE = re.compile(r"^\s*Creates \(declared new\):\s*(\S+)")
@@ -2123,7 +2143,73 @@ _CUT_APPEND_OWNS_RE = re.compile(r"`([^`\s]+)`\s*\(append\)")
 _CUT_SHARED_FILE_HINT_MIN = 3
 
 
-def _cut_set_precheck(rows: list) -> dict:
+# T-14715 (SPEC-0070 §3, X-2466) — the lifecycle rows of the fleet fold that say what a card is doing now.
+_CUT_OUTSIDE_FLEET_TYPES = ("task_paused", "task_resumed", "task_picked", "bg_dispatch_halted",
+                            "task_closed", "task_wont_do")
+
+
+def _cut_outside_state(tid: str, *, TASKS_DIR, _read_yaml, _dispatch_status_events):
+    """T-14715 — THE state reader for a `requires` target outside a plan's cut (one reader, three surfaces:
+    the cut-set pre-check, the decomposition-fidelity packet, `plan show`). None when the card is done or
+    wont-do on main (no line). Else the card status on main plus, when the fleet fold behind
+    `journal query --dispatch-status` (`_dispatch_status_events`: main + every live worktree journal, so an
+    UNLANDED worktree pause is visible) has a lifecycle row for it, the newest one: paused <reason> since,
+    in-progress since, halted since, closed/wont-do not landed. Report-only and fail-open: a fleet read that
+    raises leaves the card status alone."""
+    p = next(TASKS_DIR.glob(f"{tid}-*.yaml"), None) or (TASKS_DIR / f"{tid}.yaml")
+    d = (_read_yaml(p) if (p and p.exists()) else None)
+    if not isinstance(d, dict):
+        return "no card in this repository"
+    status = str(d.get("status") or "?")
+    if status in ("done", "wont-do"):
+        return None
+    state = f"{status} on main"
+    try:
+        # inloop-journal-read: one fleet read per call; callers reach it once per DISTINCT open requires target outside one plan's cut (deduplicated by _cut_outside_lines' cache, not capped; T-14737 measured 138 cuts: max 29 outside targets, 0 still open on main); a per-task_id read keeps the T-14715 seam.
+        evs = [e for e in (_dispatch_status_events(task_id=tid) or [])
+               if isinstance(e, dict) and e.get("type") in _CUT_OUTSIDE_FLEET_TYPES]
+    except Exception:
+        evs = []
+    if evs:
+        e = max(evs, key=lambda x: str(x.get("ts") or ""))
+        typ, ts = e.get("type"), e.get("ts") or "?"
+        data = e.get("data") if isinstance(e.get("data"), dict) else {}
+        if typ == "task_paused":
+            state += f", paused {data.get('reason') or 'unknown'} since {ts}"
+        elif typ in ("task_picked", "task_resumed"):
+            state += f", in-progress since {ts}"
+        elif typ == "bg_dispatch_halted":
+            state += f", halted since {ts}"
+        elif typ == "task_closed":
+            state += f", closed since {ts}, not landed"
+        else:
+            state += f", wont-do since {ts}, not landed"
+    return state
+
+
+def _cut_outside_lines(rows: list, outside_state) -> list:
+    """T-14715 — the ONE line text: «<card> requires <target> (outside the cut): <state>» for every requires
+    target of a cut card that lies outside the cut and is not done/wont-do. Pure over the rows + the reader;
+    no reader -> no lines (the pre-T-14715 behaviour). One read per distinct target."""
+    if outside_state is None:
+        return []
+    docs = {str(r.get("id") or "?"): (r.get("doc") if isinstance(r.get("doc"), dict) else {}) for r in rows}
+    member, cache, out = set(docs), {}, []
+    for t in sorted(docs):
+        v = docs[t].get("requires")
+        reqs = [str(x) for x in v] if isinstance(v, list) else ([str(v)] if isinstance(v, str) and v else [])
+        for r in sorted(set(reqs) - member):
+            if r not in cache:
+                try:
+                    cache[r] = outside_state(r)
+                except Exception:
+                    cache[r] = "state unavailable"
+            if cache[r] is not None:
+                out.append(f"{t} requires {r} (outside the cut): {cache[r]}")
+    return out
+
+
+def _cut_set_precheck(rows: list, outside_state=None) -> dict:
     """T-14626 (SPEC-0070 §3) — the MECHANICAL cut-set pre-check printed before the decomposition-fidelity
     gate. Pure over the cut rows [{id, doc}] (`_plan_cut_rows`). REPORT-ONLY: it never refuses, and the
     gate runs whatever it finds. Order = the transitive closure of `requires` among the cut's own cards (a
@@ -2278,20 +2364,20 @@ def _cut_set_precheck(rows: list) -> dict:
 
     longest = max((_chain(t) for t in ids if t not in cyc), key=lambda c: (len(c), c), default=[])
     return {"defects": defects, "overlaps": overlaps, "hints": hints, "append_only": append_only,
-            "longest_chain": longest}
+            "longest_chain": longest, "outside": _cut_outside_lines(rows, outside_state)}
 
 
-def _print_cut_set_precheck(rows: list) -> dict:
+def _print_cut_set_precheck(rows: list, outside_state=None) -> dict:
     """Compute + print the cut-set pre-check (report-only, exception-tolerant: a broken pre-check prints
     `unavailable` and the gate runs as before)."""
     try:
-        pc = _cut_set_precheck(rows)
+        pc = _cut_set_precheck(rows, outside_state)
     except Exception as exc:   # report-only: a render helper never crashes the mandatory gate
         print(f"cut-set pre-check (report-only, SPEC-0070 §3): unavailable ({type(exc).__name__})")
         return {"error": type(exc).__name__}
     chain = pc["longest_chain"]
     chain_line = f"longest requires chain: {len(chain)}" + (f" ({' -> '.join(chain)})" if chain else "")
-    if not (pc["defects"] or pc["overlaps"] or pc["hints"] or pc["append_only"]):
+    if not (pc["defects"] or pc["overlaps"] or pc["hints"] or pc["append_only"] or pc["outside"]):
         print(f"cut-set pre-check (report-only, SPEC-0070 §3): no defect, no overlap; {chain_line}")
     else:
         print("cut-set pre-check (report-only, SPEC-0070 §3 — the gate runs regardless):")
@@ -2303,12 +2389,14 @@ def _print_cut_set_precheck(rows: list) -> dict:
             print(f"  - MODULARITY HINT: {line}")
         if pc["append_only"]:
             print(f"  counted as append-only (non-serialising): {', '.join(pc['append_only'])}")
+        for line in pc["outside"]:   # T-14715 — a requires target outside the cut, not done
+            print(f"  - OUTSIDE: {line}")
         print(f"  {chain_line}")
     return pc
 
 
 def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
-                                         *, owner_reset: bool = False, on_decisions: bool = False, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, TASKS_DIR, _die, _plan_card_set_context, _plan_card_set_fingerprint, _plan_content_hash, _plan_cut_cards, _read_yaml, _run_plan_gate_audit) -> None:
+                                         *, owner_reset: bool = False, on_decisions: bool = False, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, TASKS_DIR, _die, _plan_card_set_context, _plan_card_set_fingerprint, _plan_content_hash, _plan_cut_cards, _read_yaml, _run_plan_gate_audit, _outside_state=None) -> None:
     """The `decomposition → executing` entry gate (SPEC-0070 §3/§4 — the NEW mandatory gate added by
     T-0649): entry to `executing` REQUIRES a FRESH GREEN/YELLOW external **decomposition-fidelity**
     verdict over the task CARD SET whose recorded `card_set_fingerprint` MATCHES the current cut.
@@ -2324,7 +2412,7 @@ def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
     # T-14626 (SPEC-0070 §3): the mechanical cut-set pre-check prints BEFORE anything else of the gate —
     # report-only; its result is returned so `cmd_plan_stage` records it on the `plan_stage_entered` row.
     precheck = _print_cut_set_precheck(_plan_cut_rows(slug, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards,
-                                                      _read_yaml=_read_yaml))
+                                                      _read_yaml=_read_yaml), outside_state=_outside_state)
     # T-14457 (SPEC-1058 §3): an opted-in plan's list checks run FIRST — a list fault refuses even beside
     # a fresh fidelity verdict, and costs no audit. A plan without `prototype_ref` takes no branch here.
     opted, rows = _plan_is_prototype_opted_in(fm), []
@@ -2654,10 +2742,14 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         ti = PLAN_STAGE_SEQUENCE.index(name)
         if ti != ci + 1:
             nxt = PLAN_STAGE_SEQUENCE[ci + 1] if 0 <= ci < len(PLAN_STAGE_SEQUENCE) - 1 else "(none)"
+            # T-14740 — an `executing` plan re-entered at `executing` names its one entry, `--recut`.
+            _recut_hint = (f" A plan already `executing` re-runs its decomposition-fidelity gate with "
+                           f"`yitc-v2 plan stage executing {slug} --recut [--on-decisions]` (SPEC-0070 §4)."
+                           if cur == name == "executing" else "")
             _die(f"{slug}: illegal transition {cur!r} → {name!r} — `plan stage` advances ONE step along "
                  f"{' → '.join(PLAN_STAGE_SEQUENCE)} (the verb gates the prior stage's completion; "
                  f"`accepted` additionally accepts the `specs → accepted` skip for non-trial-eligible "
-                 f"plans — SPEC-0035 rules 1-2). The forward step from {cur!r} is {nxt!r}.")
+                 f"plans — SPEC-0035 rules 1-2). The forward step from {cur!r} is {nxt!r}.{_recut_hint}")
     else:   # a terminal name not in the nonlinear set and not the linear `realized` successor path
         _die(f"{slug}: cannot enter {name!r} from {cur!r}.")
     # T-14672 (SPEC-0034 §Project-declared plan check) — the project's declared check, phase = the stage
@@ -3262,6 +3354,97 @@ def _plan_prototype_registry(body: str) -> "tuple[str | None, list, str | None]"
             if it["disposition"] != "carry":
                 return owner_read, [], f"{where}: `owner_risk` marks a `carry` item only"
     return owner_read, items, None
+
+
+def _plan_registry_owner_rows(body: str) -> "dict | None":
+    """T-14727 (SPEC-1058 §2) — {item id: owner_row text or None} of every mapping item with an id in the
+    body's registry list; None when the body has no registry section, fence or parseable list. LENIENT on
+    purpose: the strict parse stays `_plan_prototype_registry`'s, whose gates name a malformed list."""
+    sec = _plan_prototype_registry_section(body)
+    if sec is None:
+        return None
+    lines = sec.splitlines()
+    start = next((i for i, ln in enumerate(lines) if _PROTO_FENCE_RE.match(ln.strip())), None)
+    end = (next((j for j in range(start + 1, len(lines)) if lines[j].strip() == "```"), None)
+           if start is not None else None)
+    if end is None:
+        return None
+    try:
+        items = state.load_str("\n".join(lines[start + 1:end]))
+    except Exception:   # noqa: BLE001 — an unparseable list reads as no registry here
+        return None
+    if not isinstance(items, list):
+        return None
+    out: dict = {}
+    for it in items:
+        if isinstance(it, dict) and str(it.get("id") or "").strip():
+            orow = it.get("owner_row")
+            out[str(it["id"]).strip()] = str(orow).strip() if orow is not None and str(orow).strip() else None
+    return out
+
+
+_OWNER_ROW_LOC_RE = re.compile(r"events\.jsonl#ts=[0-9A-Za-z:.+-]+")
+
+
+def plan_owner_rows_lost(earlier_body: str, body: str) -> list:
+    """T-14727 (SPEC-1058 §2) — an item's owner rows are ADD-ONLY: every row locator an item's `owner_row`
+    held in `earlier_body` must still stand in that item's `owner_row` in `body` (a row with no
+    `events.jsonl#ts=` locator counts as one row, its whole text). Returns one line per lost row, naming
+    the item and the row; [] when nothing was lost or the earlier body has no registry. An item that had
+    no owner_row earlier is not compared."""
+    before = _plan_registry_owner_rows(earlier_body) or {}
+    now = _plan_registry_owner_rows(body) or {}
+    lost = []
+    for iid, row in before.items():
+        if not row:
+            continue
+        cur = now.get(iid)
+        tokens = _OWNER_ROW_LOC_RE.findall(row)
+        cur_tokens = set(_OWNER_ROW_LOC_RE.findall(cur or ""))
+        for loc in (tokens or [row]):
+            if iid not in now:
+                lost.append(f"{iid}: item removed with its owner row `{loc}`")
+            elif not cur:
+                lost.append(f"{iid}: owner row `{loc}` removed")
+            elif (loc not in cur_tokens) if tokens else (loc not in cur):
+                # a locator is kept only as the SAME whole token (never as a prefix of a longer one); a
+                # row with no locator is kept while its text still stands in the current row
+                lost.append(f"{iid}: owner row `{loc}` replaced (now `{cur}`)")
+    return lost
+
+
+def plan_owner_rows_refusal(slug: str, record_ref: str, lost: list) -> str:
+    """T-14727 — the one refusal text of the add-only rule, shared by `plan check` and the change check."""
+    return (f"{slug}: owner rows are add-only (SPEC-1058 §2) — the plan body replaces or removes owner rows "
+            f"the last recorded check ({record_ref}) judged:\n  " + "\n  ".join(lost) +
+            "\nRestore each row in its item's `owner_row`; a later row is ADDED beside the earlier one, never "
+            "in its place. Nothing was sent to the auditor.")
+
+
+def _plan_owner_rows_check(slug: str, path, body: str, *, DECISIONS_DIR, _read_yaml, _plan_content_hash,
+                           _die) -> None:
+    """T-14727 (SPEC-1058 §2) — `plan check`'s add-only check, BEFORE the auditor. The earlier body is the
+    one the last recorded `plan check` judged: decisions/<slug>-audit.yaml's `content_hash`, read back from
+    git history (the SPEC-1061 anchor read). No record or no hash: nothing to compare. A recorded body the
+    history does not hold is NOT compared (owner option B, events.jsonl#ts=2026-11-19T22:19:28Z): one
+    report-only line says so and the check goes on."""
+    rec_path = Path(DECISIONS_DIR) / f"{slug}-audit.yaml"
+    if not rec_path.exists():
+        return
+    rec = _read_yaml(rec_path)
+    want = rec.get("content_hash") if isinstance(rec, dict) else None
+    if not want or want == _plan_content_hash(body):
+        return
+    ref = f"decisions/{rec_path.name}"
+    hit = _git_text_at_digest(Path(path).parent, Path(path).name,
+                              lambda raw: _plan_content_hash(state.split_frontmatter_text(raw)[1]), want)
+    if hit is None:
+        print(f"{slug}: the body the last recorded check ({ref}) judged is not in this repository's history, "
+              f"so the owner-row add-only comparison (SPEC-1058 §2) could not run for it [report-only]")
+        return
+    lost = plan_owner_rows_lost(state.split_frontmatter_text(hit[1])[1], body)
+    if lost:
+        _die(f"{plan_owner_rows_refusal(slug, ref, lost)} Then re-run `yitc-v2 plan check {slug}`.")
 
 
 def _plan_prototype_owner_risk_rows(items: list, events_path) -> dict:
@@ -4710,7 +4893,7 @@ def _plan_gate_template_text(template: str, *, _find_spec_path):
         return None
 
 
-def _plan_gate_decision_route(slug, gate_id, template, keys=None) -> str:
+def _plan_gate_decision_route(slug, gate_id, template, keys=None, cur=None) -> str:
     """The SPEC-0204 plan-gate decision route, spelled ONCE (T-12335).
 
     THREE sites print it — the retired `--owner-reset` shim, the ordinary ceiling refusal, and the
@@ -4724,11 +4907,16 @@ def _plan_gate_decision_route(slug, gate_id, template, keys=None) -> str:
     The `plan stage` target is read off a `gate-<status>` template name (the gate guards the move
     INTO `<status>`); any other template keeps `<NEXT>`.
 
+    T-14740 (<project> X-2513) — `cur` is the plan's CURRENT status. A `gate-executing` ceiling on a
+    plan already `executing` is the re-cut gate (SPEC-0070 §4), whose only entry is `--recut`, so step 2
+    carries it there; without `cur` (or below `executing`) the line is unchanged.
+
     Pure f(args); never raises."""
     gate = gate_id or "<gate>"
     tmpl = str(template or "")
     nxt = tmpl[len("gate-"):] if tmpl.startswith("gate-") and len(tmpl) > len("gate-") else "<NEXT>"
     tail = "--disposition fix|accept|defer --reason … --directive events.jsonl#ts=<ISO>"
+    recut = " --recut" if (nxt == "executing" and str(cur or "") == "executing") else ""
     if keys:
         step1 = (f"  1) one decision per open finding ({len(keys)}):\n"
                  + "".join(f"     yitc-v2 audit decide --plan {slug} --gate {gate} --finding {k} "
@@ -4739,7 +4927,7 @@ def _plan_gate_decision_route(slug, gate_id, template, keys=None) -> str:
                  f"names the undecided ones)\n")
     return ("Run, verbatim:\n"
             + step1
-            + f"  2) yitc-v2 plan stage {nxt} {slug} --on-decisions\n"
+            + f"  2) yitc-v2 plan stage {nxt} {slug}{recut} --on-decisions\n"
             f"NOTE the two identifiers are DIFFERENT and both are real: `{template}` is the "
             f"audit-record/template name, `{gate}` is the value `--gate` takes (SPEC-1034 gate "
             f"identity). A plan-gate `fix` is a PLAN-BODY edit whose `--evidence` is the plan's "
@@ -4906,7 +5094,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         # the route learned before anything is paid for (the sibling shims' placement rule).
         if owner_reset:
             _die(audit_lib.RETIRED_AUDIT_SURFACES["plan-gate-owner-reset"] + "\n\n"
-                 + _plan_gate_decision_route(slug, gate_id, template))
+                 + _plan_gate_decision_route(slug, gate_id, template, cur=fm.get("status")))
         trend_grant = (not on_decisions and prior_passes == AUDIT_PASS_CEILING
                        and is_trend_convergence_grant(prior))
         # ── SPEC-0204 rule 6, PLAN-GATE arm (T-12335) — THE DISPATCHED-WORKER AUTO-CONSULT IS GONE ──
@@ -5100,7 +5288,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                     "`--on-decisions`.\n" if _no_residual else
                     "The residual fingerprints could not be resolved from this gate's ceiling row or "
                     "saved record — run the route below and it will name what is undecided.\n")
-                 + _plan_gate_decision_route(slug, gate_id, template, keys=_fps)
+                 + _plan_gate_decision_route(slug, gate_id, template, keys=_fps, cur=fm.get("status"))
                  + (("\nA DISPATCHED WORKER STOPS HERE too (SPEC-0103 §3): the halt row carries no "
                      "fingerprint because this row names no residual; the Controller re-runs this "
                      "command with `--on-decisions`." if _no_residual else
@@ -5439,13 +5627,13 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
              f"the transition is held (status unchanged). "
              + ((_plan_gate_red_note(slug, gate_id, template, audit, audit_path, _folded_events,
                                      AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT,
-                                     DECISIONS_DIR=DECISIONS_DIR)
+                                     DECISIONS_DIR=DECISIONS_DIR, cur=fm.get("status"))
                  if _od is None else
                  f"This WAS the SPEC-0204 rule-3 pass on {_od['ceiling_ref']}; the plan-gate budget is "
                  f"{audit_lib.PLAN_GATE_BUDGET} (rule 9(f), T-12505), so this RED is the gate's NEW "
                  f"ceiling row, not a terminal. The next round runs only once EVERY residual of it "
                  f"carries a fresh decision:\n"
-                 + _plan_gate_decision_route(slug, gate_id, template)
+                 + _plan_gate_decision_route(slug, gate_id, template, cur=fm.get("status"))
                  + f"\nOr end the plan by its own FSM terminal "
                  f"(`plan stage rejected|cancelled {slug} --reason …`, or the `partial` split).")
                 if verdict == "RED"
@@ -5498,7 +5686,7 @@ def _plan_gate_residual_keys(slug, gate_id, template, stage_rows, record, audit_
 
 
 def _plan_gate_red_note(slug, gate_id, template, audit, audit_path, folded_events, *,
-                        AUDIT_PASS_CEILING, REPO_ROOT, DECISIONS_DIR) -> str:
+                        AUDIT_PASS_CEILING, REPO_ROOT, DECISIONS_DIR, cur=None) -> str:
     """What a blocking plain-run plan-gate RED tells its reader to do next (T-14409, X-2157).
 
     Below the TASK pass count the reader absorbs and re-runs (`PLAN_GATE_RED_RETRY_NOTE`, unchanged).
@@ -5525,7 +5713,7 @@ def _plan_gate_red_note(slug, gate_id, template, audit, audit_path, folded_event
             f"Lesson 11). Next: record one decision per open finding, then run `--on-decisions`.\n"
             + ("" if keys else "The open finding keys could not be read here — the `--on-decisions` "
                "run names the undecided ones.\n")
-            + _plan_gate_decision_route(slug, gate_id, template, keys=keys))
+            + _plan_gate_decision_route(slug, gate_id, template, keys=keys, cur=cur))
 
 
 def _build_draft_check_prompt(slug: str, fm: dict, body: str, large: bool,
@@ -5728,6 +5916,10 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     # and the auditor: the draft check, the accept gate, the trial gate and `--round` alike.
     if _run_plan_checks is not None:
         _run_plan_checks(path, "plan-check", slug, verb=f"plan check {slug}" + (" --round" if rnd else ""))
+    # T-14727 (SPEC-1058 §2) — owner rows are add-only against the body the last recorded check judged;
+    # refused here, before the provider, the template and the auditor (a round included).
+    _plan_owner_rows_check(slug, path, body, DECISIONS_DIR=DECISIONS_DIR, _read_yaml=_read_yaml,
+                           _plan_content_hash=_plan_content_hash, _die=_die)
     n_lines = len([ln for ln in body.splitlines() if ln.strip()])
     large = _plan_is_large(body)   # the SHARED big-plan predicate (T-9350 — agrees with the finalize pre-pass)
     # T-0386 — `plan check` is a plan-lifecycle-transition audit, so the model posture is FULL,
@@ -6188,6 +6380,32 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
             # T-14628 — after a RED ROUND the cue points at SPEC-0083's P4 round template instead.
             _cue = _plan_red_round_cue if round_n is not None else _plan_red_anchor_cue
             print(_cue(is_consumer=bool(_is_consumer_build and _is_consumer_build())), file=sys.stderr)
+    # T-14707 (SPEC-1061 §1) — the round hint after a RED plain check: it joins the cue above, once,
+    # and never on a run that judged nothing (the two branches above) or on a round.
+    if (round_n is None and not timeout_abort and not _retained
+            and _plan_round_hint_due(_prior_rec, verdict,
+                                     proto_read["tip"] if proto_read is not None else None)):
+        print(_plan_round_hint_cue(is_consumer=bool(_is_consumer_build and _is_consumer_build())),
+              file=sys.stderr)
+
+
+# T-14707 (SPEC-1061 §1) — after a RED plain check, the plan-scope findings converge in rounds; a plain
+# check is for admission. Pure: `prior` is the plain record read before this check overwrote it.
+def _plan_round_hint_due(prior, verdict: str, proto_tip) -> bool:
+    prior = prior if isinstance(prior, dict) else {}
+    if not (prior.get("verdict") == "RED" or verdict == "RED"):
+        return False
+    # A new prototype commit forces the plain check (SPEC-1061 §2): no hint for that check. An opted
+    # plan whose prior record carries no prototype commit counts as moved.
+    if proto_tip is not None and prior and str(prior.get("prototype_commit") or "") != str(proto_tip):
+        return False
+    return True
+
+
+def _plan_round_hint_cue(*, is_consumer: bool = False) -> str:
+    return ("# next step after a RED plain check: converge the plan-scope findings with `yitc-v2 plan check "
+            "<slug> --round`; a plain check is for admission — SPEC-0083 block «P4 round» "
+            f"(`{graph_lib.spec_query_hint('SPEC-0083', is_consumer=is_consumer, cli='yitc-v2')}`).")
 
 
 # T-14627 (SPEC-1061) — the next step `plan check` names after a RED anchor: the discipline and its
@@ -6530,6 +6748,10 @@ def plan_change_check_packet(slug: str, *, DECISIONS_DIR, PLANS_DIR, SPECS_DIR, 
                                   a_parts.get("body"))
         if hit is None:
             _missing(f"the plan body ({rel_plan})")
+        # T-14727 (SPEC-1058 §2) — owner rows are add-only; the anchor body read above is the earlier one.
+        lost = plan_owner_rows_lost(state.split_frontmatter_text(hit[1])[1], body)
+        if lost:
+            _die(f"{plan_owner_rows_refusal(slug, anchor_ref, lost)} Then re-run `yitc-v2 audit adhoc --plan {slug}`.")
         changed.append({"input": "plan body", "path": rel_plan,
                         "diff": _diff(state.split_frontmatter_text(hit[1])[1], body, rel_plan)})
     a_own, c_own = a_parts.get("own_specs") or {}, cur_parts.get("own_specs") or {}
@@ -6841,7 +7063,7 @@ def _plan_body_title(body: str) -> str:
     return "(no title)"
 
 
-def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_SEQUENCE, TASKS_DIR, _load_draft, _plan_body_title, _plan_next_stage, _plan_stage_bundle_specs, _plan_cut_cards, _read_yaml, _is_consumer_build=None, _owner_words=None, DECISIONS_DIR=None, _plan_card_set_fingerprint=None) -> None:
+def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_SEQUENCE, TASKS_DIR, _load_draft, _plan_body_title, _plan_next_stage, _plan_stage_bundle_specs, _plan_cut_cards, _read_yaml, _is_consumer_build=None, _owner_words=None, DECISIONS_DIR=None, _plan_card_set_fingerprint=None, _outside_state=None) -> None:
     """`plan show <slug>` (T-0682) — the read-only PLAN re-orientation surface; the plan analog of the
     task resume-contract print (`_print_task_resume` / SPEC-0027). A pure VIEW re-derived from the plan
     artifact + PLAN_STAGE_SEQUENCE + the plan-stage-entry bindings (CHARTER §P1 F2 — a view, not a new
@@ -6936,6 +7158,13 @@ def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_
             print(f"  fidelity gate: STALE — the cut changed since the decomposition-fidelity verdict "
                   f"(recorded {_rec}, live {_live}; SPEC-0070 §4).")
             print(f"    re-run: `yitc-v2 plan stage executing {slug} --recut`")
+    # T-14715 (SPEC-0070 §3) — beside the fidelity line: a requires target outside the cut, not done.
+    if status in ("decomposition", "executing"):
+        _outside = _plan_outside_block(slug, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards,
+                                       _read_yaml=_read_yaml, _outside_state=_outside_state)
+        if _outside:
+            print("  requires targets outside the cut (report-only, SPEC-0070 §3):")
+            print("\n".join(f"  {l}" for l in _outside.splitlines()))
     # At decomposition, list the cut cards — the CUT MEMBER-SET (`decomposed_from`), i.e. the exact set
     # `_require_plan_decomposition_fidelity` judges, NOT the broad `_plan_tasks` corpus (T-10908).
     if status == "decomposition":
